@@ -118,7 +118,8 @@
     gMarkers = svg.append("g");
     if (!state.topo || !window.topojson) return;
     var features = topojson.feature(state.topo, state.topo.objects.countries).features;
-    features.forEach(function (f) { f.iso = state.numToIso[String(parseInt(f.id, 10))] || null; });
+    var byName = {"Kosovo": "XKX"};  /* Natural Earth gives these no ISO numeric id */
+    features.forEach(function (f) { f.iso = state.numToIso[String(parseInt(f.id, 10))] || byName[(f.properties && f.properties.name) || ""] || null; });
     gCountries.selectAll("path").data(features).enter().append("path")
       .attr("class", "country").attr("d", path)
       .on("mousemove", function (ev, f) { showTip(ev, f); })
