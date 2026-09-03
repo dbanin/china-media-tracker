@@ -78,8 +78,8 @@
     else if (!m.b_counts_settled) {
       var k = m.kappa;
       kn.innerHTML = k && k.bc !== null && k.bc !== undefined
-        ? "Category B counts are provisional. Cohen's kappa on the B versus C distinction is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold. Metrics that include B are shown but are not settled."
-        : "Category B counts are provisional. No agreement study has been completed yet, so machine B labels have not been checked against hand coding. Metrics that include B are shown but are not settled.";
+        ? "Unverified relay counts are provisional. Cohen's kappa on the unverified relay versus independent journalism distinction is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold. Metrics that include unverified relay are shown but are not settled."
+        : "Unverified relay counts are provisional. No agreement study has been completed yet, so the machine labels have not been checked against hand coding. Metrics that include unverified relay are shown but are not settled.";
       kn.classList.remove("hidden");
     } else kn.classList.add("hidden");
     var dn = el("data-notice");
@@ -201,7 +201,7 @@
       else if (p.cls === "inactive") html += '<div class="muted">' + e.outlets_total + ' outlets registered, none active.</div>';
       else {
         html += '<div>' + esc(metricLabel()) + ': <strong>' + C.formatValue(mv.value, C.METRICS[state.metric].format) + '</strong></div>';
-        html += '<div class="muted">A ' + mv.a + (bProvisional() ? ', B ' + mv.b + ' (provisional)' : ', B ' + mv.b) + ', C ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
+        html += '<div class="muted">State origin ' + mv.a + ', unverified relay ' + mv.b + (bProvisional() ? ' (provisional)' : '') + ', independent ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
         if (p.cls === "sparse") html += '<div class="muted">Fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items in this window, so a share is not shown. Switch to a count metric to see them.</div>';
@@ -245,7 +245,7 @@
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
       body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>Category A</th><td class="num">' + t.A + '</td></tr><tr><th>Category B' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</th><td class="num">' + t.B + '</td></tr><tr><th>Category C</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Awaiting model classification</th><td class="num">' + t.pending + '</td></tr><tr><th>Paywalled</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</th><td class="num">' + t.B + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Awaiting model classification</th><td class="num">' + t.pending + '</td></tr><tr><th>Paywalled</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
       return;
     }
     var iso = state.selected;
@@ -262,14 +262,14 @@
     var k = agg.countries[iso] || C.emptyCounts();
     var rv = agg.reviewed[iso] || {A: 0, B: 0, C: 0, N: 0};
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
-      '<tr><td>Category A</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
-      '<tr><td>Category B' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</td><td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td></tr>' +
-      '<tr><td>Category C</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
+      '<tr><td>State origin</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
+      '<tr><td>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</td><td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td></tr>' +
+      '<tr><td>Independent journalism</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
       '<tr><td>Not relevant</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
-      '<tr><td class="muted">Underlying items (A plus B)</td><td class="num">' + k.uniqAB + '</td><td></td><td></td><td></td></tr>' +
+      '<tr><td class="muted">Underlying items (state origin plus unverified relay)</td><td class="num">' + k.uniqAB + '</td><td></td><td></td><td></td></tr>' +
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
       '<tr><td class="muted">Awaiting model</td><td class="num">' + k.pending + '</td><td></td><td></td><td></td></tr></table>';
-    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">A</th><th class="num">B</th><th class="num">C</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
+    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
       var okN = o.feeds.filter(function (f) { return f.ok; }).length;
       var feedCls = !o.active ? "muted" : (okN === o.feeds.length ? "ok" : (okN === 0 ? "fail" : "warn"));
@@ -304,21 +304,21 @@
     svgm.append("path").attr("class", "b").attr("d", lineB(pts));
     svgm.append("text").attr("x", 4).attr("y", h - 4).text(pts[0].date.toISOString().slice(0, 10));
     svgm.append("text").attr("x", w - 4).attr("y", h - 4).attr("text-anchor", "end").text(pts[pts.length - 1].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid A, dashed B, max " + y.domain()[1] + " per day");
+    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, dashed unverified relay, max " + y.domain()[1] + " per day");
   }
 
   function loadArticles(iso) {
     var target = el("panel-articles");
     var render = function (arts) {
       if (!target) return;
-      if (!arts || !arts.length) { target.innerHTML = '<p class="muted">No classified A, B or C articles yet.</p>'; return; }
+      if (!arts || !arts.length) { target.innerHTML = '<p class="muted">No classified China coverage yet.</p>'; return; }
       var outletName = {};
       state.outlets.forEach(function (o) { outletName[o.id] = o.name; });
       target.innerHTML = arts.slice(0, 40).map(function (a) {
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
         return '<div class="article"><a class="a-title" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.title || a.url) + '</a>' +
-          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(cat) + (a.human_category && a.human_category !== a.category ? ' (machine ' + esc(a.category) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
+          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(C.nameOf(cat)) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
           (a.evidence_quote ? '<p class="a-quote">' + esc(a.evidence_quote) + '</p>' : '') +
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + esc(a.signatures.join(", ")) + '</div>' : '') + '</div>';
       }).join("");
@@ -396,7 +396,7 @@
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
-      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", B versus C " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured; B counts are provisional"],
+      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured; unverified relay counts are provisional"],
       ["Human review coverage", pct(m.review_coverage) + " of classified articles (" + m.articles_reviewed + ")"],
       ["Ruleset version", m.ruleset_version],
       ["Classifier model", m.llm_model + ", " + m.llm_calls_total + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", ceiling hit on " + m.llm_ceiling_days.join(", ") : "")],
@@ -418,11 +418,11 @@
   function exportView() {
     var agg = currentAgg();
     var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names).map(function (r) {
-      r.metric = state.metric; r.window = windowLabel(); r.mode = state.mode; r.b_provisional = bProvisional();
+      r.metric = state.metric; r.window = windowLabel(); r.mode = state.mode; r.relay_provisional = bProvisional();
       r.citation = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "a", "b", "b_provisional", "c", "china_total", "outlets_active", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "relay_provisional", "independent", "china_total", "outlets_active", "warnings", "citation"]));
   }
   function exportDaily() {
     var rows = [];
@@ -432,12 +432,12 @@
       if (!e) return;
       Object.keys(e.countries).forEach(function (iso) {
         var c = e.countries[iso], r = (e.reviewed || {})[iso] || {};
-        rows.push({date: d, iso: iso, name: state.names[iso] || iso, A: c.A, B: c.B, C: c.C, not_relevant: c.N, A_rules: c.Ar, A_model: c.Al, B_rules: c.Br, B_model: c.Bl,
-                   reviewed: c.rev, human_A: r.A || 0, human_B: r.B || 0, human_C: r.C || 0, unique_items_AB: c.uniqAB, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
+        rows.push({date: d, iso: iso, name: state.names[iso] || iso, state_origin: c.A, unverified_relay: c.B, independent: c.C, not_relevant: c.N, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: c.Br, unverified_relay_model: c.Bl,
+                   reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: r.B || 0, human_independent: r.C || 0, unique_items_origin_relay: c.uniqAB, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
                    paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending, llm_ceiling_hit: e.llm_ceiling_hit, citation: cite});
       });
     });
-    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "A", "B", "C", "not_relevant", "A_rules", "A_model", "B_rules", "B_model", "reviewed", "human_A", "human_B", "human_C", "unique_items_AB", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "llm_ceiling_hit", "citation"]));
+    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "state_origin", "unverified_relay", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "unique_items_origin_relay", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "llm_ceiling_hit", "citation"]));
   }
 
   /* -------------------------------------------------------------- controls */

@@ -8,6 +8,12 @@ It generalizes the coding framework of a completed study of 484 articles across
 Italy, Canada and Australia (Stanford, with Professor Larry Diamond) and runs it
 continuously.
 
+Every article is placed in one of four categories: state origin, unverified
+relay, independent journalism, or not relevant. The interface and the
+methodology file use those names. Inside the database and the data files the
+same four labels are stored as the codes A, B, C and not_relevant, which is
+how the original study's codebook numbered them.
+
 Read METHODOLOGY.md for what the system does and what its numbers mean. That
 file is generated from live values and is the authoritative description.
 
@@ -50,14 +56,16 @@ file is generated from live values and is the authoritative description.
    terminal review tool; human labels go to a separate table.
    pipeline/agreement.py draws a stratified sample for hand coding and
    computes Cohen's kappa, which the interface surfaces.
-7. Registry expansion to global coverage. About 3,400 candidate feed URLs
-   were probed and only feeds that returned items were kept: 1,361 active
-   outlets across 178 countries in 60 languages, 303 outlets recorded as
-   blocking the identified crawler, 10 Chinese-language outlets recorded as
-   excluded, and 72 countries or territories in sources/gaps.yaml with a
-   stated reason (mostly small territories never searched, plus China
-   itself, North Korea and Eritrea). pipeline/gate_audit.py samples gated-out
-   items so the gate's false negative rate can be measured by hand.
+7. Registry expansion to global coverage. About 4,000 candidate feed URLs
+   were probed and only feeds that returned items were kept: 1,469 active
+   outlets across 233 countries and territories in more than 60 languages,
+   about 300 outlets recorded as blocking the identified crawler, 10
+   Chinese-language outlets recorded as excluded, and 17 entries in
+   sources/gaps.yaml with a stated reason: uninhabited territories, a few
+   microstates and islands whose only outlets expose no feed, Western Sahara,
+   and China itself, which is the origin of the content being tracked and is
+   deliberately not monitored. pipeline/gate_audit.py samples gated-out items
+   so the gate's false negative rate can be measured by hand.
 
 ## Running locally
 

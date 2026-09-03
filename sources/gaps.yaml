@@ -1,369 +1,162 @@
 # Countries where no working feed could be found. Read by the front end so
 # absence of data is never displayed as absence of content.
-- country: ABW
-  name: Aruba
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: AIA
-  name: Anguilla
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: ALA
-  name: Åland Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: AND
-  name: Andorra
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: ASM
-  name: American Samoa
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
 - country: ATA
   name: Antarctica
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Antarctica has research stations and no news outlet. No candidate feed returned items to the identified crawler on 2026-09-02; 3 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: ATF
-  name: French Southern Territories
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: ATG
-  name: Antigua and Barbuda
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: BES
-  name: Bonaire, Sint Eustatius and Saba
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: BLM
-  name: Saint Barthélemy
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: BLZ
-  name: Belize
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: BMU
-  name: Bermuda
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://antarcticsun.usap.gov/feed
+  - https://antarcticsun.usap.gov/rss
+  - https://www.comnap.aq/feed
 - country: BVT
   name: Bouvet Island
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Bouvet Island is uninhabited. No candidate feed returned items to the identified crawler on 2026-09-02; 1 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://www.npolar.no/en/feed
 - country: CCK
   name: Cocos (Keeling) Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: The Cocos (Keeling) Islands have about six hundred residents and no news outlet with a feed. No candidate feed returned items to the identified crawler on 2026-09-02; 2 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://cocosislands.com/feed
+  - https://www.shire.cc/feed
 - country: CHN
   name: China
   reason: China is the origin of the content this instrument tracks and is deliberately not monitored. Chinese outlets appear as sources, never as a monitored country.
   checked: '2026-09-02'
   candidates_tried: []
-- country: COK
-  name: Cook Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: CUW
-  name: Curaçao
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
 - country: CXR
   name: Christmas Island
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: CYM
-  name: Cayman Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: DMA
-  name: Dominica
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: ERI
-  name: Eritrea
-  reason: No candidate feed returned items to the identified crawler on 2026-09-02; 3 feed URLs tried.
+  reason: Christmas Island has no news outlet with a feed; Australian national outlets cover it. No candidate feed returned items to the identified crawler on 2026-09-02; 2 feed URLs tried.
   checked: '2026-09-02'
   candidates_tried:
-  - https://shabait.com/category/news/feed/
-  - https://shabait.com/feed/
-  - https://shabait.com/rss
+  - https://www.shire.gov.cx/feed
+  - https://www.theislander.cx/feed/
 - country: ESH
   name: Western Sahara
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: FLK
-  name: Falkland Islands (Malvinas)
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: FRO
-  name: Faroe Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: FSM
-  name: Micronesia, Federated States of
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GGY
-  name: Guernsey
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GIB
-  name: Gibraltar
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GLP
-  name: Guadeloupe
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GRD
-  name: Grenada
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GRL
-  name: Greenland
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GUF
-  name: French Guiana
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: GUM
-  name: Guam
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: HMD
-  name: Heard Island and McDonald Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: IMN
-  name: Isle of Man
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: IOT
-  name: British Indian Ocean Territory
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: JEY
-  name: Jersey
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: KIR
-  name: Kiribati
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: KNA
-  name: Saint Kitts and Nevis
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: LCA
-  name: Saint Lucia
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: LIE
-  name: Liechtenstein
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MAF
-  name: Saint Martin (French part)
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MCO
-  name: Monaco
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MHL
-  name: Marshall Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MNP
-  name: Northern Mariana Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MSR
-  name: Montserrat
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MTQ
-  name: Martinique
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: MYT
-  name: Mayotte
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: NCL
-  name: New Caledonia
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: NFK
-  name: Norfolk Island
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: NIU
-  name: Niue
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: NRU
-  name: Nauru
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: PCN
-  name: Pitcairn
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: PLW
-  name: Palau
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: PRI
-  name: Puerto Rico
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: PRK
-  name: Korea, Democratic People's Republic of
-  reason: No candidate feed returned items to the identified crawler on 2026-09-02; 4 feed URLs tried.
+  reason: Sahara Press Service feeds did not respond; solidarity blogs abroad were not counted as Western Saharan press. No candidate feed returned items to the identified crawler on 2026-09-02; 13 feed
+    URLs tried.
   checked: '2026-09-02'
   candidates_tried:
-  - https://kcna.kp/en/rss
-  - https://kcnawatch.org/feed/
-  - https://rodong.rep.kp/rss
-  - https://uriminzokkiri.com/rss
-- country: PYF
-  name: French Polynesia
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  - https://futurosahara.net/feed/
+  - https://saharalibre.es/feed/
+  - https://saharaoccidental.es/feed/
+  - https://saharatoday.net/feed/
+  - https://www.ecsaharaui.com/feeds/posts/default
+  - https://www.ecsaharaui.com/feeds/posts/default?alt=rss
+  - https://www.spsrasd.info/en/rss
+  - https://www.spsrasd.info/es/rss
+  - https://www.spsrasd.info/es/rss.xml
+  - https://www.spsrasd.info/news/en/rss
+- country: HMD
+  name: Heard Island and McDonald Islands
+  reason: Heard Island and McDonald Islands are uninhabited. No candidate feed returned items to the identified crawler on 2026-09-02; 1 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: REU
-  name: Réunion
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  candidates_tried:
+  - https://heardisland.antarctica.gov.au/feed
+- country: KIR
+  name: Kiribati
+  reason: Kiribati's outlets expose no feed; regional coverage comes through RNZ Pacific, registered under New Zealand. No candidate feed returned items to the identified crawler on 2026-09-02; 8 feed URLs
+    tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: SGS
-  name: South Georgia and the South Sandwich Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  candidates_tried:
+  - https://kiribatiindependent.com/feed/
+  - https://kiribatiupdates.com.ki/feed/
+  - https://uekera.com.ki/feed/
+  - https://www.kiribati.gov.ki/feed/
+  - https://www.kiribatiindependent.com/feed/
+  - https://www.president.gov.ki/feed/
+  - https://www.radiokiribati.com/feed/
+  - https://www.teuekera.com/feed/
+- country: NFK
+  name: Norfolk Island
+  reason: Norfolk Island's two small outlets expose no feed. No candidate feed returned items to the identified crawler on 2026-09-02; 6 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: SHN
-  name: Saint Helena, Ascension and Tristan da Cunha
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  candidates_tried:
+  - https://norfolkonlinenews.com/feed/
+  - https://radionorfolk.nf/feed/
+  - https://www.norfolkisland.gov.nf/feed
+  - https://www.norfolkislander.com/feed/
+  - https://www.norfolkislandtime.com/feed/
+  - https://www.norfolkonlinenews.com/feed/
+- country: NRU
+  name: Nauru
+  reason: Nauru's government bulletin exposes no feed. No candidate feed returned items to the identified crawler on 2026-09-02; 6 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://nauru-news.com/feed/
+  - https://nauru.gov.nr/feed/
+  - https://naurugov.nr/feed
+  - https://naurugov.nr/government-information-office/nauru-bulletin/feed
+  - https://naurunews.com/feed/
+  - https://www.naurugov.nr/feed/
+- country: PCN
+  name: Pitcairn
+  reason: Pitcairn has about fifty residents and no news outlet with a feed. No candidate feed returned items to the identified crawler on 2026-09-02; 2 feed URLs tried.
+  checked: '2026-09-02'
+  candidates_tried:
+  - https://www.government.pn/feed
+  - https://www.pitcairnnews.co.nz/feed
 - country: SJM
   name: Svalbard and Jan Mayen
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Svalbardposten exposes no working feed; Norwegian national outlets cover Svalbard. No candidate feed returned items to the identified crawler on 2026-09-02; 10 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: SMR
-  name: San Marino
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://icepeople.net/feed/
+  - https://icepeople.net/rss/
+  - https://svalbardposten.no/rss
+  - https://www.highnorthnews.com/en/feed
+  - https://www.highnorthnews.com/en/rss
+  - https://www.svalbardposten.no/?service=rss
+  - https://www.svalbardposten.no/feed
+  - https://www.svalbardposten.no/rss
+  - https://www.svalbardposten.no/rss/
+  - https://www.sysselmesteren.no/rss
 - country: SPM
   name: Saint Pierre and Miquelon
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Saint Pierre and Miquelon's only outlet is the France Télévisions station, whose feed did not respond. No candidate feed returned items to the identified crawler on 2026-09-02; 6 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: SXM
-  name: Sint Maarten (Dutch part)
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: TCA
-  name: Turks and Caicos Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://la1ere.franceinfo.fr/saintpierremiquelon/rss
+  - https://la1ere.franceinfo.fr/saintpierremiquelon/rss/
+  - https://la1ere.francetvinfo.fr/saintpierremiquelon/rss
+  - https://la1ere.francetvinfo.fr/saintpierremiquelon/rss.xml
+  - https://la1ere.francetvinfo.fr/saintpierremiquelon/rss/
+  - https://www.echodescaps.fr/feed/
 - country: TKL
   name: Tokelau
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Tokelau has no news outlet; New Zealand outlets cover it. No candidate feed returned items to the identified crawler on 2026-09-02; 4 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://www.tokelau.org.nz/Bulletin.rss
+  - https://www.tokelau.org.nz/Home/news.rss
+  - https://www.tokelau.org.nz/feed
+  - https://www.tokelau.org.nz/rss
 - country: TUV
   name: Tuvalu
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Tuvalu's media department exposes no feed. No candidate feed returned items to the identified crawler on 2026-09-02; 6 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://fenuinews.tv/feed/
+  - https://tuvalu.gov.tv/feed/
+  - https://tuvalu.news/feed/
+  - https://tuvalu.tv/feed/
+  - https://tuvalumedia.tv/feed/
+  - https://www.tuvalu.tv/feed
 - country: UMI
   name: United States Minor Outlying Islands
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: The United States Minor Outlying Islands are uninhabited wildlife refuges. No candidate feed returned items to the identified crawler on 2026-09-02; 1 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
-- country: VAT
-  name: Holy See
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: VCT
-  name: Saint Vincent and the Grenadines
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: VGB
-  name: Virgin Islands (British)
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
-- country: VIR
-  name: Virgin Islands (U.S.)
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
-  checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://www.fws.gov/refuge/midway-atoll/feed
 - country: WLF
   name: Wallis and Futuna
-  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  reason: Wallis and Futuna's only outlet is the France Télévisions station, whose feed did not respond. No candidate feed returned items to the identified crawler on 2026-09-02; 5 feed URLs tried.
   checked: '2026-09-02'
-  candidates_tried: []
+  candidates_tried:
+  - https://la1ere.franceinfo.fr/wallisfutuna/rss
+  - https://la1ere.franceinfo.fr/wallisfutuna/rss/
+  - https://la1ere.francetvinfo.fr/wallisfutuna/rss
+  - https://la1ere.francetvinfo.fr/wallisfutuna/rss.xml
+  - https://la1ere.francetvinfo.fr/wallisfutuna/rss/

@@ -67,12 +67,12 @@
   var MIN_SHARE_DENOMINATOR = 5;
 
   var METRICS = {
-    share_ab: {label: "Share of China coverage that is A or B", format: "pct", needsB: true},
-    share_a: {label: "Share of China coverage that is A", format: "pct", needsB: false},
-    count_a: {label: "Category A articles", format: "int", needsB: false},
-    count_ab: {label: "Category A plus B articles", format: "int", needsB: true},
-    per_outlet_ab: {label: "A plus B articles per monitored outlet", format: "dec", needsB: true},
-    per_outlet_a: {label: "A articles per monitored outlet", format: "dec", needsB: false}
+    share_ab: {label: "Share of China coverage that is state origin or unverified relay", format: "pct", needsB: true},
+    share_a: {label: "Share of China coverage that is state origin", format: "pct", needsB: false},
+    count_a: {label: "State origin articles", format: "int", needsB: false},
+    count_ab: {label: "State origin plus unverified relay articles", format: "int", needsB: true},
+    per_outlet_ab: {label: "State origin plus unverified relay per monitored outlet", format: "dec", needsB: true},
+    per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", needsB: false}
   };
 
   /* Returns {value, chinaTotal, ab, a, b} for one country under a metric and mode. */
@@ -146,7 +146,7 @@
       var entry = countries[iso];
       var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso]);
       var cls = fillClass(entry, mv);
-      rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, a: mv.a, b: mv.b, c: mv.c,
+      rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: mv.a, unverified_relay: mv.b, independent: mv.c,
                  china_total: mv.chinaTotal, outlets_active: entry.outlets_active, warnings: (entry.warnings || []).map(function (w) { return w.text; }).join("; ")});
     });
     rows.sort(function (x, y) {
@@ -156,6 +156,10 @@
     return rows;
   }
 
+  /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
+  var NAMES = {A: "State origin", B: "Unverified relay", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant"};
+  function nameOf(code) { return NAMES[code] || code; }
+
   function citation(accessDate, author) {
     return (author || "China State Media Tracker project") + ". China State Media Tracker: daily counts of Chinese state-origin and state-sourced news content by country. " +
       "Stanford University. Accessed " + accessDate + ".";
@@ -163,5 +167,5 @@
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
-          formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation};
+          formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));
