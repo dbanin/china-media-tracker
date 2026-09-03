@@ -13,6 +13,11 @@
 
   /* ------------------------------------------------------------------ data */
   function getJSON(url) {
+    /* The standalone build inlines every data file under window.__TRACKER_DATA keyed by path. */
+    if (window.__TRACKER_DATA && Object.prototype.hasOwnProperty.call(window.__TRACKER_DATA, url)) {
+      return Promise.resolve(window.__TRACKER_DATA[url]);
+    }
+    if (window.__TRACKER_DATA) return Promise.reject(new Error(url + " not bundled"));
     return fetch(url, {cache: "no-cache"}).then(function (r) {
       if (!r.ok) throw new Error(url + " " + r.status);
       return r.json();
