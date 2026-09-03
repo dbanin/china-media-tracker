@@ -172,7 +172,7 @@ def process_article(conn_factory, row) -> Dict:
 
 
 def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int] = None,
-        workers: int = 6, status: str = "queued") -> Dict:
+        workers: int = 24, status: str = "queued") -> Dict:
     log_id = store.start_stage(conn, run_id, "fetch")
     rows = store.articles_by_status(conn, status, limit=limit or 100000)
     # Group by domain so each domain is served sequentially by one worker while domains run in parallel.

@@ -82,7 +82,7 @@ def poll_outlet(outlet: Dict) -> List[Dict]:
     return out
 
 
-def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 8,
+def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 16,
         deadline: Optional[float] = None) -> Dict:
     log_id = store.start_stage(conn, run_id, "discover")
     if outlets is None:

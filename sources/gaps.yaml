@@ -1,4 +1,369 @@
 # Countries where no working feed could be found. Read by the front end so
 # absence of data is never displayed as absence of content.
-# Each entry: country (ISO alpha-3), name, reason, checked date, candidates tried.
-[]
+- country: ABW
+  name: Aruba
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: AIA
+  name: Anguilla
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ALA
+  name: Åland Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: AND
+  name: Andorra
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ASM
+  name: American Samoa
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ATA
+  name: Antarctica
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ATF
+  name: French Southern Territories
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ATG
+  name: Antigua and Barbuda
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: BES
+  name: Bonaire, Sint Eustatius and Saba
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: BLM
+  name: Saint Barthélemy
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: BLZ
+  name: Belize
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: BMU
+  name: Bermuda
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: BVT
+  name: Bouvet Island
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: CCK
+  name: Cocos (Keeling) Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: CHN
+  name: China
+  reason: China is the origin of the content this instrument tracks and is deliberately not monitored. Chinese outlets appear as sources, never as a monitored country.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: COK
+  name: Cook Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: CUW
+  name: Curaçao
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: CXR
+  name: Christmas Island
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: CYM
+  name: Cayman Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: DMA
+  name: Dominica
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: ERI
+  name: Eritrea
+  reason: No candidate feed returned items to the identified crawler on 2026-09-02; 3 feed URLs tried.
+  checked: '2026-09-02'
+  candidates_tried:
+  - https://shabait.com/category/news/feed/
+  - https://shabait.com/feed/
+  - https://shabait.com/rss
+- country: ESH
+  name: Western Sahara
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: FLK
+  name: Falkland Islands (Malvinas)
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: FRO
+  name: Faroe Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: FSM
+  name: Micronesia, Federated States of
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GGY
+  name: Guernsey
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GIB
+  name: Gibraltar
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GLP
+  name: Guadeloupe
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GRD
+  name: Grenada
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GRL
+  name: Greenland
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GUF
+  name: French Guiana
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: GUM
+  name: Guam
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: HMD
+  name: Heard Island and McDonald Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: IMN
+  name: Isle of Man
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: IOT
+  name: British Indian Ocean Territory
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: JEY
+  name: Jersey
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: KIR
+  name: Kiribati
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: KNA
+  name: Saint Kitts and Nevis
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: LCA
+  name: Saint Lucia
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: LIE
+  name: Liechtenstein
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MAF
+  name: Saint Martin (French part)
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MCO
+  name: Monaco
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MHL
+  name: Marshall Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MNP
+  name: Northern Mariana Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MSR
+  name: Montserrat
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MTQ
+  name: Martinique
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: MYT
+  name: Mayotte
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: NCL
+  name: New Caledonia
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: NFK
+  name: Norfolk Island
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: NIU
+  name: Niue
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: NRU
+  name: Nauru
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: PCN
+  name: Pitcairn
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: PLW
+  name: Palau
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: PRI
+  name: Puerto Rico
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: PRK
+  name: Korea, Democratic People's Republic of
+  reason: No candidate feed returned items to the identified crawler on 2026-09-02; 4 feed URLs tried.
+  checked: '2026-09-02'
+  candidates_tried:
+  - https://kcna.kp/en/rss
+  - https://kcnawatch.org/feed/
+  - https://rodong.rep.kp/rss
+  - https://uriminzokkiri.com/rss
+- country: PYF
+  name: French Polynesia
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: REU
+  name: Réunion
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SGS
+  name: South Georgia and the South Sandwich Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SHN
+  name: Saint Helena, Ascension and Tristan da Cunha
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SJM
+  name: Svalbard and Jan Mayen
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SMR
+  name: San Marino
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SPM
+  name: Saint Pierre and Miquelon
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: SXM
+  name: Sint Maarten (Dutch part)
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: TCA
+  name: Turks and Caicos Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: TKL
+  name: Tokelau
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: TUV
+  name: Tuvalu
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: UMI
+  name: United States Minor Outlying Islands
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: VAT
+  name: Holy See
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: VCT
+  name: Saint Vincent and the Grenadines
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: VGB
+  name: Virgin Islands (British)
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: VIR
+  name: Virgin Islands (U.S.)
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []
+- country: WLF
+  name: Wallis and Futuna
+  reason: No outlet has been searched for yet. This is absence of effort, not evidence of absence.
+  checked: '2026-09-02'
+  candidates_tried: []

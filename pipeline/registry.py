@@ -9,6 +9,24 @@ import yaml
 from pipeline import config
 
 
+_ALPHA2 = None
+
+
+def _alpha2_map() -> Dict[str, str]:
+    """ISO alpha-3 to alpha-2, from the vendored ISO 3166 table. Kosovo is added as XKX/XK."""
+    global _ALPHA2
+    if _ALPHA2 is None:
+        table = config.ROOT / "docs" / "vendor" / "iso3166.json"
+        m = {}
+        if table.exists():
+            with open(table, "r", encoding="utf-8") as fh:
+                for row in json.load(fh):
+                    m[row["alpha-3"]] = row["alpha-2"]
+        m["XKX"] = "XK"
+        _ALPHA2 = m
+    return _ALPHA2
+
+
 def load_outlets(path: Path = config.OUTLETS_PATH, validate: bool = True) -> List[Dict]:
     with open(path, "r", encoding="utf-8") as fh:
         outlets = yaml.safe_load(fh) or []
@@ -25,9 +43,12 @@ def validate_outlets(outlets: List[Dict]) -> None:
     dupes = sorted({i for i in ids if ids.count(i) > 1})
     if dupes:
         raise ValueError("duplicate outlet ids: %s" % ", ".join(dupes))
+    alpha2 = _alpha2_map()
     for o in outlets:
-        if not o["id"].startswith(o["country"].lower()[:2]) and not o["id"].startswith(o["country"].lower()):
-            raise ValueError("outlet id %s does not start with its country prefix" % o["id"])
+        prefix = o["id"].split("_", 1)[0]
+        allowed = {o["country"].lower(), o["country"].lower()[:2], alpha2.get(o["country"], "").lower()}
+        if prefix not in allowed:
+            raise ValueError("outlet id %s does not start with the ISO alpha-2 prefix for %s" % (o["id"], o["country"]))
         if o["language"] == "zh" and o["active"]:
             raise ValueError(
                 "outlet %s publishes in Chinese and must be inactive with an inactive_reason" % o["id"]
