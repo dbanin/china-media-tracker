@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coverage gaps",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["country", "name", "reason"],
+    "additionalProperties": false,
+    "properties": {
+      "country": {"type": "string", "pattern": "^[A-Z]{3}$"},
+      "name": {"type": "string"},
+      "reason": {"type": "string", "minLength": 10},
+      "checked": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+      "candidates_tried": {"type": "array", "items": {"type": "string"}}
+    }
+  }
+}

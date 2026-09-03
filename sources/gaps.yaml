@@ -1,0 +1,4 @@
+# Countries where no working feed could be found. Read by the front end so
+# absence of data is never displayed as absence of content.
+# Each entry: country (ISO alpha-3), name, reason, checked date, candidates tried.
+[]

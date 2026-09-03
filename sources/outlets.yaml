@@ -1,0 +1,729 @@
+# Outlet registry. Single source of truth for what the tracker monitors.
+#
+# Rules:
+#   - country is ISO 3166-1 alpha-3, language is ISO 639-1.
+#   - Every feed listed here was verified to return items on the date in the
+#     nearest "verified" note. pipeline/validate_sources.py rechecks weekly.
+#   - Outlets publishing primarily in Chinese are recorded with active: false
+#     and an inactive_reason, never deleted. See README for why.
+#   - Prefer world or foreign affairs section feeds where the outlet offers
+#     them, because China coverage concentrates there, and add the homepage
+#     feed as a second feed so domestic stories with a China angle are caught.
+
+# ---------------------------------------------------------------------------
+# Italy (ITA). Study country.
+# ---------------------------------------------------------------------------
+- id: it_corriere
+  name: Corriere della Sera
+  country: ITA
+  language: it
+  feeds:
+    - https://xml2.corriereobjects.it/rss/homepage.xml
+    - https://xml2.corriereobjects.it/rss/esteri.xml
+  tier: national_daily
+  notes: "Carries CairoRcs Studio branded placements. Verified 2026-09-02."
+  active: true
+- id: it_repubblica
+  name: la Repubblica
+  country: ITA
+  language: it
+  feeds:
+    - https://www.repubblica.it/rss/homepage/rss2.0.xml
+    - https://www.repubblica.it/rss/esteri/rss2.0.xml
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_sole24ore
+  name: Il Sole 24 Ore
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilsole24ore.com/rss/mondo.xml
+    - https://www.ilsole24ore.com/rss/italia.xml
+  tier: business
+  notes: "Business daily. Verified 2026-09-02."
+  active: true
+- id: it_ansa
+  name: ANSA
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml
+    - https://www.ansa.it/sito/notizie/topnews/topnews_rss.xml
+  tier: agency
+  notes: "National wire agency. Has a content exchange history with Xinhua. Verified 2026-09-02."
+  active: true
+- id: it_fattoquotidiano
+  name: Il Fatto Quotidiano
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilfattoquotidiano.it/feed/
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_messaggero
+  name: Il Messaggero
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilmessaggero.it/rss/home.xml
+    - https://www.ilmessaggero.it/rss/mondo.xml
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_adnkronos
+  name: Adnkronos
+  country: ITA
+  language: it
+  feeds:
+    - https://www.adnkronos.com/RSS_PrimaPagina.xml
+    - https://www.adnkronos.com/RSS_Esteri.xml
+  tier: agency
+  notes: "Runs the Immediapress release wire that has carried Xinhua Silk Road releases. Immediapress has no working feed; items surface through page fetches of the main feeds. Verified 2026-09-02."
+  active: true
+- id: it_agi
+  name: AGI
+  country: ITA
+  language: it
+  feeds:
+    - https://www.agi.it/estero/rss
+  tier: agency
+  notes: "Agenzia Giornalistica Italia. Verified 2026-09-02."
+  active: true
+- id: it_rainews
+  name: Rai News
+  country: ITA
+  language: it
+  feeds:
+    - https://www.rainews.it/rss/cronaca
+  tier: broadcaster
+  notes: "Public broadcaster. World section feed returns 404, the cronaca feed carries foreign items too. Verified 2026-09-02."
+  active: true
+- id: it_ilpost
+  name: Il Post
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilpost.it/mondo/feed/
+  tier: national_daily
+  notes: "Digital native. Verified 2026-09-02."
+  active: true
+- id: it_manifesto
+  name: il manifesto
+  country: ITA
+  language: it
+  feeds:
+    - https://ilmanifesto.it/feed
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_libero
+  name: Libero Quotidiano
+  country: ITA
+  language: it
+  feeds:
+    - https://www.liberoquotidiano.it/rss.xml
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_italpress
+  name: Italpress
+  country: ITA
+  language: it
+  feeds:
+    - https://www.italpress.com/feed/
+  tier: agency
+  notes: "Wire agency that has distributed Xinhua material under a cooperation agreement. Verified 2026-09-02."
+  active: true
+- id: it_formiche
+  name: Formiche
+  country: ITA
+  language: it
+  feeds:
+    - https://formiche.net/feed/
+  tier: national_daily
+  notes: "Foreign policy magazine. Verified 2026-09-02."
+  active: true
+- id: it_tgcom24
+  name: TGCOM24
+  country: ITA
+  language: it
+  feeds:
+    - https://www.tgcom24.mediaset.it/rss/mondo.xml
+  tier: broadcaster
+  notes: "Mediaset news channel. Verified 2026-09-02."
+  active: true
+- id: it_quotidiano_net
+  name: QN Quotidiano Nazionale
+  country: ITA
+  language: it
+  feeds:
+    - https://www.quotidiano.net/rss
+  tier: national_daily
+  notes: "Shared national section of Il Giorno, La Nazione and Il Resto del Carlino. Verified 2026-09-02."
+  active: true
+- id: it_iltempo
+  name: Il Tempo
+  country: ITA
+  language: it
+  feeds:
+    - https://www.iltempo.it/rss.xml
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_secolo
+  name: Secolo d'Italia
+  country: ITA
+  language: it
+  feeds:
+    - https://www.secoloditalia.it/feed/
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_linkiesta
+  name: Linkiesta
+  country: ITA
+  language: it
+  feeds:
+    - https://www.linkiesta.it/feed/
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_askanews
+  name: askanews
+  country: ITA
+  language: it
+  feeds:
+    - https://www.askanews.it/feed/
+  tier: agency
+  notes: "Wire agency. Verified 2026-09-02."
+  active: true
+- id: it_dire
+  name: Agenzia DIRE
+  country: ITA
+  language: it
+  feeds:
+    - https://www.dire.it/feed/
+  tier: agency
+  notes: "Verified 2026-09-02."
+  active: true
+- id: it_eunews
+  name: Eunews
+  country: ITA
+  language: it
+  feeds:
+    - https://www.eunews.it/feed/
+  tier: national_daily
+  notes: "EU affairs outlet based in Brussels and Rome. Verified 2026-09-02."
+  active: true
+- id: it_gazzettino
+  name: Il Gazzettino
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilgazzettino.it/rss/home.xml
+  tier: regional
+  notes: "Veneto regional daily. Verified 2026-09-02."
+  active: true
+- id: it_mattino
+  name: Il Mattino
+  country: ITA
+  language: it
+  feeds:
+    - https://www.ilmattino.it/rss/home.xml
+  tier: regional
+  notes: "Naples regional daily. Verified 2026-09-02."
+  active: true
+- id: it_open
+  name: Open
+  country: ITA
+  language: it
+  feeds:
+    - https://www.open.online/feed/
+  tier: national_daily
+  notes: "Digital native. Verified 2026-09-02."
+  active: true
+- id: it_lastampa
+  name: La Stampa
+  country: ITA
+  language: it
+  feeds:
+    - https://www.lastampa.it/rss.xml
+  tier: national_daily
+  notes: "Feed endpoint fails TLS handshake from the local development machine. Reactivate if validate_sources succeeds from GitHub runners."
+  active: false
+  inactive_reason: "feed returned SSLError on 2026-09-02; retest from a different network"
+  inactive_since: "2026-09-02"
+
+# ---------------------------------------------------------------------------
+# Canada (CAN). Study country.
+# ---------------------------------------------------------------------------
+- id: ca_cbc
+  name: CBC News
+  country: CAN
+  language: en
+  feeds:
+    - https://www.cbc.ca/webfeed/rss/rss-world
+    - https://www.cbc.ca/webfeed/rss/rss-politics
+  tier: broadcaster
+  notes: "Public broadcaster. Feed host intermittently refused connections on 2026-09-02; kept active because the feeds are canonical and documented by CBC."
+  active: true
+- id: ca_globeandmail
+  name: The Globe and Mail
+  country: CAN
+  language: en
+  feeds:
+    - https://www.theglobeandmail.com/arc/outboundfeeds/rss/category/world/
+    - https://www.theglobeandmail.com/arc/outboundfeeds/rss/category/canada/
+  tier: national_daily
+  notes: "Metered paywall. Verified 2026-09-02."
+  active: true
+- id: ca_torontostar
+  name: Toronto Star
+  country: CAN
+  language: en
+  feeds:
+    - https://www.thestar.com/search/?f=rss&t=article&c=news/world*&l=50&s=start_time&sd=desc
+  tier: national_daily
+  notes: "Search endpoint feed. Site rate limits aggressively (429). Verified 2026-09-02."
+  active: true
+- id: ca_nationalpost
+  name: National Post
+  country: CAN
+  language: en
+  feeds:
+    - https://nationalpost.com/feed/
+    - https://nationalpost.com/category/news/world/feed/
+  tier: national_daily
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_globalnews
+  name: Global News
+  country: CAN
+  language: en
+  feeds:
+    - https://globalnews.ca/world/feed/
+    - https://globalnews.ca/feed/
+  tier: broadcaster
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_lapresse
+  name: La Presse
+  country: CAN
+  language: fr
+  feeds:
+    - https://www.lapresse.ca/international/rss
+    - https://www.lapresse.ca/actualites/rss
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_radiocanada
+  name: Radio-Canada
+  country: CAN
+  language: fr
+  feeds:
+    - https://ici.radio-canada.ca/rss/4159
+    - https://ici.radio-canada.ca/rss/1000524
+  tier: broadcaster
+  notes: "Public broadcaster, French service. Verified 2026-09-02."
+  active: true
+- id: ca_vancouversun
+  name: Vancouver Sun
+  country: CAN
+  language: en
+  feeds:
+    - https://vancouversun.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_ottawacitizen
+  name: Ottawa Citizen
+  country: CAN
+  language: en
+  feeds:
+    - https://ottawacitizen.com/category/news/world/feed/
+    - https://ottawacitizen.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_financialpost
+  name: Financial Post
+  country: CAN
+  language: en
+  feeds:
+    - https://financialpost.com/feed/
+  tier: business
+  notes: "Postmedia. Feed carries press releases, which is analytically useful. Verified 2026-09-02."
+  active: true
+- id: ca_journaldemontreal
+  name: Le Journal de Montréal
+  country: CAN
+  language: fr
+  feeds:
+    - https://www.journaldemontreal.com/monde/rss.xml
+    - https://www.journaldemontreal.com/rss.xml
+  tier: national_daily
+  notes: "Québecor. Verified 2026-09-02."
+  active: true
+- id: ca_torontosun
+  name: Toronto Sun
+  country: CAN
+  language: en
+  feeds:
+    - https://torontosun.com/feed/
+  tier: national_daily
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_calgaryherald
+  name: Calgary Herald
+  country: CAN
+  language: en
+  feeds:
+    - https://calgaryherald.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_edmontonjournal
+  name: Edmonton Journal
+  country: CAN
+  language: en
+  feeds:
+    - https://edmontonjournal.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_winnipegfreepress
+  name: Winnipeg Free Press
+  country: CAN
+  language: en
+  feeds:
+    - https://www.winnipegfreepress.com/rss/?path=/world
+  tier: regional
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_saltwire
+  name: SaltWire
+  country: CAN
+  language: en
+  feeds:
+    - https://www.saltwire.com/feed/
+  tier: regional
+  notes: "Atlantic Canada group. Verified 2026-09-02."
+  active: true
+- id: ca_tvanouvelles
+  name: TVA Nouvelles
+  country: CAN
+  language: fr
+  feeds:
+    - https://www.tvanouvelles.ca/rss.xml
+  tier: broadcaster
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_thewalrus
+  name: The Walrus
+  country: CAN
+  language: en
+  feeds:
+    - https://thewalrus.ca/feed/
+  tier: national_daily
+  notes: "Magazine, low volume. Verified 2026-09-02."
+  active: true
+- id: ca_theprovince
+  name: The Province
+  country: CAN
+  language: en
+  feeds:
+    - https://theprovince.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_windsorstar
+  name: Windsor Star
+  country: CAN
+  language: en
+  feeds:
+    - https://windsorstar.com/feed/
+  tier: regional
+  notes: "Postmedia. Verified 2026-09-02."
+  active: true
+- id: ca_citynews
+  name: CityNews
+  country: CAN
+  language: en
+  feeds:
+    - https://www.citynews.ca/feed/
+  tier: broadcaster
+  notes: "Rogers. Carries Canadian Press and AP wire copy. Verified 2026-09-02."
+  active: true
+- id: ca_acadienouvelle
+  name: Acadie Nouvelle
+  country: CAN
+  language: fr
+  feeds:
+    - https://www.acadienouvelle.com/feed/
+  tier: regional
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_nationalobserver
+  name: Canada's National Observer
+  country: CAN
+  language: en
+  feeds:
+    - https://www.nationalobserver.com/front/rss
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_thetyee
+  name: The Tyee
+  country: CAN
+  language: en
+  feeds:
+    - https://thetyee.ca/rss2.xml
+  tier: regional
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_timescolonist
+  name: Times Colonist
+  country: CAN
+  language: en
+  feeds:
+    - https://www.timescolonist.com/rss
+  tier: regional
+  notes: "Verified 2026-09-02."
+  active: true
+- id: ca_ledevoir
+  name: Le Devoir
+  country: CAN
+  language: fr
+  feeds:
+    - https://www.ledevoir.com/rss/section/monde.xml
+  tier: national_daily
+  notes: "Feed returns 403 to the project user agent."
+  active: false
+  inactive_reason: "feed returned HTTP 403 to identified crawler on 2026-09-02; contact outlet before retrying"
+  inactive_since: "2026-09-02"
+- id: ca_montrealgazette
+  name: Montreal Gazette
+  country: CAN
+  language: en
+  feeds:
+    - https://montrealgazette.com/feed/
+  tier: regional
+  notes: "Feed returns 403 to the project user agent."
+  active: false
+  inactive_reason: "feed returned HTTP 403 to identified crawler on 2026-09-02"
+  inactive_since: "2026-09-02"
+
+# ---------------------------------------------------------------------------
+# Australia (AUS). Study country.
+# ---------------------------------------------------------------------------
+- id: au_abc
+  name: ABC News
+  country: AUS
+  language: en
+  feeds:
+    - https://www.abc.net.au/news/feed/2942460/rss.xml
+    - https://www.abc.net.au/news/feed/45910/rss.xml
+  tier: broadcaster
+  notes: "Public broadcaster. Feed 2942460 is top stories, 45910 is world. Verified 2026-09-02."
+  active: true
+- id: au_smh
+  name: The Sydney Morning Herald
+  country: AUS
+  language: en
+  feeds:
+    - https://www.smh.com.au/rss/world.xml
+    - https://www.smh.com.au/rss/politics/federal.xml
+  tier: national_daily
+  notes: "Nine. Metered paywall. Shares wire and world copy with The Age, Brisbane Times and WAtoday, which the near-duplicate detector will link. Verified 2026-09-02."
+  active: true
+- id: au_theage
+  name: The Age
+  country: AUS
+  language: en
+  feeds:
+    - https://www.theage.com.au/rss/world.xml
+    - https://www.theage.com.au/rss/feed.xml
+  tier: national_daily
+  notes: "Nine. Verified 2026-09-02."
+  active: true
+- id: au_guardian
+  name: Guardian Australia
+  country: AUS
+  language: en
+  feeds:
+    - https://www.theguardian.com/australia-news/rss
+    - https://www.theguardian.com/australia-news/australian-politics/rss
+  tier: national_daily
+  notes: "Australian edition only. Verified 2026-09-02."
+  active: true
+- id: au_sbs
+  name: SBS News
+  country: AUS
+  language: en
+  feeds:
+    - https://www.sbs.com.au/news/feed
+    - https://www.sbs.com.au/news/topic/world/feed
+  tier: broadcaster
+  notes: "Public broadcaster. English service only; SBS Mandarin excluded by the Chinese language rule. Verified 2026-09-02."
+  active: true
+- id: au_theconversation
+  name: The Conversation Australia
+  country: AUS
+  language: en
+  feeds:
+    - https://theconversation.com/au/articles.atom
+  tier: national_daily
+  notes: "Academic commentary, Creative Commons. Verified 2026-09-02."
+  active: true
+- id: au_crikey
+  name: Crikey
+  country: AUS
+  language: en
+  feeds:
+    - https://www.crikey.com.au/feed/
+  tier: national_daily
+  notes: "Verified 2026-09-02."
+  active: true
+- id: au_thewest
+  name: The West Australian
+  country: AUS
+  language: en
+  feeds:
+    - https://thewest.com.au/rss
+  tier: regional
+  notes: "Seven West Media. Verified 2026-09-02."
+  active: true
+- id: au_brisbanetimes
+  name: Brisbane Times
+  country: AUS
+  language: en
+  feeds:
+    - https://www.brisbanetimes.com.au/rss/world.xml
+  tier: regional
+  notes: "Nine. Verified 2026-09-02."
+  active: true
+- id: au_watoday
+  name: WAtoday
+  country: AUS
+  language: en
+  feeds:
+    - https://www.watoday.com.au/rss/world.xml
+  tier: regional
+  notes: "Nine. Verified 2026-09-02."
+  active: true
+- id: au_canberratimes
+  name: The Canberra Times
+  country: AUS
+  language: en
+  feeds:
+    - https://www.canberratimes.com.au/rss.xml
+  tier: regional
+  notes: "ACM. Verified 2026-09-02."
+  active: true
+- id: au_pearlsandirritations
+  name: Pearls and Irritations
+  country: AUS
+  language: en
+  feeds:
+    - https://johnmenadue.com/feed/
+  tier: national_daily
+  notes: "Public policy journal. Has published signed pieces by Chinese embassy officials, so it matters for the authored-by-state signature group. Verified 2026-09-02."
+  active: true
+- id: au_aspistrategist
+  name: The Strategist (ASPI)
+  country: AUS
+  language: en
+  feeds:
+    - https://www.aspistrategist.org.au/feed/
+  tier: national_daily
+  notes: "Think tank commentary, heavy China coverage. Verified 2026-09-02."
+  active: true
+- id: au_lowyinterpreter
+  name: The Interpreter (Lowy Institute)
+  country: AUS
+  language: en
+  feeds:
+    - https://www.lowyinstitute.org/the-interpreter/rss.xml
+  tier: national_daily
+  notes: "Think tank commentary. Verified 2026-09-02."
+  active: true
+- id: au_newcastleherald
+  name: Newcastle Herald
+  country: AUS
+  language: en
+  feeds:
+    - https://www.newcastleherald.com.au/rss.xml
+  tier: regional
+  notes: "ACM. Verified 2026-09-02."
+  active: true
+- id: au_illawarramercury
+  name: Illawarra Mercury
+  country: AUS
+  language: en
+  feeds:
+    - https://www.illawarramercury.com.au/rss.xml
+  tier: regional
+  notes: "ACM. Verified 2026-09-02."
+  active: true
+- id: au_examiner
+  name: The Examiner
+  country: AUS
+  language: en
+  feeds:
+    - https://www.examiner.com.au/rss.xml
+  tier: regional
+  notes: "ACM, Launceston. Verified 2026-09-02."
+  active: true
+- id: au_perthnow
+  name: PerthNow
+  country: AUS
+  language: en
+  feeds:
+    - https://www.perthnow.com.au/news/rss
+  tier: regional
+  notes: "Seven West Media. Verified 2026-09-02."
+  active: true
+- id: au_7news
+  name: 7NEWS
+  country: AUS
+  language: en
+  feeds:
+    - https://7news.com.au/rss
+  tier: broadcaster
+  notes: "Seven Network. Verified 2026-09-02."
+  active: true
+- id: au_theaustralian
+  name: The Australian
+  country: AUS
+  language: en
+  feeds:
+    - https://www.theaustralian.com.au/feed/
+  tier: national_daily
+  notes: "News Corp. Hard paywall and feed returns 403 to the project user agent."
+  active: false
+  inactive_reason: "feed returned HTTP 403 to identified crawler on 2026-09-02; News Corp Australia titles block non-browser clients"
+  inactive_since: "2026-09-02"
+- id: au_afr
+  name: The Australian Financial Review
+  country: AUS
+  language: en
+  feeds:
+    - https://www.afr.com/rss/world
+  tier: business
+  notes: "Nine. No public feed found."
+  active: false
+  inactive_reason: "no working RSS endpoint found on 2026-09-02; hard paywall"
+  inactive_since: "2026-09-02"
+- id: au_heraldsun
+  name: Herald Sun
+  country: AUS
+  language: en
+  feeds:
+    - https://www.heraldsun.com.au/feed
+  tier: regional
+  notes: "News Corp."
+  active: false
+  inactive_reason: "feed returned HTTP 403 to identified crawler on 2026-09-02"
+  inactive_since: "2026-09-02"
