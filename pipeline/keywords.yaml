@@ -1,0 +1,670 @@
+# Relevance gate keyword list. Applied to title and RSS summary only.
+# Deliberately loose. A false negative here is invisible; a false positive
+# costs one classification call. Terms are matched case-insensitively on word
+# boundaries, except in languages listed under no_word_boundaries, where
+# plain substring matching is used.
+#
+# Language codes are ISO 639-1. The "all" list is applied to every language.
+all:
+  - China
+  - Chine
+  - Cina
+  - Chinese
+  - Beijing
+  - Peking
+  - Pechino
+  - Pékin
+  - Pekín
+  - Pequim
+  - Xi Jinping
+  - Xi
+  - PRC
+  - Taiwan
+  - Taïwan
+  - Hong Kong
+  - Hongkong
+  - Xinjiang
+  - Uyghur
+  - Uighur
+  - Uigur
+  - Tibet
+  - Huawei
+  - Belt and Road
+  - BRI
+  - Xinhua
+  - CGTN
+  - CCTV
+  - Global Times
+  - China Daily
+  - TikTok
+  - ByteDance
+  - Shanghai
+  - Shenzhen
+  - Sinopec
+  - Wang Yi
+  - Li Qiang
+  - Communist Party
+  - South China Sea
+  - Confucius Institute
+  - BYD
+  - Alibaba
+  - Tencent
+  - Macau
+  - Macao
+  - Dalai Lama
+en:
+  - Sino
+  - Chinese Communist Party
+  - CCP
+  - Mainland
+  - Zhongnanhai
+  - Politburo
+  - Belt and Road Initiative
+  - Made in China
+  - PLA
+  - Taiwan Strait
+  - One China
+  - Wuhan
+  - Guangzhou
+  - Chongqing
+  - Tianjin
+  - Hangzhou
+  - Chengdu
+  - Nanjing
+  - Xiamen
+  - Qingdao
+  - Silk Road
+  - Shenzhou
+  - Chang'e
+it:
+  - cinese
+  - cinesi
+  - Cina
+  - Pechino
+  - Partito Comunista Cinese
+  - Via della Seta
+  - Nuova Via della Seta
+  - Hong Kong
+  - Taiwan
+  - Xinjiang
+  - uiguri
+  - Tibet
+  - Mar Cinese Meridionale
+  - Wuhan
+  - Shanghai
+fr:
+  - chinois
+  - chinoise
+  - chinoises
+  - Chine
+  - Pékin
+  - Parti communiste chinois
+  - PCC
+  - Nouvelles routes de la soie
+  - Routes de la soie
+  - Taïwan
+  - Ouïghours
+  - Ouïgours
+  - Ouïghour
+  - mer de Chine
+  - Wuhan
+es:
+  - chino
+  - china
+  - chinos
+  - chinas
+  - Pekín
+  - Beijing
+  - Partido Comunista Chino
+  - Ruta de la Seda
+  - Franja y la Ruta
+  - Taiwán
+  - uigures
+  - mar de China
+  - Wuhan
+pt:
+  - chinês
+  - chinesa
+  - chineses
+  - chinesas
+  - Pequim
+  - Partido Comunista Chinês
+  - Rota da Seda
+  - Cinturão e Rota
+  - Taiwan
+  - uigures
+  - mar da China
+  - Wuhan
+de:
+  - chinesisch
+  - chinesische
+  - chinesischen
+  - chinesischer
+  - chinesisches
+  - Peking
+  - Kommunistische Partei Chinas
+  - KPCh
+  - Seidenstraße
+  - Neue Seidenstraße
+  - Uiguren
+  - Südchinesisches Meer
+  - Wuhan
+nl:
+  - Chinees
+  - Chinese
+  - Peking
+  - Communistische Partij
+  - Zijderoute
+  - Oeigoeren
+  - Zuid-Chinese Zee
+ru:
+  - Китай
+  - Китая
+  - Китае
+  - Китаем
+  - китайский
+  - китайская
+  - китайские
+  - китайских
+  - китайского
+  - Пекин
+  - Пекина
+  - Си Цзиньпин
+  - КНР
+  - Тайвань
+  - Гонконг
+  - Синьцзян
+  - уйгур
+  - Хуавей
+  - Huawei
+  - Шелковый путь
+  - Синьхуа
+uk:
+  - Китай
+  - Китаю
+  - китайський
+  - китайська
+  - китайські
+  - Пекін
+  - Сі Цзіньпін
+  - КНР
+  - Тайвань
+  - Гонконг
+  - Сіньцзян
+  - уйгур
+pl:
+  - Chiny
+  - Chin
+  - Chinach
+  - chiński
+  - chińska
+  - chińskie
+  - chińskich
+  - Pekin
+  - Pekinu
+  - Tajwan
+  - Hongkong
+  - Ujgur
+  - Ujgurów
+  - Jedwabny Szlak
+cs:
+  - Čína
+  - Číny
+  - Číně
+  - čínský
+  - čínská
+  - čínské
+  - čínských
+  - Peking
+  - Pekingu
+  - Tchaj-wan
+  - Hongkong
+  - Ujgur
+  - Hedvábná stezka
+sk:
+  - Čína
+  - Číny
+  - čínsky
+  - čínska
+  - čínske
+  - Peking
+  - Taiwan
+hu:
+  - Kína
+  - Kínát
+  - kínai
+  - Peking
+  - Tajvan
+  - Hongkong
+  - ujgur
+  - Selyemút
+ro:
+  - China
+  - Chinei
+  - chinez
+  - chineză
+  - chinezi
+  - chineze
+  - Beijing
+  - Taiwan
+  - uigur
+  - Drumul Mătăsii
+bg:
+  - Китай
+  - китайски
+  - китайска
+  - китайско
+  - Пекин
+  - Тайван
+  - Хонконг
+  - уйгур
+sr:
+  - Kina
+  - Kine
+  - Kini
+  - kineski
+  - kineska
+  - kinesko
+  - Peking
+  - Pekingu
+  - Tajvan
+  - Кина
+  - кинески
+  - Пекинг
+hr:
+  - Kina
+  - Kine
+  - Kini
+  - kineski
+  - kineska
+  - kinesko
+  - Peking
+  - Pekingu
+  - Tajvan
+  - Ujgur
+sl:
+  - Kitajska
+  - Kitajske
+  - kitajski
+  - kitajska
+  - kitajsko
+  - Peking
+  - Tajvan
+el:
+  - Κίνα
+  - Κίνας
+  - κινεζικ
+  - Κινέζ
+  - Πεκίνο
+  - Ταϊβάν
+  - Χονγκ Κονγκ
+tr:
+  - Çin
+  - Çin'in
+  - Çin'e
+  - Çin'de
+  - Çinli
+  - Pekin
+  - Tayvan
+  - Uygur
+  - Sincan
+  - Kuşak ve Yol
+  - İpek Yolu
+ar:
+  - الصين
+  - الصينية
+  - الصيني
+  - صيني
+  - صينية
+  - بكين
+  - شي جين بينغ
+  - تايوان
+  - هونغ كونغ
+  - شينجيانغ
+  - الأويغور
+  - هواوي
+  - الحزام والطريق
+  - شينخوا
+fa:
+  - چین
+  - چینی
+  - پکن
+  - تایوان
+  - هنگ کنگ
+  - شینجیانگ
+  - اویغور
+  - شی جین پینگ
+he:
+  - סין
+  - סינית
+  - סיני
+  - בייג'ינג
+  - טייוואן
+  - הונג קונג
+sw:
+  - China
+  - Uchina
+  - Wachina
+  - Mchina
+  - Kichina
+  - Beijing
+  - Taiwan
+am:
+  - ቻይና
+  - ቻይናዊ
+  - ቤጂንግ
+id:
+  - Tiongkok
+  - Cina
+  - China
+  - Beijing
+  - Tionghoa
+  - Taiwan
+  - Hong Kong
+  - Xinjiang
+  - Uighur
+  - Uyghur
+  - Jalur Sutra
+  - Sabuk dan Jalan
+ms:
+  - Cina
+  - China
+  - Beijing
+  - Taiwan
+  - Hong Kong
+  - Xinjiang
+  - Uighur
+  - Laluan Sutera
+vi:
+  - Trung Quốc
+  - Bắc Kinh
+  - Tập Cận Bình
+  - Đài Loan
+  - Hồng Kông
+  - Tân Cương
+  - Duy Ngô Nhĩ
+  - Vành đai và Con đường
+  - Biển Đông
+  - Tân Hoa Xã
+  - Hoa Vi
+th:
+  - จีน
+  - ปักกิ่ง
+  - สี จิ้นผิง
+  - ไต้หวัน
+  - ฮ่องกง
+  - ซินเจียง
+  - อุยกูร์
+  - หัวเว่ย
+  - ซินหัว
+tl:
+  - Tsina
+  - Tsino
+  - Intsik
+  - Beijing
+  - Taiwan
+  - Hong Kong
+  - West Philippine Sea
+  - South China Sea
+ja:
+  - 中国
+  - 中華人民共和国
+  - 北京
+  - 習近平
+  - 台湾
+  - 香港
+  - 新疆
+  - ウイグル
+  - ファーウェイ
+  - 一帯一路
+  - 新華社
+  - 中共
+ko:
+  - 중국
+  - 베이징
+  - 시진핑
+  - 대만
+  - 홍콩
+  - 신장
+  - 위구르
+  - 화웨이
+  - 일대일로
+  - 신화통신
+  - 중공
+hi:
+  - चीन
+  - चीनी
+  - बीजिंग
+  - शी जिनपिंग
+  - ताइवान
+  - हांगकांग
+  - शिनजियांग
+  - उइगर
+  - हुआवेई
+bn:
+  - চীন
+  - চীনা
+  - বেইজিং
+  - শি জিনপিং
+  - তাইওয়ান
+  - হংকং
+ur:
+  - چین
+  - چینی
+  - بیجنگ
+  - تائیوان
+  - ہانگ کانگ
+  - سنکیانگ
+  - ایغور
+ne:
+  - चीन
+  - चिनियाँ
+  - बेइजिङ
+  - सी चिनफिङ
+si:
+  - චීන
+  - චීනය
+  - බීජිං
+ta:
+  - சீனா
+  - சீன
+  - பெய்ஜிங்
+  - தைவான்
+my:
+  - တရုတ်
+  - ပေကျင်း
+km:
+  - ចិន
+  - ប៉េកាំង
+lo:
+  - ຈີນ
+  - ປັກກິ່ງ
+mn:
+  - Хятад
+  - Бээжин
+  - Ши Жиньпин
+  - Тайвань
+sv:
+  - Kina
+  - kinesisk
+  - kinesiska
+  - kinesiske
+  - Peking
+  - uigur
+  - Sidenvägen
+no:
+  - Kina
+  - kinesisk
+  - kinesiske
+  - Beijing
+  - uigur
+  - Silkeveien
+da:
+  - Kina
+  - kinesisk
+  - kinesiske
+  - Beijing
+  - uighur
+  - Silkevejen
+fi:
+  - Kiina
+  - Kiinan
+  - Kiinassa
+  - kiinalainen
+  - kiinalaiset
+  - kiinalaisen
+  - Peking
+  - Pekingin
+  - Taiwan
+  - uiguuri
+  - Silkkitie
+et:
+  - Hiina
+  - Hiinas
+  - hiinlane
+  - hiinlased
+  - Peking
+  - Pekingi
+  - Taiwan
+  - uiguur
+lv:
+  - Ķīna
+  - Ķīnas
+  - ķīniešu
+  - Pekina
+  - Pekinā
+  - Taivāna
+lt:
+  - Kinija
+  - Kinijos
+  - kinų
+  - Pekinas
+  - Pekino
+  - Taivanas
+is:
+  - Kína
+  - kínversk
+  - kínverska
+  - Peking
+ga:
+  - an tSín
+  - Síneach
+  - Béising
+mt:
+  - Ċina
+  - Ċiniż
+  - Beijing
+sq:
+  - Kina
+  - Kinës
+  - kinez
+  - kineze
+  - Pekin
+  - Pekinit
+mk:
+  - Кина
+  - кинески
+  - кинеска
+  - Пекинг
+  - Тајван
+ka:
+  - ჩინეთი
+  - ჩინეთის
+  - ჩინური
+  - პეკინი
+hy:
+  - Չինաստան
+  - չինական
+  - Պեկին
+az:
+  - Çin
+  - Çinin
+  - Çinli
+  - Pekin
+  - Tayvan
+kk:
+  - Қытай
+  - қытайлық
+  - Бейжің
+  - Пекин
+ky:
+  - Кытай
+  - кытайлык
+  - Бээжин
+  - Пекин
+uz:
+  - Xitoy
+  - xitoylik
+  - Pekin
+  - Tayvan
+tg:
+  - Чин
+  - чинӣ
+  - Пекин
+tk:
+  - Hytaý
+  - hytaýly
+  - Pekin
+ps:
+  - چین
+  - چینایي
+  - بیجینګ
+af:
+  - Sjina
+  - China
+  - Sjinees
+  - Beijing
+zu:
+  - China
+  - Beijing
+xh:
+  - China
+  - Beijing
+ha:
+  - China
+  - Sin
+  - Sinawa
+  - Beijing
+yo:
+  - China
+  - Ṣáínà
+  - Beijing
+ig:
+  - China
+  - Beijing
+so:
+  - Shiinaha
+  - Shiinuhu
+  - Shiine
+  - Beijing
+rw:
+  - Ubushinwa
+  - Abashinwa
+  - Beijing
+lg:
+  - China
+  - Beijing
+mg:
+  - Sinoa
+  - Shina
+  - Beijing
+ht:
+  - Lachin
+  - Chinwa
+  - Beijing
+qu:
+  - China
+  - Beijing
+ay:
+  - China
+  - Beijing
+gn:
+  - China
+  - Beijing
+no_word_boundaries:
+  - ja
+  - th
+  - km
+  - lo
+  - my
+  - zh
