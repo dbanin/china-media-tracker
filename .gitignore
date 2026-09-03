@@ -7,3 +7,4 @@ data/raw_html/
 .env
 *.log
 review/*.csv
+.claude/

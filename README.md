@@ -32,6 +32,15 @@ file is generated from live values and is the authoritative description.
    include a true positive and a hard negative per group. The first pass over
    109 fetched articles found one Category A item (Italpress carrying Xinhua
    under a "(XINHUA/ITALPRESS)" credit) and routed 23 to the LLM stage.
+5. The map. docs/ is a static GitHub Pages site with no build step: a
+   Robinson choropleth on Natural Earth topology, a single-hue scale used
+   only above zero, hatching for countries with no monitored outlets,
+   stippling for recorded gaps, a flat fill for monitored countries with
+   zero detections, warning markers for failing feeds or heavy paywalls, a
+   day scrubber with a global sparkline, a country panel with provenance on
+   every classification, an always-visible methodology section, and CSV
+   export with a citation string. Below 900 pixels it becomes a ranked bar
+   chart. METHODOLOGY.md is generated from live values at export time.
 
 ## Running locally
 
@@ -45,6 +54,8 @@ python3 -m venv .venv
 .venv/bin/python -m pipeline.run fetch --budget-minutes 20   # retrieve full text
 .venv/bin/python -m pipeline.run classify --no-llm   # deterministic Category A pass
 .venv/bin/python -m pipeline.run status            # what is in the database
+.venv/bin/python -m pipeline.export               # rebuild rollups, docs/data JSON and METHODOLOGY.md
+python3 -m http.server 8765 --directory docs       # then open http://localhost:8765
 ```
 
 Set `TRACKER_CONTACT` to a contact address before running the crawler against
