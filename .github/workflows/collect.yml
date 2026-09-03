@@ -1,0 +1,73 @@
+name: collect
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: tracker-database
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TRACKER_CONTACT: ${{ vars.TRACKER_CONTACT }}
+      TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
+      TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Discover, fetch, classify
+        id: run
+        run: |
+          set -o pipefail
+          python -m pipeline.run all --budget-minutes 45 2>&1 | tee run.log
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sqlite3
+          c = sqlite3.connect("data/tracker.db")
+          rows = c.execute("SELECT stage, counts FROM run_log WHERE id IN (SELECT MAX(id) FROM run_log GROUP BY stage) AND stage IN ('discover','fetch','classify_rules','classify_llm')").fetchall()
+          d = {s: json.loads(k or "{}") for s, k in rows}
+          disc = d.get("discover", {}); fet = d.get("fetch", {}); cr = d.get("classify_rules", {}); cl = d.get("classify_llm", {})
+          msg = "collect: %d new, %d relevant, %d fetched, %d paywalled, rules A %d, llm %d%s" % (
+              disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
+              cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else "")
+          print("message=" + msg)
+          PY
+      - name: Commit database and logs
+        if: always()
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "tracker-bot@users.noreply.github.com"
+          mkdir -p logs && cp run.log "logs/collect-$(date -u +%Y%m%dT%H%M%SZ).log" || true
+          find logs -name 'collect-*.log' -mtime +14 -delete || true
+          git add data/tracker.db logs
+          git diff --cached --quiet || git commit -m "${{ steps.run.outputs.message || 'collect: run did not report counts' }}"
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
+          git push
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "Collection workflow failing";
+            const body = "The hourly collect workflow failed. See the run: " + context.serverUrl + "/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId + "\n\nLast failure: " + new Date().toISOString();
+            const issues = await github.rest.issues.listForRepo({owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "pipeline-failure"});
+            const existing = issues.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});
+            } else {
+              await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["pipeline-failure"]});
+            }

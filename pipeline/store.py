@@ -320,7 +320,10 @@ def save_raw_html(h: str, html: str) -> str:
     p.parent.mkdir(parents=True, exist_ok=True)
     with gzip.open(p, "wt", encoding="utf-8") as fh:
         fh.write(html)
-    return str(p.relative_to(config.ROOT))
+    try:
+        return str(p.relative_to(config.ROOT))
+    except ValueError:  # outside the repository, for example a dry run in a temp directory
+        return str(p)
 
 
 # ---------------------------------------------------------------------------
