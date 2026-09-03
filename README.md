@@ -137,6 +137,14 @@ warning marker and named in the data notice and in meta.json under
 `paywall_flagged_countries`. Its numbers are not comparable to the rest.
 The remedy is to add more open Canadian outlets, not to bypass anything.
 
+Bot protection. On the first global retrieval run, 490 article fetches
+returned HTTP 403 to the identified crawler, mostly from sites behind bot
+protection, and 65 were disallowed by robots.txt. Both are recorded as
+failures, never retried by another route, and any country where failures
+and robots blocks together exceed a third of attempts carries a warning
+marker. Kommersant, the Wall Street Journal and Folha are the largest
+robots.txt exclusions.
+
 Registry unevenness. The registry was seeded densely in the three study
 countries and then expanded by region. The export records
 `registry_unevenness` in meta.json (minimum, median and maximum active

@@ -83,7 +83,20 @@ def test_ambassador_quoted_in_body_is_not_a():
 def test_closing_bio_line_is_a():
     body = "Our two countries have much to gain. " * 20 + "\n\nWang Di is the Ambassador of the People's Republic of China to Canada."
     res = cr.match_signatures("", body, None)
-    assert res["decision"] == "A" and "diplomat_title_tail" in [m["id"] for m in res["matches"]]
+    # since ruleset 2026.09.2 a bio line alone routes to the LLM rather than deciding A
+    assert res["decision"] == "A_candidate" and "diplomat_title_tail" in [m["id"] for m in res["matches"]]
+
+
+def test_explicit_byline_is_a():
+    body = "By Wang Di, Ambassador of the People's Republic of China to Canada\n\nOur two countries have much to gain."
+    res = cr.match_signatures("", body, None)
+    assert res["decision"] == "A" and "diplomat_byline_head" in [m["id"] for m in res["matches"]]
+
+
+def test_company_press_release_is_not_a():
+    body = "MUNICH, Sept. 3, 2026 /PRNewswire/ -- Huawei kicked off its global product launch.\n\nAdvertorial"
+    res = cr.match_signatures("", body, "Advertorial Desk")
+    assert res["decision"] == "A_candidate"
 
 
 def test_wire_stamp_without_state_entity_is_only_weak():

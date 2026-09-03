@@ -120,7 +120,7 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             break
 
     strong = [m for m in matches if m["strength"] == "strong"]
-    weak_groups = {m["group"] for m in matches if m["strength"] == "weak"}
+    weak_groups = {m["group"] for m in matches if m["strength"] == "weak"}  # hints never count
     if strong or len(weak_groups) >= 2:
         decision = "A"
     elif matches:
@@ -176,6 +176,8 @@ def classify_article(conn, row) -> Dict:
     if res["decision"] == "A_candidate" or res["triggers"]:
         trig = {"a_candidate": fired, "triggers": [t["id"] for t in res["triggers"]],
                 "spans": [t["span"] for t in res["triggers"]][:3] + [m["span"] for m in res["matches"]][:2]}
+        # A rules label from an earlier ruleset is withdrawn, not deleted; the LLM supplies the next one.
+        conn.execute("UPDATE classifications SET is_current=0 WHERE article_id=? AND method='rules'", (row["id"],))
         store.update_article(conn, row["id"], status="awaiting_llm", llm_pending=1, llm_trigger=json.dumps(trig))
         return {"outcome": "llm"}
     hits = body_relevance_hits(row["title"], body, row["language"])
@@ -224,6 +226,9 @@ def reclassify(conn, run_id: str, since: Optional[str] = None) -> Dict:
     counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0}
     for r in rows:
         cur = store.current_classification(conn, r["id"])
+        if cur and cur["ruleset_version"] == config.RULESET_VERSION:
+            counts["already_current"] = counts.get("already_current", 0) + 1
+            continue
         if cur and cur["method"] == "llm":
             # keep LLM judgements unless the rules now say A
             body = store.load_body(r["url_hash"]) or ""

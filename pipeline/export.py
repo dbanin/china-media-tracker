@@ -208,6 +208,10 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
         pw = entry["all_time"]["paywall_share"]
         if pw is not None and pw >= config.PAYWALL_FLAG_SHARE and entry["all_time"]["rel"] >= 10:
             entry["warnings"].append({"type": "paywalled", "text": "%d percent of retrieved articles were paywalled; counts are not comparable to other countries" % round(pw * 100)})
+        at = entry["all_time"]
+        attempted = at["fetched"] + at["paywalled"] + at["failed"] + at["blocked"]
+        if attempted >= 10 and (at["failed"] + at["blocked"]) / float(attempted) >= config.PAYWALL_FLAG_SHARE:
+            entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
         if entry["all_time"]["pending"] > 0 and entry["all_time"]["pending"] >= 0.25 * max(entry["all_time"]["rel"], 1):
             entry["warnings"].append({"type": "llm_backlog", "text": "%d articles are awaiting LLM classification" % entry["all_time"]["pending"]})
         if not active:
