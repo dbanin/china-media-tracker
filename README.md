@@ -41,6 +41,15 @@ file is generated from live values and is the authoritative description.
    every classification, an always-visible methodology section, and CSV
    export with a citation string. Below 900 pixels it becomes a ranked bar
    chart. METHODOLOGY.md is generated from live values at export time.
+6. LLM Category B adjudication, the review queue and the agreement study.
+   pipeline/classify_llm.py sends headline and body only, never outlet or
+   country, with the category definitions verbatim in the prompt, structured
+   JSON output, a daily call ceiling that is recorded when hit, synchronous
+   and Message Batches modes, and near-duplicate copying so one wire item
+   syndicated to five outlets costs one call. review/queue.py is the
+   terminal review tool; human labels go to a separate table.
+   pipeline/agreement.py draws a stratified sample for hand coding and
+   computes Cohen's kappa, which the interface surfaces.
 
 ## Running locally
 
@@ -53,6 +62,11 @@ python3 -m venv .venv
 .venv/bin/python -m pipeline.run discover          # poll feeds into data/tracker.db
 .venv/bin/python -m pipeline.run fetch --budget-minutes 20   # retrieve full text
 .venv/bin/python -m pipeline.run classify --no-llm   # deterministic Category A pass
+ANTHROPIC_API_KEY=... .venv/bin/python -m pipeline.run classify   # plus LLM adjudication
+.venv/bin/python -m pipeline.classify_llm --batch   # Message Batches mode: submit now, collect next run
+.venv/bin/python -m review.queue                   # review low-confidence B and LLM-resolved A candidates
+.venv/bin/python -m pipeline.agreement sample --n 100 --out review/agreement.csv
+.venv/bin/python -m pipeline.agreement compute --csv review/agreement.csv
 .venv/bin/python -m pipeline.run status            # what is in the database
 .venv/bin/python -m pipeline.export               # rebuild rollups, docs/data JSON and METHODOLOGY.md
 python3 -m http.server 8765 --directory docs       # then open http://localhost:8765
@@ -61,6 +75,18 @@ python3 -m http.server 8765 --directory docs       # then open http://localhost:
 Set `TRACKER_CONTACT` to a contact address before running the crawler against
 live sites, so the user agent identifies a real person. Set
 `TRACKER_REPO_URL` to the repository URL once it exists.
+
+## Classifier model and cost
+
+The model is a config value, `TRACKER_LLM_MODEL`, defaulting to
+`claude-sonnet-5`. The B versus C judgement is the number that would
+embarrass the project if inflated, so the default is the cheapest model
+whose verification judgement is defensible rather than the cheapest model
+available. `claude-haiku-4-5` is the cheaper alternative; if you switch,
+rerun the agreement study, because kappa is measured per model. The daily
+call ceiling `TRACKER_LLM_DAILY_CEILING` defaults to 600. At roughly three
+thousand input tokens per article with the system prompt cached, a full
+ceiling day costs on the order of two to four dollars on Sonnet.
 
 ## The Chinese language rule
 
