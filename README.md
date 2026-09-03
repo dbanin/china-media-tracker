@@ -18,6 +18,13 @@ file is generated from live values and is the authoritative description.
 2. Discovery and storage. Hourly feed polling, URL hash deduplication,
    near-duplicate title linking within a country, a loose multilingual
    relevance gate on title and summary, and a resumable SQLite store.
+3. Full text retrieval. robots.txt honored and cached, one request per
+   domain every three seconds with jitter, identifying user agent, paywall
+   declarations respected with no bypass, two retries then a recorded
+   failure. First run over 149 gated articles: 109 fetched, 33 paywalled,
+   4 blocked by robots, 3 failed. Canada obtained only 22 percent because
+   The Globe and Mail declares every article not free, so Canadian counts
+   are flagged as not comparable until more open Canadian outlets are added.
 
 ## Running locally
 
@@ -28,6 +35,7 @@ python3 -m venv .venv
 .venv/bin/python -m pipeline.registry              # summarize the registry
 .venv/bin/python -m pipeline.validate_sources      # check every feed
 .venv/bin/python -m pipeline.run discover          # poll feeds into data/tracker.db
+.venv/bin/python -m pipeline.run fetch --budget-minutes 20   # retrieve full text
 .venv/bin/python -m pipeline.run status            # what is in the database
 ```
 
