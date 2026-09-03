@@ -15,6 +15,9 @@ file is generated from live values and is the authoritative description.
 
 1. Outlet registry, schema, feed validator, and dense coverage of the three
    study countries.
+2. Discovery and storage. Hourly feed polling, URL hash deduplication,
+   near-duplicate title linking within a country, a loose multilingual
+   relevance gate on title and summary, and a resumable SQLite store.
 
 ## Running locally
 
@@ -24,6 +27,8 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q
 .venv/bin/python -m pipeline.registry              # summarize the registry
 .venv/bin/python -m pipeline.validate_sources      # check every feed
+.venv/bin/python -m pipeline.run discover          # poll feeds into data/tracker.db
+.venv/bin/python -m pipeline.run status            # what is in the database
 ```
 
 Set `TRACKER_CONTACT` to a contact address before running the crawler against
