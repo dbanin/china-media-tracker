@@ -76,6 +76,36 @@ Set `TRACKER_CONTACT` to a contact address before running the crawler against
 live sites, so the user agent identifies a real person. Set
 `TRACKER_REPO_URL` to the repository URL once it exists.
 
+## Running on GitHub
+
+1. Create a repository and push this tree. The default branch is `main`.
+2. Settings, Secrets and variables, Actions: add the secret
+   `ANTHROPIC_API_KEY`. Add the variable `TRACKER_CONTACT` with a contact
+   address for the crawler's user agent. Optionally add `TRACKER_LLM_MODEL`
+   and `TRACKER_LLM_DAILY_CEILING`.
+3. Settings, Pages: set the source to GitHub Actions.
+4. Settings, Actions, General: allow workflows read and write permissions.
+5. Run the three workflows once by hand from the Actions tab to confirm they
+   pass: collect (hourly), export (daily at 02:00 UTC, deploys Pages),
+   validate feeds (weekly).
+
+The database and the generated site data are committed by the workflows, so
+the repository history is the audit trail. Article bodies and raw HTML are
+not committed; `pipeline/rehydrate.py` re-fetches them when a
+reclassification needs them.
+
+## Changing the ruleset
+
+Edit `pipeline/signatures.yaml`, add fixtures for every new pattern, bump
+`RULESET_VERSION` in `pipeline/config.py`, describe the change in
+`CHANGELOG.md`, and run:
+
+```bash
+.venv/bin/python -m pipeline.classify_rules reclassify 2026-09-01
+```
+
+Earlier classification rows stay in the database marked not current.
+
 ## Classifier model and cost
 
 The model is a config value, `TRACKER_LLM_MODEL`, defaulting to

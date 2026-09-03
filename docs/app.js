@@ -89,6 +89,8 @@
     if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Those countries are not comparable to the rest and carry a warning marker.");
     if (m && m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
     if (gaps) parts.push(gaps + " countries are recorded as coverage gaps with a stated reason.");
+    var u = m && m.registry_unevenness;
+    if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling. Share and per-outlet metrics correct for it; count metrics do not.");
     if (parts.length) { dn.textContent = parts.join(" "); dn.classList.remove("hidden"); } else dn.classList.add("hidden");
     el("review-coverage").textContent = m ? pct(m.review_coverage) + " of classified articles" : "n/a";
   }

@@ -358,6 +358,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "last_successful_run": max(last_runs.values()) if last_runs else None,
         "outlets_total": len(outlets), "outlets_active": len(active),
         "countries_monitored": len(countries_active),
+        "registry_unevenness": registry.registry_summary(outlets)["unevenness"],
         "countries_in_gaps": len(gaps),
         "gaps": gaps,
         "articles_discovered": conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0],
