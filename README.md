@@ -118,6 +118,25 @@ call ceiling `TRACKER_LLM_DAILY_CEILING` defaults to 600. At roughly three
 thousand input tokens per article with the system prompt cached, a full
 ceiling day costs on the order of two to four dollars on Sonnet.
 
+## Things raised rather than assumed
+
+Paywalls. On the first retrieval run, The Globe and Mail declared every
+article not free in its schema.org metadata, so Canada obtained only 22
+percent of gated articles in full text. Any country where paywalls remove
+more than a third of retrieved articles is flagged in the interface with a
+warning marker and named in the data notice and in meta.json under
+`paywall_flagged_countries`. Its numbers are not comparable to the rest.
+The remedy is to add more open Canadian outlets, not to bypass anything.
+
+Registry unevenness. The registry was seeded densely in the three study
+countries and then expanded by region. The export records
+`registry_unevenness` in meta.json (minimum, median and maximum active
+outlets per country, and the number of single-outlet countries). When the
+densest country has three or more times the median, the interface says so
+and reminds the reader that raw counts display the sampling. The default
+metric is the share of monitored China coverage that is A or B, and the
+per-outlet metrics are offered as the corrected count view.
+
 ## The Chinese language rule
 
 Outlets that publish primarily in Chinese are registered with `active: false`
