@@ -1,0 +1,52 @@
+name: validate feeds
+
+on:
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: tracker-database
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TRACKER_CONTACT: ${{ vars.TRACKER_CONTACT }}
+      TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Validate every feed and deactivate dead outlets
+        run: python -m pipeline.validate_sources --apply --json validation.json
+      - name: Commit registry and health changes
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "tracker-bot@users.noreply.github.com"
+          git add sources/outlets.yaml data/tracker.db
+          git diff --cached --quiet || git commit -m "validate: weekly feed check $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash origin ${{ github.ref_name }} || true
+          git push
+      - name: Issue listing newly dead feeds
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const v = JSON.parse(fs.readFileSync("validation.json", "utf8"));
+            const failing = v.results.filter(r => !r.ok);
+            if (!v.newly_inactive.length && !failing.length) return;
+            const lines = [];
+            if (v.newly_inactive.length) lines.push("Outlets marked inactive this week: " + v.newly_inactive.join(", "));
+            if (failing.length) { lines.push("", "Feeds failing on " + v.date + ":"); failing.forEach(r => lines.push("- " + r.outlet_id + " " + r.feed_url + " (" + r.error + ")")); }
+            const title = "Feed validation " + v.date + ": " + v.newly_inactive.length + " outlets deactivated, " + failing.length + " feeds failing";
+            await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body: lines.join("\n"), labels: ["feeds"]});
