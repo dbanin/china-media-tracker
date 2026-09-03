@@ -50,6 +50,14 @@ file is generated from live values and is the authoritative description.
    terminal review tool; human labels go to a separate table.
    pipeline/agreement.py draws a stratified sample for hand coding and
    computes Cohen's kappa, which the interface surfaces.
+7. Registry expansion to global coverage. About 3,400 candidate feed URLs
+   were probed and only feeds that returned items were kept: 1,361 active
+   outlets across 178 countries in 60 languages, 303 outlets recorded as
+   blocking the identified crawler, 10 Chinese-language outlets recorded as
+   excluded, and 72 countries or territories in sources/gaps.yaml with a
+   stated reason (mostly small territories never searched, plus China
+   itself, North Korea and Eritrea). pipeline/gate_audit.py samples gated-out
+   items so the gate's false negative rate can be measured by hand.
 
 ## Running locally
 
@@ -67,6 +75,7 @@ ANTHROPIC_API_KEY=... .venv/bin/python -m pipeline.run classify   # plus LLM adj
 .venv/bin/python -m review.queue                   # review low-confidence B and LLM-resolved A candidates
 .venv/bin/python -m pipeline.agreement sample --n 100 --out review/agreement.csv
 .venv/bin/python -m pipeline.agreement compute --csv review/agreement.csv
+.venv/bin/python -m pipeline.gate_audit sample --n 200 --out review/gate_audit.csv
 .venv/bin/python -m pipeline.run status            # what is in the database
 .venv/bin/python -m pipeline.export               # rebuild rollups, docs/data JSON and METHODOLOGY.md
 python3 -m http.server 8765 --directory docs       # then open http://localhost:8765
