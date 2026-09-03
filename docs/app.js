@@ -123,7 +123,7 @@
       .attr("class", "country").attr("d", path)
       .on("mousemove", function (ev, f) { showTip(ev, f); })
       .on("mouseleave", hideTip)
-      .on("click", function (ev, f) { if (f.iso) selectCountry(f.iso); });
+      .on("click", function (ev, f) { selectCountry(f.iso || ("name:" + ((f.properties && f.properties.name) || "Unknown"))); });
   }
 
   function fillFor(cls, value) {
@@ -250,7 +250,7 @@
     }
     var iso = state.selected;
     var entry = (state.latest.countries || {})[iso];
-    var name = state.names[iso] || iso;
+    var name = iso.indexOf("name:") === 0 ? iso.slice(5) : (state.names[iso] || iso);
     var agg = currentAgg();
     var html = '<button class="close" id="panel-close">Close</button><h2>' + esc(name) + '</h2>';
     if (!entry) { html += '<p class="muted">No monitored outlets in ' + esc(name) + '. This is absence of data, not absence of content. To add coverage, add an outlet with a working feed to sources/outlets.yaml, or record the reason in sources/gaps.yaml.</p>'; body.innerHTML = html; bindClose(); return; }

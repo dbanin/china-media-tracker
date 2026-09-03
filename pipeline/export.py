@@ -212,8 +212,9 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
         attempted = at["fetched"] + at["paywalled"] + at["failed"] + at["blocked"]
         if attempted >= 10 and (at["failed"] + at["blocked"]) / float(attempted) >= config.PAYWALL_FLAG_SHARE:
             entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
-        if entry["all_time"]["pending"] > 0 and entry["all_time"]["pending"] >= 0.25 * max(entry["all_time"]["rel"], 1):
-            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles are awaiting LLM classification" % entry["all_time"]["pending"]})
+        pending = entry["all_time"]["pending"]
+        if pending >= 5 and pending >= 0.25 * max(entry["all_time"]["rel"], 1):
+            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles are awaiting model classification, so A plus B is a floor" % pending})
         if not active:
             entry["warnings"].append({"type": "no_active_outlets", "text": "all registered outlets are inactive"})
         countries[country] = entry
@@ -412,8 +413,9 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR) -> D
         write_json(export_dir / "daily" / ("%s.json" % month), m)
     write_json(export_dir / "global_series.json", series)
     write_json(export_dir / "outlets.json", outlets_json)
-    for country, arts in articles.items():
-        write_json(export_dir / "articles" / ("%s.json" % country), arts)
+    # One file per country in latest.json, empty where nothing is classified, so the page never 404s.
+    for country in latest["countries"]:
+        write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles)}
     counts.update(roll)
