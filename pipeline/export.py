@@ -314,28 +314,70 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
     return {"generated_at": store.utcnow(), "outlets": out}
 
 
-def build_articles(conn, per_country: int = 60) -> Dict[str, List[Dict]]:
+TRIGGER_NAMES = {
+    "cites_xinhua": "Xinhua", "cites_cgtn": "CGTN", "cites_global_times": "Global Times", "cites_china_daily": "China Daily",
+    "cites_cctv": "CCTV", "cites_peoples_daily": "People's Daily", "cites_china_media_group": "China Media Group or China News Service",
+    "mofa_spokesperson": "Foreign ministry spokesperson", "chinese_embassy_quoted": "Chinese embassy",
+    "named_chinese_official_spokesperson": "Named Chinese official spokesperson",
+}
+
+
+def _trigger_sources(trigger_ids):
+    out = []
+    for t in trigger_ids:
+        if t.startswith("state_media_reported"):
+            name = "Chinese state media, as reported"
+        else:
+            name = TRIGGER_NAMES.get(t, t)
+        if name not in out:
+            out.append(name)
+    return out
+
+
+ORDER = {"A": 0, "B": 1, "pending": 2, "C": 3}
+
+
+def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
+    """Per country: state origin first, then unverified relay, then articles carrying official
+    Chinese sourcing whose verification judgement is pending, then independent journalism."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.title, a.url, a.published_at, a.discovered_at, a.dup_group_id,
+                  a.status, a.llm_trigger,
                   c.category, c.method, c.confidence, c.evidence_quote, c.reasoning, c.signatures_fired, c.model_version,
-                  c.ruleset_version,
+                  c.ruleset_version, c.china_sources_cited,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
-           FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
-           WHERE a.gate_relevant=1 AND c.category IN ('A','B','C')
+           FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+           WHERE a.gate_relevant=1 AND (c.category IN ('A','B','C') OR a.status IN ('awaiting_llm','llm_submitted'))
            ORDER BY COALESCE(a.published_at, a.discovered_at) DESC"""
     ).fetchall()
     out = defaultdict(list)
     for r in rows:
-        if len(out[r["country"]]) >= per_country:
-            continue
-        provenance = "human" if r["human_category"] else r["method"]
-        out[r["country"]].append({
+        pending = r["category"] is None
+        cat = "pending" if pending else r["category"]
+        entry = {
             "id": r["id"], "outlet_id": r["outlet_id"], "title": r["title"], "url": r["url"],
-            "date": _day(r), "category": r["category"], "human_category": r["human_category"],
-            "provenance": provenance, "confidence": r["confidence"], "evidence_quote": r["evidence_quote"],
+            "date": _day(r), "category": cat, "human_category": r["human_category"],
+            "provenance": "human" if r["human_category"] else ("rules" if pending else r["method"]),
+            "confidence": r["confidence"], "evidence_quote": r["evidence_quote"],
             "reasoning": r["reasoning"], "signatures": json.loads(r["signatures_fired"] or "[]"),
+            "sources": json.loads(r["china_sources_cited"] or "[]"),
             "model": r["model_version"], "ruleset": r["ruleset_version"], "dup_group": r["dup_group_id"],
-        })
+        }
+        if pending and r["llm_trigger"]:
+            try:
+                trig = json.loads(r["llm_trigger"])
+            except ValueError:
+                trig = {}
+            entry["sources"] = _trigger_sources(trig.get("triggers", []))
+            entry["evidence_quote"] = (trig.get("spans") or [None])[0]
+            entry["signatures"] = trig.get("a_candidate", [])
+            entry["reasoning"] = ("Carries official Chinese sourcing. Whether the claim is independently checked is the "
+                                  "verification judgement, which has not run yet.")
+        out[r["country"]].append(entry)
+    for country in out:
+        out[country].sort(key=lambda e: (ORDER.get(e["category"], 9), e["date"]), reverse=False)
+        out[country].sort(key=lambda e: ORDER.get(e["category"], 9))
+        out[country] = out[country][:per_country]
     return out
 
 
@@ -370,6 +412,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "first_discovered": (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None,
         "articles_gate_relevant": conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1").fetchone()[0],
         "articles_classified": cls_total,
+        "official_sourcing_pending": conn.execute("SELECT COUNT(*) FROM articles WHERE status IN ('awaiting_llm','llm_submitted')").fetchone()[0],
+        "official_sourcing_pending_countries": conn.execute("SELECT COUNT(DISTINCT country) FROM articles WHERE status IN ('awaiting_llm','llm_submitted')").fetchone()[0],
         "articles_reviewed": reviewed_total,
         "review_coverage": round(reviewed_total / cls_total, 4) if cls_total else 0.0,
         "paywall_share": round(tot["paywalled"] / attempted, 4) if attempted else None,

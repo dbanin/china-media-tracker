@@ -67,37 +67,44 @@
   var MIN_SHARE_DENOMINATOR = 5;
 
   var METRICS = {
-    share_ab: {label: "Share of China coverage that is state origin or unverified relay", format: "pct", needsB: true},
-    share_a: {label: "Share of China coverage that is state origin", format: "pct", needsB: false},
+    count_target: {label: "Target articles: state placements plus pieces carrying official Chinese sourcing", format: "int", needsB: true},
+    share_target: {label: "Share of China coverage that is a state placement or carries official Chinese sourcing", format: "pct", needsB: true},
+    share_ab: {label: "Share of China coverage confirmed as state origin or unverified relay", format: "pct", needsB: true},
+    count_ab: {label: "Confirmed state origin plus unverified relay articles", format: "int", needsB: true},
     count_a: {label: "State origin articles", format: "int", needsB: false},
-    count_ab: {label: "State origin plus unverified relay articles", format: "int", needsB: true},
-    per_outlet_ab: {label: "State origin plus unverified relay per monitored outlet", format: "dec", needsB: true},
+    per_outlet_target: {label: "Target articles per monitored outlet", format: "dec", needsB: true},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", needsB: false}
   };
 
   /* Returns {value, chinaTotal, ab, a, b} for one country under a metric and mode. */
   function metricValue(counts, metric, outletsActive, mode, reviewedCounts) {
-    var a, b, c;
+    var a, b, c, p;
     if (mode === "reviewed") {
       var r = reviewedCounts || {A: 0, B: 0, C: 0, N: 0};
-      a = r.A; b = r.B; c = r.C;
+      a = r.A; b = r.B; c = r.C; p = 0;
     } else {
       var k = counts || emptyCounts();
-      a = k.A; b = k.B; c = k.C;
+      a = k.A; b = k.B; c = k.C; p = k.pending || 0;
     }
-    var china = a + b + c;
+    /* Articles carrying official Chinese sourcing whose verification judgement is pending count as China
+       coverage and as targets. Once judged they become unverified relay or independent journalism. */
+    var china = a + b + c + p;
+    var target = a + b + p;
     var value = null;
     var sparse = false;
     switch (metric) {
+      case "count_target": value = target; break;
+      case "share_target": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? target / china : null; break;
       case "share_ab": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? (a + b) / china : null; break;
       case "share_a": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? a / china : null; break;
       case "count_a": value = a; break;
       case "count_ab": value = a + b; break;
+      case "per_outlet_target": value = outletsActive ? target / outletsActive : null; break;
       case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
       case "per_outlet_a": value = outletsActive ? a / outletsActive : null; break;
       default: value = null;
     }
-    return {value: value, chinaTotal: china, a: a, b: b, c: c, ab: a + b, sparse: sparse};
+    return {value: value, chinaTotal: china, a: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse};
   }
 
   /* Coverage class for the fill. Distinguishes absence of data from absence of content.
@@ -146,7 +153,7 @@
       var entry = countries[iso];
       var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso]);
       var cls = fillClass(entry, mv);
-      rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: mv.a, unverified_relay: mv.b, independent: mv.c,
+      rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: mv.a, unverified_relay: mv.b, official_sourcing_pending: mv.pending, target: mv.target, independent: mv.c,
                  china_total: mv.chinaTotal, outlets_active: entry.outlets_active, warnings: (entry.warnings || []).map(function (w) { return w.text; }).join("; ")});
     });
     rows.sort(function (x, y) {
@@ -157,7 +164,8 @@
   }
 
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
-  var NAMES = {A: "State origin", B: "Unverified relay", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant"};
+  var NAMES = {A: "State origin", B: "Unverified relay", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
+               pending: "Official Chinese sourcing, verification pending"};
   function nameOf(code) { return NAMES[code] || code; }
 
   function citation(accessDate, author) {
