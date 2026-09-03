@@ -153,9 +153,11 @@
     if (fmt === "pct") max = Math.max(max, 0.05);
     colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0, max]);
     state._perIso = perIso; state._max = max;
+    // Fills are set directly. A D3 transition would interpolate strings between pattern
+    // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
+    // the CSS transition on path.country smooths color to color changes instead.
     gCountries.selectAll("path.country")
       .classed("selected", function (f) { return f.iso && f.iso === state.selected; })
-      .transition().duration(350)
       .attr("fill", function (f) {
         var p = f.iso && perIso[f.iso];
         if (!p) return fillFor("nocoverage");
