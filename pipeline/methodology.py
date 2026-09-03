@@ -23,40 +23,44 @@ metadata, or that present a paywall interstitial with a short body, are
 recorded as paywalled and never retrieved by any other route.
 
 Fetched articles pass through a deterministic signature matcher
-(pipeline/signatures.yaml) that detects Category A by credit lines, datelines,
+(pipeline/signatures.yaml) that detects state origin text by credit lines, datelines,
 distribution stamps, sponsored placement disclosures and diplomatic bylines.
 Any strong signature, or weak signatures from two different groups, gives
-Category A with confidence 1.0 and no model call. One weak signature, or any
+the state origin label with confidence 1.0 and no model call. One weak signature, or any
 official sourcing trigger (a citation of Xinhua, CGTN, Global Times, China
 Daily, CCTV or People's Daily; a quoted Ministry of Foreign Affairs
 spokesperson, Chinese embassy or named official spokesperson; or a
 "state media reported" construction in any registry language), routes the
-article to a language model for the B versus C judgement. Articles with no
-signature and no trigger are labelled C by rules when the body mentions at
-least three distinct China terms, otherwise not relevant. Those residual
+article to a language model for the unverified relay versus independent
+journalism judgement. Articles with no
+signature and no trigger are labelled independent journalism by rules when
+the body mentions at least three distinct China terms, otherwise not relevant. Those residual
 labels carry confidence below 1.0 and are sampled by the agreement study like
 every other label.
 
 The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
 countries tend to relay official sourcing. Its prompt contains the category
-definitions verbatim and instructs it to answer C when genuinely uncertain,
-because under-counting B is the safer error.
+definitions verbatim and instructs it to answer independent journalism when
+genuinely uncertain, because under-counting unverified relay is the safer error.
 
 ## The categories
 
-Category A, state origin. {cat_a}
+State origin. {cat_a}
 
-Category B, unverified relay. {cat_b}
+Unverified relay. {cat_b}
 
-Category C, independent journalism. {cat_c}
+Independent journalism. {cat_c}
 
 Not relevant. {cat_n}
 
-The critical distinction is between B and C, and it is a judgement about
-verification, not about topic or tone. An article highly critical of China
-that repeats an unverified Xinhua claim is still B. An article sympathetic to
-China that independently confirms every claim is C.
+The critical distinction is between unverified relay and independent
+journalism, and it is a judgement about verification, not about topic or tone.
+An article highly critical of China that repeats an unverified Xinhua claim is
+still unverified relay. An article sympathetic to China that independently
+confirms every claim is independent journalism. In the database and the data
+files these four labels are stored as the codes A, B, C and not_relevant, in
+that order, for compactness; the interface never shows the codes.
 
 ## Current state
 
@@ -72,9 +76,9 @@ China that independently confirms every claim is C.
 | Articles with a human review | {articles_reviewed} ({review_coverage_pct} percent of classified) |
 | Share of gated articles that were paywalled | {paywall_share_pct} |
 | Countries flagged as not comparable because of paywalls | {paywall_flagged} |
-| Category A, all time | {a_total} |
-| Category B, all time | {b_total} |
-| Category C, all time | {c_total} |
+| State origin, all time | {a_total} |
+| Unverified relay, all time | {b_total} |
+| Independent journalism, all time | {c_total} |
 | Language model calls, all time | {llm_calls_total} |
 | Days on which the model call ceiling ({llm_daily_ceiling}) was hit | {llm_ceiling_days} |
 | Last successful run | {last_successful_run} |
@@ -85,7 +89,8 @@ China that independently confirms every claim is C.
 
 ## What the numbers mean
 
-Share of monitored China coverage that is A or B is the headline number. Raw
+Share of monitored China coverage that is state origin or unverified relay is
+the headline number. Raw
 counts mostly measure how many outlets the registry happens to track in a
 country. Articles per monitored outlet corrects for registry density.
 
@@ -115,14 +120,14 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     tot = latest["totals"]["all_time"]
     k = meta.get("kappa")
     if k and k.get("bc") is not None:
-        settled = "B counts are displayed as settled." if meta["b_counts_settled"] else (
-            "Kappa on the B versus C distinction is below %.1f, so the interface does not display B counts as settled." % meta["kappa_warning_threshold"])
+        settled = "Unverified relay counts are displayed as settled." if meta["b_counts_settled"] else (
+            "Kappa on the unverified relay versus independent journalism distinction is below %.1f, so the interface does not display unverified relay counts as settled." % meta["kappa_warning_threshold"])
         kappa_text = ("The most recent agreement study (%s) hand coded %d machine labelled articles. Cohen's kappa "
-                      "across all four categories is %.2f. Kappa on the B versus C distinction alone, computed over "
-                      "the %d articles that either coder placed in B or C, is %.2f. %s") % (
+                      "across all four categories is %.2f. Kappa on the unverified relay versus independent journalism distinction alone, computed over "
+                      "the %d articles that either coder placed in one of those two, is %.2f. %s") % (
             k["computed_at"][:10], k["n"], k["all"] if k["all"] is not None else float("nan"), k["n_bc"] or 0, k["bc"], settled)
     else:
-        kappa_text = ("No agreement study has been completed yet. Until one is, the interface labels B counts as "
+        kappa_text = ("No agreement study has been completed yet. Until one is, the interface labels unverified relay counts as "
                       "provisional. Run pipeline/agreement.py to draw a sample, hand code it, and compute kappa.")
     text = TEMPLATE.format(
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],

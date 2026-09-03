@@ -16120,3 +16120,1187 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
+- id: aw_24ora
+  name: 24ora
+  country: ABW
+  language: pap
+  feeds:
+  - https://24ora.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: aw_arubatoday
+  name: Aruba Today
+  country: ABW
+  language: en
+  feeds:
+  - https://www.arubatoday.com/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: ai_anguillian
+  name: The Anguillian
+  country: AIA
+  language: en
+  feeds:
+  - https://theanguillian.com/feed/
+  - https://theanguillian.com/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ax_alandsradio
+  name: Ålands Radio
+  country: ALA
+  language: sv
+  feeds:
+  - https://alandsradio.ax/rss
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: ax_nyaaland
+  name: Nya Åland
+  country: ALA
+  language: sv
+  feeds:
+  - https://www.nyan.ax/rss
+  - https://www.nyan.ax/feed
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ad_ara
+  name: Ara Andorra
+  country: AND
+  language: ca
+  feeds:
+  - https://www.ara.ad/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ad_elperiodic
+  name: El Periòdic d'Andorra
+  country: AND
+  language: ca
+  feeds:
+  - https://www.elperiodic.ad/rss
+  - https://www.elperiodic.ad/feed
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: as_samoanews
+  name: Samoa News American Samoa
+  country: ASM
+  language: en
+  feeds:
+  - https://www.samoanews.com/rss.xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: as_talanei
+  name: Talanei
+  country: ASM
+  language: en
+  feeds:
+  - https://www.talanei.com/feed/
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: tf_taaf
+  name: TAAF
+  country: ATF
+  language: fr
+  feeds:
+  - https://taaf.fr/feed/
+  - https://taaf.fr/rss
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: ag_abstv
+  name: ABS TV
+  country: ATG
+  language: en
+  feeds:
+  - https://abstvradio.com/feed/
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: ag_antiguanewsroom
+  name: Antigua Newsroom
+  country: ATG
+  language: en
+  feeds:
+  - https://antiguanewsroom.com/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: ag_antiguaobserver
+  name: Antigua Observer
+  country: ATG
+  language: en
+  feeds:
+  - https://antiguaobserver.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bq_bonaire
+  name: Bonaire.nu
+  country: BES
+  language: nl
+  feeds:
+  - https://bonaire.nu/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bq_infobonaire
+  name: InfoBonaire
+  country: BES
+  language: en
+  feeds:
+  - https://www.infobonaire.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bq_sabanews
+  name: Saba News
+  country: BES
+  language: en
+  feeds:
+  - https://saba-news.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bq_statianews
+  name: Statia News
+  country: BES
+  language: en
+  feeds:
+  - https://statianews.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bl_sbhonline
+  name: SBH Online
+  country: BLM
+  language: en
+  feeds:
+  - https://www.sbhonline.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bz_7news
+  name: 7 News Belize
+  country: BLZ
+  language: en
+  feeds:
+  - https://www.7newsbelize.com/rss.php
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: bz_amandala
+  name: Amandala
+  country: BLZ
+  language: en
+  feeds:
+  - https://amandala.com.bz/news/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bz_breakingbelize
+  name: Breaking Belize News
+  country: BLZ
+  language: en
+  feeds:
+  - https://www.breakingbelizenews.com/feed
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: bz_bz
+  name: Belize Breaking News
+  country: BLZ
+  language: en
+  feeds:
+  - https://www.breakingbelizenews.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bz_reporter
+  name: The Reporter Belize
+  country: BLZ
+  language: en
+  feeds:
+  - https://www.reporter.bz/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bz_sanpedrosun
+  name: San Pedro Sun
+  country: BLZ
+  language: en
+  feeds:
+  - https://www.sanpedrosun.com/feed/
+  tier: regional
+  notes: Verified 2026-09-02.
+  active: true
+- id: bm_bernews
+  name: Bernews
+  country: BMU
+  language: en
+  feeds:
+  - https://bernews.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: bv_bv
+  name: Bouvet Island
+  country: BVT
+  language: en
+  feeds:
+  - https://www.npolar.no/en/feed
+  tier: agency
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: ck_cinews
+  name: Cook Islands News
+  country: COK
+  language: en
+  feeds:
+  - https://www.cookislandsnews.com/rss
+  - https://www.cookislandsnews.com/feed
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: cw_extra
+  name: Extra Curaçao
+  country: CUW
+  language: pap
+  feeds:
+  - https://www.extra.cw/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ky_cayman27
+  name: Cayman Marl Road
+  country: CYM
+  language: en
+  feeds:
+  - https://www.caymanmarlroad.com/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: ky_caymancompass
+  name: Cayman Compass
+  country: CYM
+  language: en
+  feeds:
+  - https://www.caymancompass.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ky_caymannewsservice
+  name: Cayman News Service
+  country: CYM
+  language: en
+  feeds:
+  - https://caymannewsservice.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: dm_dominicanewsonline
+  name: Dominica News Online
+  country: DMA
+  language: en
+  feeds:
+  - https://dominicanewsonline.com/news/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: dm_emonews
+  name: Emonews
+  country: DMA
+  language: en
+  feeds:
+  - https://emonewsdm.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: er_awate
+  name: Awate
+  country: ERI
+  language: en
+  feeds:
+  - https://awate.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: er_eritreadigest
+  name: Eritrea Digest
+  country: ERI
+  language: en
+  feeds:
+  - https://eritreadigest.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: eh_futurosahara
+  name: Futuro Sahara
+  country: ESH
+  language: es
+  feeds:
+  - https://futurosahara.net/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: fk_mercopress
+  name: MercoPress
+  country: FLK
+  language: en
+  feeds:
+  - https://en.mercopress.com/rss/
+  - https://en.mercopress.com/rss/falkland-islands
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: fo_kringvarp
+  name: Kringvarp Føroya
+  country: FRO
+  language: fo
+  feeds:
+  - https://kvf.fo/rss
+  - https://kvf.fo/rss.xml
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: fm_fsmgov
+  name: FSM Government
+  country: FSM
+  language: en
+  feeds:
+  - https://gov.fm/index.php/rss
+  - https://gov.fm/feed
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: gg_bbcguernsey
+  name: BBC Guernsey
+  country: GGY
+  language: en
+  feeds:
+  - https://feeds.bbci.co.uk/news/world/europe/guernsey/rss.xml
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: gi_chronicle
+  name: Gibraltar Chronicle
+  country: GIB
+  language: en
+  feeds:
+  - https://www.chronicle.gi/feed/
+  - https://www.chronicle.gi/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gp_karibinfo
+  name: Karib'Info
+  country: GLP
+  language: fr
+  feeds:
+  - https://www.karibinfo.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gd_now
+  name: NOW Grenada
+  country: GRD
+  language: en
+  feeds:
+  - https://nowgrenada.com/feed/
+  - https://www.nowgrenada.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gd_spiceislander
+  name: Spiceislander
+  country: GRD
+  language: en
+  feeds:
+  - https://spiceislander.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gl_knr
+  name: KNR
+  country: GRL
+  language: da
+  feeds:
+  - https://knr.gl/da/rss
+  - https://knr.gl/rss
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: gl_knr_kl
+  name: KNR Kalaallisut
+  country: GRL
+  language: kl
+  feeds:
+  - https://knr.gl/kl/rss
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: gf_guyaweb
+  name: Guyaweb
+  country: GUF
+  language: fr
+  feeds:
+  - https://www.guyaweb.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: im_gef
+  name: Gef.im
+  country: IMN
+  language: en
+  feeds:
+  - https://gef.im/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: im_iomtoday
+  name: Isle of Man Today
+  country: IMN
+  language: en
+  feeds:
+  - https://www.iomtoday.co.im/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: io_biot
+  name: BIOT Administration
+  country: IOT
+  language: en
+  feeds:
+  - https://biot.gov.io/feed
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: io_chagos
+  name: Chagos Conservation Trust
+  country: IOT
+  language: en
+  feeds:
+  - https://chagos-trust.org/feed
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: je_jep
+  name: Jersey Evening Post
+  country: JEY
+  language: en
+  feeds:
+  - https://jerseyeveningpost.com/feed/
+  - https://jerseyeveningpost.com/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: kn_sknis
+  name: SKNIS
+  country: KNA
+  language: en
+  feeds:
+  - https://www.sknis.gov.kn/feed/
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: kn_thewestern
+  name: Caribbean Journal
+  country: KNA
+  language: en
+  feeds:
+  - https://www.caribjournal.com/feed/
+  tier: regional
+  notes: Verified 2026-09-02.
+  active: true
+- id: kn_timescaribbean
+  name: Times Caribbean
+  country: KNA
+  language: en
+  feeds:
+  - https://timescaribbeanonline.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: lc_stluciastar
+  name: St Lucia Star
+  country: LCA
+  language: en
+  feeds:
+  - https://stluciastar.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: lc_stluciatimes
+  name: St Lucia Times
+  country: LCA
+  language: en
+  feeds:
+  - https://stluciatimes.com/feed/
+  - https://stluciatimes.com/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: lc_thevoice
+  name: The Voice St Lucia
+  country: LCA
+  language: en
+  feeds:
+  - https://thevoiceslu.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: li_lie_zeit
+  name: lie:zeit
+  country: LIE
+  language: de
+  feeds:
+  - https://www.lie-zeit.li/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mf_faxinfo
+  name: Faxinfo
+  country: MAF
+  language: fr
+  feeds:
+  - https://faxinfo.fr/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: mf_soualiga
+  name: Le Pélican
+  country: MAF
+  language: fr
+  feeds:
+  - https://www.lepelican-journal.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mf_stmartinweek
+  name: St Martin Week
+  country: MAF
+  language: fr
+  feeds:
+  - https://www.stmartinweek.fr/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mc_hellomonaco
+  name: HelloMonaco
+  country: MCO
+  language: en
+  feeds:
+  - https://www.hellomonaco.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mc_monacoinfo
+  name: Monaco Info
+  country: MCO
+  language: fr
+  feeds:
+  - https://www.monacoinfo.com/feed/
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: mc_monacolife
+  name: Monaco Life
+  country: MCO
+  language: en
+  feeds:
+  - https://monacolife.net/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mc_monacomatin
+  name: Monaco-Matin
+  country: MCO
+  language: fr
+  feeds:
+  - https://www.monacomatin.mc/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mc_monacotribune
+  name: Monaco Tribune
+  country: MCO
+  language: fr
+  feeds:
+  - https://www.monaco-tribune.com/feed/
+  - https://www.monaco-tribune.com/en/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mh_journal
+  name: Marshall Islands Journal
+  country: MHL
+  language: en
+  feeds:
+  - https://marshallislandsjournal.com/feed/
+  - https://marshallislandsjournal.com/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mh_pacificnote
+  name: Pacific Note
+  country: MHL
+  language: en
+  feeds:
+  - https://pacificnote.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: ms_gov
+  name: Government of Montserrat
+  country: MSR
+  language: en
+  feeds:
+  - https://www.gov.ms/feed/
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: ms_montserratreporter
+  name: The Montserrat Reporter
+  country: MSR
+  language: en
+  feeds:
+  - https://www.themontserratreporter.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: yt_journal
+  name: Le Journal de Mayotte
+  country: MYT
+  language: fr
+  feeds:
+  - https://lejournaldemayotte.yt/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: yt_mayottehebdo
+  name: Mayotte Hebdo
+  country: MYT
+  language: fr
+  feeds:
+  - https://mayottehebdo.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: nc_actu
+  name: Actu.nc
+  country: NCL
+  language: fr
+  feeds:
+  - https://actu.nc/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: nc_dnc
+  name: DNC
+  country: NCL
+  language: fr
+  feeds:
+  - https://www.dnc.nc/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: nc_la1ere
+  name: Nouvelle-Calédonie la 1ère
+  country: NCL
+  language: fr
+  feeds:
+  - https://la1ere.francetvinfo.fr/nouvellecaledonie/rss
+  - https://la1ere.franceinfo.fr/nouvellecaledonie/rss
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: nu_niuenews
+  name: Niue News
+  country: NIU
+  language: en
+  feeds:
+  - https://niuenews.nu/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pw_islandtimes
+  name: Island Times Palau
+  country: PLW
+  language: en
+  feeds:
+  - https://islandtimes.org/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_elnuevodia
+  name: El Nuevo Día
+  country: PRI
+  language: es
+  feeds:
+  - https://www.elnuevodia.com/arc/outboundfeeds/rss/?outputType=xml
+  - https://www.elnuevodia.com/arc/outboundfeeds/rss/category/noticias/mundo/?outputType=xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_elvocero
+  name: El Vocero
+  country: PRI
+  language: es
+  feeds:
+  - https://www.elvocero.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_metro
+  name: Metro Puerto Rico
+  country: PRI
+  language: es
+  feeds:
+  - https://www.metro.pr/arc/outboundfeeds/rss/?outputType=xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_newsismybusiness
+  name: News is my Business
+  country: PRI
+  language: en
+  feeds:
+  - https://newsismybusiness.com/feed/
+  tier: business
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: pr_noticel
+  name: NotiCel
+  country: PRI
+  language: es
+  feeds:
+  - https://www.noticel.com/rss
+  - https://www.noticel.com/feed
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_primerahora
+  name: Primera Hora
+  country: PRI
+  language: es
+  feeds:
+  - https://www.primerahora.com/arc/outboundfeeds/rss/?outputType=xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_telemundopr
+  name: Telemundo Puerto Rico
+  country: PRI
+  language: es
+  feeds:
+  - https://www.telemundopr.com/?rss=y
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: pr_thesanjuandailystar
+  name: San Juan Daily Star
+  country: PRI
+  language: en
+  feeds:
+  - https://www.sanjuandailystar.com/blog-feed.xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: kp_38north
+  name: 38 North
+  country: PRK
+  language: en
+  feeds:
+  - https://www.38north.org/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: kp_dailynk
+  name: Daily NK
+  country: PRK
+  language: en
+  feeds:
+  - https://www.dailynk.com/english/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: kp_nkne
+  name: NK News
+  country: PRK
+  language: en
+  feeds:
+  - https://www.nknews.org/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: kp_rfa
+  name: RFA Korean
+  country: PRK
+  language: ko
+  feeds:
+  - https://www.rfa.org/korean/rss2.xml
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: pf_radio1
+  name: Radio 1 Tahiti
+  country: PYF
+  language: fr
+  feeds:
+  - https://www.radio1.pf/feed/
+  tier: broadcaster
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: pf_tahitiinfos
+  name: Tahiti Infos
+  country: PYF
+  language: fr
+  feeds:
+  - https://www.tahiti-infos.com/xml/syndication.rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: re_clicanoo
+  name: Le Journal de l'île
+  country: REU
+  language: fr
+  feeds:
+  - https://www.clicanoo.re/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: re_freedom
+  name: Freedom
+  country: REU
+  language: fr
+  feeds:
+  - https://freedom.fr/feed/
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: re_linfo
+  name: LINFO.re
+  country: REU
+  language: fr
+  feeds:
+  - https://www.linfo.re/rss
+  tier: broadcaster
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: re_zinfos974
+  name: Zinfos974
+  country: REU
+  language: fr
+  feeds:
+  - https://www.zinfos974.com/xml/syndication.rss
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: gs_sgssi
+  name: South Georgia Government
+  country: SGS
+  language: en
+  feeds:
+  - https://www.gov.gs/feed/
+  - https://www.gov.gs/rss
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: sh_gov
+  name: St Helena Government
+  country: SHN
+  language: en
+  feeds:
+  - https://www.sainthelena.gov.sh/feed/
+  - https://www.sainthelena.gov.sh/rss
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: sh_independent
+  name: St Helena Independent
+  country: SHN
+  language: en
+  feeds:
+  - https://www.saint.fm/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: sh_sams
+  name: SAMS
+  country: SHN
+  language: en
+  feeds:
+  - https://www.sams.sh/rss
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: sh_sentinel
+  name: The Sentinel St Helena
+  country: SHN
+  language: en
+  feeds:
+  - https://www.sams.sh/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: sh_sthelenaonline
+  name: St Helena Online
+  country: SHN
+  language: en
+  feeds:
+  - https://sthelenaonline.org/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: sm_libertas
+  name: Libertas
+  country: SMR
+  language: it
+  feeds:
+  - https://www.libertas.sm/feed/
+  - https://www.libertas.sm/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: sm_sanmarinofixing
+  name: San Marino Fixing
+  country: SMR
+  language: it
+  feeds:
+  - https://www.sanmarinofixing.com/feed/
+  tier: business
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: sx_pearlfm
+  name: Pearl FM
+  country: SXM
+  language: en
+  feeds:
+  - https://pearlfmradio.sx/feed/
+  tier: broadcaster
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: sx_sxmislandtime
+  name: 721news
+  country: SXM
+  language: en
+  feeds:
+  - https://721news.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: tc_magneticmedia
+  name: Magnetic Media
+  country: TCA
+  language: en
+  feeds:
+  - https://magneticmediatv.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: va_asianews
+  name: AsiaNews
+  country: VAT
+  language: en
+  feeds:
+  - https://www.asianews.it/rss/en.xml
+  tier: agency
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: va_fides
+  name: Agenzia Fides
+  country: VAT
+  language: en
+  feeds:
+  - https://www.fides.org/en/news/rss
+  tier: agency
+  notes: Verified 2026-09-02.
+  active: true
+- id: va_osservatore
+  name: L'Osservatore Romano
+  country: VAT
+  language: it
+  feeds:
+  - https://www.osservatoreromano.va/it.rss.xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: va_ucanews
+  name: UCA News
+  country: VAT
+  language: en
+  feeds:
+  - https://www.ucanews.com/rss
+  tier: agency
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: va_vaticannews
+  name: Vatican News
+  country: VAT
+  language: en
+  feeds:
+  - https://www.vaticannews.va/en.rss.xml
+  - https://www.vaticannews.va/en/world.rss.xml
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: va_vaticannews_it
+  name: Vatican News Italiano
+  country: VAT
+  language: it
+  feeds:
+  - https://www.vaticannews.va/it.rss.xml
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: vc_iwnsvg
+  name: iWitness News
+  country: VCT
+  language: en
+  feeds:
+  - https://www.iwnsvg.com/feed/
+  - https://iwnsvg.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: vc_nbc
+  name: NBC SVG
+  country: VCT
+  language: en
+  feeds:
+  - https://nbcsvg.com/feed/
+  tier: broadcaster
+  notes: Verified 2026-09-02.
+  active: true
+- id: vc_searchlight
+  name: Searchlight
+  country: VCT
+  language: en
+  feeds:
+  - https://www.searchlight.vc/feed/
+  - https://www.searchlight.vc/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: vc_stvincenttimes
+  name: St Vincent Times
+  country: VCT
+  language: en
+  feeds:
+  - https://www.stvincenttimes.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: vg_beacon
+  name: BVI Beacon
+  country: VGB
+  language: en
+  feeds:
+  - https://www.bvibeacon.com/feed/
+  tier: national_daily
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  active: false
+  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_since: '2026-09-02'
+- id: vg_bvinews
+  name: BVI News
+  country: VGB
+  language: en
+  feeds:
+  - https://bvinews.com/feed/
+  - https://bvinews.com/rss
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gu_mvguam
+  name: Marianas Variety Guam
+  country: GUM
+  language: en
+  feeds:
+  - https://www.mvguam.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: gu_pdn
+  name: Pacific Daily News
+  country: GUM
+  language: en
+  feeds:
+  - https://www.guampdn.com/search/?f=rss&t=article&c=news*&l=50&s=start_time&sd=desc
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mp_pacislands
+  name: Pacific Island Times
+  country: MNP
+  language: en
+  feeds:
+  - https://www.pacificislandtimes.com/blog-feed.xml
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mq_antillaonline
+  name: Antilla
+  country: MTQ
+  language: fr
+  feeds:
+  - https://antilla-martinique.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: mq_bondamanjak
+  name: Bondamanjak
+  country: MTQ
+  language: fr
+  feeds:
+  - https://www.bondamanjak.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true
+- id: vi_vifreepress
+  name: VI Free Press
+  country: VIR
+  language: en
+  feeds:
+  - https://vifreepress.com/feed/
+  tier: national_daily
+  notes: Verified 2026-09-02.
+  active: true

@@ -9,7 +9,7 @@
 <body>
 <header class="top">
   <h1>China state media tracker</h1>
-  <p class="sub">How much Chinese state-origin (Category A) and Chinese-state-sourced (Category B) news content is being published in the countries this instrument monitors, counted every day from the full text of articles in a fixed registry of outlets. Hatched countries are not monitored. That is absence of data, not absence of content.</p>
+  <p class="sub">How much Chinese state-origin and Chinese-state-sourced news content is being published in the countries this instrument monitors, counted every day from the full text of articles in a fixed registry of outlets. Hatched countries are not monitored. That is absence of data, not absence of content.</p>
 </header>
 
 <div id="kappa-notice" class="notice hidden"></div>
@@ -19,12 +19,12 @@
   <div class="control">
     <label for="metric">Metric</label>
     <select id="metric">
-      <option value="share_ab" selected>Share of China coverage that is A or B</option>
-      <option value="share_a">Share of China coverage that is A</option>
-      <option value="count_ab">Count of A plus B articles</option>
-      <option value="count_a">Count of A articles</option>
-      <option value="per_outlet_ab">A plus B articles per monitored outlet</option>
-      <option value="per_outlet_a">A articles per monitored outlet</option>
+      <option value="share_ab" selected>Share of China coverage that is state origin or unverified relay</option>
+      <option value="share_a">Share of China coverage that is state origin</option>
+      <option value="count_ab">Count of state origin plus unverified relay articles</option>
+      <option value="count_a">Count of state origin articles</option>
+      <option value="per_outlet_ab">State origin plus unverified relay per monitored outlet</option>
+      <option value="per_outlet_a">State origin articles per monitored outlet</option>
     </select>
   </div>
   <div class="control">
@@ -79,17 +79,17 @@
       <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Selected day">
     </div>
   </div>
-  <div class="tl-hint">The shaded curve is the global daily total of A plus B placements. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
+  <div class="tl-hint">The shaded curve is the global daily total of state origin plus unverified relay placements. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
 </div>
 
 <section class="method" id="method">
   <h2>Methodology</h2>
   <div class="defs">
-    <p><strong>Category A, state origin.</strong> The text was written by an entity of the Chinese state and published essentially unaltered. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements paid for by Chinese state entities, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that nobody at the receiving publication formed an editorial view about the content.</p>
-    <p><strong>Category B, unverified relay.</strong> The article was written by the local outlet, but it passes on official Chinese sourcing without independent confirmation. A ministry spokesperson is quoted and nothing checks the claim. Xinhua is cited as the authority for a factual assertion with no second source. State media is described as reporting something, and the report is treated as the fact.</p>
-    <p><strong>Category C, independent journalism.</strong> The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.</p>
+    <p><strong>State origin.</strong> The text was written by an entity of the Chinese state and published essentially unaltered. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements paid for by Chinese state entities, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that nobody at the receiving publication formed an editorial view about the content.</p>
+    <p><strong>Unverified relay.</strong> The article was written by the local outlet, but it passes on official Chinese sourcing without independent confirmation. A ministry spokesperson is quoted and nothing checks the claim. Xinhua is cited as the authority for a factual assertion with no second source. State media is described as reporting something, and the report is treated as the fact.</p>
+    <p><strong>Independent journalism.</strong> The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.</p>
     <p><strong>Not relevant.</strong> Does not concern China.</p>
-    <p>The critical distinction is between B and C, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still B. An article sympathetic to China that independently confirms every claim is C.</p>
+    <p>The critical distinction is between unverified relay and independent journalism, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still unverified relay. An article sympathetic to China that independently confirms every claim is independent journalism.</p>
   </div>
   <dl id="method-facts"></dl>
   <div class="owner-note">
@@ -111,7 +111,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=3"></script>
-<script src="app.js?v=5"></script>
+<script src="compute.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
