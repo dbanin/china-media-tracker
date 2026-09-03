@@ -46,8 +46,8 @@ OUTLETS_SCHEMA = {
     "properties": {"outlets": {"type": "array", "items": {"type": "object", "required": ["id", "name", "country", "language", "tier", "active", "feeds", "counts"],
                                                           "properties": {"counts": COUNTS_SCHEMA, "feeds": {"type": "array", "items": {"type": "object", "required": ["url", "ok"]}}}}}},
 }
-ARTICLES_SCHEMA = {"type": "array", "items": {"type": "object", "required": ["id", "outlet_id", "title", "url", "date", "category", "provenance", "confidence"],
-                                              "properties": {"category": {"enum": ["A", "B", "C"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
+ARTICLES_SCHEMA = {"type": "array", "items": {"type": "object", "required": ["id", "outlet_id", "title", "url", "date", "category", "provenance", "sources"],
+                                              "properties": {"category": {"enum": ["A", "B", "C", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
 
 
 def _load(p):

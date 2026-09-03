@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "China State Media Tracker project"; /* Edit to the citation author you want. */
 
   var state = {
-    metric: "share_ab", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -89,6 +89,7 @@
     if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Those countries are not comparable to the rest and carry a warning marker.");
     if (m && m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
     if (gaps) parts.push(gaps + " countries are recorded as coverage gaps with a stated reason.");
+    if (m && m.official_sourcing_pending) parts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and are waiting for the verification judgement that separates unverified relay from independent journalism. They are counted as targets and listed in each country panel with the sentence that triggered them.");
     var u = m && m.registry_unevenness;
     if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling. Share and per-outlet metrics correct for it; count metrics do not.");
     if (parts.length) { dn.textContent = parts.join(" "); dn.classList.remove("hidden"); } else dn.classList.add("hidden");
@@ -202,7 +203,7 @@
       else if (p.cls === "inactive") html += '<div class="muted">' + e.outlets_total + ' outlets registered, none active.</div>';
       else {
         html += '<div>' + esc(metricLabel()) + ': <strong>' + C.formatValue(mv.value, C.METRICS[state.metric].format) + '</strong></div>';
-        html += '<div class="muted">State origin ' + mv.a + ', unverified relay ' + mv.b + (bProvisional() ? ' (provisional)' : '') + ', independent ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
+        html += '<div class="muted">State origin ' + mv.a + ', unverified relay ' + mv.b + (bProvisional() ? ' (provisional)' : '') + ', official sourcing pending ' + mv.pending + ', independent ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
         if (p.cls === "sparse") html += '<div class="muted">Fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items in this window, so a share is not shown. Switch to a count metric to see them.</div>';
@@ -246,7 +247,7 @@
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
       body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</th><td class="num">' + t.B + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Awaiting model classification</th><td class="num">' + t.pending + '</td></tr><tr><th>Paywalled</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</th><td class="num">' + t.B + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
       return;
     }
     var iso = state.selected;
@@ -265,11 +266,12 @@
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
       '<tr><td>State origin</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
       '<tr><td>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</td><td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td></tr>' +
+      '<tr><td>Official Chinese sourcing, verification pending</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
       '<tr><td>Independent journalism</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
       '<tr><td>Not relevant</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
       '<tr><td class="muted">Underlying items (state origin plus unverified relay)</td><td class="num">' + k.uniqAB + '</td><td></td><td></td><td></td></tr>' +
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
-      '<tr><td class="muted">Awaiting model</td><td class="num">' + k.pending + '</td><td></td><td></td><td></td></tr></table>';
+      '</table>';
     html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
       var okN = o.feeds.filter(function (f) { return f.ok; }).length;
@@ -277,7 +279,7 @@
       html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + o.counts.B + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td></tr>';
     });
     html += '</table>';
-    html += '<h3>Recent classified articles</h3><div id="panel-articles"><p class="muted">Loading</p></div>';
+    html += '<h3>Target articles first, then the rest</h3><p class="muted">State placements, unverified relay, and pieces carrying official Chinese sourcing that still await the verification judgement, each with the sentence that triggered it. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
     body.innerHTML = html;
     bindClose();
     renderMini(iso);
@@ -315,12 +317,13 @@
       if (!arts || !arts.length) { target.innerHTML = '<p class="muted">No classified China coverage yet.</p>'; return; }
       var outletName = {};
       state.outlets.forEach(function (o) { outletName[o.id] = o.name; });
-      target.innerHTML = arts.slice(0, 40).map(function (a) {
+      target.innerHTML = arts.slice(0, 60).map(function (a) {
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
+        var srcs = (a.sources && a.sources.length) ? '<div class="a-meta">Chinese sources carried: ' + esc(a.sources.join(", ")) + '</div>' : '';
         return '<div class="article"><a class="a-title" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.title || a.url) + '</a>' +
           '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(C.nameOf(cat)) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
-          (a.evidence_quote ? '<p class="a-quote">' + esc(a.evidence_quote) + '</p>' : '') +
+          srcs + (a.evidence_quote ? '<p class="a-quote">' + esc(a.evidence_quote) + '</p>' : '') +
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + esc(a.signatures.join(", ")) + '</div>' : '') + '</div>';
       }).join("");
     };
@@ -373,7 +376,7 @@
     var pts = tlDays.map(function (d, i) {
       var e = C.dayEntry(state.months, d);
       var tot = 0, ceiling = false;
-      if (e) { ceiling = !!e.llm_ceiling_hit; Object.keys(e.countries || {}).forEach(function (c) { tot += (e.countries[c].A || 0) + (e.countries[c].B || 0); }); }
+      if (e) { ceiling = !!e.llm_ceiling_hit; Object.keys(e.countries || {}).forEach(function (c) { tot += (e.countries[c].A || 0) + (e.countries[c].B || 0) + (e.countries[c].pending || 0); }); }
       return {i: i, v: tot, ceiling: ceiling};
     });
     if (!pts.length) return;
@@ -423,7 +426,7 @@
       r.citation = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "relay_provisional", "independent", "china_total", "outlets_active", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "official_sourcing_pending", "target", "relay_provisional", "independent", "china_total", "outlets_active", "warnings", "citation"]));
   }
   function exportDaily() {
     var rows = [];

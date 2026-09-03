@@ -44,6 +44,14 @@ countries tend to relay official sourcing. Its prompt contains the category
 definitions verbatim and instructs it to answer independent journalism when
 genuinely uncertain, because under-counting unverified relay is the safer error.
 
+The instrument exists to find two kinds of article: state placements and
+local pieces that carry Chinese official or state media claims without
+checking them. Ordinary China coverage is only the denominator. Articles whose
+official sourcing has been detected but whose verification judgement has not
+yet run are reported separately as candidates, never folded into either label.
+At export time {pending_n} such candidates were waiting across {pending_countries}
+countries.
+
 ## The categories
 
 State origin. {cat_a}
@@ -144,6 +152,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
         llm_ceiling_days=", ".join(meta["llm_ceiling_days"]) or "none",
         last_successful_run=meta["last_successful_run"] or "none",
+        pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         kappa_text=kappa_text,
     )
     with open(path, "w", encoding="utf-8") as fh:
