@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>China state media tracker</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <header class="top">
@@ -47,6 +47,13 @@
   <div class="control">
     <label>Reviewed coverage</label>
     <div id="review-coverage" class="muted">n/a</div>
+  </div>
+  <div class="control">
+    <label>View</label>
+    <div class="segment" id="view">
+      <button data-view="map" class="active">Map</button>
+      <button data-view="list">Ranked list</button>
+    </div>
   </div>
   <div class="control">
     <label>&nbsp;</label>
@@ -114,6 +121,6 @@
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="compute.js?v=8"></script>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

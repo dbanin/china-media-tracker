@@ -110,11 +110,20 @@ section.method .defs p { max-width: 60rem; }
 #citation { font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.4rem; max-width: 60rem; }
 footer { padding: 1rem 2rem 2rem 2rem; color: var(--ink-faint); font-size: 0.85rem; }
 
-@media (max-width: 900px) {
+/* Wide: map beside the panel. Medium: map above the panel at full width. Narrow: ranked list
+   instead of the map, unless the reader asks for the map with the view toggle. */
+@media (max-width: 1100px) {
   main { grid-template-columns: 1fr; }
-  #map-wrap { display: none; }
-  #bars-wrap { display: block; }
   aside#panel { border-left: none; border-top: 1px solid var(--rule); max-height: none; position: static; }
-  header.top, .controls, #timeline, section.method, .notice { padding-left: 1rem; padding-right: 1rem; margin-left: 0; margin-right: 0; }
   section.method dl { grid-template-columns: 1fr; }
 }
+@media (max-width: 640px) {
+  body:not(.force-map) #map-wrap { display: none; }
+  body:not(.force-map) #bars-wrap { display: block; }
+  header.top, .controls, #timeline, section.method, .notice { padding-left: 1rem; padding-right: 1rem; margin-left: 0; margin-right: 0; }
+}
+body.force-list #map-wrap { display: none; }
+body.force-list #bars-wrap { display: block; }
+body.force-map #map-wrap { display: block; }
+body.force-map #bars-wrap { display: none; }
+#map-wrap { min-height: 18rem; }

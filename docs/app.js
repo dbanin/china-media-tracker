@@ -460,6 +460,15 @@
         renderMap(); if (state.selected) renderPanel();
       });
     });
+    Array.prototype.forEach.call(el("view").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-view");
+        document.body.classList.toggle("force-map", v === "map");
+        document.body.classList.toggle("force-list", v === "list");
+        Array.prototype.forEach.call(el("view").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
+        renderMap();
+      });
+    });
     el("export-view").addEventListener("click", exportView);
     el("export-daily").addEventListener("click", exportDaily);
   }
