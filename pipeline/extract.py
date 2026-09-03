@@ -99,3 +99,59 @@ def jsonld_authors(html: str) -> Optional[str]:
             if isinstance(a, str):
                 return a
     return None
+
+
+LABEL_CLASS_RE = re.compile(
+    r'(?i)<(?:div|span|p|a|section|header|aside|small|em|strong|h[1-6]|li)\b[^>]*\b(?:class|id|data-[a-z-]+)="'
+    r'(?![^"]*(?:widget|sidebar|taboola|outbrain|recommend|related|footer|nav|menu|promo-list|trending|most-read|'
+    r'newsletter|banner|ad-slot|adslot|ad-container|dfp|rail|carousel|ticker|links-list|marketplace|comment))'
+    r'[^"]*(?:sponsor|sponsored|branded|brand-content|native|partner|advertorial|studio|paid|promoted|kicker|eyebrow|'
+    r'overline|section-name|article-tag|tagline|disclaimer|disclosure|supplement|pubbli|publi|anzeige|reklam)'
+    r'[^"]*"[^>]*>(.{0,400}?)</'
+)
+META_RE = re.compile(
+    r'(?i)<meta\b[^>]*(?:name|property)="(?:article:section|article:tag|section|category|keywords|og:type|'
+    r'article:content_tier|dc\.type|sailthru\.tags|parsely-section|parsely-tags|news_keywords|sponsor|sponsored)"[^>]*content="([^"]{0,300})"'
+)
+TITLE_RE = re.compile(r'(?is)<title[^>]*>(.*?)</title>')
+TAG_RE = re.compile(r'<[^>]+>')
+
+
+def page_labels(html: str) -> str:
+    """Text from page chrome where disclosures live: title tag, meta section and tag values,
+    JSON-LD sponsor fields, and elements whose class or id names a sponsored or partner label."""
+    if not html:
+        return ""
+    parts = []
+    m = TITLE_RE.search(html)
+    if m:
+        parts.append(TAG_RE.sub(" ", m.group(1)).strip())
+    for m in META_RE.finditer(html):
+        parts.append(m.group(1))
+    for m in re.finditer(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', html, re.S | re.I):
+        try:
+            data = json.loads(m.group(1))
+        except Exception:
+            continue
+        items = data if isinstance(data, list) else [data]
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            for key in ("sponsor", "funder", "articleSection", "genre", "keywords", "@type", "creator", "publisher"):
+                v = it.get(key)
+                if isinstance(v, dict):
+                    v = v.get("name")
+                if isinstance(v, list):
+                    v = ", ".join(str(x.get("name") if isinstance(x, dict) else x) for x in v)
+                if v:
+                    parts.append("%s: %s" % (key, v))
+    seen = 0
+    for m in LABEL_CLASS_RE.finditer(html):
+        txt = TAG_RE.sub(" ", m.group(1))
+        txt = re.sub(r"\s+", " ", txt).strip()
+        if txt:
+            parts.append(txt)
+            seen += 1
+            if seen > 60:
+                break
+    return "\n".join(parts)[:8000]

@@ -1,0 +1,312 @@
+# Deterministic signature patterns for Category A detection and for routing to the
+# LLM. Every match records the pattern id so any Category A count can be broken
+# down by mechanism.
+#
+# Fields per pattern:
+#   id        stable identifier, never reuse after removal
+#   regex     Python regex, applied with re.MULTILINE and re.UNICODE. Use (?i) for
+#             case insensitive patterns; credit lines are usually case sensitive.
+#   strength  strong  = one match alone gives Category A with confidence 1.0
+#             weak    = needs a second weak match from a different group, otherwise
+#                       the article is routed to the LLM as an A candidate
+#   scope     author  = the article's author field only
+#             head    = first 400 characters of the body
+#             tail    = last 600 characters of the body
+#             body    = whole body (default)
+#             any     = author, title and body
+#   note      why this pattern exists
+#
+# Decision rule (classify_rules.py): any strong match, or weak matches from two
+# different groups, gives Category A with confidence 1.0 and no LLM call. One
+# weak match routes to the LLM as an A candidate. Exclusions are applied first
+# and remove the matched span from the text before patterns run.
+ruleset_version: "2026.09.1"
+
+# Spans removed before matching, so a photo credit is not read as a text credit.
+exclusions:
+  - id: photo_credit
+    regex: '(?i)\b(photo|foto|image|immagine|picture|pic|fotografía|photographie|bild|credit|crédit|crediti)\s*(credit|by|di|de|par|:)?\s*[:/]?\s*(Xinhua|CGTN|China Daily|Global Times|VCG|Imaginechina)[^\n.]{0,40}'
+  - id: photo_paren
+    regex: '\((?:Photo|Foto|Image|Immagine|Pic)[^)]{0,40}(?:Xinhua|CGTN|VCG)[^)]{0,40}\)'
+  - id: xinhua_via_ap_photo
+    regex: '(?i)Xinhua via (AP|Getty|Reuters)[^\n.]{0,40}'
+
+groups:
+  credit_dateline:
+    description: Wire credit lines and datelines showing the text came from a Chinese state outlet.
+    patterns:
+      - id: xinhua_dateline
+        regex: '(?m)^[^\n]{0,60}\(Xinhua\)'
+        strength: strong
+        note: Classic wire dateline, for example "BEIJING, Sept. 2 (Xinhua) -- ".
+      - id: xinhua_paren_inline
+        regex: '\(Xinhua\)\s*(--|—|-|–)'
+        strength: strong
+        note: Dateline form with the wire dash, even when not at line start.
+      - id: xinhua_slash_credit
+        regex: '(?im)^[^\n]{0,80}\(\s*XINHUA\s*(/\s*[A-Z][A-Za-z]+)?\s*\)\s*(--|—|-|–)'
+        strength: strong
+        note: Italian agency syndication form "PECHINO (CINA) (XINHUA/ITALPRESS) –".
+      - id: source_xinhua
+        regex: '(?m)^\s*SOURCE:?\s+Xinhua(\s+Silk\s+Road)?(\s+News\s+Agency)?\s*$'
+        strength: strong
+        note: Release wire trailer "SOURCE Xinhua" or "SOURCE Xinhua Silk Road".
+      - id: xinhua_credit_line
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|origine|por|by|di|par|von|editing by|editor)\s*:?\s*(the\s+)?Xinhua(\s+News\s+Agency)?\s*(\.|$)'
+        strength: strong
+        note: Explicit credit line naming Xinhua as the source of the text.
+      - id: xinhua_author_field
+        regex: '(?i)^\s*(Xinhua|Xinhua News Agency|Agenzia Xinhua|Agence Xinhua|Agencia Xinhua)\s*$'
+        strength: strong
+        scope: author
+      - id: xinhua_wire_end
+        regex: '(?im)^\s*\(?\s*(Xinhua|Xinhua News Agency)\s*\)?\s*$'
+        strength: strong
+        scope: tail
+        note: A bare "Xinhua" on its own line at the end of the article is a wire credit.
+      - id: china_daily_credit
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?China\s+Daily\s*(\.|$)|\(China Daily\)'
+        strength: strong
+      - id: china_daily_author
+        regex: '(?i)^\s*China\s+Daily(\s+Global)?\s*$'
+        strength: strong
+        scope: author
+      - id: global_times_credit
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?Global\s+Times\s*(\.|$)|\(Global Times\)'
+        strength: strong
+      - id: global_times_author
+        regex: '(?i)^\s*Global\s+Times\s*$'
+        strength: strong
+        scope: author
+      - id: cgtn_credit
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|\(CGTN\)|(?im)^\s*CGTN\s*$'
+        strength: strong
+        note: Also covers a bare CGTN credit line.
+      - id: cgtn_author
+        regex: '(?i)^\s*(CGTN|China Global Television Network)\s*$'
+        strength: strong
+        scope: author
+      - id: china_media_group_credit
+        regex: '(?i)\b(China Media Group|CMG)\b.{0,40}\b(release|press release|comunicato|communiqué)|(?im)^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
+        strength: strong
+      - id: peoples_daily_credit
+        regex: "(?im)^\\s*(source|fonte|credit|crediti|by|di|par)\\s*:?\\s*(the\\s+)?People'?s\\s+Daily(\\s+Online)?\\s*(\\.|$)|\\(People'?s Daily\\)"
+        strength: strong
+      - id: peoples_daily_author
+        regex: "(?i)^\\s*People'?s\\s+Daily(\\s+Online)?\\s*$"
+        strength: strong
+        scope: author
+      - id: china_news_service_credit
+        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*(China News Service|ECNS|ecns\.cn)\s*(\.|$)|\((China News Service|ECNS)\)'
+        strength: strong
+      - id: cri_credit
+        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*China Radio International\s*(\.|$)|\(China Radio International\)|(?i)\bCRI Online\b'
+        strength: strong
+      - id: cgtn_spelled_out_credit
+        regex: '(?im)^\s*(source|fonte|credit|by)\s*:?\s*China Global Television Network\s*(\.|$)'
+        strength: strong
+      - id: xinhua_italian_credit
+        regex: '(?im)^\s*\(?\s*(Agenzia\s+)?Xinhua\s*(/|-|–|\)|$)'
+        strength: weak
+        scope: head
+        note: Italian syndication often opens with "Xinhua/" or "(Xinhua) " before the dateline.
+      - id: xinhua_writer_byline
+        regex: '(?i)\b(by|di|par|por)\s+Xinhua\s+(writer|writers|reporter|corrispondente)s?\b'
+        strength: strong
+
+  distribution_stamp:
+    description: Press release wire stamps whose issuing entity is Chinese state linked, and disclosures that the publisher has not reviewed the content.
+    patterns:
+      - id: wire_stamp_with_state_entity
+        regex: '(?is)\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire|Cision)\b.{0,3000}?\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|People.s Daily|China International Communication Group|CICG|Xinhua Silk Road|China Economic Net|Publicity Department|Information Office of|Chinese Embassy|Embassy of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute Headquarters|Center for Language Education and Cooperation)\b'
+        strength: strong
+        note: Wire stamp plus a Chinese state issuing entity anywhere in the release.
+      - id: state_entity_then_wire_stamp
+        regex: '(?is)\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|People.s Daily|CICG|Xinhua Silk Road|China Economic Net|Publicity Department|Information Office of|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,3000}?\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire)\b'
+        strength: strong
+      - id: immediapress_with_state_entity
+        regex: '(?is)\b(Immediapress|Adnkronos Immediapress|Italpress)\b.{0,3000}?\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Xinhua Silk Road|China Economic Net|Ambasciata (della Repubblica Popolare )?Cinese|Consolato (Generale )?Cinese|Istituto Confucio)\b'
+        strength: strong
+      - id: publisher_not_reviewed_disclosure
+        regex: '(?i)(has not (reviewed|edited|verified)|is not responsible for|non (è|e) responsabile (del|per il) contenuto|n.est pas responsable du contenu|no es responsable del contenido|não é responsável pelo conteúdo|nicht verantwortlich für den Inhalt|not been edited by|was not involved in the creation)'
+        strength: weak
+        note: A disclosure that nobody at the publisher formed a view. Weak alone; strong with any state credit.
+      - id: wire_stamp_alone
+        regex: '(?i)\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire)\b'
+        strength: weak
+        note: A press release from anyone. Only meaningful together with a state entity, which the strong patterns above cover; kept weak so the LLM checks the issuer.
+
+  sponsored_placement:
+    description: Branded, sponsored and paid placement disclosures, per language. Alone these say only that someone paid; with a Chinese state entity they say who.
+    patterns:
+      - id: sponsored_with_state_entity_en
+        regex: '(?is)\b(sponsored (content|by|post|feature|article)|paid (post|content|partnership|for by)|presented by|branded content|advertorial|partner content|in partnership with|brought to you by|promoted content|advertisement feature|special report by)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China|Consulate General of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute|Hainan|Guangdong|Shandong|Sichuan|Zhejiang|Jiangsu|Fujian|Hubei|Hunan|Yunnan|Chongqing|Tianjin|Shanghai|Beijing)\b.{0,80}?\b(government|province|provincial|municipal|department|bureau|administration|office|committee|council|daily|times|CGTN|Xinhua|embassy|consulate|institute|group|cent(er|re)|People.s Daily)\b'
+        strength: strong
+        scope: labels_head_tail
+      - id: state_entity_then_sponsored_en
+        regex: '(?is)\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,600}?\b(sponsored (content|by|post|feature)|paid (post|content|partnership|for by)|presented by|branded content|advertorial|partner content|in partnership with|brought to you by|promoted content)\b'
+        strength: strong
+        scope: labels_head_tail
+      - id: china_watch_supplement
+        regex: '(?i)\bChina Watch\b.{0,200}\b(China Daily|supplement|paid|sponsored|advertising)\b|\b(China Daily)\b.{0,200}\bChina Watch\b'
+        strength: strong
+        scope: labels_head_tail
+        note: The China Watch supplement is a China Daily paid insert.
+      - id: sponsored_en
+        regex: '(?i)\b(sponsored (content|post|feature|article)|paid (post|content|partnership)|branded content|advertorial|partner content|promoted content|advertisement feature|native advertising)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_it
+        regex: '(?i)\b(contenuto sponsorizzato|contenuto a pagamento|publiredazionale|pubbliredazionale|branded content|messaggio promozionale|informazione pubblicitaria|contenuto promozionale|native adv|sponsorizzato da)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_it_with_state_entity
+        regex: '(?is)\b(contenuto sponsorizzato|publiredazionale|pubbliredazionale|in collaborazione con|branded content|informazione pubblicitaria|contenuto promozionale|sponsorizzato da|realizzato da)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Ambasciata della Cina|Consolato (Generale )?Cinese|Consolato della Cina|Istituto Confucio|Centro Culturale Cinese|Ufficio (Informazioni|Turistico) (della|del) Cina|Governo (Popolare )?(Provinciale|Municipale)|Provincia (dello|del|di) (Shandong|Hainan|Sichuan|Zhejiang|Jiangsu|Fujian|Guangdong|Hubei|Hunan|Yunnan|Henan|Anhui|Shaanxi|Shanxi|Hebei))\b'
+        strength: strong
+        scope: labels_head_tail
+      - id: cairorcs_studio
+        regex: '(?i)\b(CairoRcs Studio|Cairo Rcs Studio|RCS Studio|Studio Rcs|Corriere Innovazione Studio|Rcs MediaGroup Studio|Rcs Studio)\b'
+        strength: weak
+        scope: any_with_labels
+        note: In-house branded content studio of Corriere della Sera and Gazzetta. Weak because the studio also produces content for non-state clients.
+      - id: cairorcs_with_state_entity
+        regex: '(?is)\b(CairoRcs Studio|Cairo Rcs Studio|RCS Studio|Studio Rcs)\b.{0,1200}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Consolato (Generale )?Cinese|Istituto Confucio|Centro Culturale Cinese|Governo (Popolare )?(Provinciale|Municipale)|Repubblica Popolare Cinese|Provincia (dello|del|di) )'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_prose_phrases_head_tail
+        regex: '(?i)\b(presented by|in partnership with|brought to you by|sponsored by|in association with|in collaborazione con|realizzato in collaborazione|in partnership con|partenariat|en partenariat avec|présenté par|proposé par|en colaboración con|presentado por|em parceria com|apresentado por|in kooperation mit|in zusammenarbeit mit|präsentiert von|anzeige|werbung|in samenwerking met|aangeboden door)\b'
+        strength: weak
+        scope: labels_head_tail
+        note: Phrases that also occur in ordinary prose. Only counted where disclosures live.
+      - id: sponsored_fr
+        regex: '(?i)\b(contenu sponsorisé|contenu partenaire|contenu de marque|contenu commandité|publireportage|publi-reportage|article sponsorisé|contenu payant)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_fr_with_state_entity
+        regex: "(?is)\\b(contenu sponsorisé|contenu partenaire|publireportage|publi-reportage|en partenariat avec|article sponsorisé|présenté par|contenu commandité)\\b.{0,600}?\\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Quotidien du Peuple|ambassade de (la République populaire de )?Chine|consulat (général )?de Chine|Institut Confucius|Centre culturel (de )?Chin(e|ois)|gouvernement (populaire )?(provincial|municipal)|province d[eu] )"
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_es
+        regex: '(?i)\b(publirreportaje|publi-reportaje|contenido patrocinado|contenido de marca|branded content|patrocinado por|contenido pagado|contenido promocionado|espacio patrocinado)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_es_with_state_entity
+        regex: '(?is)\b(publirreportaje|contenido patrocinado|contenido de marca|patrocinado por|presentado por|contenido pagado|en colaboración con)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diario del Pueblo|embajada de (la República Popular )?China|consulado (general )?de China|Instituto Confucio|Centro Cultural (de )?China|gobierno (popular )?(provincial|municipal)|provincia de )'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_pt
+        regex: '(?i)\b(conteúdo patrocinado|conteudo patrocinado|publieditorial|informe publicitário|conteúdo de marca|patrocinado por|conteúdo pago|branded content)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_pt_with_state_entity
+        regex: '(?is)\b(conteúdo patrocinado|publieditorial|informe publicitário|patrocinado por|apresentado por|em parceria com|conteúdo pago)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diário do Povo|embaixada da (República Popular da )?China|consulado (geral )?da China|Instituto Confúcio|Centro Cultural da China|governo (popular )?(provincial|municipal)|província de )'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_de
+        regex: '(?i)\b(gesponsert|gesponserter (beitrag|inhalt|artikel)|sponsored content|advertorial|bezahlter (beitrag|inhalt)|partnerinhalt|native ad)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_de_with_state_entity
+        regex: '(?is)\b(gesponsert|gesponserter|anzeige|advertorial|in kooperation mit|in zusammenarbeit mit|präsentiert von|bezahlter|partnerinhalt)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Volkszeitung|Botschaft der Volksrepublik China|chinesische(n|r)? Botschaft|Generalkonsulat der Volksrepublik China|Konfuzius-?Institut|Chinesisches Kulturzentrum|Provinzregierung|Provinz )'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_nl
+        regex: '(?i)\b(gesponsorde (inhoud|content|bijdrage)|advertorial|betaald (bericht|artikel)|in samenwerking met|aangeboden door|partnercontent|branded content)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_other_eu
+        regex: '(?i)\b(treść sponsorowana|artykuł sponsorowany|materiał partnera|sponzorovaný obsah|komerční sdělení|szponzorált tartalom|fizetett hirdetés|conținut sponsorizat|publicitate|спонсориран|спонсорирано съдържание|sponzorisani sadržaj|sponzorirani sadržaj|χορηγούμενο περιεχόμενο|sponsorlu içerik|reklam içeriği|sponsoroitu sisältö|sponsrat innehåll|sponset innhold|sponsoreret indhold|innhold levert av)\b'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_other_with_state_entity
+        regex: '(?is)\b(treść sponsorowana|artykuł sponsorowany|materiał partnera|sponzorovaný obsah|komerční sdělení|szponzorált tartalom|conținut sponsorizat|спонсориран|спонсорирано|sponzorisani sadržaj|sponzorirani sadržaj|χορηγούμενο|sponsorlu içerik|sponsoroitu sisältö|sponsrat innehåll|sponset innhold|sponsoreret indhold)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Синьхуа|Ambasad[ay] (Chińskiej Republiki Ludowej|Chin)|Velvyslanectví Čínské|Kínai Nagykövetség|Ambasada (Republicii Populare )?Chineze|Посолство на Китай|Ambasada (Narodne Republike )?Kine|Πρεσβεία της Κίνας|Çin Büyükelçiliği|Kiinan suurlähetystö|Kinas ambassad|Kinas ambassade)\b'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_ru
+        regex: '(?i)(на правах рекламы|партнерский материал|партнёрский материал|спонсорский материал|реклама\b|материал подготовлен при поддержке|при поддержке)'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_ru_with_state_entity
+        regex: '(?is)(на правах рекламы|партн[её]рский материал|спонсорский материал|при поддержке).{0,600}?(Синьхуа|Xinhua|CGTN|China Daily|Global Times|Жэньминь жибао|Медиакорпорац[ия][яи] Китая|Посольств[оа] (Китайской Народной Республики|КНР|Китая)|Генеральн[оы][ег]о? консульств[оа] (КНР|Китая)|Институт Конфуция|Китайский культурный центр|Народное правительство)'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_ar
+        regex: '(?i)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع|بالتعاون مع|برعاية)'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_ar_with_state_entity
+        regex: '(?is)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع|بالتعاون مع|برعاية).{0,600}?(شينخوا|سي جي تي إن|CGTN|تشاينا ديلي|China Daily|غلوبال تايمز|صحيفة الشعب|سفارة (جمهورية )?الصين|القنصلية (العامة )?الصينية|معهد كونفوشيوس|المركز الثقافي الصيني)'
+        strength: strong
+        scope: labels_head_tail
+      - id: sponsored_asia
+        regex: '(?i)(konten bersponsor|konten berbayar|artikel sponsor|kerja sama dengan|iklan\b|nội dung được tài trợ|bài viết tài trợ|quảng cáo\b|เนื้อหาที่ได้รับการสนับสนุน|โฆษณา|スポンサード|広告|PR記事|提供:|스폰서 콘텐츠|광고\b|협찬|प्रायोजित सामग्री|विज्ञापन)'
+        strength: weak
+        scope: any_with_labels
+      - id: sponsored_asia_with_state_entity
+        regex: '(?is)(konten bersponsor|konten berbayar|artikel sponsor|kerja sama dengan|nội dung được tài trợ|bài viết tài trợ|เนื้อหาที่ได้รับการสนับสนุน|スポンサード|PR記事|提供:|스폰서 콘텐츠|협찬|प्रायोजित).{0,600}?(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Kedutaan (Besar )?(Republik Rakyat )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc|Tân Hoa Xã|สถานทูตจีน|ซินหัว|新華社|中国大使館|中国国際テレビ|中国日報|신화통신|중국 대사관|चीनी दूतावास|शिन्हुआ)'
+        strength: strong
+        scope: labels_head_tail
+
+  authored_by_state:
+    description: Signed pieces by Chinese ambassadors, consuls general, embassy spokespersons and Ministry of Foreign Affairs officials. Matched on the author field and on the biographical line that opens or closes the piece, never on the body, because "the Chinese ambassador said" is ordinary reporting.
+    patterns:
+      - id: diplomat_title_author_field
+        regex: "(?i)(\\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|embaixadora|botschafter|botschafterin|consul[- ]general|console generale|consul général|cónsul general|cônsul-geral|generalkonsul|chargé d.affaires|charge d.affaires|incaricato d.affari|spokesperson|portavoce|porte-parole|portavoz|counsellor|counselor|minister counsellor)\\b.{0,80}\\b(China|Chine|Cina|Chinese|chinois|cinese|chino|chinesa|chinês|chinesisch|People.s Republic|République populaire|Repubblica Popolare|República Popular|Volksrepublik|PRC)\\b|\\b(China|Chine|Cina|Chinese|chinois|cinese|chino|chinesa|chinês|chinesisch|People.s Republic|République populaire|Repubblica Popolare|República Popular|Volksrepublik|PRC)\\b.{0,80}\\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|embaixadora|botschafter|botschafterin|consul[- ]general|console generale|consul général|cónsul general|cônsul-geral|generalkonsul|chargé d.affaires|charge d.affaires|incaricato d.affari|spokesperson|portavoce|porte-parole|portavoz|counsellor|counselor|minister counsellor)\\b)"
+        strength: strong
+        scope: author
+      - id: diplomat_title_head
+        regex: "(?i)\\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|consul[- ]general|console generale|consul général|cónsul general|chargé d.affaires|incaricato d.affari)\\b\\s+(of|de|della|del|di|da|der|des|du)\\s+(the\\s+)?(People.s Republic of China|Repubblica Popolare Cinese|République populaire de Chine|República Popular (de )?China|Volksrepublik China|China|Chine|Cina)\\s+(to|in|en|au|auprès|presso|bei|em|à)\\b"
+        strength: strong
+        scope: head
+        note: Opening line "Ambassador of the People's Republic of China to Italy" style attribution.
+      - id: diplomat_title_tail
+        regex: "(?i)\\b(is|is the|was|est|è|es|é|ist|serves as|is China.s|is the Chinese)\\s+(the\\s+)?(Chinese\\s+|China.s\\s+)?(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|consul[- ]general|console generale|consul général|cónsul general|chargé d.affaires|incaricato d.affari)\\b.{0,80}\\b(China|Chine|Cina|Chinese|People.s Republic|Repubblica Popolare|République populaire|República Popular|Volksrepublik|PRC|to Australia|to Canada|in Italia|au Canada)\\b"
+        strength: strong
+        scope: tail
+        note: Closing biographical line, for example "Xiao Qian is the ambassador of the People's Republic of China to Australia."
+      - id: embassy_byline
+        regex: "(?i)^\\s*(the\\s+)?(Chinese Embassy|Embassy of (the People.s Republic of )?China|Ambasciata (della Repubblica Popolare )?Cinese|Ambassade de (la République populaire de )?Chine|Embajada de (la República Popular )?China|Embaixada da (República Popular da )?China|Botschaft der Volksrepublik China|Chinese Consulate|Consulate General of (the People.s Republic of )?China|Ministry of Foreign Affairs of (the People.s Republic of )?China|Chinese Ministry of Foreign Affairs)\\b"
+        strength: strong
+        scope: author
+      - id: mofa_official_head
+        regex: "(?i)\\b(Ministry of Foreign Affairs of the People.s Republic of China|Chinese Foreign Ministry|Ministero degli Esteri cinese|ministère chinois des Affaires étrangères)\\b.{0,60}\\b(spokesperson|spokesman|spokeswoman|portavoce|porte-parole|portavoz|vice minister|deputy minister|director[- ]general)\\b"
+        strength: strong
+        scope: author
+
+# Official sourcing triggers. These do not give Category A. An article that is not A
+# but matches any of these is routed to the LLM for the B versus C judgement.
+llm_triggers:
+  - id: cites_xinhua
+    regex: '(?i)\bXinhua\b|\bXinhuanet\b|\bNuova Cina\b|\bSinhua\b|Синьхуа|شينخوا|新華社|新华社|신화통신|Tân Hoa Xã|ซินหัว|शिन्हुआ'
+  - id: cites_cgtn
+    regex: '(?i)\bCGTN\b|China Global Television Network'
+  - id: cites_global_times
+    regex: '(?i)\bGlobal Times\b|Хуаньцю|环球时报'
+  - id: cites_china_daily
+    regex: '(?i)\bChina Daily\b|中国日报'
+  - id: cites_cctv
+    regex: '(?i)\bCCTV\b|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Центральное телевидение Китая|中央电视台'
+  - id: cites_peoples_daily
+    regex: "(?i)\\bPeople'?s Daily\\b|Quotidiano del Popolo|Quotidien du Peuple|Diario del Pueblo|Diário do Povo|Volkszeitung|Жэньминь жибао|人民日报|人民日報"
+  - id: cites_china_media_group
+    regex: '(?i)\bChina Media Group\b|\bChina News Service\b|\bECNS\b|China Radio International'
+  - id: mofa_spokesperson
+    regex: "(?i)\\b(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b.{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(spokesperson|spokesman|spokeswoman)\\b.{0,60}\\b(Chinese|China.s) (foreign|foreign affairs) ministry\\b|\\b(Lin Jian|Mao Ning|Guo Jiakun|Wang Wenbin|Hua Chunying|Zhao Lijian|Geng Shuang|Lu Kang|Hong Lei|Zhu Fenglian|Chen Binhua|Ma Xiaoguang|Wu Qian|Zhang Xiaogang|Tan Kefei|Zhu Fenglian)\\b|\\b(portavoce|porte-parole|portavoz|porta-voz|Sprecher(in)?)\\b.{0,80}\\b(Ministero degli Esteri|Esteri cines|ministère (chinois )?des Affaires étrangères|diplomatie chinoise|Cancillería china|Ministerio de (Asuntos |Relaciones )?Exteriores (de )?China|Ministério das Relações Exteriores (da )?China|chinesische(n|s)? Außenministerium)|МИД КНР|МИД Китая|представитель МИД|الخارجية الصينية|中国外交部|外交部发言人|외교부 대변인"
+  - id: chinese_embassy_quoted
+    regex: "(?i)\\b(Chinese embassy|China.s embassy|embassy of (the People.s Republic of )?China|Chinese consulate|ambasciata cinese|ambasciata della Cina|ambassade de Chine|ambassade chinoise|embajada (de )?china|embaixada (da )?china|chinesische(n|r)? Botschaft|Botschaft der Volksrepublik China|посольств[оа] (КНР|Китая)|السفارة الصينية|中国大使馆|中国大使館|중국 대사관|Kedutaan (Besar )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc)\\b"
+  - id: named_chinese_official_spokesperson
+    regex: "(?i)\\b(spokesperson|spokesman|spokeswoman|portavoce|porte-parole|portavoz|porta-voz)\\b.{0,80}\\b(Chinese|China.s|Cina|cinese|chinois|chino|chinês|Taiwan Affairs Office|State Council|Ministry of (Commerce|National Defense|Defence|State Security|Public Security)|Consiglio di Stato|Conseil des affaires de l.État|PLA|Esercito|Armée populaire)\\b"
+  - id: state_media_reported_en
+    regex: "(?i)\\b(state|state-run|state-owned|state-controlled|state-affiliated|official|government)[- ](media|broadcaster|television|news agency|newspaper|outlet|press|TV)\\b.{0,40}\\b(report|reported|reporting|said|says|quoted|cited|announced|claimed|according)|\\baccording to (Chinese )?(state|state-run|official) (media|television|news agency|broadcaster)\\b|\\b(Chinese )?state media (reported|said|says|quoted|cited|announced|claimed|reports)\\b"
+  - id: state_media_reported_it
+    regex: "(?i)\\b(secondo|come riporta|come riferisce|lo riporta|lo riferisce|riporta|riferisce|scrive|ha riferito|ha riportato|citata da|citato da)\\s+(l.agenzia\\s+|l.agenzia di stampa\\s+|la\\s+|i\\s+|il\\s+)?(Xinhua|Nuova Cina|media (statali|di stato|ufficiali) cines[ie]|stampa (statale|di stato|ufficiale) cinese|televisione (statale|di stato) cinese|tv di stato cinese|emittente (statale|di stato) cinese|agenzia (statale|ufficiale|di stato) cinese|CGTN|Global Times|China Daily|CCTV|Quotidiano del Popolo)|\\b(media|stampa|tv|televisione|emittente|agenzia)\\s+(statale|statali|di stato|ufficiale|ufficiali)\\s+cines[ie]\\b"
+  - id: state_media_reported_fr
+    regex: "(?i)\\b(selon|d.après|rapporte|a rapporté|cité par|citée par|indique|selon l.agence)\\s+(l.agence\\s+|l.agence de presse\\s+|les\\s+|la\\s+|le\\s+)?(Xinhua|Chine nouvelle|médias (d.État|officiels|étatiques|publics) chinois|presse (officielle|d.État) chinoise|télévision (d.État|publique|officielle) chinoise|agence (officielle|d.État) chinoise|CGTN|Global Times|China Daily|CCTV|Quotidien du Peuple)|\\b(médias|presse|télévision|agence)\\s+(d.État|officiel(le|s)?|étatique(s)?|publique)\\s+chinois(e)?\\b"
+  - id: state_media_reported_es
+    regex: "(?i)\\b(según|citad[oa] por|informó|reportó|de acuerdo con|indicó)\\s+(la\\s+)?(agencia\\s+)?(estatal\\s+)?(china\\s+)?(Xinhua|medios (estatales|oficiales) chinos|prensa (estatal|oficial) china|televisión (estatal|oficial) china|CGTN|Global Times|China Daily|CCTV|Diario del Pueblo)|\\b(medios|prensa|televisión|agencia)\\s+(estatal(es)?|oficial(es)?)\\s+chin[ao]s?\\b"
+  - id: state_media_reported_pt
+    regex: "(?i)\\b(segundo|de acordo com|citad[oa] pela|informou|noticiou|reportou)\\s+(a\\s+)?(agência\\s+)?(estatal\\s+)?(chinesa\\s+)?(Xinhua|mídia (estatal|oficial) chinesa|imprensa (estatal|oficial) chinesa|televisão (estatal|oficial) chinesa|CGTN|Global Times|China Daily|CCTV|Diário do Povo)|\\b(mídia|imprensa|televisão|agência)\\s+(estatal|oficial)\\s+chinesa\\b"
+  - id: state_media_reported_de
+    regex: "(?i)\\b(laut|nach angaben|wie|berichtete|meldete|zitiert|gemäß|so)\\s+(der\\s+|die\\s+|das\\s+)?(staatlichen?\\s+|amtlichen?\\s+|offiziellen?\\s+)?(chinesischen?\\s+)?(Nachrichtenagentur\\s+)?(Xinhua|Staatsmedien|Staatsfernsehen|Staatsagentur|CGTN|Global Times|China Daily|CCTV|Volkszeitung)|\\b(chinesische[nrs]?|Chinas)\\s+(Staatsmedien|Staatsfernsehen|staatliche[nrs]? (Medien|Nachrichtenagentur|Fernsehen))\\b"
+  - id: state_media_reported_other
+    regex: "(?i)(государственн(ые|ых|ым|ому) (СМИ|телевидение|агентство)|по данным Синьхуа|сообщает Синьхуа|со ссылкой на Синьхуа|китайские государственные СМИ|وسائل الإعلام الرسمية الصينية|الإعلام الحكومي الصيني|وفقا لوكالة شينخوا|نقلا عن شينخوا|中国国営メディア|国営メディア|新華社によると|중국 관영 매체|관영 매체|신화통신에 따르면|truyền thông nhà nước Trung Quốc|theo Tân Hoa Xã|media pemerintah (China|Tiongkok)|kantor berita Xinhua|melaporkan Xinhua|สื่อของรัฐจีน|สำนักข่าวซินหัว|चीनी सरकारी मीडिया|शिन्हुआ के अनुसार|państwowe media|chińska agencja Xinhua|státní média|čínská agentura|állami média|presa de stat chineză|κρατικά μέσα|devlet medyası|Çin devlet medyası)"

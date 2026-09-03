@@ -1,0 +1,63 @@
+- source: https://www.prnewswire.com/news-releases/xinhua-silk-road-culture-ignites-vitality-high-quality-development-in-e-chinas-quanzhou-302848115.html
+  expect_decision: A
+  expect_ids_include:
+  - source_xinhua
+  - wire_stamp_with_state_entity
+  note: True positive, distribution stamp and credit line. Release wire trailer SOURCE Xinhua Silk Road.
+  file: prnewswire_xinhua_silk_road.txt
+  author: Xinhua Silk Road
+  labels: prnewswire_xinhua_silk_road.labels.txt
+- source: https://www.italpress.com/cina-oltre-900-milioni-di-spostamenti-ferroviari-nel-picco-estivo/
+  expect_decision: A
+  expect_ids_include:
+  - xinhua_slash_credit
+  expect_ids_exclude:
+  - xinhua_credit_line
+  note: True positive, credit and dateline group, Italian agency syndication form. The trailing -Foto Xinhua- must be removed
+    by the photo exclusion, not counted.
+  file: italpress_xinhua_slash_credit.txt
+  author: Agenzia di Stampa Italpress
+  labels: italpress_xinhua_slash_credit.labels.txt
+- source: https://mowmag.com/attualita/cosa-c-e-dietro-la-partnership-pubblicitaria-tra-il-corriere-della-sera-e-l-agenzia-cinese-xinhua-i
+  expect_decision_not: A
+  expect_ids_exclude:
+  - cairorcs_with_state_entity
+  - sponsored_it_with_state_entity
+  note: Hard negative, sponsored placement group. A journalist writing about the Corriere and Xinhua placement mentions CairoRcs
+    Studio and Xinhua in the body. Not Category A. Routed to the LLM at most.
+  file: mowmag_about_corriere_placement.txt
+  author: Federico Giuliani
+  labels: mowmag_about_corriere_placement.labels.txt
+- source: https://www.ansa.it/sito/notizie/mondo/africa/2026/09/02/xi-cina-ed-egitto-esempio-di-amicizia-e-solidarieta_861727fe-1664-4733-9eb4-b3c7e970a03f.html
+  expect_decision_not: A
+  expect_triggers_include:
+  - state_media_reported_it
+  note: Hard negative for the credit group and true positive for the Italian official sourcing trigger. ANSA wrote the piece
+    and attributes claims to Xinhua with Lo riporta Xinhua. Category B or C is the LLM's call.
+  file: ansa_lo_riporta_xinhua.txt
+  author: Agenzia ANSA; Redazione ANSA
+  labels: null
+- source: https://www.sbs.com.au/news/article/search-for-nearly-3-000-missing-in-nepal-and-tibet-resumes-sydney-woman-found-safe/ofirdl1of
+  expect_decision_not: A
+  expect_triggers_include:
+  - state_media_reported_en
+  note: Hard negative for credit group, true positive for the English state media trigger.
+  file: sbs_chinese_state_media_reported.txt
+  author: Claudia Farhart
+  labels: null
+- source: https://www.sbs.com.au/news/article/australia-cannot-afford-to-abstain-pacific-nations-the-next-frontier-in-deep-sea-mining/u7eq8xbht
+  expect_decision: none
+  expect_triggers: []
+  note: Independent reporting that mentions China with no official sourcing. No signature, no trigger, becomes residual C
+    by body relevance.
+  file: independent_no_trigger.txt
+  author: null
+  labels: null
+- file: pearls_ambassador_xiao_qian.txt
+  author: Xiao Qian
+  labels: pearls_ambassador_xiao_qian.labels.txt
+  source: https://johnmenadue.com/post/2025/01/seven-truths-on-why-taiwan-always-will-be-chinas/
+  expect_decision: A
+  expect_ids_include:
+  - diplomat_list_author
+  note: True positive, authored by state group. Signed piece by the Chinese ambassador to Australia in Pearls and Irritations.
