@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Outlet registry",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name", "country", "language", "feeds", "tier", "active"],
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z]{2,3}_[a-z0-9_]+$",
+        "description": "Stable identifier. Lowercase country prefix, underscore, slug."
+      },
+      "name": {"type": "string", "minLength": 1},
+      "country": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}$",
+        "description": "ISO 3166-1 alpha-3"
+      },
+      "language": {
+        "type": "string",
+        "pattern": "^[a-z]{2,3}$",
+        "description": "ISO 639-1 where one exists, otherwise ISO 639-3"
+      },
+      "feeds": {
+        "type": "array",
+        "minItems": 1,
+        "items": {"type": "string", "pattern": "^https?://"}
+      },
+      "tier": {
+        "type": "string",
+        "enum": ["national_daily", "agency", "broadcaster", "business", "regional", "aggregator"]
+      },
+      "notes": {"type": "string"},
+      "active": {"type": "boolean"},
+      "inactive_reason": {"type": "string"},
+      "inactive_since": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+    }
+  }
+}

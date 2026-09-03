@@ -1,0 +1,87 @@
+"""Load and validate the outlet registry and the coverage gaps file."""
+import json
+from pathlib import Path
+from typing import Dict, List
+
+import jsonschema
+import yaml
+
+from pipeline import config
+
+
+def load_outlets(path: Path = config.OUTLETS_PATH, validate: bool = True) -> List[Dict]:
+    with open(path, "r", encoding="utf-8") as fh:
+        outlets = yaml.safe_load(fh) or []
+    if validate:
+        validate_outlets(outlets)
+    return outlets
+
+
+def validate_outlets(outlets: List[Dict]) -> None:
+    with open(config.OUTLETS_SCHEMA_PATH, "r", encoding="utf-8") as fh:
+        schema = json.load(fh)
+    jsonschema.validate(outlets, schema)
+    ids = [o["id"] for o in outlets]
+    dupes = sorted({i for i in ids if ids.count(i) > 1})
+    if dupes:
+        raise ValueError("duplicate outlet ids: %s" % ", ".join(dupes))
+    for o in outlets:
+        if not o["id"].startswith(o["country"].lower()[:2]) and not o["id"].startswith(o["country"].lower()):
+            raise ValueError("outlet id %s does not start with its country prefix" % o["id"])
+        if o["language"] == "zh" and o["active"]:
+            raise ValueError(
+                "outlet %s publishes in Chinese and must be inactive with an inactive_reason" % o["id"]
+            )
+        if not o["active"] and not o.get("inactive_reason"):
+            raise ValueError("inactive outlet %s needs an inactive_reason" % o["id"])
+
+
+def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict]:
+    if not path.exists():
+        return []
+    with open(path, "r", encoding="utf-8") as fh:
+        gaps = yaml.safe_load(fh) or []
+    if validate:
+        with open(config.GAPS_SCHEMA_PATH, "r", encoding="utf-8") as fh:
+            schema = json.load(fh)
+        jsonschema.validate(gaps, schema)
+    return gaps
+
+
+def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
+    """Write the registry back. Preserves key order used across the file."""
+    key_order = ["id", "name", "country", "language", "feeds", "tier", "notes", "active",
+                 "inactive_reason", "inactive_since"]
+    ordered = []
+    for o in outlets:
+        ordered.append({k: o[k] for k in key_order if k in o})
+    with open(path, "w", encoding="utf-8") as fh:
+        yaml.safe_dump(ordered, fh, allow_unicode=True, sort_keys=False, width=200)
+
+
+def active_outlets(outlets: List[Dict]) -> List[Dict]:
+    return [o for o in outlets if o.get("active")]
+
+
+def registry_summary(outlets: List[Dict]) -> Dict:
+    active = active_outlets(outlets)
+    countries = {}
+    for o in active:
+        countries.setdefault(o["country"], 0)
+        countries[o["country"]] += 1
+    return {
+        "outlets_total": len(outlets),
+        "outlets_active": len(active),
+        "countries_covered": len(countries),
+        "per_country": countries,
+    }
+
+
+if __name__ == "__main__":
+    outlets = load_outlets()
+    gaps = load_gaps()
+    s = registry_summary(outlets)
+    print("outlets: %d total, %d active, %d countries, %d gap entries" % (
+        s["outlets_total"], s["outlets_active"], s["countries_covered"], len(gaps)))
+    for c in sorted(s["per_country"], key=lambda k: -s["per_country"][k]):
+        print("  %s %d" % (c, s["per_country"][c]))
