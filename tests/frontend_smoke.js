@@ -19,4 +19,8 @@ assert(a2.countries.ITA.A === 3 && a2.countries.ITA.B === 1 && a2.ceilingDays.le
 var a1 = C.aggregateWindow(months, "2026-09-02", 1);
 assert(a1.countries.ITA.A === 1, "single day");
 assert(Math.abs(C.metricValue(a2.countries.ITA, "share_ab", 5, "all").value - 4 / 8) < 1e-9, "share");
+var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_ab", 1, "all");
+assert(tiny.value === null && tiny.sparse === true, "tiny denominator gives no share");
+assert(C.fillClass({coverage: "monitored", outlets_active: 1}, tiny) === "sparse", "sparse fill");
+assert(C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "count_a", 1, "all").value === 2, "count still shown");
 console.log("frontend smoke ok");

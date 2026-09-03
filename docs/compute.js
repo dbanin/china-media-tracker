@@ -63,6 +63,9 @@
     return out;
   }
 
+  /* Share metrics are undefined on tiny denominators: two A items out of two is not a 100 percent country. */
+  var MIN_SHARE_DENOMINATOR = 5;
+
   var METRICS = {
     share_ab: {label: "Share of China coverage that is A or B", format: "pct", needsB: true},
     share_a: {label: "Share of China coverage that is A", format: "pct", needsB: false},
@@ -84,16 +87,17 @@
     }
     var china = a + b + c;
     var value = null;
+    var sparse = false;
     switch (metric) {
-      case "share_ab": value = china ? (a + b) / china : null; break;
-      case "share_a": value = china ? a / china : null; break;
+      case "share_ab": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? (a + b) / china : null; break;
+      case "share_a": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? a / china : null; break;
       case "count_a": value = a; break;
       case "count_ab": value = a + b; break;
       case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
       case "per_outlet_a": value = outletsActive ? a / outletsActive : null; break;
       default: value = null;
     }
-    return {value: value, chinaTotal: china, a: a, b: b, c: c, ab: a + b};
+    return {value: value, chinaTotal: china, a: a, b: b, c: c, ab: a + b, sparse: sparse};
   }
 
   /* Coverage class for the fill. Distinguishes absence of data from absence of content.
@@ -101,6 +105,7 @@
        gap         no working feed could be found; reason recorded
        inactive    outlets registered but all inactive
        nodata      monitored, but no China coverage in the window (share metrics undefined)
+       sparse      monitored, fewer than MIN_SHARE_DENOMINATOR China items, share not shown
        zero        monitored, China coverage present, zero A or B
        value       positive value on the scale */
   function fillClass(latestEntry, mv) {
@@ -108,6 +113,7 @@
     if (latestEntry.coverage === "gap") return "gap";
     if (latestEntry.coverage === "no_active_outlets" || !latestEntry.outlets_active) return "inactive";
     if (!mv || mv.chinaTotal === 0) return "nodata";
+    if (mv.sparse) return "sparse";
     if (!mv.value) return "zero";
     return "value";
   }
@@ -155,7 +161,7 @@
       "Stanford University. Accessed " + accessDate + ".";
   }
 
-  return {EMPTY: EMPTY, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
+  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
           formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation};
 }));
