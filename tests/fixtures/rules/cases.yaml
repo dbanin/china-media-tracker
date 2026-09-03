@@ -61,3 +61,23 @@
   expect_ids_include:
   - diplomat_list_author
   note: True positive, authored by state group. Signed piece by the Chinese ambassador to Australia in Pearls and Irritations.
+- file: laotiantimes_huawei_prnewswire.txt
+  author: Advertorial Desk
+  labels: laotiantimes_huawei_prnewswire.labels.txt
+  source: https://laotiantimes.com/2026/09/03/huawei-unveils-next-gen-flagship-products-at-chase-the-wild-global-innovative-product-launch-event-in-munich/
+  expect_decision_not: A
+  expect_decision: A_candidate
+  expect_ids_include:
+  - wire_stamp_alone
+  note: Hard negative for the distribution stamp group. A Huawei product launch on PR Newswire, republished under an advertorial
+    label. Huawei is a company, not the state. Routed to the LLM, never A by rules.
+- file: yeclo_ambassador_quoted_in_report.txt
+  author: Christian Aka
+  labels: null
+  source: https://www.yeclo.com/orpaillage-illegal-la-chine-soutient-la-fermete-ivoirienne/
+  expect_decision_not: A
+  expect_ids_exclude:
+  - diplomat_list_author
+  - diplomat_byline_head
+  note: Hard negative for the authored by state group. A reporter's account of a minister receiving the Chinese ambassador.
+    Names the ambassador with his full title in the first sentence, but the journalist formed the editorial view. Not A.

@@ -9,6 +9,9 @@
 #   strength  strong  = one match alone gives Category A with confidence 1.0
 #             weak    = needs a second weak match from a different group, otherwise
 #                       the article is routed to the LLM as an A candidate
+#             hint    = never contributes to a Category A decision; only routes the
+#                       article to the LLM as an A candidate. Used for markers that
+#                       identify a distribution channel without saying who issued it.
 #   scope     author  = the article's author field only
 #             head    = first 400 characters of the body
 #             tail    = last 600 characters of the body
@@ -20,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.1"
+ruleset_version: "2026.09.2"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -133,8 +136,8 @@ groups:
         note: A disclosure that nobody at the publisher formed a view. Weak alone; strong with any state credit.
       - id: wire_stamp_alone
         regex: '(?i)\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire)\b'
-        strength: weak
-        note: A press release from anyone. Only meaningful together with a state entity, which the strong patterns above cover; kept weak so the LLM checks the issuer.
+        strength: hint
+        note: A press release from anyone, including Chinese companies such as Huawei or vivo, which are not the state. Never counts toward A on its own or in combination; the LLM checks the issuer. Ruleset 2026.09.2 downgraded this from weak after company releases in a partner outlet combined with the outlet's advertorial label to give false A.
 
   sponsored_placement:
     description: Branded, sponsored and paid placement disclosures, per language. Alone these say only that someone paid; with a Chinese state entity they say who.
@@ -256,14 +259,19 @@ groups:
         scope: author
       - id: diplomat_title_head
         regex: "(?i)\\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|consul[- ]general|console generale|consul général|cónsul general|chargé d.affaires|incaricato d.affari)\\b\\s+(of|de|della|del|di|da|der|des|du)\\s+(the\\s+)?(People.s Republic of China|Repubblica Popolare Cinese|République populaire de Chine|República Popular (de )?China|Volksrepublik China|China|Chine|Cina)\\s+(to|in|en|au|auprès|presso|bei|em|à)\\b"
+        strength: weak
+        scope: head
+        note: Opening attribution such as "Ambassador of the People's Republic of China to Italy". Weak since 2026.09.2, because a news report that opens by naming the ambassador matches the same words; the LLM decides.
+      - id: diplomat_byline_head
+        regex: "(?im)^\\s*(by|par|di|por|von|door|av|de)\\s+[^\\n,]{3,60},\\s*(H\\.E\\.\\s*)?(the\\s+)?(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|consul[- ]general|console generale|consul général|cónsul general|chargé d.affaires)\\b[^\\n]{0,80}\\b(China|Chine|Cina|Chinese|chinois|cinese|chino|chinesa|chinês|People.s Republic|République populaire|Repubblica Popolare|República Popular|Volksrepublik|PRC)\\b"
         strength: strong
         scope: head
-        note: Opening line "Ambassador of the People's Republic of China to Italy" style attribution.
+        note: Explicit byline form "By Xiao Qian, Ambassador of the People's Republic of China to Australia" at the top of the piece.
       - id: diplomat_title_tail
         regex: "(?i)\\b(is|is the|was|est|è|es|é|ist|serves as|is China.s|is the Chinese)\\s+(the\\s+)?(Chinese\\s+|China.s\\s+)?(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|consul[- ]general|console generale|consul général|cónsul general|chargé d.affaires|incaricato d.affari)\\b.{0,80}\\b(China|Chine|Cina|Chinese|People.s Republic|Repubblica Popolare|République populaire|República Popular|Volksrepublik|PRC|to Australia|to Canada|in Italia|au Canada)\\b"
-        strength: strong
+        strength: weak
         scope: tail
-        note: Closing biographical line, for example "Xiao Qian is the ambassador of the People's Republic of China to Australia."
+        note: Closing biographical line, for example "Xiao Qian is the ambassador of the People's Republic of China to Australia." Weak since 2026.09.2 because the same sentence occurs in reporting; the LLM decides.
       - id: embassy_byline
         regex: "(?i)^\\s*(the\\s+)?(Chinese Embassy|Embassy of (the People.s Republic of )?China|Ambasciata (della Repubblica Popolare )?Cinese|Ambassade de (la République populaire de )?Chine|Embajada de (la República Popular )?China|Embaixada da (República Popular da )?China|Botschaft der Volksrepublik China|Chinese Consulate|Consulate General of (the People.s Republic of )?China|Ministry of Foreign Affairs of (the People.s Republic of )?China|Chinese Ministry of Foreign Affairs)\\b"
         strength: strong
