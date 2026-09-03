@@ -25,6 +25,13 @@ file is generated from live values and is the authoritative description.
    4 blocked by robots, 3 failed. Canada obtained only 22 percent because
    The Globe and Mail declares every article not free, so Canadian counts
    are flagged as not comparable until more open Canadian outlets are added.
+4. Rules-based Category A detection. pipeline/signatures.yaml holds pattern
+   groups for credit and dateline forms, distribution stamps, sponsored
+   placement disclosures per language, and authored-by-state bylines. Every
+   match records the pattern id. Real article fixtures in tests/fixtures/rules
+   include a true positive and a hard negative per group. The first pass over
+   109 fetched articles found one Category A item (Italpress carrying Xinhua
+   under a "(XINHUA/ITALPRESS)" credit) and routed 23 to the LLM stage.
 
 ## Running locally
 
@@ -36,6 +43,7 @@ python3 -m venv .venv
 .venv/bin/python -m pipeline.validate_sources      # check every feed
 .venv/bin/python -m pipeline.run discover          # poll feeds into data/tracker.db
 .venv/bin/python -m pipeline.run fetch --budget-minutes 20   # retrieve full text
+.venv/bin/python -m pipeline.run classify --no-llm   # deterministic Category A pass
 .venv/bin/python -m pipeline.run status            # what is in the database
 ```
 

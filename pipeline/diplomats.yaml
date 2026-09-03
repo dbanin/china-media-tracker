@@ -1,0 +1,229 @@
+# Maintained list of Chinese diplomatic personnel used by the authored-by-state
+# signature group. An author field that matches a name here, together with a
+# diplomatic title regex anywhere in the author field, head or tail of the
+# piece, is a strong Category A signature. Names alone are not enough, because
+# a reporter can share a name with a diplomat.
+#
+# Keep this current. Each entry: name (as printed in Latin script), post, note.
+# Postings change; a stale entry only weakens recall, it does not create false
+# positives, because the title regex must also fire.
+#
+# Source for updates: fmprc.gov.cn mission lists, embassy websites.
+personnel:
+  # Ministry of Foreign Affairs spokespersons (current and recent)
+  - name: Lin Jian
+    post: MFA spokesperson
+  - name: Mao Ning
+    post: MFA spokesperson
+  - name: Guo Jiakun
+    post: MFA spokesperson
+  - name: Wang Wenbin
+    post: former MFA spokesperson, ambassador to Cambodia
+  - name: Hua Chunying
+    post: MFA assistant minister, former spokesperson
+  - name: Zhao Lijian
+    post: former MFA spokesperson
+  # Ministers
+  - name: Wang Yi
+    post: foreign minister
+  - name: Ma Zhaoxu
+    post: executive vice foreign minister
+  - name: Sun Weidong
+    post: vice foreign minister
+  - name: Deng Li
+    post: vice foreign minister
+  - name: Hua Chunying
+    post: assistant foreign minister
+  # Ambassadors to the study countries and other frequently published posts
+  - name: Xiao Qian
+    post: ambassador to Australia
+  - name: Wang Di
+    post: ambassador to Canada
+  - name: Jia Guide
+    post: ambassador to Italy
+  - name: Cong Peiwu
+    post: former ambassador to Canada
+  - name: Cheng Jingye
+    post: former ambassador to Australia
+  - name: Li Junhua
+    post: former ambassador to Italy
+  - name: Zheng Zeguang
+    post: ambassador to the United Kingdom
+  - name: Xie Feng
+    post: ambassador to the United States
+  - name: Lu Shaye
+    post: former ambassador to France, special envoy
+  - name: Wang Lutong
+    post: ambassador to New Zealand
+  - name: Fu Cong
+    post: permanent representative to the United Nations, former ambassador to the EU
+  - name: Cai Run
+    post: ambassador to the European Union
+  - name: Wu Ken
+    post: ambassador to Germany
+  - name: Deng Hongbo
+    post: ambassador to Germany
+  - name: Chen Dong
+    post: ambassador to France
+  - name: Zhang Run
+    post: ambassador to Ireland
+  - name: He Xiangdong
+    post: ambassador to Ireland
+  - name: Zhang Jianmin
+    post: ambassador to the Czech Republic
+  - name: Feng Biao
+    post: ambassador to the Czech Republic
+  - name: Wang Xiaolong
+    post: ambassador to New Zealand
+  - name: Zhang Yiming
+    post: ambassador to Namibia
+  - name: Chen Xiaodong
+    post: ambassador to South Africa
+  - name: Wu Peng
+    post: ambassador to South Africa
+  - name: Zhu Jing
+    post: ambassador to Kenya
+  - name: Guo Haiyan
+    post: ambassador to Kenya
+  - name: Zhao Zhiyuan
+    post: ambassador to Ethiopia
+  - name: Wei Hongtian
+    post: ambassador to Nigeria
+  - name: Yu Dunhai
+    post: ambassador to Nigeria
+  - name: Wang Xiaojun
+    post: ambassador to Ghana
+  - name: Lu Kun
+    post: ambassador to Ghana
+  - name: Chen Mingjian
+    post: ambassador to Tanzania
+  - name: Zhang Jianguo
+    post: ambassador to Uganda
+  - name: Wang Xuefeng
+    post: ambassador to Zimbabwe
+  - name: Zhou Ding
+    post: ambassador to Zimbabwe
+  - name: Du Xiaohui
+    post: ambassador to Zambia
+  - name: Han Jing
+    post: ambassador to Zambia
+  - name: Yu Bo
+    post: ambassador to Malawi
+  - name: Wang Wei
+    post: ambassador to Mozambique
+  - name: Xu Jie
+    post: ambassador to Rwanda
+  - name: Wang Wen
+    post: ambassador to Rwanda
+  - name: Zhang Ming
+    post: ambassador to Russia
+  - name: Zhang Hanhui
+    post: ambassador to Russia
+  - name: Fan Xianrong
+    post: ambassador to Ukraine
+  - name: Ma Shengkun
+    post: ambassador to Ukraine
+  - name: Huang Xilian
+    post: ambassador to the Philippines
+  - name: Lu Kang
+    post: ambassador to Indonesia
+  - name: Wang Lutong
+    post: ambassador to Indonesia
+  - name: Ouyang Yujing
+    post: ambassador to Malaysia
+  - name: Han Zhiqiang
+    post: ambassador to Thailand
+  - name: Wang Wentian
+    post: ambassador to Cambodia
+  - name: Xiong Bo
+    post: ambassador to Vietnam
+  - name: He Wei
+    post: ambassador to Vietnam
+  - name: Chen Song
+    post: ambassador to Nepal
+  - name: Jiang Zaidong
+    post: ambassador to Pakistan
+  - name: Xu Feihong
+    post: ambassador to India
+  - name: Yao Wen
+    post: ambassador to Bangladesh
+  - name: Qi Zhenhong
+    post: ambassador to Sri Lanka
+  - name: Wang Xiaotao
+    post: ambassador to Brazil
+  - name: Zhu Qingqiao
+    post: ambassador to Brazil
+  - name: Zhang Run
+    post: ambassador to Mexico
+  - name: Chen Daojiang
+    post: ambassador to Mexico
+  - name: Wang Wei
+    post: ambassador to Argentina
+  - name: Niu Qingbao
+    post: ambassador to Chile
+  - name: Song Yang
+    post: ambassador to Peru
+  - name: Zhu Jingyang
+    post: ambassador to Colombia
+  - name: Chen Weiqing
+    post: ambassador to Saudi Arabia
+  - name: Zhang Yiming
+    post: ambassador to the United Arab Emirates
+  - name: Zhang Jianwei
+    post: ambassador to Egypt
+  - name: Liao Liqiang
+    post: ambassador to Egypt
+  - name: Chen Xu
+    post: ambassador to Israel
+  - name: Xiao Junzheng
+    post: ambassador to Israel
+  - name: Ji Guangbin
+    post: ambassador to Bahrain
+  - name: Ren Li
+    post: ambassador to Hungary
+  - name: Gong Tao
+    post: ambassador to Hungary
+  - name: Sun Linjiang
+    post: ambassador to Poland
+  - name: Cai Run
+    post: former ambassador to Portugal
+  - name: Zhao Bentang
+    post: ambassador to Portugal
+  - name: Yao Jing
+    post: ambassador to Spain
+  - name: Jia Guide
+    post: former ambassador to Peru
+  - name: Wang Xiaodong
+    post: ambassador to Turkey
+  - name: Liu Shaobin
+    post: ambassador to Turkey
+  - name: Zhang Wei
+    post: ambassador to Bulgaria
+  - name: Dai Bing
+    post: ambassador to Bulgaria
+  - name: Han Chunlin
+    post: ambassador to Romania
+  - name: Li Ming
+    post: ambassador to Serbia
+  - name: Chen Bo
+    post: former ambassador to Serbia
+  - name: Wang Liyong
+    post: ambassador to Greece
+  - name: Xiao Junzheng
+    post: former ambassador to Greece
+  - name: Guo Shaochun
+    post: ambassador to Zimbabwe, former ambassador to Ireland
+  - name: Wang Bin
+    post: ambassador to Ecuador
+  - name: Dou Xiaoling
+    post: ambassador to Ethiopia
+  - name: Wang Qingxian
+    post: ambassador to Serbia
+  - name: Xie Yong
+    post: ambassador to Bangladesh
+  - name: Wang Kejian
+    post: ambassador to Lebanon
+  - name: Chen Chuandong
+    post: ambassador to Syria
+  - name: Fei Shengchao
+    post: ambassador to Italy
