@@ -69,11 +69,19 @@ def registry_summary(outlets: List[Dict]) -> Dict:
     for o in active:
         countries.setdefault(o["country"], 0)
         countries[o["country"]] += 1
+    counts = sorted(countries.values())
+    unevenness = None
+    if counts:
+        median = counts[len(counts) // 2]
+        unevenness = {"min": counts[0], "median": median, "max": counts[-1],
+                      "max_over_median": round(counts[-1] / float(median), 2) if median else None,
+                      "countries_with_one_outlet": sum(1 for c in counts if c == 1)}
     return {
         "outlets_total": len(outlets),
         "outlets_active": len(active),
         "countries_covered": len(countries),
         "per_country": countries,
+        "unevenness": unevenness,
     }
 
 
