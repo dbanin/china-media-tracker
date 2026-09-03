@@ -68,7 +68,7 @@ def rebuild_rollups(conn) -> Dict:
         cov = coverage[(d, r["country"])]
         cov["gate_relevant"] += 1
         st = r["status"]
-        if st in ("fetched", "classified", "awaiting_llm"):
+        if st in ("fetched", "classified", "awaiting_llm", "llm_submitted"):
             cov["fetched"] += 1
         if st == "paywalled":
             cov["paywalled"] += 1
@@ -76,7 +76,7 @@ def rebuild_rollups(conn) -> Dict:
             cov["failed"] += 1
         elif st == "blocked_robots":
             cov["blocked_robots"] += 1
-        if st == "awaiting_llm":
+        if st in ("awaiting_llm", "llm_submitted"):
             cov["llm_pending"] += 1
         if r["m_cat"]:
             cov["classified"] += 1
@@ -287,7 +287,7 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
             t[r["category"] + ("r" if r["method"] == "rules" else "l")] += r["n"]
     for r in conn.execute(
         """SELECT outlet_id, COUNT(*) disc, SUM(gate_relevant) rel,
-                  SUM(CASE WHEN status IN ('fetched','classified','awaiting_llm') THEN 1 ELSE 0 END) fetched,
+                  SUM(CASE WHEN status IN ('fetched','classified','awaiting_llm','llm_submitted') THEN 1 ELSE 0 END) fetched,
                   SUM(CASE WHEN status='paywalled' THEN 1 ELSE 0 END) paywalled,
                   SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,
                   SUM(CASE WHEN status='blocked_robots' THEN 1 ELSE 0 END) blocked
