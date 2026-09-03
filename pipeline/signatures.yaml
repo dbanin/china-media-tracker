@@ -285,7 +285,8 @@ llm_triggers:
   - id: cites_china_daily
     regex: '(?i)\bChina Daily\b|中国日报'
   - id: cites_cctv
-    regex: '(?i)\bCCTV\b|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Центральное телевидение Китая|中央电视台'
+    regex: '(?i)\bCCTV\b(?![^.\n]{0,40}\b(footage|camera|cameras|video|videos|surveillance|clip|clips|images|feed|feeds|system|systems))|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Центральное телевидение Китая|中央电视台'
+    note: CCTV also means closed-circuit television. Excluded when followed by camera vocabulary.
   - id: cites_peoples_daily
     regex: "(?i)\\bPeople'?s Daily\\b|Quotidiano del Popolo|Quotidien du Peuple|Diario del Pueblo|Diário do Povo|Volkszeitung|Жэньминь жибао|人民日报|人民日報"
   - id: cites_china_media_group
