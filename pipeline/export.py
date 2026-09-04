@@ -441,8 +441,34 @@ def write_json(path: Path, data) -> None:
         json.dump(data, fh, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
+def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
+    """Append-only audit trail committed to git: every current classification with its article's
+    metadata, one JSON line per article, in monthly files rewritten in full each export."""
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    rows = conn.execute(
+        """SELECT a.id, a.url, a.url_hash, a.outlet_id, a.country, a.language, a.title, a.published_at, a.discovered_at,
+                  a.status, a.dup_group_id, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
+                  c.signatures_fired, c.china_sources_cited, c.model_version, c.ruleset_version, c.classified_at,
+                  (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
+           FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+           WHERE a.gate_relevant=1 ORDER BY a.id"""
+    ).fetchall()
+    by_month = defaultdict(list)
+    for r in rows:
+        by_month[_day(r)[:7]].append(dict(r))
+    written = {}
+    for month, items in by_month.items():
+        path = audit_dir / ("articles-%s.jsonl" % month)
+        with open(path, "w", encoding="utf-8") as fh:
+            for it in items:
+                fh.write(json.dumps(it, ensure_ascii=False, sort_keys=True) + "\n")
+        written[month] = len(items)
+    return written
+
+
 def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR) -> Dict:
     log_id = store.start_stage(conn, run_id, "export")
+    pruned = store.prune_gated_out(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn)
@@ -461,9 +487,11 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR) -> D
     for country in latest["countries"]:
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
-    counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles)}
+    counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
+              "pruned_gated_out": pruned, "audit_files": write_audit_files(conn)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
+    store.vacuum(conn)
     try:
         from pipeline import methodology
         methodology.write(meta, latest)

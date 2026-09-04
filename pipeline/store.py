@@ -438,6 +438,19 @@ def record_llm_usage(conn: sqlite3.Connection, calls: int, input_tokens: int, ou
     )
 
 
+def prune_gated_out(conn: sqlite3.Connection, days: int = config.GATED_OUT_RETENTION_DAYS) -> int:
+    """Delete items the gate rejected more than `days` ago. Relevant items are never deleted."""
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).isoformat()
+    cur = conn.execute("DELETE FROM articles WHERE gate_relevant=0 AND status='gated_out' AND discovered_at<?", (cutoff,))
+    conn.commit()
+    return cur.rowcount
+
+
+def vacuum(conn: sqlite3.Connection) -> None:
+    conn.commit()
+    conn.execute("VACUUM")
+
+
 def table_counts(conn: sqlite3.Connection) -> Dict[str, int]:
     out = {}
     for t in ("outlets", "articles", "classifications", "human_reviews", "daily_counts", "feed_health", "run_log"):

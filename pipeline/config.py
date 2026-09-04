@@ -44,6 +44,13 @@ LLM_BODY_CHAR_LIMIT = 12000
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6
 
+# Items the relevance gate rejected are kept this many days for gate audits, then pruned.
+# This is the one deliberate exception to the never-delete rule: rejected items carry no
+# classification, and keeping every one of them would grow the database by tens of
+# megabytes a day.
+GATED_OUT_RETENTION_DAYS = 3
+EXPORT_DIR_AUDIT = ROOT / "data" / "export"
+
 # Paywall threshold above which a country is flagged as not comparable
 PAYWALL_FLAG_SHARE = 0.33
 

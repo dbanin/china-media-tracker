@@ -11,3 +11,5 @@ review/*.csv
 docs/standalone.html
 logs/local-*.log
 logs/launchd-*
+data/tracker.db
+data/tracker.db.gz

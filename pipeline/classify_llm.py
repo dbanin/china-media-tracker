@@ -270,10 +270,10 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             store.record_llm_usage(conn, 0, 0, 0, ceiling_hit=True)
             conn.commit()
             break
-        body = store.load_body(r["url_hash"]) or ""
+        from pipeline.classify_rules import ensure_body
+        body = ensure_body(conn, r)
         if not body:
-            store.update_article(conn, r["id"], status="failed", fail_reason="body_missing_for_llm")
-            conn.commit()
+            counts["body_unavailable"] = counts.get("body_unavailable", 0) + 1
             continue
         params = request_params(r["title"], body)
         try:
@@ -319,10 +319,10 @@ def _submit_batch(conn, client, rows) -> int:
     from anthropic.types.messages.batch_create_params import Request
     requests = []
     ids = []
+    from pipeline.classify_rules import ensure_body
     for r in rows:
-        body = store.load_body(r["url_hash"]) or ""
+        body = ensure_body(conn, r)
         if not body:
-            store.update_article(conn, r["id"], status="failed", fail_reason="body_missing_for_llm")
             continue
         requests.append(Request(custom_id=str(r["id"]), params=MessageCreateParamsNonStreaming(**request_params(r["title"], body))))
         ids.append(r["id"])
