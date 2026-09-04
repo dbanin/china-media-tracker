@@ -16,11 +16,18 @@ DIPLOMATS_PATH = ROOT / "pipeline" / "diplomats.yaml"
 EXPORT_DIR = ROOT / "docs" / "data"
 
 PROJECT_NAME = "ChinaStateMediaTracker"
-CONTACT = os.environ.get("TRACKER_CONTACT", "see repository issues")
+def _env(name: str, default: str) -> str:
+    """Environment value, falling back to the default when the variable is unset or empty.
+    GitHub Actions passes an undefined repository variable as an empty string."""
+    value = os.environ.get(name)
+    return value if value else default
+
+
+CONTACT = _env("TRACKER_CONTACT", "see repository issues")
 USER_AGENT = (
     "{name}/1.0 (+{repo}; "
     "research crawler, contact {contact})"
-).format(name=PROJECT_NAME, repo=os.environ.get("TRACKER_REPO_URL", "https://github.com/dbanin/china-media-tracker"), contact=CONTACT)
+).format(name=PROJECT_NAME, repo=_env("TRACKER_REPO_URL", "https://github.com/dbanin/china-media-tracker"), contact=CONTACT)
 
 # Polite fetching
 MIN_SECONDS_PER_DOMAIN = 3.0
@@ -30,9 +37,9 @@ FEED_TIMEOUT = 20
 MAX_RETRIES = 2
 
 # Classification
-LLM_MODEL = os.environ.get("TRACKER_LLM_MODEL", "claude-sonnet-5")
+LLM_MODEL = _env("TRACKER_LLM_MODEL", "claude-sonnet-5")
 LLM_MAX_TOKENS = 700
-LLM_DAILY_CALL_CEILING = int(os.environ.get("TRACKER_LLM_DAILY_CEILING", "600"))
+LLM_DAILY_CALL_CEILING = int(_env("TRACKER_LLM_DAILY_CEILING", "600"))
 LLM_BODY_CHAR_LIMIT = 12000
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6
