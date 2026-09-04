@@ -20,7 +20,7 @@ CONTACT = os.environ.get("TRACKER_CONTACT", "see repository issues")
 USER_AGENT = (
     "{name}/1.0 (+{repo}; "
     "research crawler, contact {contact})"
-).format(name=PROJECT_NAME, repo=os.environ.get("TRACKER_REPO_URL", "https://github.com/OWNER/china-media-tracker"), contact=CONTACT)
+).format(name=PROJECT_NAME, repo=os.environ.get("TRACKER_REPO_URL", "https://github.com/dbanin/china-media-tracker"), contact=CONTACT)
 
 # Polite fetching
 MIN_SECONDS_PER_DOMAIN = 3.0
