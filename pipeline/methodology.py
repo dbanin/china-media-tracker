@@ -121,6 +121,15 @@ articles are reclassified forward. Earlier rows are kept and marked not
 current, so a chart made from the database at any date can be reproduced.
 Human review labels are stored in a separate table and never overwrite
 machine labels.
+
+The database itself is not committed to git, because a growing SQLite file
+exceeds GitHub's file size limit within weeks. It travels between runs
+through the GitHub Actions cache and is snapshotted daily, compressed, as a
+release asset. The permanent record in git is data/export, one JSON line per
+gated article per month with its current classification, plus the site data
+under docs/data. One deliberate exception to the never-delete rule: items the
+relevance gate rejected are pruned after {retention} days, once they have
+served the gate audit. They carry no classification.
 """
 
 
@@ -153,6 +162,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         llm_ceiling_days=", ".join(meta["llm_ceiling_days"]) or "none",
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
+        retention=config.GATED_OUT_RETENTION_DAYS,
         kappa_text=kappa_text,
     )
     with open(path, "w", encoding="utf-8") as fh:

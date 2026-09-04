@@ -115,3 +115,27 @@ def test_french_state_media_trigger():
     body = "Selon l'agence Chine nouvelle, le président a rencontré son homologue."
     res = cr.match_signatures("", body, None)
     assert "state_media_reported_fr" in [t["id"] for t in res["triggers"]]
+
+
+def test_missing_body_is_not_classified(monkeypatch, tmp_path):
+    """An article whose body file is absent must be re-fetched, never classified as not relevant."""
+    import sqlite3
+    from pipeline import config, store, fetch_articles
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    monkeypatch.setattr(config, "RAW_HTML_DIR", tmp_path / "raw")
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(store.SCHEMA)
+    aid = store.insert_discovered(conn, {"url": "https://example.com/story", "outlet_id": "o", "country": "ITA",
+                                         "language": "en", "title": "China trade", "status": "fetched", "gate_relevant": 1})
+    conn.execute("UPDATE articles SET status='fetched' WHERE id=?", (aid,))
+    calls = []
+
+    def fake_fetch(conn_factory, row):
+        calls.append(row["id"])
+        return {"id": row["id"], "status": "failed", "reason": "http_403"}
+    monkeypatch.setattr(fetch_articles, "process_article", fake_fetch)
+    row = store.get_article(conn, aid)
+    out = cr.classify_article(conn, row)
+    assert out["outcome"] == "body_unavailable" and calls == [aid]
+    assert store.current_classification(conn, aid) is None

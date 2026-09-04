@@ -64,3 +64,15 @@ def test_feed_health_consecutive_failures():
     assert conn.execute("SELECT consecutive_failures FROM feed_health").fetchone()[0] == 2
     store.record_feed_health(conn, "o", "https://f", True, None, 10)
     assert conn.execute("SELECT consecutive_failures FROM feed_health").fetchone()[0] == 0
+
+
+def test_prune_gated_out_keeps_relevant():
+    conn = _mem()
+    old = "2020-01-01T00:00:00+00:00"
+    for i in range(3):
+        conn.execute("INSERT INTO articles(url, url_hash, outlet_id, country, language, discovered_at, status, gate_relevant) VALUES (?,?,?,?,?,?,?,?)",
+                     ("https://e.com/%d" % i, "h%d" % i, "o", "ITA", "it", old, "gated_out" if i < 2 else "classified", 0 if i < 2 else 1))
+    conn.execute("INSERT INTO articles(url, url_hash, outlet_id, country, language, discovered_at, status, gate_relevant) VALUES (?,?,?,?,?,?,?,?)",
+                 ("https://e.com/new", "hnew", "o", "ITA", "it", store.utcnow(), "gated_out", 0))
+    assert store.prune_gated_out(conn, days=3) == 2
+    assert conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 2

@@ -23,40 +23,44 @@ jobs:
       TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Restore database from the most recent run
+        uses: actions/cache/restore@v4
+        with:
+          path: data/tracker.db
+          key: tracker-db-${{ github.run_id }}
+          restore-keys: tracker-db-
+      - name: Fall back to the snapshot or seed if no cache
+        run: scripts/db_restore.sh
       - name: Discover, fetch, classify
-        id: run
         run: |
           set -o pipefail
           python -m pipeline.run all --budget-minutes 45 2>&1 | tee run.log
-          python - <<'PY' >> "$GITHUB_OUTPUT"
+          python - <<'PY'
           import json, sqlite3
           c = sqlite3.connect("data/tracker.db")
           rows = c.execute("SELECT stage, counts FROM run_log WHERE id IN (SELECT MAX(id) FROM run_log GROUP BY stage) AND stage IN ('discover','fetch','classify_rules','classify_llm')").fetchall()
           d = {s: json.loads(k or "{}") for s, k in rows}
           disc = d.get("discover", {}); fet = d.get("fetch", {}); cr = d.get("classify_rules", {}); cl = d.get("classify_llm", {})
-          msg = "collect: %d new, %d relevant, %d fetched, %d paywalled, rules A %d, llm %d%s" % (
+          print("summary: %d new, %d relevant, %d fetched, %d paywalled, rules A %d, llm %d%s" % (
               disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
-              cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else "")
-          print("message=" + msg)
+              cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else ""))
           PY
-      - name: Commit database and logs
+      - name: Save database for the next run
         if: always()
-        run: |
-          git config user.name "tracker-bot"
-          git config user.email "tracker-bot@users.noreply.github.com"
-          mkdir -p logs && cp run.log "logs/collect-$(date -u +%Y%m%dT%H%M%SZ).log" || true
-          find logs -name 'collect-*.log' -mtime +14 -delete || true
-          git add data/tracker.db logs
-          git diff --cached --quiet || git commit -m "${{ steps.run.outputs.message || 'collect: run did not report counts' }}"
-          git pull --rebase --autostash origin ${{ github.ref_name }} || true
-          git push
+        uses: actions/cache/save@v4
+        with:
+          path: data/tracker.db
+          key: tracker-db-${{ github.run_id }}
       - name: Open or update failure issue
         if: failure()
         uses: actions/github-script@v7

@@ -23,7 +23,9 @@ def _run_id() -> str:
 
 def cmd_discover(conn, run_id, args, deadline):
     from pipeline import fetch_feeds
+    pruned = store.prune_gated_out(conn)
     counts = fetch_feeds.run(conn, run_id, deadline=deadline)
+    counts["pruned_gated_out"] = pruned
     print("discover:", json.dumps(counts))
     return counts
 

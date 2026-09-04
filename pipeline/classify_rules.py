@@ -161,8 +161,31 @@ def labels_for(row) -> str:
         return ""
 
 
+def ensure_body(conn, row) -> str:
+    """Return the article body, re-fetching it when the gzipped file is absent.
+
+    Bodies are not committed, so a runner that did not fetch the article has no body
+    for it. Classifying an empty body would silently produce not_relevant, which is
+    the wrong answer, so the article is fetched again under the usual politeness rules.
+    """
+    body = store.load_body(row["url_hash"])
+    if body:
+        return body
+    from pipeline import fetch_articles
+    prior_status = row["status"]
+    res = fetch_articles.process_article(store.connect, row)
+    if res["status"] == "fetched":
+        conn.execute("UPDATE articles SET status=? WHERE id=?", (prior_status, row["id"]))
+        conn.commit()
+        return store.load_body(row["url_hash"]) or ""
+    return ""
+
+
 def classify_article(conn, row) -> Dict:
-    body = store.load_body(row["url_hash"]) or ""
+    body = ensure_body(conn, row)
+    if not body:
+        # The re-fetch recorded why (paywalled, blocked, failed). Leave that status in place.
+        return {"outcome": "body_unavailable"}
     res = match_signatures(row["title"], body, row["author"], labels=labels_for(row))
     fired = [m["id"] for m in res["matches"]]
     if res["decision"] == "A":
@@ -206,7 +229,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetc
     if repaired:
         conn.commit()
     rows = store.articles_by_status(conn, status, limit=100000)
-    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0, "repaired": repaired}
+    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0, "repaired": repaired, "body_unavailable": 0}
     for r in rows:
         if deadline and time.time() > deadline:
             counts["skipped_deadline"] += 1
@@ -230,7 +253,7 @@ def reclassify(conn, run_id: str, since: Optional[str] = None) -> Dict:
         q += " AND a.discovered_at >= ?"
         params.append(since)
     rows = conn.execute(q, params).fetchall()
-    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0}
+    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0}
     for r in rows:
         cur = store.current_classification(conn, r["id"])
         if cur and cur["ruleset_version"] == config.RULESET_VERSION:

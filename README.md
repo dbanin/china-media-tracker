@@ -111,10 +111,17 @@ machine. They were used as macOS launch agents before the repository was on
 GitHub and are now disabled, because two schedulers committing the same
 database would conflict.
 
-The database and the generated site data are committed by the workflows, so
-the repository history is the audit trail. Article bodies and raw HTML are
-not committed; `pipeline/rehydrate.py` re-fetches them when a
-reclassification needs them.
+The generated site data (docs/data) and the audit files (data/export, one
+JSON line per gated article per month with its current classification) are
+committed daily, so the repository history is the audit trail. The working
+database is not committed: a growing SQLite file passes GitHub's 100 MB file
+limit within weeks and would bloat the history hourly. It travels between
+runs through the Actions cache and is snapshotted, compressed, as the single
+asset of the `db-snapshot` release every day; `scripts/db_restore.sh` shows
+the restore order. Items the relevance gate rejected are pruned after three
+days, the one deliberate exception to the never-delete rule. Article bodies
+and raw HTML are not committed either; `pipeline/rehydrate.py` and the
+classifiers re-fetch a body when one is missing.
 
 ## Changing the ruleset
 
