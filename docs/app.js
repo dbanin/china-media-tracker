@@ -58,6 +58,16 @@
   }
   function robinson() { return d3.geoProjection(robinsonRaw).scale(152.63); }
 
+  function mapFallback(text) {
+    var wrap = el("map-wrap");
+    if (!wrap) return;
+    var d = document.createElement("div");
+    d.id = "map-fallback";
+    d.textContent = text + " The ranked list below the map still works.";
+    wrap.insertBefore(d, wrap.firstChild);
+    document.body.classList.add("force-list");
+  }
+
   /* --------------------------------------------------------------- helpers */
   function el(id) { return document.getElementById(id); }
   function esc(s) { return String(s === null || s === undefined ? "" : s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
@@ -476,7 +486,9 @@
   /* ------------------------------------------------------------------ init */
   function init() {
     loadAll().then(function () {
-      try { setupMap(); } catch (e) { console.error("map setup failed", e); }
+      try { setupMap(); } catch (e) { console.error("map setup failed", e); mapFallback("The map could not be drawn: " + (e && e.message ? e.message : e)); }
+      if (!window.d3) mapFallback("The map library did not load.");
+      else if (!state.topo) mapFallback("The world outline data did not load.");
       bindControls();
       setupTimeline();
       renderNotices();

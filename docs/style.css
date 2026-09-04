@@ -118,10 +118,9 @@ footer { padding: 1rem 2rem 2rem 2rem; color: var(--ink-faint); font-size: 0.85r
   section.method dl { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  body:not(.force-map) #map-wrap { display: none; }
-  body:not(.force-map) #bars-wrap { display: block; }
   header.top, .controls, #timeline, section.method, .notice { padding-left: 1rem; padding-right: 1rem; margin-left: 0; margin-right: 0; }
 }
+#map-fallback { padding: 1rem; color: var(--warn); }
 body.force-list #map-wrap { display: none; }
 body.force-list #bars-wrap { display: block; }
 body.force-map #map-wrap { display: block; }
