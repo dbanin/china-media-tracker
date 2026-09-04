@@ -1,7 +1,7 @@
 """Build docs/standalone.html: the whole map in one file with every data file inlined.
 
 Useful for sharing a snapshot as a single page (for example as a hosted artifact)
-when the static site is not deployed. D3 loads from cdnjs; everything else,
+when the static site is not deployed. D3, the topology client and everything else,
 including the Natural Earth topology, the ISO table, the registry and the
 per-country article lists, is embedded. The file carries no <html>, <head> or
 <body> wrapper so a host can wrap it; opened directly in a browser it still
@@ -46,7 +46,7 @@ def build(out: Path = DOCS / "standalone.html") -> Path:
         "<title>China State Media Tracker</title>\n",
         "<style>\n", css, "\n</style>\n",
         body,
-        '\n<script src="%s"></script>\n' % D3_CDN,
+        "\n<script>\n", _read(DOCS / "vendor" / "d3.v7.min.js"), "\n</script>\n",
         "<script>\n", _read(DOCS / "vendor" / "topojson-client.min.js"), "\n</script>\n",
         "<script>window.__TRACKER_DATA = ", blob, ";</script>\n",
         "<script>\n", _read(DOCS / "compute.js"), "\n</script>\n",
