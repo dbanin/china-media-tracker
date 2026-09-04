@@ -82,7 +82,7 @@ groups:
         strength: strong
         scope: author
       - id: cgtn_credit
-        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|\(CGTN\)|(?im)^\s*CGTN\s*$'
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|\(CGTN\)|^\s*CGTN\s*$'
         strength: strong
         note: Also covers a bare CGTN credit line.
       - id: cgtn_author
@@ -90,7 +90,7 @@ groups:
         strength: strong
         scope: author
       - id: china_media_group_credit
-        regex: '(?i)\b(China Media Group|CMG)\b.{0,40}\b(release|press release|comunicato|communiqué)|(?im)^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
+        regex: '(?im)\b(China Media Group|CMG)\b.{0,40}\b(release|press release|comunicato|communiqué)|^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
         strength: strong
       - id: peoples_daily_credit
         regex: "(?im)^\\s*(source|fonte|credit|crediti|by|di|par)\\s*:?\\s*(the\\s+)?People'?s\\s+Daily(\\s+Online)?\\s*(\\.|$)|\\(People'?s Daily\\)"
@@ -103,7 +103,7 @@ groups:
         regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*(China News Service|ECNS|ecns\.cn)\s*(\.|$)|\((China News Service|ECNS)\)'
         strength: strong
       - id: cri_credit
-        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*China Radio International\s*(\.|$)|\(China Radio International\)|(?i)\bCRI Online\b'
+        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*China Radio International\s*(\.|$)|\(China Radio International\)|\bCRI Online\b'
         strength: strong
       - id: cgtn_spelled_out_credit
         regex: '(?im)^\s*(source|fonte|credit|by)\s*:?\s*China Global Television Network\s*(\.|$)'

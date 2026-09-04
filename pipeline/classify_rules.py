@@ -198,8 +198,15 @@ def classify_article(conn, row) -> Dict:
 
 def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetched") -> Dict:
     log_id = store.start_stage(conn, run_id, "classify_rules")
+    # A ruleset that does not compile must stop the stage loudly, never mark articles failed one by one.
+    load_signatures()
+    load_diplomats()
+    # Repair articles a broken ruleset marked failed on an earlier run: queue them for a fresh fetch.
+    repaired = conn.execute("UPDATE articles SET status='queued', fail_reason=NULL WHERE fail_reason LIKE 'classify_exception:%'").rowcount
+    if repaired:
+        conn.commit()
     rows = store.articles_by_status(conn, status, limit=100000)
-    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0}
+    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0, "repaired": repaired}
     for r in rows:
         if deadline and time.time() > deadline:
             counts["skipped_deadline"] += 1
