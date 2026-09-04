@@ -93,18 +93,23 @@ Set `TRACKER_CONTACT` to a contact address before running the crawler against
 live sites, so the user agent identifies a real person. Set
 `TRACKER_REPO_URL` to the repository URL once it exists.
 
-## Running on GitHub
+## Where it runs
 
-1. Create a repository and push this tree. The default branch is `main`.
-2. Settings, Secrets and variables, Actions: add the secret
-   `ANTHROPIC_API_KEY`. Add the variable `TRACKER_CONTACT` with a contact
-   address for the crawler's user agent. Optionally add `TRACKER_LLM_MODEL`
-   and `TRACKER_LLM_DAILY_CEILING`.
-3. Settings, Pages: set the source to GitHub Actions.
-4. Settings, Actions, General: allow workflows read and write permissions.
-5. Run the three workflows once by hand from the Actions tab to confirm they
-   pass: collect (hourly), export (daily at 02:00 UTC, deploys Pages),
-   validate feeds (weekly).
+Repository: https://github.com/dbanin/china-media-tracker. Live site:
+https://dbanin.github.io/china-media-tracker/, rebuilt and deployed by the
+export workflow every day at 02:00 UTC from data the collect workflow gathers
+every hour. The validate feeds workflow runs weekly.
+
+Set up on 2026-09-04: Pages deploys from Actions, workflows have write
+permission, the `TRACKER_CONTACT` variable holds the crawler contact address,
+and a write deploy key lets the owner's machine push. Still to add by the
+owner: the `ANTHROPIC_API_KEY` secret, which switches on the verification
+stage. Optional variables: `TRACKER_LLM_MODEL`, `TRACKER_LLM_DAILY_CEILING`.
+
+`scripts_collect.sh` and `scripts_export.sh` are the same jobs for a local
+machine. They were used as macOS launch agents before the repository was on
+GitHub and are now disabled, because two schedulers committing the same
+database would conflict.
 
 The database and the generated site data are committed by the workflows, so
 the repository history is the audit trail. Article bodies and raw HTML are
