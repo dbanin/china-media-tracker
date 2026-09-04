@@ -9,3 +9,5 @@ data/raw_html/
 review/*.csv
 .claude/
 docs/standalone.html
+logs/local-*.log
+logs/launchd-*
