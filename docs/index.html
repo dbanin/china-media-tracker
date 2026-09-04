@@ -4,11 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>China state media tracker</title>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 <header class="top">
-  <h1>China state media tracker</h1>
+  <div class="eyebrow">Stanford research instrument</div>
+  <h1>Chinese state media, <em>traced</em> through the world's newsrooms.</h1>
   <p class="sub">This instrument looks for two kinds of article in every country it monitors: text placed by the Chinese state and published unaltered (state origin), and local reporting that carries claims from Chinese officials or state media without independent checking (unverified relay). Ordinary China coverage is only the denominator. Counts come from the full text of articles in a fixed registry of outlets, every day. Hatched countries are not monitored. That is absence of data, not absence of content.</p>
 </header>
 
@@ -91,6 +95,7 @@
 </div>
 
 <section class="method" id="method">
+  <div class="eyebrow">How the numbers are made</div>
   <h2>Methodology</h2>
   <div class="defs">
     <p><strong>State origin.</strong> The text was written by an entity of the Chinese state and published essentially unaltered. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements paid for by Chinese state entities, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that nobody at the receiving publication formed an editorial view about the content.</p>
@@ -120,7 +125,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=8"></script>
-<script src="app.js?v=11"></script>
+<script src="compute.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
