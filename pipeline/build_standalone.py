@@ -44,6 +44,7 @@ def build(out: Path = DOCS / "standalone.html") -> Path:
     css += "\nbody { margin: 0; }\n"
     html = "".join([
         "<title>China State Media Tracker</title>\n",
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">\n',
         "<style>\n", css, "\n</style>\n",
         body,
         "\n<script>\n", _read(DOCS / "vendor" / "d3.v7.min.js"), "\n</script>\n",

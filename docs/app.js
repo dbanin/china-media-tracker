@@ -118,14 +118,14 @@
     svg.selectAll("*").remove();
     var defs = svg.append("defs");
     var pat = defs.append("pattern").attr("id", "hatch").attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6).attr("patternTransform", "rotate(45)");
-    pat.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#f3f1ec");
-    pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 6).attr("stroke", "#c9c5bb").attr("stroke-width", 1.4);
+    pat.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#141618");
+    pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 6).attr("stroke", "#2b2e33").attr("stroke-width", 1.4);
     var pat2 = defs.append("pattern").attr("id", "stipple").attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6);
-    pat2.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#f3f1ec");
-    pat2.append("circle").attr("cx", 3).attr("cy", 3).attr("r", 0.9).attr("fill", "#b9b4a8");
+    pat2.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#141618");
+    pat2.append("circle").attr("cx", 3).attr("cy", 3).attr("r", 0.9).attr("fill", "#3a3d43");
     var pat3 = defs.append("pattern").attr("id", "sparse").attr("patternUnits", "userSpaceOnUse").attr("width", 5).attr("height", 5);
-    pat3.append("rect").attr("width", 5).attr("height", 5).attr("fill", "#e5e2da");
-    pat3.append("rect").attr("x", 2).attr("y", 2).attr("width", 1.2).attr("height", 1.2).attr("fill", "#a9c4dd");
+    pat3.append("rect").attr("width", 5).attr("height", 5).attr("fill", "#23262a");
+    pat3.append("rect").attr("x", 2).attr("y", 2).attr("width", 1.2).attr("height", 1.2).attr("fill", "#8a7443");
     projection = robinson();
     path = d3.geoPath(projection);
     projection.fitSize([960, 500], {type: "Sphere"});
@@ -147,9 +147,9 @@
     if (cls === "nocoverage") return "url(#hatch)";
     if (cls === "gap") return "url(#stipple)";
     if (cls === "inactive") return "url(#stipple)";
-    if (cls === "nodata") return "#efede7";
+    if (cls === "nodata") return "#1a1c1f";
     if (cls === "sparse") return "url(#sparse)";
-    if (cls === "zero") return "#e5e2da";
+    if (cls === "zero") return "#23262a";
     return colorScale(value);
   }
 
@@ -168,7 +168,8 @@
     var max = vals.length ? d3.max(vals) : 1;
     var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
     if (fmt === "pct") max = Math.max(max, 0.05);
-    colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0, max]);
+    /* Single warm gold ramp on the dark ground: deep amber to bright gold light. */
+    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.6)("#4a3a1c", "#e7c777")).domain([0, max]);
     state._perIso = perIso; state._max = max;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
@@ -195,13 +196,13 @@
   function renderLegend(max, fmt) {
     var ramp = [0.1, 0.3, 0.5, 0.7, 0.9].map(function (t) { return '<span style="background:' + colorScale(t * max) + '"></span>'; }).join("");
     el("legend").innerHTML =
-      '<span><span class="swatch" style="background:url(#hatch);background:repeating-linear-gradient(45deg,#f3f1ec,#f3f1ec 3px,#c9c5bb 3px,#c9c5bb 4px)"></span>No monitored outlets</span>' +
-      '<span><span class="swatch" style="background:radial-gradient(#b9b4a8 0.9px, #f3f1ec 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
-      '<span><span class="swatch" style="background:#efede7"></span>Monitored, no China coverage in window</span>' +
-      '<span><span class="swatch" style="background:#e5e2da"></span>Monitored, zero detections</span>' +
-      (C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#a9c4dd 0.7px, #e5e2da 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
+      '<span><span class="swatch" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span>No monitored outlets</span>' +
+      '<span><span class="swatch" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
+      '<span><span class="swatch" style="background:#1a1c1f"></span>Monitored, no China coverage in window</span>' +
+      '<span><span class="swatch" style="background:#23262a"></span>Monitored, zero detections</span>' +
+      (C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
       '<span>0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + ' ' + esc(metricLabel().toLowerCase()) + '</span>' +
-      '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#fbfaf7" stroke="#9a5b1b" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
+      '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
       '<span class="faint">' + esc(windowLabel()) + (state.mode === "reviewed" ? ", human-reviewed labels only" : "") + '</span>';
   }
 
