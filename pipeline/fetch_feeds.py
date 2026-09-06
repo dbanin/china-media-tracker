@@ -106,7 +106,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     counts["items_seen"] += 1
                     title = (entry.get("title") or "").strip()
                     summary = _entry_summary(entry)
-                    relevant, terms = gate.check(title, summary, outlet["language"])
+                    relevant, terms = gate.check(title, summary, outlet["language"], outlet["country"])
                     item = {
                         "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
                         "language": outlet["language"], "feed_url": feed_url, "title": title,
@@ -119,6 +119,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     if new_id is None:
                         continue
                     counts["items_new"] += 1
+                    store.record_discovery(conn, outlet["country"], relevant)
                     if relevant:
                         counts["gate_relevant"] += 1
                         if link_near_duplicates(conn, new_id, title, outlet["country"]):

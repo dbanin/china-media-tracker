@@ -58,5 +58,5 @@ PAYWALL_FLAG_SHARE = 0.33
 FEED_FAILURE_WARNING_SHARE = 0.5
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
-RULESET_VERSION = "2026.09.2"
+RULESET_VERSION = "2026.09.3"
 SCHEMA_VERSION = 1

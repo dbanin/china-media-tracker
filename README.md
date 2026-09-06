@@ -31,12 +31,12 @@ file is generated from live values and is the authoritative description.
    4 blocked by robots, 3 failed. Canada obtained only 22 percent because
    The Globe and Mail declares every article not free, so Canadian counts
    are flagged as not comparable until more open Canadian outlets are added.
-4. Rules-based Category A detection. pipeline/signatures.yaml holds pattern
+4. Rules-based state origin detection. pipeline/signatures.yaml holds pattern
    groups for credit and dateline forms, distribution stamps, sponsored
    placement disclosures per language, and authored-by-state bylines. Every
    match records the pattern id. Real article fixtures in tests/fixtures/rules
    include a true positive and a hard negative per group. The first pass over
-   109 fetched articles found one Category A item (Italpress carrying Xinhua
+   109 fetched articles found one state origin item (Italpress carrying Xinhua
    under a "(XINHUA/ITALPRESS)" credit) and routed 23 to the LLM stage.
 5. The map. docs/ is a static GitHub Pages site with no build step: a
    Robinson choropleth on Natural Earth topology, a single-hue scale used
@@ -47,7 +47,7 @@ file is generated from live values and is the authoritative description.
    every classification, an always-visible methodology section, and CSV
    export with a citation string. Below 900 pixels it becomes a ranked bar
    chart. METHODOLOGY.md is generated from live values at export time.
-6. LLM Category B adjudication, the review queue and the agreement study.
+6. Unverified relay adjudication by the model, the review queue and the agreement study.
    pipeline/classify_llm.py sends headline and body only, never outlet or
    country, with the category definitions verbatim in the prompt, structured
    JSON output, a daily call ceiling that is recorded when hit, synchronous
@@ -77,7 +77,7 @@ python3 -m venv .venv
 .venv/bin/python -m pipeline.validate_sources      # check every feed
 .venv/bin/python -m pipeline.run discover          # poll feeds into data/tracker.db
 .venv/bin/python -m pipeline.run fetch --budget-minutes 20   # retrieve full text
-.venv/bin/python -m pipeline.run classify --no-llm   # deterministic Category A pass
+.venv/bin/python -m pipeline.run classify --no-llm   # deterministic state origin pass
 ANTHROPIC_API_KEY=... .venv/bin/python -m pipeline.run classify   # plus LLM adjudication
 .venv/bin/python -m pipeline.classify_llm --batch   # Message Batches mode: submit now, collect next run
 .venv/bin/python -m review.queue                   # review low-confidence B and LLM-resolved A candidates
@@ -97,8 +97,11 @@ live sites, so the user agent identifies a real person. Set
 
 Repository: https://github.com/dbanin/china-media-tracker. Live site:
 https://dbanin.github.io/china-media-tracker/, rebuilt and deployed by the
-export workflow every day at 02:00 UTC from data the collect workflow gathers
-every hour. The validate feeds workflow runs weekly.
+export workflow every day, scheduled for 02:00 UTC, from data the collect
+workflow gathers on an hourly schedule. GitHub Actions delays scheduled runs
+under load, often by one to four hours, so the real cadence is looser than
+the schedule and every run's actual time is in the run log. The validate
+feeds workflow runs weekly.
 
 Set up on 2026-09-04: Pages deploys from Actions, workflows have write
 permission, the `TRACKER_CONTACT` variable holds the crawler contact address,
@@ -106,10 +109,18 @@ and a write deploy key lets the owner's machine push. Still to add by the
 owner: the `ANTHROPIC_API_KEY` secret, which switches on the verification
 stage. Optional variables: `TRACKER_LLM_MODEL`, `TRACKER_LLM_DAILY_CEILING`.
 
-`scripts_collect.sh` and `scripts_export.sh` are the same jobs for a local
-machine. They were used as macOS launch agents before the repository was on
-GitHub and are now disabled, because two schedulers committing the same
-database would conflict.
+Only the workflows write the database. Before running any local tool that
+reads it (the review queue, the agreement study, a reclassification), pull
+the latest snapshot:
+
+```bash
+scripts/db_pull.sh
+```
+
+That replaces `data/tracker.db` with the daily release snapshot and keeps
+the previous local file as a backup. Local runs of the pipeline are for
+development; do not push their generated files, or the export workflow's
+commit will conflict with them.
 
 The generated site data (docs/data) and the audit files (data/export, one
 JSON line per gated article per month with its current classification) are
@@ -118,10 +129,15 @@ database is not committed: a growing SQLite file passes GitHub's 100 MB file
 limit within weeks and would bloat the history hourly. It travels between
 runs through the Actions cache and is snapshotted, compressed, as the single
 asset of the `db-snapshot` release every day; `scripts/db_restore.sh` shows
-the restore order. Items the relevance gate rejected are pruned after three
-days, the one deliberate exception to the never-delete rule. Article bodies
-and raw HTML are not committed either; `pipeline/rehydrate.py` and the
-classifiers re-fetch a body when one is missing.
+the restore order. Extracted article bodies travel in the same cache.
+Items the relevance gate rejected are pruned after three days, the one
+deliberate exception to the never-delete rule; a permanent per-day
+discovery count is kept so totals do not shrink, and the gate audit has to
+sample within that window. Raw HTML is kept only on the machine that
+fetched it; the page chrome labels the sponsored placement patterns need
+are extracted at fetch time and stored with the article. When a body is
+missing anyway, `pipeline/rehydrate.py` and the classifiers re-fetch it,
+up to three attempts, under the usual politeness rules.
 
 ## Changing the ruleset
 
@@ -133,7 +149,10 @@ Edit `pipeline/signatures.yaml`, add fixtures for every new pattern, bump
 .venv/bin/python -m pipeline.classify_rules reclassify 2026-09-01
 ```
 
-Earlier classification rows stay in the database marked not current.
+Earlier classification rows stay in the database marked not current. The
+hourly collect run also carries forward, a few hundred articles at a time,
+any article whose current label is from an older ruleset, so a bump needs
+no manual step on the runner.
 
 ## Classifier model and cost
 

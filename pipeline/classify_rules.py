@@ -12,8 +12,9 @@ Decision rule:
       -> routed to the LLM for the B versus C judgement
   - no A signature and no trigger
       -> Category C by rules if the body substantively concerns China
-         (at least BODY_RELEVANCE_MIN_HITS gate terms in the body),
-         otherwise not_relevant by rules. Both carry confidence below 1.0
+         (at least BODY_RELEVANCE_MIN_HITS distinct gate terms, or
+         BODY_RELEVANCE_MIN_TOTAL occurrences, or a term in the headline
+         with at least two occurrences), otherwise not_relevant by rules. Both carry confidence below 1.0
          and are sampled by the agreement study like every other label.
 """
 import json
@@ -27,6 +28,9 @@ import yaml
 from pipeline import config, extract, gate, store
 
 BODY_RELEVANCE_MIN_HITS = 3
+BODY_RELEVANCE_MIN_TOTAL = 5
+REFETCH_ATTEMPT_LIMIT = 3
+RECLASSIFY_PER_RUN = 400
 HEAD_CHARS = 400
 TAIL_CHARS = 600
 
@@ -139,14 +143,24 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             "ruleset_version": sigs["ruleset_version"]}
 
 
-def body_relevance_hits(title: str, body: str, language: str) -> int:
-    """How many distinct gate terms appear in the body. Used only for the residual C / not_relevant call."""
-    _, terms = gate.check(title, body, language)
-    return len(terms)
+def body_relevance(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[bool, str]:
+    """The residual C versus not_relevant call. Returns (relevant, explanation)."""
+    distinct, total, in_title = gate.count(title, body, language, country)
+    why = "%d distinct China terms, %d occurrences%s" % (distinct, total, ", one in the headline" if in_title else "")
+    if distinct >= BODY_RELEVANCE_MIN_HITS or total >= BODY_RELEVANCE_MIN_TOTAL or (in_title and total >= 2):
+        return True, why
+    return False, why
 
 
 def labels_for(row) -> str:
-    """Page chrome labels from the saved raw HTML, empty when the HTML is not on disk."""
+    """Page chrome labels. Stored in the database at fetch time; the saved raw HTML is the
+    fallback for rows fetched before the column existed."""
+    try:
+        stored = row["page_labels"]
+    except (IndexError, KeyError):
+        stored = None
+    if stored:
+        return stored
     p = row["raw_html_path"]
     if not p:
         return ""
@@ -173,11 +187,19 @@ def ensure_body(conn, row) -> str:
         return body
     from pipeline import fetch_articles
     prior_status = row["status"]
+    if row["fetch_attempts"] >= REFETCH_ATTEMPT_LIMIT:
+        return ""
     res = fetch_articles.process_article(store.connect, row)
     if res["status"] == "fetched":
         conn.execute("UPDATE articles SET status=? WHERE id=?", (prior_status, row["id"]))
         conn.commit()
         return store.load_body(row["url_hash"]) or ""
+    if prior_status in ("awaiting_llm", "llm_submitted"):
+        # A candidate stays a candidate. The failed re-fetch is recorded in fail_reason and
+        # fetch_attempts, not by silently dropping the article from the pending pool.
+        conn.execute("UPDATE articles SET status=?, fail_reason=? WHERE id=?",
+                     (prior_status, "refetch_%s:%s" % (res["status"], res.get("reason")), row["id"]))
+        conn.commit()
     return ""
 
 
@@ -203,17 +225,17 @@ def classify_article(conn, row) -> Dict:
         conn.execute("UPDATE classifications SET is_current=0 WHERE article_id=? AND method='rules'", (row["id"],))
         store.update_article(conn, row["id"], status="awaiting_llm", llm_pending=1, llm_trigger=json.dumps(trig))
         return {"outcome": "llm"}
-    hits = body_relevance_hits(row["title"], body, row["language"])
-    if hits >= BODY_RELEVANCE_MIN_HITS:
+    relevant, why = body_relevance(row["title"], body, row["language"], row["country"])
+    if relevant:
         store.insert_classification(
             conn, row["id"], "rules", "C", 0.75,
-            reasoning="No state-origin signature and no official sourcing trigger; body mentions %d distinct China terms." % hits,
+            reasoning="No state-origin signature and no official sourcing trigger; the body substantively concerns China (%s)." % why,
             signatures_fired=["residual_c"], ruleset_version=res["ruleset_version"],
         )
         return {"outcome": "C"}
     store.insert_classification(
         conn, row["id"], "rules", "not_relevant", 0.7,
-        reasoning="No state-origin signature, no official sourcing trigger, and only %d distinct China terms in the body." % hits,
+        reasoning="No state-origin signature, no official sourcing trigger, and the body barely mentions China (%s)." % why,
         signatures_fired=["residual_not_relevant"], ruleset_version=res["ruleset_version"],
     )
     return {"outcome": "not_relevant"}
@@ -241,20 +263,34 @@ def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetc
             store.update_article(conn, r["id"], status="failed", fail_reason="classify_exception:%s" % type(exc).__name__)
             counts["failed"] = counts.get("failed", 0) + 1
         conn.commit()
+    # Carry articles labelled under an older ruleset forward, as far as the budget allows.
+    counts["reclassified"] = reclassify(conn, run_id, deadline=deadline, limit=RECLASSIFY_PER_RUN)
     store.finish_stage(conn, log_id, True, counts)
     return counts
 
 
-def reclassify(conn, run_id: str, since: Optional[str] = None) -> Dict:
-    """Reclassify forward under the current ruleset. Earlier rows stay, marked not current."""
-    q = "SELECT a.* FROM articles a WHERE a.status IN ('classified','awaiting_llm')"
-    params = []
+def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optional[float] = None,
+               limit: Optional[int] = None) -> Dict:
+    """Reclassify forward under the current ruleset. Earlier rows stay, marked not current.
+    Only rows whose current label carries an older ruleset are touched, so the call is
+    idempotent and can be spread over several hourly runs under a deadline."""
+    q = """SELECT a.* FROM articles a
+           WHERE a.status IN ('classified','awaiting_llm')
+             AND NOT EXISTS (SELECT 1 FROM classifications c WHERE c.article_id=a.id AND c.is_current=1 AND c.ruleset_version=?)"""
+    params = [config.RULESET_VERSION]
     if since:
         q += " AND a.discovered_at >= ?"
         params.append(since)
+    q += " ORDER BY a.id"
+    if limit:
+        q += " LIMIT ?"
+        params.append(limit)
     rows = conn.execute(q, params).fetchall()
-    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0}
+    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0, "skipped_deadline": 0}
     for r in rows:
+        if deadline and time.time() > deadline:
+            counts["skipped_deadline"] += 1
+            continue
         cur = store.current_classification(conn, r["id"])
         if cur and cur["ruleset_version"] == config.RULESET_VERSION:
             counts["already_current"] = counts.get("already_current", 0) + 1

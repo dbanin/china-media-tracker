@@ -13,3 +13,4 @@ logs/local-*.log
 logs/launchd-*
 data/tracker.db
 data/tracker.db.gz
+data/tracker.db.local-*.bak

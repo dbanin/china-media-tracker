@@ -25,7 +25,7 @@ def build(out: Path = DOCS / "standalone.html") -> Path:
     index = _read(DOCS / "index.html")
     body = index[index.index("<body>") + len("<body>"):index.index("</body>")]
     body = re.sub(r'\s*<script src="[^"]*"></script>', "", body)
-    body = body.replace('<a href="../METHODOLOGY.md" id="method-link">Full methodology file</a>',
+    body = body.replace('<a href="METHODOLOGY.md" id="method-link">Full methodology file</a>',
                         '<span class="muted" id="method-link">Full methodology file: METHODOLOGY.md in the repository</span>')
     # Hosted single-file snapshots cannot hand the viewer a download, so the CSV buttons are replaced by a note.
     body = re.sub(r'<button id="export-view">.*?</button>\s*<button id="export-daily">.*?</button>',

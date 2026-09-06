@@ -13,10 +13,15 @@ Generated {generated_at}. Ruleset version {ruleset_version}. Schema version {sch
 
 ## What the system does
 
-Every hour it polls the RSS feeds of every active outlet in sources/outlets.yaml,
-stores every item before doing anything else, and applies a loose multilingual
-keyword gate to the title and summary to decide whether an item plausibly
-concerns China. Items that pass the gate are fetched in full, honoring
+A scheduled job polls the RSS feeds of every active outlet in
+sources/outlets.yaml, stores every item before doing anything else, and
+applies a loose multilingual keyword gate to the title and summary to decide
+whether an item plausibly concerns China. The schedule asks for one run an
+hour; GitHub Actions delays scheduled runs under load, often by one to four
+hours, so the actual interval varies and every run's real start and finish
+are recorded in the run log. Outlets in Hong Kong, Macau and Taiwan do not
+pass the gate on the name of their own territory, so their local news is not
+counted as coverage of China. Items that pass the gate are fetched in full, honoring
 robots.txt, at most one request per domain every three seconds, with an
 identifying user agent. Pages that declare themselves not free in schema.org
 metadata, or that present a paywall interstitial with a short body, are
@@ -34,7 +39,9 @@ spokesperson, Chinese embassy or named official spokesperson; or a
 article to a language model for the unverified relay versus independent
 journalism judgement. Articles with no
 signature and no trigger are labelled independent journalism by rules when
-the body mentions at least three distinct China terms, otherwise not relevant. Those residual
+the body substantively concerns China (at least three distinct China terms,
+or five occurrences, or a term in the headline with two occurrences),
+otherwise not relevant. Those residual
 labels carry confidence below 1.0 and are sampled by the agreement study like
 every other label.
 
@@ -124,8 +131,12 @@ machine labels.
 
 The database itself is not committed to git, because a growing SQLite file
 exceeds GitHub's file size limit within weeks. It travels between runs
-through the GitHub Actions cache and is snapshotted daily, compressed, as a
-release asset. The permanent record in git is data/export, one JSON line per
+through the GitHub Actions cache, together with the extracted article
+bodies, and is snapshotted daily, compressed, as a release asset. Raw HTML
+is kept for the duration of a run and on any machine that runs the fetch
+stage locally; the page chrome labels the sponsored placement patterns need
+are extracted at fetch time and stored with the article, so they survive
+without the HTML. The permanent record in git is data/export, one JSON line per
 gated article per month with its current classification, plus the site data
 under docs/data. One deliberate exception to the never-delete rule: items the
 relevance gate rejected are pruned after {retention} days, once they have

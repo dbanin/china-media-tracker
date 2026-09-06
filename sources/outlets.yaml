@@ -954,7 +954,7 @@
 - id: ae_gulfnews
   name: gulfnews
   country: ARE
-  language: ar
+  language: en
   feeds:
   - https://gulfnews.com/feed
   tier: national_daily
@@ -982,7 +982,7 @@
 - id: ae_thenationalnews
   name: The National
   country: ARE
-  language: ar
+  language: en
   feeds:
   - https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml
   - https://www.thenationalnews.com/arc/outboundfeeds/rss/category/news/?outputType=xml
@@ -1296,7 +1296,7 @@
 - id: az_minval
   name: Minval
   country: AZE
-  language: az
+  language: ru
   feeds:
   - https://minval.az/rss
   tier: national_daily
@@ -1636,7 +1636,9 @@
   - https://www.omegabf.info/feed/
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: domain now serves gambling spam in Thai, not news; deactivated 2026-09-05
+  inactive_since: "2026-09-05"
 - id: bf_rtb
   name: RTB
   country: BFA
@@ -7397,7 +7399,7 @@
 - id: jo_roya
   name: Roya News
   country: JOR
-  language: en
+  language: ar
   feeds:
   - https://en.royanews.tv/rss
   tier: broadcaster
@@ -7477,9 +7479,9 @@
   notes: Verified 2026-09-02.
   active: true
 - id: jp_nhk
-  name: NHK World
+  name: NHK
   country: JPN
-  language: en
+  language: ja
   feeds:
   - https://www3.nhk.or.jp/rss/news/cat0.xml
   tier: broadcaster
@@ -8111,7 +8113,7 @@
 - id: kw_kuwaitnews
   name: Kuwait News
   country: KWT
-  language: en
+  language: ar
   feeds:
   - https://kuwaitnews.com/feed/
   tier: national_daily
@@ -9079,7 +9081,7 @@
 - id: md_newsmaker
   name: NewsMaker
   country: MDA
-  language: ru
+  language: ro
   feeds:
   - https://newsmaker.md/ro/feed/
   tier: national_daily
@@ -10705,7 +10707,7 @@
 - id: np_nepalnews
   name: Nepalnews
   country: NPL
-  language: en
+  language: ne
   feeds:
   - https://nepalnews.com/feed
   tier: national_daily
@@ -10885,7 +10887,7 @@
 - id: om_omanobserver
   name: https://www.omanobserver.om
   country: OMN
-  language: ar
+  language: en
   feeds:
   - https://www.omanobserver.om/rss/latest/economy
   - https://www.omanobserver.om/rss/latest/oman
@@ -12084,9 +12086,9 @@
   notes: Verified 2026-09-02.
   active: true
 - id: ru_kommersant_en
-  name: Kommersant English
+  name: Kommersant
   country: RUS
-  language: en
+  language: ru
   feeds:
   - https://www.kommersant.ru/RSS/main.xml
   tier: national_daily
@@ -13877,7 +13879,7 @@
 - id: tm_bt
   name: Business Turkmenistan
   country: TKM
-  language: en
+  language: ru
   feeds:
   - https://business.com.tm/rss
   tier: business
@@ -14111,7 +14113,7 @@
 - id: tn_nawaat
   name: Nawaat
   country: TUN
-  language: fr
+  language: ar
   feeds:
   - https://nawaat.org/feed/
   tier: national_daily
@@ -14129,7 +14131,7 @@
 - id: tn_tunisiefocus
   name: Tunisie Focus
   country: TUN
-  language: fr
+  language: ar
   feeds:
   - https://www.tunisiefocus.com/feed/
   tier: national_daily
@@ -17258,7 +17260,9 @@
   - https://www.mvguam.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: domain now serves gambling spam in Thai, not news; deactivated 2026-09-05
+  inactive_since: "2026-09-05"
 - id: gu_pdn
   name: Pacific Daily News
   country: GUM

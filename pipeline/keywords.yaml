@@ -53,7 +53,6 @@ all:
   - Macao
   - Dalai Lama
 en:
-  - Sino
   - Chinese Communist Party
   - CCP
   - Mainland
@@ -605,6 +604,10 @@ ky:
   - Пекин
 uz:
   - Xitoy
+  - Хитой
+  - хитойлик
+  - Пекин
+  - Тайван
   - xitoylik
   - Pekin
   - Tayvan
@@ -679,3 +682,30 @@ no_word_boundaries:
   - lo
   - my
   - zh
+
+# Terms that only count when another term also matches. Alone they mostly
+# flag consumer technology and camera stories, not China coverage.
+weak:
+  - TikTok
+  - ByteDance
+  - Huawei
+  - BYD
+  - Alibaba
+  - Tencent
+  - Sinopec
+  - Mainland
+  - CCTV
+
+# Regular expressions applied verbatim, case sensitive, to every language.
+# Plain "Sino" is the Spanish and Italian conjunction, so it must be the
+# English prefix form: Sino-American, Sino-Russian.
+regex:
+  Sino-: 'Sino-[A-Z]'
+
+# Terms ignored for outlets based in the territory they name. A Hong Kong
+# newspaper's local news is not coverage of China for this study; without this
+# almost every item from those outlets passed the gate.
+home_terms:
+  HKG: [Hong Kong, Hongkong, 香港, 홍콩, Hồng Kông]
+  MAC: [Macau, Macao, 澳門, 澳门, 마카오]
+  TWN: [Taiwan, Taïwan, 台灣, 台湾, 대만, Đài Loan]

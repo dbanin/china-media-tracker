@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS articles (
     dup_group_id INTEGER,
     fetch_attempts INTEGER NOT NULL DEFAULT 0,
     llm_pending INTEGER NOT NULL DEFAULT 0,
-    llm_trigger TEXT
+    llm_trigger TEXT,
+    page_labels TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_country_date ON articles(country, published_at);
@@ -120,6 +121,16 @@ CREATE TABLE IF NOT EXISTS daily_coverage (
     classified INTEGER NOT NULL DEFAULT 0,
     llm_pending INTEGER NOT NULL DEFAULT 0,
     computed_at TEXT NOT NULL,
+    PRIMARY KEY(date, country)
+);
+
+-- Permanent per-day discovery totals, written at insert time. The articles table loses
+-- gated-out rows after GATED_OUT_RETENTION_DAYS, so counting rows would shrink history.
+CREATE TABLE IF NOT EXISTS daily_discovery (
+    date TEXT NOT NULL,
+    country TEXT NOT NULL,
+    discovered INTEGER NOT NULL DEFAULT 0,
+    gate_relevant INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(date, country)
 );
 
@@ -211,7 +222,34 @@ def connect(path: Path = config.DB_PATH) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=DELETE")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Additive migrations for databases created by earlier schema versions."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
+    if "page_labels" not in cols:
+        conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
+    if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
+            conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
+        # Seed from whatever rows survive. Days already pruned are undercounted and stay so.
+        conn.execute(
+            """INSERT INTO daily_discovery(date, country, discovered, gate_relevant)
+               SELECT substr(discovered_at, 1, 10), country, COUNT(*), COALESCE(SUM(gate_relevant), 0)
+               FROM articles GROUP BY 1, 2"""
+        )
+    conn.commit()
+
+
+def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool) -> None:
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    conn.execute(
+        """INSERT INTO daily_discovery(date, country, discovered, gate_relevant) VALUES (?,?,1,?)
+           ON CONFLICT(date, country) DO UPDATE SET discovered=discovered+1,
+             gate_relevant=gate_relevant+excluded.gate_relevant""",
+        (today, country, 1 if relevant else 0),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -453,6 +491,6 @@ def vacuum(conn: sqlite3.Connection) -> None:
 
 def table_counts(conn: sqlite3.Connection) -> Dict[str, int]:
     out = {}
-    for t in ("outlets", "articles", "classifications", "human_reviews", "daily_counts", "feed_health", "run_log"):
+    for t in ("outlets", "articles", "classifications", "human_reviews", "daily_counts", "daily_discovery", "feed_health", "run_log"):
         out[t] = conn.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0]
     return out
