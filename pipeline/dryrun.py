@@ -60,7 +60,8 @@ def run(out_dir: Path = None, keep: bool = False) -> dict:
         conn.commit()
         counts["rules"] = classify_rules.run(conn, "dryrun")
         counts["llm"] = classify_llm.run(conn, "dryrun", client=classify_llm.DryRunClient(answer=lambda body: "B" if "spokesperson" in body else "C"))
-        counts["export"] = export.run(conn, "dryrun", export_dir=export_dir)
+        counts["export"] = export.run(conn, "dryrun", export_dir=export_dir, audit_dir=export_dir.parent / "audit",
+                                      methodology_path=export_dir.parent / "METHODOLOGY.md")
         counts["categories"] = {r[0]: r[1] for r in conn.execute("SELECT category, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY category")}
         conn.close()
         return counts

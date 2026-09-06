@@ -92,10 +92,10 @@ def rebuild_rollups(conn) -> Dict:
                 c2["n"] += 1
                 c2["n_reviewed"] += 1
                 c2["groups"].add(r["dup_group_id"] or r["id"])
-    # discovered totals per day and country include gated-out items
-    for r in conn.execute("SELECT country, published_at, discovered_at FROM articles"):
-        d = _day(r)
-        coverage[(d, r["country"])]["discovered"] += 1
+    # discovered totals per day and country include gated-out items. They come from the
+    # permanent daily_discovery table, because gated-out rows are pruned from articles.
+    for r in conn.execute("SELECT date, country, discovered FROM daily_discovery"):
+        coverage[(r["date"], r["country"])]["discovered"] += r["discovered"]
 
     conn.execute("DELETE FROM daily_counts")
     conn.execute("DELETE FROM daily_coverage")
@@ -214,7 +214,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
             entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
         pending = entry["all_time"]["pending"]
         if pending >= 5 and pending >= 0.25 * max(entry["all_time"]["rel"], 1):
-            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles are awaiting model classification, so A plus B is a floor" % pending})
+            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles carrying official Chinese sourcing are awaiting the verification judgement, so the confirmed counts are a floor" % pending})
         if not active:
             entry["warnings"].append({"type": "no_active_outlets", "text": "all registered outlets are inactive"})
         countries[country] = entry
@@ -295,12 +295,14 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
                   SUM(CASE WHEN status IN ('fetched','classified','awaiting_llm','llm_submitted') THEN 1 ELSE 0 END) fetched,
                   SUM(CASE WHEN status='paywalled' THEN 1 ELSE 0 END) paywalled,
                   SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) failed,
-                  SUM(CASE WHEN status='blocked_robots' THEN 1 ELSE 0 END) blocked
+                  SUM(CASE WHEN status='blocked_robots' THEN 1 ELSE 0 END) blocked,
+                  SUM(CASE WHEN status IN ('awaiting_llm','llm_submitted') THEN 1 ELSE 0 END) pending
            FROM articles GROUP BY outlet_id"""
     ):
         t = per_outlet[r["outlet_id"]]
         t["disc"] = r["disc"]; t["rel"] = r["rel"] or 0; t["fetched"] = r["fetched"] or 0
         t["paywalled"] = r["paywalled"] or 0; t["failed"] = r["failed"] or 0; t["blocked"] = r["blocked"] or 0
+        t["pending"] = r["pending"] or 0
     out = []
     for o in outlets:
         feeds = []
@@ -375,7 +377,8 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
                                   "verification judgement, which has not run yet.")
         out[r["country"]].append(entry)
     for country in out:
-        out[country].sort(key=lambda e: (ORDER.get(e["category"], 9), e["date"]), reverse=False)
+        # Newest first inside each category, categories in ORDER. Two stable sorts.
+        out[country].sort(key=lambda e: e["date"] or "", reverse=True)
         out[country].sort(key=lambda e: ORDER.get(e["category"], 9))
         out[country] = out[country][:per_country]
     return out
@@ -385,6 +388,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     last_runs = {}
     for r in conn.execute("SELECT stage, MAX(finished_at) f FROM run_log WHERE ok=1 GROUP BY stage"):
         last_runs[r["stage"]] = r["f"]
+    # This export is still running when the metadata is built, so record it as now rather
+    # than reporting the previous export's time.
+    last_runs["export"] = store.utcnow()
     kappa = conn.execute("SELECT * FROM agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
     cls_total = conn.execute("SELECT COUNT(*) FROM classifications WHERE is_current=1").fetchone()[0]
     reviewed_total = conn.execute("SELECT COUNT(DISTINCT article_id) FROM human_reviews").fetchone()[0]
@@ -408,7 +414,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "registry_unevenness": registry.registry_summary(outlets)["unevenness"],
         "countries_in_gaps": len(gaps),
         "gaps": gaps,
-        "articles_discovered": conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0],
+        "articles_discovered": conn.execute("SELECT COALESCE(SUM(discovered), 0) FROM daily_discovery").fetchone()[0],
         "first_discovered": (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None,
         "articles_gate_relevant": conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1").fetchone()[0],
         "articles_classified": cls_total,
@@ -466,7 +472,11 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
     return written
 
 
-def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR) -> Dict:
+def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
+        audit_dir: Path = config.EXPORT_DIR_AUDIT, methodology_path: Optional[Path] = None) -> Dict:
+    """Write every generated file. All output locations are parameters so tests never touch
+    the repository's own files. methodology_path defaults to METHODOLOGY.md at the root, and
+    the same text is copied into the site so the interface can link it."""
     log_id = store.start_stage(conn, run_id, "export")
     pruned = store.prune_gated_out(conn)
     outlets = registry.load_outlets()
@@ -488,16 +498,15 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR) -> D
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
-              "pruned_gated_out": pruned, "audit_files": write_audit_files(conn)}
+              "pruned_gated_out": pruned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
     store.vacuum(conn)
-    try:
-        from pipeline import methodology
-        methodology.write(meta, latest)
-        counts["methodology"] = True
-    except ImportError:
-        counts["methodology"] = False
+    from pipeline import methodology
+    mpath = methodology_path or (config.ROOT / "METHODOLOGY.md")
+    methodology.write(meta, latest, mpath)
+    methodology.write(meta, latest, export_dir.parent / "METHODOLOGY.md")
+    counts["methodology"] = True
     return counts
 
 

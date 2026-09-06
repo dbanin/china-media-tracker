@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var C = window.TrackerCompute;
-  var CITATION_AUTHOR = "China State Media Tracker project"; /* Edit to the citation author you want. */
+  var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
     metric: "count_target", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
@@ -104,6 +104,7 @@
     if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Those countries are not comparable to the rest and carry a warning marker.");
     if (m && m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
     if (gaps) parts.push(gaps + " countries are recorded as coverage gaps with a stated reason.");
+    if (m && !m.llm_calls_total) parts.push("The verification stage that separates unverified relay from independent journalism has not run yet, so no article has been confirmed as unverified relay. Candidates are shown as pending.");
     if (m && m.official_sourcing_pending) parts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and are waiting for the verification judgement that separates unverified relay from independent journalism. They are counted as targets and listed in each country panel with the sentence that triggered them.");
     var u = m && m.registry_unevenness;
     if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling. Share and per-outlet metrics correct for it; count metrics do not.");
@@ -288,11 +289,11 @@
       '<tr><td class="muted">Underlying items (state origin plus unverified relay)</td><td class="num">' + k.uniqAB + '</td><td></td><td></td><td></td></tr>' +
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
       '</table>';
-    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
+    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
       var okN = o.feeds.filter(function (f) { return f.ok; }).length;
       var feedCls = !o.active ? "muted" : (okN === o.feeds.length ? "ok" : (okN === 0 ? "fail" : "warn"));
-      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + o.counts.B + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td></tr>';
+      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + o.counts.B + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td></tr>';
     });
     html += '</table>';
     html += '<h3>Target articles first, then the rest</h3><p class="muted">State placements, unverified relay, and pieces carrying official Chinese sourcing that still await the verification judgement, each with the sentence that triggered it. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
@@ -312,18 +313,20 @@
     var pts = days().map(function (d) {
       var e = C.dayEntry(state.months, d);
       var c = (e && e.countries && e.countries[iso]) || C.emptyCounts();
-      return {date: new Date(d + "T00:00:00Z"), A: c.A, B: c.B};
+      return {date: new Date(d + "T00:00:00Z"), A: c.A, B: c.B, P: c.pending || 0};
     });
     if (!pts.length) { svgm.append("text").attr("x", 4).attr("y", 14).text("No daily data"); return; }
     var x = d3.scaleUtc().domain(d3.extent(pts, function (p) { return p.date; })).range([4, w - 4]);
-    var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return Math.max(p.A, p.B); }) || 1]).nice().range([h - 16, 6]);
+    var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return Math.max(p.A, p.B, p.P); }) || 1]).nice().range([h - 16, 6]);
     var lineA = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.A); });
     var lineB = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.B); });
+    var lineP = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.P); });
+    svgm.append("path").attr("class", "p").attr("d", lineP(pts));
     svgm.append("path").attr("class", "a").attr("d", lineA(pts));
     svgm.append("path").attr("class", "b").attr("d", lineB(pts));
     svgm.append("text").attr("x", 4).attr("y", h - 4).text(pts[0].date.toISOString().slice(0, 10));
     svgm.append("text").attr("x", w - 4).attr("y", h - 4).attr("text-anchor", "end").text(pts[pts.length - 1].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, dashed unverified relay, max " + y.domain()[1] + " per day");
+    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, dashed unverified relay, dotted pending, max " + y.domain()[1] + " per day");
   }
 
   function loadArticles(iso) {

@@ -3,7 +3,7 @@
 # release snapshot, the seed commit that last carried the database in git, else start fresh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-mkdir -p data
+mkdir -p data data/bodies
 if [ -s data/tracker.db ]; then echo "database present ($(du -h data/tracker.db | cut -f1)), from cache"; exit 0; fi
 if command -v gh >/dev/null && gh release download db-snapshot -p tracker.db.gz -D data --clobber 2>/dev/null; then
   gunzip -f data/tracker.db.gz && echo "database restored from release snapshot ($(du -h data/tracker.db | cut -f1))" && exit 0

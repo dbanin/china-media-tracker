@@ -25,18 +25,20 @@ jobs:
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
       - name: Restore database from the most recent run
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
-          path: data/tracker.db
+          path: |
+            data/tracker.db
+            data/bodies
           key: tracker-db-${{ github.run_id }}
           restore-keys: tracker-db-
       - name: Fall back to the snapshot or seed if no cache
@@ -44,7 +46,7 @@ jobs:
       - name: Discover, fetch, classify
         run: |
           set -o pipefail
-          python -m pipeline.run all --budget-minutes 45 2>&1 | tee run.log
+          python -X faulthandler -m pipeline.run all --budget-minutes 45 2>&1 | tee run.log
           python - <<'PY'
           import json, sqlite3
           c = sqlite3.connect("data/tracker.db")
@@ -57,13 +59,15 @@ jobs:
           PY
       - name: Save database for the next run
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
-          path: data/tracker.db
+          path: |
+            data/tracker.db
+            data/bodies
           key: tracker-db-${{ github.run_id }}
       - name: Open or update failure issue
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const title = "Collection workflow failing";

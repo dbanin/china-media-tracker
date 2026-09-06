@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.2"
+ruleset_version: "2026.09.3"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -33,6 +33,9 @@ exclusions:
     regex: '\((?:Photo|Foto|Image|Immagine|Pic)[^)]{0,40}(?:Xinhua|CGTN|VCG)[^)]{0,40}\)'
   - id: xinhua_via_ap_photo
     regex: '(?i)Xinhua via (AP|Getty|Reuters)[^\n.]{0,40}'
+  - id: syndication_disclaimer
+    regex: '(?i)\(?(except for the headline,?\s*)?this (article|story|report|content) (has|was) (not been edited|been published|auto-?generated|not been modified)[^\n)]{0,160}\)?|\(?this (story|article) (has been|is) (published|generated) (from|by) a (wire|syndicated|third[- ]party) (agency )?feed[^\n)]{0,120}\)?|disclaimer: this (article|story|content)[^\n]{0,160}'
+    note: Indian and other syndication boilerplate ("Except for the headline, this article has not been edited by ...") names a wire agency, not a sponsor. Removed before the sponsored placement patterns run.
 
 groups:
   credit_dateline:
@@ -68,23 +71,23 @@ groups:
         scope: tail
         note: A bare "Xinhua" on its own line at the end of the article is a wire credit.
       - id: china_daily_credit
-        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?China\s+Daily\s*(\.|$)|\(China Daily\)'
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?China\s+Daily\s*(\.|$)|^[^\n]{0,60}\(China Daily\)\s*(--|—|-|–)'
         strength: strong
       - id: china_daily_author
         regex: '(?i)^\s*China\s+Daily(\s+Global)?\s*$'
         strength: strong
         scope: author
       - id: global_times_credit
-        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?Global\s+Times\s*(\.|$)|\(Global Times\)'
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*(the\s+)?Global\s+Times\s*(\.|$)|^[^\n]{0,60}\(Global Times\)\s*(--|—|-|–)'
         strength: strong
       - id: global_times_author
         regex: '(?i)^\s*Global\s+Times\s*$'
         strength: strong
         scope: author
       - id: cgtn_credit
-        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|\(CGTN\)|^\s*CGTN\s*$'
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|^[^\n]{0,60}\(CGTN\)\s*(--|—|-|–)|^\s*CGTN\s*$'
         strength: strong
-        note: Also covers a bare CGTN credit line.
+        note: Also covers a bare CGTN credit line. The parenthetical form must be a dateline ("BEIJING (CGTN) --"), because prose that expands the acronym, "China Global Television Network (CGTN) released", is a report about CGTN and not CGTN copy.
       - id: cgtn_author
         regex: '(?i)^\s*(CGTN|China Global Television Network)\s*$'
         strength: strong
@@ -93,17 +96,17 @@ groups:
         regex: '(?im)\b(China Media Group|CMG)\b.{0,40}\b(release|press release|comunicato|communiqué)|^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
         strength: strong
       - id: peoples_daily_credit
-        regex: "(?im)^\\s*(source|fonte|credit|crediti|by|di|par)\\s*:?\\s*(the\\s+)?People'?s\\s+Daily(\\s+Online)?\\s*(\\.|$)|\\(People'?s Daily\\)"
+        regex: "(?im)^\\s*(source|fonte|credit|crediti|by|di|par)\\s*:?\\s*(the\\s+)?People'?s\\s+Daily(\\s+Online)?\\s*(\\.|$)|^[^\\n]{0,60}\\(People'?s Daily\\)\\s*(--|—|-|–)"
         strength: strong
       - id: peoples_daily_author
         regex: "(?i)^\\s*People'?s\\s+Daily(\\s+Online)?\\s*$"
         strength: strong
         scope: author
       - id: china_news_service_credit
-        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*(China News Service|ECNS|ecns\.cn)\s*(\.|$)|\((China News Service|ECNS)\)'
+        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*(China News Service|ECNS|ecns\.cn)\s*(\.|$)|^[^\n]{0,60}\((China News Service|ECNS)\)\s*(--|—|-|–)'
         strength: strong
       - id: cri_credit
-        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*China Radio International\s*(\.|$)|\(China Radio International\)|\bCRI Online\b'
+        regex: '(?im)^\s*(source|fonte|credit|by|di)\s*:?\s*China Radio International\s*(\.|$)|^[^\n]{0,60}\(China Radio International\)\s*(--|—|-|–)|\bCRI Online\b'
         strength: strong
       - id: cgtn_spelled_out_credit
         regex: '(?im)^\s*(source|fonte|credit|by)\s*:?\s*China Global Television Network\s*(\.|$)'
@@ -293,20 +296,21 @@ llm_triggers:
   - id: cites_china_daily
     regex: '(?i)\bChina Daily\b|中国日报'
   - id: cites_cctv
-    regex: '(?i)\bCCTV\b(?![^.\n]{0,40}\b(footage|camera|cameras|video|videos|surveillance|clip|clips|images|feed|feeds|system|systems))|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Центральное телевидение Китая|中央电视台'
-    note: CCTV also means closed-circuit television. Excluded when followed by camera vocabulary.
+    regex: '(?i)\b(state|state-run|state-owned|official|Chinese|China.s|Beijing.s|broadcaster|television|televisi[oó]n|televis[aã]o|t[eé]l[eé]vision|cha[îi]ne|cadena|canal|emissora|emittente|tv|Fernsehsender|staatlich\w*|estatal|statale|chin[oa]|chinesa|chinês|cinese|chinois[e]?|d.[ÉE]tat|телеканал|телевидение|государственн\w*|китайск\w*)\b[^.\n]{0,60}\bCCTV\b|\bCCTV\b[^.\n]{0,60}\b(reported|reports|said|says|quoted|cited|announced|broadcast|aired|showed|state|broadcaster|television|inform[oó]u?|señal[oó]|report[oó]|disse|berichtete|meldete|a (indiqué|rapporté|annoncé)|ha (riferito|riportato)|сообщ\w*)\b|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Televisión Central de China|Центральное телевидение Китая|中央电视台'
+    note: CCTV also means closed-circuit television. The acronym counts only with broadcaster or China context in the same sentence on either side; "Detectives have reviewed CCTV and identified" does not fire.
   - id: cites_peoples_daily
     regex: "(?i)\\bPeople'?s Daily\\b|Quotidiano del Popolo|Quotidien du Peuple|Diario del Pueblo|Diário do Povo|Volkszeitung|Жэньминь жибао|人民日报|人民日報"
   - id: cites_china_media_group
     regex: '(?i)\bChina Media Group\b|\bChina News Service\b|\bECNS\b|China Radio International'
   - id: mofa_spokesperson
-    regex: "(?i)\\b(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b.{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(spokesperson|spokesman|spokeswoman)\\b.{0,60}\\b(Chinese|China.s) (foreign|foreign affairs) ministry\\b|\\b(Lin Jian|Mao Ning|Guo Jiakun|Wang Wenbin|Hua Chunying|Zhao Lijian|Geng Shuang|Lu Kang|Hong Lei|Zhu Fenglian|Chen Binhua|Ma Xiaoguang|Wu Qian|Zhang Xiaogang|Tan Kefei|Zhu Fenglian)\\b|\\b(portavoce|porte-parole|portavoz|porta-voz|Sprecher(in)?)\\b.{0,80}\\b(Ministero degli Esteri|Esteri cines|ministère (chinois )?des Affaires étrangères|diplomatie chinoise|Cancillería china|Ministerio de (Asuntos |Relaciones )?Exteriores (de )?China|Ministério das Relações Exteriores (da )?China|chinesische(n|s)? Außenministerium)|МИД КНР|МИД Китая|представитель МИД|الخارجية الصينية|中国外交部|外交部发言人|외교부 대변인"
+    regex: "(?i)\\b(Chinese|China.s|Beijing.s|PRC)\\s+(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b.{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b[^.\\n]{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b[^.\\n]{0,80}\\b(China|Chinese|Beijing)\\b|\\b(China|Chinese|Beijing)\\b[^.\\n]{0,80}\\b(foreign ministry|ministry of foreign affairs|MOFA|MFA)\\b[^.\\n]{0,40}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(spokesperson|spokesman|spokeswoman)\\b.{0,60}\\b(Chinese|China.s) (foreign|foreign affairs) ministry\\b|\\b(Lin Jian|Mao Ning|Guo Jiakun|Wang Wenbin|Hua Chunying|Zhao Lijian|Geng Shuang|Lu Kang|Hong Lei|Zhu Fenglian|Chen Binhua|Ma Xiaoguang|Wu Qian|Zhang Xiaogang|Tan Kefei|Zhu Fenglian)\\b|\\b(portavoce|porte-parole|portavoz|porta-voz|Sprecher(in)?)\\b.{0,80}\\b(Ministero degli Esteri cinese|Esteri cines|ministère (chinois )?des Affaires étrangères|diplomatie chinoise|Cancillería china|Ministerio de (Asuntos |Relaciones )?Exteriores (de )?China|Ministério das Relações Exteriores (da )?China|chinesische(n|s)? Außenministerium)|МИД КНР|МИД Китая|представитель МИД|الخارجية الصينية|中国外交部|外交部发言人|외교부 대변인"
   - id: chinese_embassy_quoted
     regex: "(?i)\\b(Chinese embassy|China.s embassy|embassy of (the People.s Republic of )?China|Chinese consulate|ambasciata cinese|ambasciata della Cina|ambassade de Chine|ambassade chinoise|embajada (de )?china|embaixada (da )?china|chinesische(n|r)? Botschaft|Botschaft der Volksrepublik China|посольств[оа] (КНР|Китая)|السفارة الصينية|中国大使馆|中国大使館|중국 대사관|Kedutaan (Besar )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc)\\b"
   - id: named_chinese_official_spokesperson
     regex: "(?i)\\b(spokesperson|spokesman|spokeswoman|portavoce|porte-parole|portavoz|porta-voz)\\b.{0,80}\\b(Chinese|China.s|Cina|cinese|chinois|chino|chinês|Taiwan Affairs Office|State Council|Ministry of (Commerce|National Defense|Defence|State Security|Public Security)|Consiglio di Stato|Conseil des affaires de l.État|PLA|Esercito|Armée populaire)\\b"
   - id: state_media_reported_en
-    regex: "(?i)\\b(state|state-run|state-owned|state-controlled|state-affiliated|official|government)[- ](media|broadcaster|television|news agency|newspaper|outlet|press|TV)\\b.{0,40}\\b(report|reported|reporting|said|says|quoted|cited|announced|claimed|according)|\\baccording to (Chinese )?(state|state-run|official) (media|television|news agency|broadcaster)\\b|\\b(Chinese )?state media (reported|said|says|quoted|cited|announced|claimed|reports)\\b"
+    regex: "(?i)\\b(Chinese|China.s|Beijing.s)\\s+(state|state-run|state-owned|state-controlled|state-affiliated|official|government)[- ](media|broadcaster|television|news agency|newspaper|outlet|press|TV)\\b|\\b(state|state-run|state-owned|state-controlled|state-affiliated|official|government)[- ](media|broadcaster|television|news agency|newspaper|outlet|press|TV)\\b[^.\\n]{0,80}\\b(China|Chinese|Beijing|Xinhua|CCTV|CGTN)\\b|\\b(China|Chinese|Beijing)\\b[^.\\n]{0,80}\\b(state|state-run|state-owned|official) (media|television|news agency|broadcaster|press)\\b"
+    note: Requires a Chinese entity in the same sentence. "According to state media" alone matched Korean, Iranian and Russian broadcasters."
   - id: state_media_reported_it
     regex: "(?i)\\b(secondo|come riporta|come riferisce|lo riporta|lo riferisce|riporta|riferisce|scrive|ha riferito|ha riportato|citata da|citato da)\\s+(l.agenzia\\s+|l.agenzia di stampa\\s+|la\\s+|i\\s+|il\\s+)?(Xinhua|Nuova Cina|media (statali|di stato|ufficiali) cines[ie]|stampa (statale|di stato|ufficiale) cinese|televisione (statale|di stato) cinese|tv di stato cinese|emittente (statale|di stato) cinese|agenzia (statale|ufficiale|di stato) cinese|CGTN|Global Times|China Daily|CCTV|Quotidiano del Popolo)|\\b(media|stampa|tv|televisione|emittente|agenzia)\\s+(statale|statali|di stato|ufficiale|ufficiali)\\s+cines[ie]\\b"
   - id: state_media_reported_fr

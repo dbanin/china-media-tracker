@@ -23,6 +23,17 @@ _robots_cache: Dict[str, Optional[robotparser.RobotFileParser]] = {}
 _robots_lock = threading.Lock()
 _last_request: Dict[str, float] = {}
 _rate_lock = threading.Lock()
+# HTML parsing runs under one lock. Network waits dominate this stage, so parallelism is
+# kept for the requests, but lxml under many threads produced heap corruption on the
+# GitHub runner (glibc "corrupted size vs. prev_size", exit 134). Parsing is cheap.
+_extract_lock = threading.Lock()
+
+# Failures worth another attempt on a later run. Everything else is final.
+TRANSIENT_FAIL_PREFIXES = ("http_429", "http_5", "ConnectionError", "ReadTimeout", "ConnectTimeout",
+                           "Timeout", "ChunkedEncodingError", "SSLError", "robots_unavailable",
+                           "exception:", "unknown", "refetch_")
+RETRY_ATTEMPT_LIMIT = 3
+RETRY_WINDOW_DAYS = 7
 
 
 def domain_of(url: str) -> str:
@@ -137,18 +148,19 @@ def process_article(conn_factory, row) -> Dict:
             conn.commit()
             out.update(status="failed", reason=err)
             return out
-        ex = extract.extract(html, url)
-        text = ex["text"]
-        paywalled, pw_reason = extract.detect_paywall(html, text)
+        with _extract_lock:
+            ex = extract.extract(html, url)
+            text = ex["text"]
+            paywalled, pw_reason = extract.detect_paywall(html, text)
+            labels = extract.page_labels(html)
+            jsonld_author = None if (ex["author"] or row["author"]) else extract.jsonld_authors(html)
         raw_path = store.save_raw_html(row["url_hash"], html)
         fields = dict(http_status=http_status, fetched_at=store.utcnow(), raw_html_path=raw_path,
-                      fetch_attempts=row["fetch_attempts"] + 1)
+                      fetch_attempts=row["fetch_attempts"] + 1, page_labels=labels or None)
         if ex["author"] and not row["author"]:
             fields["author"] = ex["author"]
-        elif not row["author"]:
-            a = extract.jsonld_authors(html)
-            if a:
-                fields["author"] = a
+        elif jsonld_author:
+            fields["author"] = jsonld_author
         if ex["date"] and not row["published_at"]:
             fields["published_at"] = ex["date"]
         if paywalled:
@@ -171,15 +183,29 @@ def process_article(conn_factory, row) -> Dict:
         conn.close()
 
 
+def retry_candidates(conn) -> List:
+    """Recently discovered articles whose last failure looks transient and that have attempts left."""
+    since = (time.time() - RETRY_WINDOW_DAYS * 86400)
+    import datetime as dt
+    since_iso = dt.datetime.fromtimestamp(since, dt.timezone.utc).isoformat()
+    rows = conn.execute(
+        "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<? AND discovered_at>=? ORDER BY discovered_at",
+        (RETRY_ATTEMPT_LIMIT, since_iso),
+    ).fetchall()
+    return [r for r in rows if r["fail_reason"] and r["fail_reason"].startswith(TRANSIENT_FAIL_PREFIXES)]
+
+
 def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int] = None,
-        workers: int = 24, status: str = "queued") -> Dict:
+        workers: int = 12, status: str = "queued") -> Dict:
     log_id = store.start_stage(conn, run_id, "fetch")
-    rows = store.articles_by_status(conn, status, limit=limit or 100000)
+    rows = list(store.articles_by_status(conn, status, limit=limit or 100000))
+    retries = retry_candidates(conn) if status == "queued" else []
+    rows += retries
     # Group by domain so each domain is served sequentially by one worker while domains run in parallel.
     by_domain: Dict[str, List] = {}
     for r in rows:
         by_domain.setdefault(domain_of(r["url"]), []).append(r)
-    counts = {"queued": len(rows), "domains": len(by_domain), "fetched": 0, "paywalled": 0,
+    counts = {"queued": len(rows), "retried": len(retries), "domains": len(by_domain), "fetched": 0, "paywalled": 0,
               "failed": 0, "blocked_robots": 0, "skipped_deadline": 0}
     lock = threading.Lock()
 

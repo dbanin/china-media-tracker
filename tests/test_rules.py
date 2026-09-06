@@ -117,6 +117,46 @@ def test_french_state_media_trigger():
     assert "state_media_reported_fr" in [t["id"] for t in res["triggers"]]
 
 
+def test_acronym_expansion_in_prose_is_not_a_credit():
+    body = "In 2021, the state-run Chinese Global Television Network (CGTN) released a propaganda video about the case."
+    res = cr.match_signatures("", body, "Jane Reporter")
+    assert res["decision"] == "none", [m["id"] for m in res["matches"]]
+    assert cr.match_signatures("", "BEIJING (CGTN) -- China's economy grew 5 percent.", None)["decision"] == "A"
+
+
+def test_syndication_disclaimer_is_not_sponsorship():
+    body = ("The minister opened the bridge on Monday.\n\n(Except for the headline, this article has not been edited by "
+            "FPJ's editorial team and is auto-generated from a syndicated feed.)")
+    res = cr.match_signatures("", body, None)
+    assert res["decision"] == "none", [m["id"] for m in res["matches"]]
+    assert "syndication_disclaimer" in res["exclusions"]
+
+
+def test_cctv_camera_does_not_trigger():
+    trig = lambda t: [x["id"] for x in cr.match_signatures("", t, None)["triggers"]]
+    assert "cites_cctv" not in trig("Detectives have reviewed CCTV and identified a grey Audi sedan leaving the scene.")
+    assert "cites_cctv" in trig("Rescuers reached Gyirong, state broadcaster CCTV reported on Wednesday.")
+    assert "cites_cctv" in trig("informou a emissora estatal CCTV nesta quarta-feira.")
+
+
+def test_foreign_spokespeople_and_state_media_must_be_chinese():
+    trig = lambda t: [x["id"] for x in cr.match_signatures("", t, None)["triggers"]]
+    assert trig("Russian Foreign Ministry spokeswoman Maria Zakharova accused Armenia of bad faith.") == []
+    assert trig("The launch was confirmed, according to state media. The Korean Central News Agency said the test succeeded.") == []
+    assert "mofa_spokesperson" in trig("Foreign Ministry spokesperson Lin Jian told journalists the claim was false.")
+    assert "mofa_spokesperson" in trig("Chinese Foreign Ministry spokesperson Guo Jiakun said the aid had left.")
+    assert "state_media_reported_en" in trig("Chinese state media reported in October that the doors had failed.")
+
+
+def test_residual_relevance_counts_occurrences():
+    ok, _ = cr.body_relevance("China warns Nepal over border", "China said on Monday that the border would reopen. China's ministry added that trade would resume.", "en")
+    assert ok
+    ok, _ = cr.body_relevance("Nepal floods", "Rescue teams reached villages. China sent tents.", "en")
+    assert not ok
+    ok, _ = cr.body_relevance("Mobile speeds", "China China China China China ranks below Vietnam.", "en")
+    assert ok
+
+
 def test_missing_body_is_not_classified(monkeypatch, tmp_path):
     """An article whose body file is absent must be re-fetched, never classified as not relevant."""
     import sqlite3

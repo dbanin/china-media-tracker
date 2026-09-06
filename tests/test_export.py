@@ -74,8 +74,9 @@ def test_export_on_empty_database(tmp_path, monkeypatch):
     conn = store.connect(db)
     out = tmp_path / "out"
     monkeypatch.setattr(config, "DB_PATH", db)
-    counts = export.run(conn, "test", export_dir=out)
+    counts = export.run(conn, "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
     assert counts["articles"] == 0
+    assert (tmp_path / "M.md").exists() and (out.parent / "METHODOLOGY.md").exists()
     latest = _load(out / "latest.json")
     jsonschema.validate(latest, LATEST_SCHEMA)
     meta = _load(out / "meta.json")
@@ -84,6 +85,41 @@ def test_export_on_empty_database(tmp_path, monkeypatch):
     # every registered country appears even with no articles, so the map can show them as monitored with zero data
     assert set(latest["countries"]) >= {"ITA", "CAN", "AUS"}
     assert latest["countries"]["ITA"]["all_time"]["share_ab"] is None
+
+
+def test_generated_files_stay_out_of_the_repository(tmp_path, monkeypatch):
+    """A test run must never rewrite METHODOLOGY.md or data/export in the working tree."""
+    before = (config.ROOT / "METHODOLOGY.md").read_bytes() if (config.ROOT / "METHODOLOGY.md").exists() else None
+    conn = store.connect(tmp_path / "x.db")
+    export.run(conn, "test", export_dir=tmp_path / "o", audit_dir=tmp_path / "a", methodology_path=tmp_path / "m.md")
+    after = (config.ROOT / "METHODOLOGY.md").read_bytes() if (config.ROOT / "METHODOLOGY.md").exists() else None
+    assert before == after
+
+
+def test_articles_newest_first_within_category(tmp_path):
+    conn = store.connect(tmp_path / "n.db")
+    for i, (cat, day) in enumerate([("C", "2026-09-01"), ("C", "2026-09-04"), ("A", "2026-09-02"), ("C", "2026-09-03")]):
+        aid = store.insert_discovered(conn, {"url": "https://x.test/%d" % i, "outlet_id": "o", "country": "ITA", "language": "it",
+                                             "title": "t%d" % i, "status": "fetched", "gate_relevant": 1, "published_at": day + "T10:00:00+00:00"})
+        conn.execute("UPDATE articles SET discovered_at=? WHERE id=?", (day + "T12:00:00+00:00", aid))
+        store.insert_classification(conn, aid, "rules", cat, 1.0)
+    conn.commit()
+    arts = export.build_articles(conn)["ITA"]
+    assert [a["category"] for a in arts] == ["A", "C", "C", "C"]
+    assert [a["date"] for a in arts if a["category"] == "C"] == ["2026-09-04", "2026-09-03", "2026-09-01"]
+
+
+def test_discovered_totals_survive_pruning(tmp_path, monkeypatch):
+    conn = store.connect(tmp_path / "p.db")
+    store.insert_discovered(conn, {"url": "https://x.test/old", "outlet_id": "o", "country": "ITA", "language": "it",
+                                   "title": "old", "status": "gated_out", "gate_relevant": 0})
+    store.record_discovery(conn, "ITA", False)
+    conn.execute("UPDATE articles SET discovered_at='2020-01-01T00:00:00+00:00'")
+    conn.commit()
+    assert store.prune_gated_out(conn) == 1
+    assert conn.execute("SELECT SUM(discovered) FROM daily_discovery").fetchone()[0] == 1
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], []))
+    assert meta["articles_discovered"] == 1
 
 
 def test_share_and_flags():
