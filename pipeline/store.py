@@ -121,6 +121,9 @@ CREATE TABLE IF NOT EXISTS daily_coverage (
     classified INTEGER NOT NULL DEFAULT 0,
     llm_pending INTEGER NOT NULL DEFAULT 0,
     computed_at TEXT NOT NULL,
+    top_discovered INTEGER NOT NULL DEFAULT 0,   -- items from the country's top outlet set
+    top_target INTEGER NOT NULL DEFAULT 0,       -- state origin, unverified relay and pending among them
+    top_china INTEGER NOT NULL DEFAULT 0,        -- all China coverage among them
     PRIMARY KEY(date, country)
 );
 
@@ -132,6 +135,15 @@ CREATE TABLE IF NOT EXISTS daily_discovery (
     discovered INTEGER NOT NULL DEFAULT 0,
     gate_relevant INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(date, country)
+);
+
+-- Same, per outlet, so denominators can be restricted to a country's largest outlets.
+CREATE TABLE IF NOT EXISTS daily_outlet_discovery (
+    date TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    country TEXT NOT NULL,
+    discovered INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(date, outlet_id)
 );
 
 CREATE TABLE IF NOT EXISTS feed_health (
@@ -231,6 +243,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
     if "page_labels" not in cols:
         conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
+    cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
+    for col in ("top_discovered", "top_target", "top_china"):
+        if col not in cov:
+            conn.execute("ALTER TABLE daily_coverage ADD COLUMN %s INTEGER NOT NULL DEFAULT 0" % col)
     if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
             conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
         # Seed from whatever rows survive. Days already pruned are undercounted and stay so.
@@ -239,10 +255,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
                SELECT substr(discovered_at, 1, 10), country, COUNT(*), COALESCE(SUM(gate_relevant), 0)
                FROM articles GROUP BY 1, 2"""
         )
+    if conn.execute("SELECT COUNT(*) FROM daily_outlet_discovery").fetchone()[0] == 0 and \
+            conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
+        conn.execute(
+            """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered)
+               SELECT substr(discovered_at, 1, 10), outlet_id, country, COUNT(*) FROM articles GROUP BY 1, 2, 3"""
+        )
     conn.commit()
 
 
-def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool) -> None:
+def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool, outlet_id: Optional[str] = None) -> None:
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     conn.execute(
         """INSERT INTO daily_discovery(date, country, discovered, gate_relevant) VALUES (?,?,1,?)
@@ -250,6 +272,12 @@ def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool) -> 
              gate_relevant=gate_relevant+excluded.gate_relevant""",
         (today, country, 1 if relevant else 0),
     )
+    if outlet_id:
+        conn.execute(
+            """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered) VALUES (?,?,?,1)
+               ON CONFLICT(date, outlet_id) DO UPDATE SET discovered=discovered+1""",
+            (today, outlet_id, country),
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,8 @@
   "use strict";
 
   var EMPTY = {A: 0, B: 0, C: 0, N: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
-               fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0};
+               fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
+               tdisc: 0, ttarget: 0, tchina: 0};
 
   function emptyCounts() { var o = {}; for (var k in EMPTY) o[k] = 0; return o; }
 
@@ -65,6 +66,8 @@
 
   /* Share metrics are undefined on tiny denominators: two A items out of two is not a 100 percent country. */
   var MIN_SHARE_DENOMINATOR = 5;
+  /* The share of all published items needs a real stream of items behind it. */
+  var MIN_ALL_ITEMS_DENOMINATOR = 50;
 
   var METRICS = {
     count_target: {label: "Target articles: state placements plus pieces carrying official Chinese sourcing", format: "int", needsB: true},
@@ -73,25 +76,33 @@
     count_ab: {label: "Confirmed state origin plus unverified relay articles", format: "int", needsB: true},
     count_a: {label: "State origin articles", format: "int", needsB: false},
     per_outlet_target: {label: "Target articles per monitored outlet", format: "dec", needsB: true},
-    per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", needsB: false}
+    per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", needsB: false},
+    per_million_target: {label: "Target articles per million people", format: "dec", needsB: true, population: true},
+    per_million_a: {label: "State origin articles per million people", format: "dec", needsB: false, population: true},
+    share_of_all_target: {label: "Target articles as a share of every item the country's largest monitored outlets published", format: "pct", needsB: true, allItems: true},
+    share_of_all_china: {label: "All China coverage as a share of every item the country's largest monitored outlets published", format: "pct", needsB: false, allItems: true}
   };
 
-  /* Returns {value, chinaTotal, ab, a, b} for one country under a metric and mode. */
-  function metricValue(counts, metric, outletsActive, mode, reviewedCounts) {
+  /* Returns {value, chinaTotal, ab, a, b, pending, target, sparse, note} for one country under a metric and mode.
+     ctx carries what the counts do not: {population} for the per million metrics. */
+  function metricValue(counts, metric, outletsActive, mode, reviewedCounts, ctx) {
     var a, b, c, p;
+    var k = counts || emptyCounts();
     if (mode === "reviewed") {
       var r = reviewedCounts || {A: 0, B: 0, C: 0, N: 0};
       a = r.A; b = r.B; c = r.C; p = 0;
     } else {
-      var k = counts || emptyCounts();
       a = k.A; b = k.B; c = k.C; p = k.pending || 0;
     }
+    var population = ctx && ctx.population;
+    var allItems = k.tdisc || 0;
     /* Articles carrying official Chinese sourcing whose verification judgement is pending count as China
        coverage and as targets. Once judged they become unverified relay or independent journalism. */
     var china = a + b + c + p;
     var target = a + b + p;
     var value = null;
     var sparse = false;
+    var note = null;
     switch (metric) {
       case "count_target": value = target; break;
       case "share_target": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? target / china : null; break;
@@ -102,9 +113,22 @@
       case "per_outlet_target": value = outletsActive ? target / outletsActive : null; break;
       case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
       case "per_outlet_a": value = outletsActive ? a / outletsActive : null; break;
+      case "per_million_target":
+      case "per_million_a":
+        if (!population) { sparse = china > 0; note = "No resident population is recorded for this territory, so a per capita value is not shown."; value = null; }
+        else value = (metric === "per_million_a" ? a : target) / population * 1e6;
+        break;
+      case "share_of_all_target":
+      case "share_of_all_china":
+        if (mode === "reviewed") { value = null; note = "The share of all published items is not available for human-reviewed labels only."; }
+        else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) { sparse = allItems > 0 || china > 0; note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the country's largest monitored outlets in this window, so a share is not shown."; value = null; }
+        else value = (metric === "share_of_all_china" ? (k.tchina || 0) : (k.ttarget || 0)) / allItems;
+        break;
       default: value = null;
     }
-    return {value: value, chinaTotal: china, a: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse};
+    if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
+    return {value: value, chinaTotal: china, a: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, note: note,
+            allItems: allItems, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, population: population || null};
   }
 
   /* Coverage class for the fill. Distinguishes absence of data from absence of content.
@@ -119,7 +143,7 @@
     if (!latestEntry) return "nocoverage";
     if (latestEntry.coverage === "gap") return "gap";
     if (latestEntry.coverage === "no_active_outlets" || !latestEntry.outlets_active) return "inactive";
-    if (!mv || mv.chinaTotal === 0) return "nodata";
+    if (!mv || (mv.chinaTotal === 0 && !(mv.allItems > 0))) return "nodata";
     if (mv.sparse) return "sparse";
     if (!mv.value) return "zero";
     return "value";
@@ -151,10 +175,12 @@
     var countries = (latest && latest.countries) || {};
     Object.keys(countries).forEach(function (iso) {
       var entry = countries[iso];
-      var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso]);
+      var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], {population: entry.population});
       var cls = fillClass(entry, mv);
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: mv.a, unverified_relay: mv.b, official_sourcing_pending: mv.pending, target: mv.target, independent: mv.c,
-                 china_total: mv.chinaTotal, outlets_active: entry.outlets_active, warnings: (entry.warnings || []).map(function (w) { return w.text; }).join("; ")});
+                 china_total: mv.chinaTotal, outlets_active: entry.outlets_active, population: entry.population || "",
+                 all_items_top_outlets: mv.allItems, target_in_top_outlets: mv.allItemsTarget, china_in_top_outlets: mv.allItemsChina,
+                 warnings: (entry.warnings || []).map(function (w) { return w.text; }).join("; ")});
     });
     rows.sort(function (x, y) {
       var xv = x.value === null ? -1 : x.value, yv = y.value === null ? -1 : y.value;
@@ -173,7 +199,7 @@
       "Stanford University. Accessed " + accessDate + ".";
   }
 
-  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
+  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
           formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));

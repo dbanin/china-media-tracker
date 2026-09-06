@@ -57,17 +57,25 @@ def article_rows(conn) -> List[Dict]:
     return [dict(r) for r in rows]
 
 
-def rebuild_rollups(conn) -> Dict:
+def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     rows = article_rows(conn)
     now = store.utcnow()
+    top_ids, _ = registry.top_outlets(outlets if outlets is not None else registry.load_outlets())
     counts = defaultdict(lambda: {"n": 0, "n_rules": 0, "n_llm": 0, "n_reviewed": 0, "groups": set()})
     coverage = defaultdict(lambda: {"discovered": 0, "gate_relevant": 0, "fetched": 0, "paywalled": 0,
-                                    "failed": 0, "blocked_robots": 0, "classified": 0, "llm_pending": 0})
+                                    "failed": 0, "blocked_robots": 0, "classified": 0, "llm_pending": 0,
+                                    "top_discovered": 0, "top_target": 0, "top_china": 0})
     for r in rows:
         d = _day(r)
         cov = coverage[(d, r["country"])]
         cov["gate_relevant"] += 1
         st = r["status"]
+        if r["outlet_id"] in top_ids.get(r["country"], set()):
+            pending = st in ("awaiting_llm", "llm_submitted")
+            if pending or r["m_cat"] in ("A", "B"):
+                cov["top_target"] += 1
+            if pending or r["m_cat"] in ("A", "B", "C"):
+                cov["top_china"] += 1
         if st in ("fetched", "classified", "awaiting_llm", "llm_submitted"):
             cov["fetched"] += 1
         if st == "paywalled":
@@ -96,6 +104,9 @@ def rebuild_rollups(conn) -> Dict:
     # permanent daily_discovery table, because gated-out rows are pruned from articles.
     for r in conn.execute("SELECT date, country, discovered FROM daily_discovery"):
         coverage[(r["date"], r["country"])]["discovered"] += r["discovered"]
+    for r in conn.execute("SELECT date, outlet_id, country, discovered FROM daily_outlet_discovery"):
+        if r["outlet_id"] in top_ids.get(r["country"], set()):
+            coverage[(r["date"], r["country"])]["top_discovered"] += r["discovered"]
 
     conn.execute("DELETE FROM daily_counts")
     conn.execute("DELETE FROM daily_coverage")
@@ -108,9 +119,11 @@ def rebuild_rollups(conn) -> Dict:
     for (d, country), cov in coverage.items():
         conn.execute(
             """INSERT INTO daily_coverage(date, country, discovered, gate_relevant, fetched, paywalled, failed,
-               blocked_robots, classified, llm_pending, computed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+               blocked_robots, classified, llm_pending, computed_at, top_discovered, top_target, top_china)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d, country, cov["discovered"], cov["gate_relevant"], cov["fetched"], cov["paywalled"], cov["failed"],
-             cov["blocked_robots"], cov["classified"], cov["llm_pending"], now),
+             cov["blocked_robots"], cov["classified"], cov["llm_pending"], now,
+             cov["top_discovered"], cov["top_target"], cov["top_china"]),
         )
     conn.commit()
     return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows)}
@@ -119,7 +132,7 @@ def rebuild_rollups(conn) -> Dict:
 def _empty_country() -> Dict:
     return {"A": 0, "B": 0, "C": 0, "N": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
-            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0}
+            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0}
 
 
 def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
@@ -162,10 +175,14 @@ def _derive(c: Dict, outlets_active: int) -> Dict:
     attempted = c["fetched"] + c["paywalled"] + c["failed"] + c["blocked"]
     c["paywall_share"] = round(c["paywalled"] / attempted, 4) if attempted else None
     c["reviewed_share"] = round(c["rev"] / c["cls"], 4) if c["cls"] else None
+    c["share_of_all_target"] = round(c["ttarget"] / c["tdisc"], 5) if c["tdisc"] else None
+    c["share_of_all_china"] = round(c["tchina"] / c["tdisc"], 5) if c["tdisc"] else None
     return c
 
 
-def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
+def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Optional[Dict] = None) -> Dict:
+    population = population if population is not None else registry.load_population()
+    top_ids, ranked = registry.top_outlets(outlets)
     today = dt.datetime.now(dt.timezone.utc).date()
     since30 = (today - dt.timedelta(days=30)).isoformat()
     by_country_outlets = defaultdict(list)
@@ -187,6 +204,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
             t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
             t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
             t["pending"] += r["llm_pending"]
+            t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]
 
     countries = {}
     for country, os_ in by_country_outlets.items():
@@ -197,6 +215,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
             "coverage": "monitored" if active else "no_active_outlets",
             "outlets_total": len(os_), "outlets_active": len(active),
             "feeds_total": len(feeds), "feeds_ok": feeds_ok,
+            "population": population.get(country),
+            "top_outlets": len(top_ids.get(country, ())), "top_outlets_ranked": country in ranked,
             "all_time": _derive(dict(all_time[country]), len(active)),
             "last_30d": _derive(dict(last30[country]), len(active)),
             "reviewed_all_time": _reviewed_block(conn, country, None),
@@ -221,7 +241,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
     for g in gaps:
         if g["country"] not in countries:
             countries[g["country"]] = {"coverage": "gap", "gap_reason": g["reason"], "outlets_total": 0, "outlets_active": 0,
-                                       "feeds_total": 0, "feeds_ok": 0, "all_time": _derive(_empty_country(), 0),
+                                       "feeds_total": 0, "feeds_ok": 0, "population": population.get(g["country"]),
+                                       "top_outlets": 0, "top_outlets_ranked": False, "all_time": _derive(_empty_country(), 0),
                                        "last_30d": _derive(_empty_country(), 0), "warnings": []}
 
     totals = {"all_time": _derive(_empty_country(), sum(1 for o in outlets if o["active"])),
@@ -232,6 +253,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict]) -> Dict:
             for k in _empty_country():
                 t[k] += c[k]
         _derive(t, sum(1 for o in outlets if o["active"]))
+    totals["population"] = sum(v["population"] or 0 for v in countries.values() if v["coverage"] == "monitored")
     return {"generated_at": store.utcnow(), "window_start_30d": since30, "countries": countries, "totals": totals}
 
 
@@ -246,6 +268,7 @@ def build_daily(conn) -> Dict[str, Dict]:
         t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
         t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
         t["pending"] += r["llm_pending"]
+        t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]
     ceiling_days = {r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1")}
     reviewed = defaultdict(lambda: defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0}))
     for r in conn.execute("SELECT * FROM daily_counts WHERE scope='reviewed'"):
@@ -413,6 +436,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "countries_monitored": len(countries_active),
         "registry_unevenness": registry.registry_summary(outlets)["unevenness"],
         "countries_in_gaps": len(gaps),
+        "population_source": registry.population_source(),
+        "top_outlets_per_country": registry.TOP_OUTLETS_PER_COUNTRY,
+        "countries_with_audience_ranks": registry.top_outlets(outlets)[1],
         "gaps": gaps,
         "articles_discovered": conn.execute("SELECT COALESCE(SUM(discovered), 0) FROM daily_discovery").fetchone()[0],
         "first_discovered": (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None,
@@ -481,7 +507,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     pruned = store.prune_gated_out(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
-    roll = rebuild_rollups(conn)
+    roll = rebuild_rollups(conn, outlets)
     latest = build_latest(conn, outlets, gaps)
     daily = build_daily(conn)
     series = build_global_series(daily)

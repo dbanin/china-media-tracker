@@ -108,6 +108,12 @@ Share of monitored China coverage that is state origin or unverified relay is
 the headline number. Raw
 counts mostly measure how many outlets the registry happens to track in a
 country. Articles per monitored outlet corrects for registry density.
+Articles per million people divide by the resident population
+({population_source}). The share of all published items divides target
+articles, or all China coverage, by every item the country's largest
+monitored outlets put in their feeds in the window, whether or not it
+concerns China. The largest outlets are the {top_n} best audience ranks
+recorded in sources/outlets.yaml; {ranked_text}
 
 Absence of data and absence of content are different things. A country with no
 monitored outlets is drawn with a hatch pattern. A country with monitored
@@ -174,6 +180,10 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
+        population_source=meta.get("population_source", "not recorded"),
+        top_n=meta.get("top_outlets_per_country", 30),
+        ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))
+        if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the metric measures the monitored set rather than the thirty largest publications.",
         kappa_text=kappa_text,
     )
     with open(path, "w", encoding="utf-8") as fh:

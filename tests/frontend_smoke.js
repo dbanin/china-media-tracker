@@ -29,4 +29,14 @@ var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_ab", 1, 
 assert(tiny.value === null && tiny.sparse === true, "tiny denominator gives no share");
 assert(C.fillClass({coverage: "monitored", outlets_active: 1}, tiny) === "sparse", "sparse fill");
 assert(C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "count_a", 1, "all").value === 2, "count still shown");
+var pm = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 2000000});
+assert(Math.abs(pm.value - 2) < 1e-9, "per million people");
+var nopop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {});
+assert(nopop.value === null && nopop.sparse === true && nopop.note, "no population gives no value");
+var all = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 1, tdisc: 200, ttarget: 2, tchina: 4});
+assert(Math.abs(C.metricValue(all, "share_of_all_target", 2, "all").value - 0.01) < 1e-9, "share of all items");
+assert(Math.abs(C.metricValue(all, "share_of_all_china", 2, "all").value - 0.02) < 1e-9, "china share of all items");
+var few = Object.assign(C.emptyCounts(), {A: 1, tdisc: 10, ttarget: 1});
+assert(C.metricValue(few, "share_of_all_target", 1, "all").value === null, "small stream gives no share");
+assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_all_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
 console.log("frontend smoke ok");
