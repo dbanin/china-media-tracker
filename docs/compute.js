@@ -68,6 +68,8 @@
   var MIN_SHARE_DENOMINATOR = 5;
   /* The share of all published items needs a real stream of items behind it. */
   var MIN_ALL_ITEMS_DENOMINATOR = 50;
+  /* Per capita values from a few thousand residents are noise and would set the whole color scale. */
+  var MIN_POPULATION = 100000;
 
   var METRICS = {
     count_target: {label: "Target articles: state placements plus pieces carrying official Chinese sourcing", format: "int", needsB: true},
@@ -116,6 +118,7 @@
       case "per_million_target":
       case "per_million_a":
         if (!population) { sparse = china > 0; note = "No resident population is recorded for this territory, so a per capita value is not shown."; value = null; }
+        else if (population < MIN_POPULATION) { sparse = china > 0; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; value = null; }
         else value = (metric === "per_million_a" ? a : target) / population * 1e6;
         break;
       case "share_of_all_target":
@@ -199,7 +202,7 @@
       "Stanford University. Accessed " + accessDate + ".";
   }
 
-  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
+  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_POPULATION: MIN_POPULATION, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
           formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));
