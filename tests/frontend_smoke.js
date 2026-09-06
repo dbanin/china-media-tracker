@@ -39,4 +39,6 @@ assert(Math.abs(C.metricValue(all, "share_of_all_china", 2, "all").value - 0.02)
 var few = Object.assign(C.emptyCounts(), {A: 1, tdisc: 10, ttarget: 1});
 assert(C.metricValue(few, "share_of_all_target", 1, "all").value === null, "small stream gives no share");
 assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_all_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
+var tinyPop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 3700});
+assert(tinyPop.value === null && tinyPop.sparse === true, "tiny population gives no per capita value");
 console.log("frontend smoke ok");
