@@ -152,6 +152,14 @@
     return "value";
   }
 
+  /* Linear interpolation percentile, p in [0, 1]. Used to cap the color scale. */
+  function percentile(values, p) {
+    var v = values.filter(function (x) { return x !== null && x !== undefined && !isNaN(x); }).slice().sort(function (a, b) { return a - b; });
+    if (!v.length) return null;
+    var pos = (v.length - 1) * p, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return v[lo] + (v[hi] - v[lo]) * (pos - lo);
+  }
+
   function formatValue(v, fmt) {
     if (v === null || v === undefined || isNaN(v)) return "n/a";
     if (fmt === "pct") return (v * 100).toFixed(1) + "%";
@@ -204,5 +212,5 @@
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_POPULATION: MIN_POPULATION, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
-          formatValue: formatValue, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
+          formatValue: formatValue, percentile: percentile, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));

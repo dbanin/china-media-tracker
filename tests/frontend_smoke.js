@@ -41,4 +41,5 @@ assert(C.metricValue(few, "share_of_all_target", 1, "all").value === null, "smal
 assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_all_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
 var tinyPop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 3700});
 assert(tinyPop.value === null && tinyPop.sparse === true, "tiny population gives no per capita value");
+assert(C.percentile([1, 2, 3, 4, 100], 0.95) === 80.8 && C.percentile([], 0.95) === null && C.percentile([5], 0.95) === 5, "percentile");
 console.log("frontend smoke ok");
