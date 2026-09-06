@@ -168,12 +168,17 @@
       perIso[iso] = {entry: entry, mv: mv, cls: cls};
       if (cls === "value") vals.push(mv.value);
     });
-    var max = vals.length ? d3.max(vals) : 1;
+    /* The ramp tops out at the 95th percentile so one outlier does not flatten every other country.
+       Values above the cap take the brightest color; the legend says the cap is a cap. */
+    var trueMax = vals.length ? d3.max(vals) : 1;
+    var max = vals.length ? C.percentile(vals, 0.95) : 1;
+    if (!max) max = trueMax || 1;
+    var capped = vals.some(function (v) { return v > max; });
     var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
     if (fmt === "pct") max = Math.max(max, 0.05);
     /* Single warm gold ramp on the dark ground: deep amber to bright gold light. */
-    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.6)("#4a3a1c", "#e7c777")).domain([0, max]);
-    state._perIso = perIso; state._max = max;
+    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.6)("#4a3a1c", "#e7c777")).domain([0, max]).clamp(true);
+    state._perIso = perIso; state._max = max; state._capped = capped; state._trueMax = trueMax;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
     // the CSS transition on path.country smooths color to color changes instead.
@@ -206,7 +211,7 @@
       (C.METRICS[state.metric] && C.METRICS[state.metric].allItems ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_ALL_ITEMS_DENOMINATOR + ' items published, share not shown</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].population ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, no population recorded or fewer than ' + C.MIN_POPULATION.toLocaleString("en-US") + ' residents</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
-      '<span>0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + ' ' + esc(metricLabel().toLowerCase()) + '</span>' +
+      '<span>0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + (state._capped ? '+' : '') + ' ' + esc(metricLabel().toLowerCase()) + (state._capped ? ' <span class="faint">(scale capped at the 95th percentile; the top value is ' + C.formatValue(state._trueMax, fmt) + ')</span>' : '') + '</span>' +
       '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
       '<span class="faint">' + esc(windowLabel()) + (state.mode === "reviewed" ? ", human-reviewed labels only" : "") + '</span>';
   }
