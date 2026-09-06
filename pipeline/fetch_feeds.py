@@ -119,7 +119,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     if new_id is None:
                         continue
                     counts["items_new"] += 1
-                    store.record_discovery(conn, outlet["country"], relevant)
+                    store.record_discovery(conn, outlet["country"], relevant, outlet["id"])
                     if relevant:
                         counts["gate_relevant"] += 1
                         if link_near_duplicates(conn, new_id, title, outlet["country"]):

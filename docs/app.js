@@ -108,6 +108,8 @@
     if (m && m.official_sourcing_pending) parts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and are waiting for the verification judgement that separates unverified relay from independent journalism. They are counted as targets and listed in each country panel with the sentence that triggered them.");
     var u = m && m.registry_unevenness;
     if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling. Share and per-outlet metrics correct for it; count metrics do not.");
+    var ranked = (m && m.countries_with_audience_ranks) || [];
+    if (m && !ranked.length) parts.push("The share of all published items metrics use every active outlet in a country as the denominator, because no outlet carries an audience rank yet. Once ranks are recorded in the registry, the denominator becomes the " + (m.top_outlets_per_country || 30) + " largest outlets by audience.");
     if (parts.length) { dn.textContent = parts.join(" "); dn.classList.remove("hidden"); } else dn.classList.add("hidden");
     el("review-coverage").textContent = m ? pct(m.review_coverage) + " of classified articles" : "n/a";
   }
@@ -161,7 +163,7 @@
     var perIso = {};
     Object.keys(state.latest.countries || {}).forEach(function (iso) {
       var entry = state.latest.countries[iso];
-      var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso]);
+      var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], {population: entry.population});
       var cls = C.fillClass(entry, mv);
       perIso[iso] = {entry: entry, mv: mv, cls: cls};
       if (cls === "value") vals.push(mv.value);
@@ -201,7 +203,9 @@
       '<span><span class="swatch" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
       '<span><span class="swatch" style="background:#1a1c1f"></span>Monitored, no China coverage in window</span>' +
       '<span><span class="swatch" style="background:#23262a"></span>Monitored, zero detections</span>' +
-      (C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
+      (C.METRICS[state.metric] && C.METRICS[state.metric].allItems ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_ALL_ITEMS_DENOMINATOR + ' items published, share not shown</span>' :
+       C.METRICS[state.metric] && C.METRICS[state.metric].population ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, no population recorded</span>' :
+       C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
       '<span>0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + ' ' + esc(metricLabel().toLowerCase()) + '</span>' +
       '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
       '<span class="faint">' + esc(windowLabel()) + (state.mode === "reviewed" ? ", human-reviewed labels only" : "") + '</span>';
@@ -223,7 +227,9 @@
         html += '<div class="muted">State origin ' + mv.a + ', unverified relay ' + mv.b + (bProvisional() ? ' (provisional)' : '') + ', official sourcing pending ' + mv.pending + ', independent ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
-        if (p.cls === "sparse") html += '<div class="muted">Fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items in this window, so a share is not shown. Switch to a count metric to see them.</div>';
+        if (p.cls === "sparse" && mv.note) html += '<div class="muted">' + esc(mv.note) + '</div>';
+        if (C.METRICS[state.metric] && C.METRICS[state.metric].allItems) html += '<div class="muted">' + mv.allItems + ' items published by the ' + e.top_outlets + ' largest monitored outlets' + (e.top_outlets_ranked ? '' : ' (no audience ranks recorded, so every active outlet counts)') + ', ' + mv.allItemsTarget + ' targets and ' + mv.allItemsChina + ' China items among them</div>';
+        if (C.METRICS[state.metric] && C.METRICS[state.metric].population && e.population) html += '<div class="muted">Population ' + e.population.toLocaleString("en-US") + '</div>';
       }
       (e.warnings || []).forEach(function (w) { html += '<div class="t-warn">Warning: ' + esc(w.text) + '</div>'; });
     }
@@ -275,7 +281,7 @@
     if (!entry) { html += '<p class="muted">No monitored outlets in ' + esc(name) + '. This is absence of data, not absence of content. To add coverage, add an outlet with a working feed to sources/outlets.yaml, or record the reason in sources/gaps.yaml.</p>'; body.innerHTML = html; bindClose(); return; }
     if (entry.coverage === "gap") { html += '<p class="warn">Coverage gap: ' + esc(entry.gap_reason) + '</p>'; body.innerHTML = html; bindClose(); return; }
     (entry.warnings || []).forEach(function (w) { html += '<p class="warn">Warning: ' + esc(w.text) + '</p>'; });
-    var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso]);
+    var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], {population: entry.population});
     html += '<p>' + esc(metricLabel()) + ', ' + esc(windowLabel()) + ': <strong>' + C.formatValue(mv.value, C.METRICS[state.metric].format) + '</strong></p>';
     html += '<h3>Time series, all days</h3><svg class="mini" id="mini"></svg>';
     var k = agg.countries[iso] || C.emptyCounts();
@@ -416,6 +422,8 @@
     var k = m.kappa;
     var rows = [
       ["Outlets monitored", m.outlets_active + " active of " + m.outlets_total + " registered, across " + m.countries_monitored + " countries"],
+      ["Population figures", m.population_source || "not recorded"],
+      ["Largest outlets denominator", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
@@ -445,7 +453,7 @@
       r.citation = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "official_sourcing_pending", "target", "relay_provisional", "independent", "china_total", "outlets_active", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "official_sourcing_pending", "target", "relay_provisional", "independent", "china_total", "outlets_active", "population", "all_items_top_outlets", "target_in_top_outlets", "china_in_top_outlets", "warnings", "citation"]));
   }
   function exportDaily() {
     var rows = [];
@@ -457,10 +465,11 @@
         var c = e.countries[iso], r = (e.reviewed || {})[iso] || {};
         rows.push({date: d, iso: iso, name: state.names[iso] || iso, state_origin: c.A, unverified_relay: c.B, independent: c.C, not_relevant: c.N, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: c.Br, unverified_relay_model: c.Bl,
                    reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: r.B || 0, human_independent: r.C || 0, unique_items_origin_relay: c.uniqAB, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
-                   paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending, llm_ceiling_hit: e.llm_ceiling_hit, citation: cite});
+                   paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending,
+                   all_items_top_outlets: c.tdisc, target_in_top_outlets: c.ttarget, china_in_top_outlets: c.tchina, llm_ceiling_hit: e.llm_ceiling_hit, citation: cite});
       });
     });
-    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "state_origin", "unverified_relay", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "unique_items_origin_relay", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "llm_ceiling_hit", "citation"]));
+    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "state_origin", "unverified_relay", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "unique_items_origin_relay", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "all_items_top_outlets", "target_in_top_outlets", "china_in_top_outlets", "llm_ceiling_hit", "citation"]));
   }
 
   /* -------------------------------------------------------------- controls */

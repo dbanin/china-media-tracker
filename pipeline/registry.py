@@ -114,3 +114,41 @@ if __name__ == "__main__":
         s["outlets_total"], s["outlets_active"], s["countries_covered"], len(gaps)))
     for c in sorted(s["per_country"], key=lambda k: -s["per_country"][k]):
         print("  %s %d" % (c, s["per_country"][c]))
+
+
+TOP_OUTLETS_PER_COUNTRY = 30
+
+
+def population_source(path=None) -> str:
+    import json
+    path = path or (config.ROOT / "sources" / "population.json")
+    with open(path, "r", encoding="utf-8") as fh:
+        d = json.load(fh)
+    return "%s; %s" % (d["sources"]["world_bank"], d["sources"]["other"])
+
+
+def load_population(path=None):
+    """ISO3 -> resident population from sources/population.json."""
+    import json
+    path = path or (config.ROOT / "sources" / "population.json")
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)["population"]
+
+
+def top_outlets(outlets):
+    """Per country, the outlet ids that form the denominator for the share of all published
+    items: the TOP_OUTLETS_PER_COUNTRY best audience_rank values when any outlet in the
+    country carries a rank, otherwise every active outlet. Returns (ids_by_country, ranked_countries)."""
+    by_country = {}
+    for o in outlets:
+        by_country.setdefault(o["country"], []).append(o)
+    ids = {}
+    ranked = []
+    for country, os_ in by_country.items():
+        with_rank = sorted([o for o in os_ if o.get("audience_rank")], key=lambda o: o["audience_rank"])
+        if with_rank:
+            ids[country] = {o["id"] for o in with_rank[:TOP_OUTLETS_PER_COUNTRY]}
+            ranked.append(country)
+        else:
+            ids[country] = {o["id"] for o in os_ if o["active"]}
+    return ids, sorted(ranked)
