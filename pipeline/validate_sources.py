@@ -5,9 +5,13 @@ Usage:
   python -m pipeline.validate_sources --apply    # mark dead feeds inactive and rewrite outlets.yaml
   python -m pipeline.validate_sources --json out.json
 
-A feed is dead when it fails on this run and has failed on the previous two
-recorded validation runs, so a single bad hour does not remove an outlet. The
-first run has no history, so --apply on a fresh clone only reports.
+An outlet is dead when every feed fails on this run, no feed has succeeded in
+the last DEAD_AFTER_DAYS days of recorded checks, and at least
+MIN_FAILED_CHECKS failures are on record. The hourly collect job also writes
+feed health, so a count of consecutive failures alone would deactivate an
+outlet after a three hour outage; the rule is about elapsed time since the
+last success instead. The first run has no history, so --apply on a fresh
+clone only reports.
 """
 import argparse
 import datetime as dt
@@ -18,7 +22,23 @@ from concurrent.futures import ThreadPoolExecutor
 from pipeline import config, registry
 from pipeline.feeds_util import fetch_feed
 
-CONSECUTIVE_FAILURES_TO_DEACTIVATE = 3
+DEAD_AFTER_DAYS = 7
+MIN_FAILED_CHECKS = 3
+
+
+def is_dead(results, history, today):
+    """results: this run's per feed results for one outlet. history: feed_url -> row with
+    last_ok, total_failures. today: ISO date. Returns (dead, last_ok_date or None)."""
+    if not results or not all(not r["ok"] for r in results):
+        return False, None
+    last_ok = max((history.get(r["feed_url"], {}).get("last_ok") or "" for r in results), default="")
+    failures = sum(history.get(r["feed_url"], {}).get("total_failures", 0) for r in results) + len(results)
+    cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=DEAD_AFTER_DAYS)).isoformat()
+    if failures < MIN_FAILED_CHECKS:
+        return False, last_ok[:10] or None
+    if last_ok and last_ok[:10] >= cutoff:
+        return False, last_ok[:10]
+    return True, last_ok[:10] or None
 
 
 def check_outlet(outlet):
@@ -52,9 +72,9 @@ def run(apply=False, json_out=None, workers=12):
         from pipeline import store
         conn = store.connect()
         for row in conn.execute(
-            "SELECT feed_url, consecutive_failures FROM feed_health"
+            "SELECT feed_url, last_ok, total_failures FROM feed_health"
         ):
-            history[row[0]] = row[1]
+            history[row[0]] = {"last_ok": row[1], "total_failures": row[2]}
         for r in results:
             store.record_feed_health(conn, r["outlet_id"], r["feed_url"], r["ok"], r["error"], r["entries"])
         conn.commit()
@@ -62,16 +82,15 @@ def run(apply=False, json_out=None, workers=12):
         print("feed health history unavailable (%s); reporting only" % exc, file=sys.stderr)
 
     dead_outlets = []
+    last_success = {}
     by_outlet = {}
     for r in results:
         by_outlet.setdefault(r["outlet_id"], []).append(r)
     for oid, rs in by_outlet.items():
-        all_failed = all(not r["ok"] for r in rs)
-        if not all_failed:
-            continue
-        prior = max((history.get(r["feed_url"], 0) for r in rs), default=0)
-        if prior + 1 >= CONSECUTIVE_FAILURES_TO_DEACTIVATE:
+        dead, last_ok = is_dead(rs, history, today)
+        if dead:
             dead_outlets.append(oid)
+            last_success[oid] = last_ok
 
     ok = sum(1 for r in results if r["ok"])
     print("checked %d feeds across %d outlets: %d ok, %d failing" % (
@@ -85,7 +104,8 @@ def run(apply=False, json_out=None, workers=12):
         for o in outlets:
             if o["id"] in dead_outlets and o["active"]:
                 o["active"] = False
-                o["inactive_reason"] = "all feeds failed on %d consecutive validation runs (auto)" % CONSECUTIVE_FAILURES_TO_DEACTIVATE
+                o["inactive_reason"] = ("every feed failed on every check from the GitHub Actions runner for more than %d days; last success %s (auto)"
+                                        % (DEAD_AFTER_DAYS, last_success.get(o["id"]) or "none on record"))
                 o["inactive_since"] = today
                 changed.append(o["id"])
         if changed:
