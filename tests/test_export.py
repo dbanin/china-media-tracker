@@ -9,7 +9,7 @@ import pytest
 from pipeline import config, export, store
 
 COUNTS_KEYS = ["A", "B", "C", "N", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
-               "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina"]
+               "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina", "ta"]
 COUNTS_SCHEMA = {"type": "object", "required": COUNTS_KEYS, "properties": {k: {"type": "integer"} for k in COUNTS_KEYS}}
 DERIVED_SCHEMA = {"type": "object", "required": COUNTS_KEYS + ["china_total", "share_ab", "share_a", "per_outlet_ab", "paywall_share", "reviewed_share", "share_of_all_target", "share_of_all_china"]}
 
@@ -152,6 +152,7 @@ def test_share_of_all_items_uses_top_outlets(tmp_path):
     export.rebuild_rollups(conn, outlets31)
     row = conn.execute("SELECT SUM(top_discovered) d, SUM(top_target) t, SUM(top_china) c FROM daily_coverage").fetchone()
     assert (row["d"], row["t"], row["c"]) == (60, 1, 1)
+    assert conn.execute("SELECT SUM(top_a) FROM daily_coverage").fetchone()[0] == 1
     latest = export.build_latest(conn, outlets31, [], population={"ITA": 1000000})
     assert latest["countries"]["ITA"]["population"] == 1000000
     assert abs(latest["countries"]["ITA"]["all_time"]["share_of_all_target"] - 1 / 60) < 1e-4

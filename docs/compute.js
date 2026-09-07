@@ -8,7 +8,7 @@
 
   var EMPTY = {A: 0, B: 0, C: 0, N: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
                fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
-               tdisc: 0, ttarget: 0, tchina: 0};
+               tdisc: 0, ttarget: 0, tchina: 0, ta: 0};
 
   function emptyCounts() { var o = {}; for (var k in EMPTY) o[k] = 0; return o; }
 
@@ -77,6 +77,9 @@
     share_ab: {label: "Share of China coverage confirmed as state origin or unverified relay", format: "pct", needsB: true},
     count_ab: {label: "Confirmed state origin plus unverified relay articles", format: "int", needsB: true},
     count_a: {label: "State origin articles", format: "int", needsB: false},
+    count_china: {label: "All China coverage: every article that concerns China", format: "int", needsB: true},
+    per_million_china: {label: "All China coverage per million people", format: "dec", needsB: true, population: true},
+    share_of_all_a: {label: "State origin articles as a share of every item the country's largest monitored outlets published", format: "pct", needsB: false, allItems: true},
     per_outlet_target: {label: "Target articles per monitored outlet", format: "dec", needsB: true},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", needsB: false},
     per_million_target: {label: "Target articles per million people", format: "dec", needsB: true, population: true},
@@ -111,21 +114,24 @@
       case "share_ab": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? (a + b) / china : null; break;
       case "share_a": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? a / china : null; break;
       case "count_a": value = a; break;
+      case "count_china": value = china; break;
       case "count_ab": value = a + b; break;
       case "per_outlet_target": value = outletsActive ? target / outletsActive : null; break;
       case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
       case "per_outlet_a": value = outletsActive ? a / outletsActive : null; break;
       case "per_million_target":
       case "per_million_a":
+      case "per_million_china":
         if (!population) { sparse = china > 0; note = "No resident population is recorded for this territory, so a per capita value is not shown."; value = null; }
         else if (population < MIN_POPULATION) { sparse = china > 0; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; value = null; }
-        else value = (metric === "per_million_a" ? a : target) / population * 1e6;
+        else value = (metric === "per_million_a" ? a : metric === "per_million_china" ? china : target) / population * 1e6;
         break;
       case "share_of_all_target":
       case "share_of_all_china":
+      case "share_of_all_a":
         if (mode === "reviewed") { value = null; note = "The share of all published items is not available for human-reviewed labels only."; }
         else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) { sparse = allItems > 0 || china > 0; note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the country's largest monitored outlets in this window, so a share is not shown."; value = null; }
-        else value = (metric === "share_of_all_china" ? (k.tchina || 0) : (k.ttarget || 0)) / allItems;
+        else value = (metric === "share_of_all_china" ? (k.tchina || 0) : metric === "share_of_all_a" ? (k.ta || 0) : (k.ttarget || 0)) / allItems;
         break;
       default: value = null;
     }
@@ -133,6 +139,14 @@
     return {value: value, chinaTotal: china, a: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, note: note,
             allItems: allItems, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, population: population || null};
   }
+
+  /* The three by three grid behind the Measure and Basis toggles. */
+  var GRID = {
+    target: {count: "count_target", per_million: "per_million_target", share_of_all: "share_of_all_target"},
+    a: {count: "count_a", per_million: "per_million_a", share_of_all: "share_of_all_a"},
+    china: {count: "count_china", per_million: "per_million_china", share_of_all: "share_of_all_china"}
+  };
+  function gridMetric(measure, basis) { return (GRID[measure] || GRID.target)[basis] || GRID.target.count; }
 
   /* Coverage class for the fill. Distinguishes absence of data from absence of content.
        nocoverage  no monitored outlets and not in the gaps file
@@ -211,6 +225,6 @@
   }
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_POPULATION: MIN_POPULATION, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
-          aggregateWindow: aggregateWindow, METRICS: METRICS, metricValue: metricValue, fillClass: fillClass,
+          aggregateWindow: aggregateWindow, METRICS: METRICS, GRID: GRID, gridMetric: gridMetric, metricValue: metricValue, fillClass: fillClass,
           formatValue: formatValue, percentile: percentile, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));

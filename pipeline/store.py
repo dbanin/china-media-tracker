@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS daily_coverage (
     top_discovered INTEGER NOT NULL DEFAULT 0,   -- items from the country's top outlet set
     top_target INTEGER NOT NULL DEFAULT 0,       -- state origin, unverified relay and pending among them
     top_china INTEGER NOT NULL DEFAULT 0,        -- all China coverage among them
+    top_a INTEGER NOT NULL DEFAULT 0,            -- state origin among them
     PRIMARY KEY(date, country)
 );
 
@@ -244,7 +245,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "page_labels" not in cols:
         conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
-    for col in ("top_discovered", "top_target", "top_china"):
+    for col in ("top_discovered", "top_target", "top_china", "top_a"):
         if col not in cov:
             conn.execute("ALTER TABLE daily_coverage ADD COLUMN %s INTEGER NOT NULL DEFAULT 0" % col)
     if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
