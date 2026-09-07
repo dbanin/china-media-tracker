@@ -45,7 +45,7 @@ header.top { padding: 3.2rem 3rem 2.2rem 3rem; border-bottom: 1px solid var(--ru
   background: radial-gradient(ellipse 70% 120% at 15% 0%, rgba(201, 169, 97, 0.10), transparent 60%); }
 header.top .sub { color: var(--ash); max-width: 46rem; font-size: 1.02rem; margin-top: 1rem; }
 .notice { margin: 1rem 3rem 0 3rem; padding: 0.8rem 1.1rem; border: 1px solid var(--rule-strong); color: var(--bone-soft); background: transparent; max-width: 70rem; font-size: 0.9rem; border-left: 2px solid var(--gold); }
-.notice.hidden { display: none; }
+.notice.hidden, .control.hidden { display: none; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 1.2rem 2.4rem; padding: 1.2rem 3rem; border-bottom: 1px solid var(--rule); align-items: flex-end; }
 .control { display: flex; flex-direction: column; gap: 0.35rem; }
