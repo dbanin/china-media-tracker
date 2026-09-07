@@ -249,7 +249,9 @@
   - https://www.cbc.ca/webfeed/rss/rss-politics
   tier: broadcaster
   notes: Public broadcaster. Feed host intermittently refused connections on 2026-09-02; kept active because the feeds are canonical and documented by CBC.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ca_globeandmail
   name: The Globe and Mail
   country: CAN
@@ -409,7 +411,9 @@
   - https://thewalrus.ca/feed/
   tier: national_daily
   notes: Magazine, low volume. Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ca_theprovince
   name: The Province
   country: CAN
@@ -1517,7 +1521,9 @@
   - https://www.24haubenin.info/spip.php?page=backend
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: bj_beninwebtv
   name: Bénin Web TV
   country: BEN
@@ -1638,7 +1644,7 @@
   notes: Verified 2026-09-02.
   active: false
   inactive_reason: domain now serves gambling spam in Thai, not news; deactivated 2026-09-05
-  inactive_since: "2026-09-05"
+  inactive_since: '2026-09-05'
 - id: bf_rtb
   name: RTB
   country: BFA
@@ -1901,7 +1907,9 @@
   - https://sofiaglobe.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: bg_standart
   name: Standart
   country: BGR
@@ -2094,7 +2102,9 @@
   - https://minsknews.by/rss
   tier: regional
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: by_reform
   name: Reform.news
   country: BLR
@@ -2121,7 +2131,9 @@
   - https://eldeber.com.bo/rss/mundo
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: bo_lapatria
   name: La Patria
   country: BOL
@@ -2629,7 +2641,9 @@
   - https://oubanguimedias.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: cf_radiondekaluka
   name: Radio Ndeke Luka
   country: CAF
@@ -2790,7 +2804,9 @@
   - https://afriksoir.net/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ci_ivoirmatin
   name: Ivoire Matin
   country: CIV
@@ -2947,7 +2963,9 @@
   - https://lepotentiel.cd/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: cd_politico
   name: Politico.cd
   country: COD
@@ -3040,7 +3058,9 @@
   - https://colombiacheck.com/rss.xml
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: co_elcolombiano
   name: El Colombiano
   country: COL
@@ -3378,7 +3398,9 @@
   - https://www.plenglish.com/rss
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: cu_radiohc
   name: Radio Habana Cuba
   country: CUB
@@ -3950,7 +3972,9 @@
   - https://z101digital.com/feed/
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: dz_algerie360
   name: Algérie360
   country: DZA
@@ -4384,7 +4408,9 @@
   - https://www.larazon.es/rss/internacional.xml
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: es_lasprovincias
   name: Las Provincias
   country: ESP
@@ -4963,7 +4989,9 @@
   - https://lalibreville.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: gb_bbc
   name: BBC News
   country: GBR
@@ -5098,7 +5126,9 @@
   - https://www.standard.co.uk/news/world/rss
   tier: regional
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: gb_telegraph
   name: The Telegraph
   country: GBR
@@ -5358,7 +5388,9 @@
   - https://foroyaa.net/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: gm_gambiaj
   name: The Gambia Journal
   country: GMB
@@ -5836,7 +5868,9 @@
   - https://elpulso.hn/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: hn_hch
   name: HCH
   country: HND
@@ -6016,7 +6050,9 @@
   - https://www.alterpresse.org/spip.php?page=backend
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ht_haitiantimes
   name: The Haitian Times
   country: HTI
@@ -6275,7 +6311,9 @@
   - https://www.cnnindonesia.com/internasional/rss
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: id_detik
   name: detikcom
   country: IDN
@@ -6324,7 +6362,9 @@
   - https://internasional.kontan.co.id/rss
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: id_liputan6
   name: Liputan6
   country: IDN
@@ -6361,7 +6401,9 @@
   - https://www.rri.co.id/rss
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: id_sindonews
   name: Sindonews
   country: IDN
@@ -6548,7 +6590,9 @@
   - https://indianexpress.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: in_indiatoday
   name: India Today
   country: IND
@@ -7096,7 +7140,9 @@
   - https://www.972mag.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: il_arutz7
   name: Arutz Sheva
   country: ISR
@@ -7114,7 +7160,9 @@
   - https://www.bhol.co.il/rss
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: il_davar
   name: Davar
   country: ISR
@@ -7123,7 +7171,9 @@
   - https://www.davar1.co.il/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: il_globes
   name: Globes
   country: ISR
@@ -7263,7 +7313,9 @@
   - https://www.timesofisrael.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: il_walla
   name: Walla
   country: ISR
@@ -7312,7 +7364,9 @@
   - https://www.jamaica-star.com/rss.xml
   tier: national_daily
   notes: Discovered by automated feed search. Verified 2026-09-02. Name taken from the feed title; language inferred from the country, check on first review.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: jm_jis
   name: Jamaica Information Service
   country: JAM
@@ -7625,7 +7679,9 @@
   - https://www.kenyanews.go.ke/feed/
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ke_nation
   name: Daily Nation
   country: KEN
@@ -8313,7 +8369,9 @@
   - https://nna-leb.gov.lb/en/rss
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: lb_nna_ar
   name: NNA Arabic
   country: LBN
@@ -8322,7 +8380,9 @@
   - https://www.nna-leb.gov.lb/ar/rss
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: lb_the961
   name: The961
   country: LBN
@@ -8331,7 +8391,9 @@
   - https://www.the961.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: lb_thenational_lb
   name: Now Lebanon
   country: LBN
@@ -8551,7 +8613,9 @@
   - https://www.gov.ls/feed/
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ls_newsday
   name: Newsday Lesotho
   country: LSO
@@ -9773,7 +9837,9 @@
   - https://clubofmozambique.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: mz_evidencias
   name: Evidências
   country: MOZ
@@ -9898,7 +9964,9 @@
   - https://newsmoris.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: mw_malawi24
   name: Malawi24
   country: MWI
@@ -10014,7 +10082,9 @@
   - https://focusmalaysia.my/feed/
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: my_hmetro
   name: Harian Metro
   country: MYS
@@ -10070,7 +10140,9 @@
   - https://www.scoop.my/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: my_sinchew_zh
   name: Sin Chew Daily
   country: MYS
@@ -10090,7 +10162,9 @@
   - https://thesun.my/rss
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: my_thevibes
   name: The Vibes
   country: MYS
@@ -10211,7 +10285,9 @@
   - https://www.tamtaminfo.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ng_arise
   name: Arise News
   country: NGA
@@ -10324,7 +10400,9 @@
   - https://sunnewsonline.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ng_thecable
   name: TheCable
   country: NGA
@@ -10712,7 +10790,9 @@
   - https://nepalnews.com/feed
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: np_onlinekhabar
   name: Onlinekhabar
   country: NPL
@@ -11229,7 +11309,9 @@
   - https://semanaeconomica.com/feed
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: pe_trome
   name: Trome
   country: PER
@@ -11779,7 +11861,9 @@
   - https://www.alquds.com/feed
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ps_felesteen
   name: Felesteen
   country: PSE
@@ -11808,7 +11892,9 @@
   - https://www.middleeastmonitor.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ps_pnn
   name: PNN
   country: PSE
@@ -12411,7 +12497,9 @@
   - https://www.arabnews.com/rss.xml
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: sa_asharqalawsat
   name: Asharq Al-Awsat
   country: SAU
@@ -13194,7 +13282,9 @@
   - https://hnonline.sk/feed
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: sk_postoj
   name: Postoj
   country: SVK
@@ -13685,7 +13775,9 @@
   - https://togoactualite.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: th_bangkokpost
   name: Bangkok Post
   country: THA
@@ -13784,7 +13876,9 @@
   - https://prachataienglish.com/feed
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: th_thaienquirer
   name: Thai Enquirer
   country: THA
@@ -13941,7 +14035,9 @@
   - https://matangitonga.to/rss.xml
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: to_talanoa
   name: Talanoa o Tonga
   country: TON
@@ -13969,7 +14065,9 @@
   - https://www.cnc3.co.tt/rss
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: tt_express
   name: Trinidad Express
   country: TTO
@@ -14035,7 +14133,9 @@
   - https://www.businessnews.com.tn/feed
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: tn_gnet
   name: Gnet
   country: TUN
@@ -14551,7 +14651,9 @@
   - https://nilepost.co.ug/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ug_observer
   name: The Observer
   country: UGA
@@ -14591,7 +14693,9 @@
   - https://espreso.tv/rss
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ua_euromaidan
   name: Euromaidan Press
   country: UKR
@@ -14628,7 +14732,9 @@
   - https://news.liga.net/all/rss.xml
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ua_nv
   name: NV
   country: UKR
@@ -14703,7 +14809,9 @@
   - https://www.epravda.com.ua/rss/
   tier: business
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ua_ukrinform
   name: Ukrinform
   country: UKR
@@ -14768,7 +14876,9 @@
   - https://www.elpais.com.uy/rss
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: uy_elpaisdigital
   name: El País Digital
   country: URY
@@ -14777,7 +14887,9 @@
   - https://www.elpais.com.uy/rss/ultimo-momento
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: uy_ladiaria
   name: la diaria
   country: URY
@@ -14875,7 +14987,9 @@
   - https://feed.businesswire.com/rss/home/?rss=G1QFDERJXkJeEFpRWw==
   tier: aggregator
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: us_cbs
   name: CBS News
   country: USA
@@ -15186,7 +15300,9 @@
   - https://www.seattletimes.com/nation-world/feed/
   tier: regional
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: us_semafor
   name: Semafor
   country: USA
@@ -15319,7 +15435,9 @@
   - https://www.washingtontimes.com/rss/headlines/news/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: us_wsj
   name: The Wall Street Journal
   country: USA
@@ -15505,7 +15623,9 @@
   - https://talcualdigital.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: vn_baotintuc
   name: Tin Tức
   country: VNM
@@ -15631,7 +15751,9 @@
   - https://vnexpress.net/rss/tin-moi-nhat.rss
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: vn_vnexpress_en
   name: VnExpress International
   country: VNM
@@ -15696,7 +15818,9 @@
   - https://insajderi.org/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: xk_kallxo
   name: Kallxo
   country: XKX
@@ -16338,7 +16462,9 @@
   - https://www.reporter.bz/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: bz_sanpedrosun
   name: San Pedro Sun
   country: BLZ
@@ -16377,7 +16503,9 @@
   - https://www.cookislandsnews.com/feed
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: cw_extra
   name: Extra Curaçao
   country: CUW
@@ -16762,7 +16890,9 @@
   - https://marshallislandsjournal.com/rss
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: mh_pacificnote
   name: Pacific Note
   country: MHL
@@ -16771,7 +16901,9 @@
   - https://pacificnote.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ms_gov
   name: Government of Montserrat
   country: MSR
@@ -16780,7 +16912,9 @@
   - https://www.gov.ms/feed/
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: ms_montserratreporter
   name: The Montserrat Reporter
   country: MSR
@@ -16874,7 +17008,9 @@
   - https://www.elvocero.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: pr_metro
   name: Metro Puerto Rico
   country: PRI
@@ -17262,7 +17398,7 @@
   notes: Verified 2026-09-02.
   active: false
   inactive_reason: domain now serves gambling spam in Thai, not news; deactivated 2026-09-05
-  inactive_since: "2026-09-05"
+  inactive_since: '2026-09-05'
 - id: gu_pdn
   name: Pacific Daily News
   country: GUM
@@ -17271,7 +17407,9 @@
   - https://www.guampdn.com/search/?f=rss&t=article&c=news*&l=50&s=start_time&sd=desc
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
 - id: mp_pacislands
   name: Pacific Island Times
   country: MNP
@@ -17307,4 +17445,6 @@
   - https://vifreepress.com/feed/
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: all feeds failed on 3 consecutive validation runs (auto)
+  inactive_since: '2026-09-07'
