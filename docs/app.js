@@ -116,7 +116,12 @@
 
   /* ------------------------------------------------------------------- map */
   var svg, gCountries, gMarkers, path, projection, colorScale;
-  var ZERO_COLOR = "#f6f1e8", HIGH_COLOR = "#b3121a";
+  var ZERO_COLOR = "#f6f1e8", LOW_COLOR = "#f1c4bd", HIGH_COLOR = "#7d0a10";
+  /* Seven distinct steps. Bin edges follow a square law, so the low end gets most of the
+     resolution: a country at a fifth of the cap is already three steps away from white. */
+  var STEPS = 7;
+  var STEP_COLORS = d3.range(STEPS).map(function (i) { return d3.interpolateRgb.gamma(1.2)(LOW_COLOR, HIGH_COLOR)(STEPS === 1 ? 1 : i / (STEPS - 1)); });
+  function stepEdges(max) { return d3.range(1, STEPS).map(function (i) { return max * Math.pow(i / STEPS, 2); }); }
   function setupMap() {
     svg = d3.select("#map");
     svg.selectAll("*").remove();
@@ -177,8 +182,9 @@
     var capped = vals.some(function (v) { return v > max; });
     var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
     if (fmt === "pct") max = Math.max(max, 0.05);
-    /* White at zero to deep red at the cap. */
-    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.4)(ZERO_COLOR, HIGH_COLOR)).domain([0, max]).clamp(true);
+    /* White for exactly zero; any positive value takes one of STEPS tinted steps up to deep red at the cap. */
+    var stepScale = d3.scaleThreshold().domain(stepEdges(max)).range(STEP_COLORS);
+    colorScale = function (v) { return v > 0 ? stepScale(v) : ZERO_COLOR; };
     state._perIso = perIso; state._max = max; state._capped = capped; state._trueMax = trueMax;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
@@ -203,7 +209,8 @@
   }
 
   function renderLegend(max, fmt) {
-    var ramp = [0.1, 0.3, 0.5, 0.7, 0.9].map(function (t) { return '<span style="background:' + colorScale(t * max) + '"></span>'; }).join("");
+    var edges = [0].concat(stepEdges(max));
+    var ramp = STEP_COLORS.map(function (c, i) { return '<span style="background:' + c + '" title="' + (i === 0 ? "above 0" : "from " + C.formatValue(edges[i], fmt)) + '"></span>'; }).join("");
     el("legend").innerHTML =
       '<span><span class="swatch" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span>No monitored outlets</span>' +
       '<span><span class="swatch" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
@@ -212,7 +219,7 @@
       (C.METRICS[state.metric] && C.METRICS[state.metric].allItems ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_ALL_ITEMS_DENOMINATOR + ' items published, share not shown</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].population ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, no population recorded or fewer than ' + C.MIN_POPULATION.toLocaleString("en-US") + ' residents</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
-      '<span>0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + (state._capped ? '+' : '') + ' ' + esc(metricLabel().toLowerCase()) + (state._capped ? ' <span class="faint">(scale capped at the 95th percentile; the top value is ' + C.formatValue(state._trueMax, fmt) + ')</span>' : '') + '</span>' +
+      '<span>above 0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + (state._capped ? '+' : '') + ' ' + esc(metricLabel().toLowerCase()) + ' <span class="faint">(' + STEPS + ' steps, edges at ' + edges.slice(1).map(function (e) { return C.formatValue(e, fmt); }).join(", ") + (state._capped ? '; capped at the 95th percentile, top value ' + C.formatValue(state._trueMax, fmt) : '') + ')</span></span>' +
       '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
       '<span class="faint">' + esc(windowLabel()) + (state.mode === "reviewed" ? ", human-reviewed labels only" : "") + '</span>';
   }
