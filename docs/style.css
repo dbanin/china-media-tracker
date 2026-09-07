@@ -83,8 +83,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 27rem; gap: 0; min-h
 .map-head { padding: 0.9rem 1.2rem 0; }
 .bars-head h2 { margin: 0; }
 #bars .bar-row { display: grid; grid-template-columns: 10rem 1fr 4rem; gap: 0.6rem; align-items: center; font-size: 0.86rem; padding: 0.2rem 0; cursor: pointer; border-bottom: 1px solid var(--rule); }
-#bars .bar-row .bar { height: 0.55rem; background: var(--gold); }
-#bars .bar-row .bar.zero { background: var(--zero); }
+#bars .bar-row .bar { height: 0.55rem; background: #b3121a; }
+#bars .bar-row .bar.zero { background: #f6f1e8; }
 #bars .bar-row .bar.nocoverage { background: repeating-linear-gradient(45deg, var(--ink-2), var(--ink-2) 3px, var(--ink-3) 3px, var(--ink-3) 5px); }
 #bars .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--bone-soft); }
 

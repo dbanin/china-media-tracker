@@ -116,6 +116,7 @@
 
   /* ------------------------------------------------------------------- map */
   var svg, gCountries, gMarkers, path, projection, colorScale;
+  var ZERO_COLOR = "#f6f1e8", HIGH_COLOR = "#b3121a";
   function setupMap() {
     svg = d3.select("#map");
     svg.selectAll("*").remove();
@@ -152,7 +153,7 @@
     if (cls === "inactive") return "url(#stipple)";
     if (cls === "nodata") return "#1a1c1f";
     if (cls === "sparse") return "url(#sparse)";
-    if (cls === "zero") return "#23262a";
+    if (cls === "zero") return ZERO_COLOR;
     return colorScale(value);
   }
 
@@ -176,8 +177,8 @@
     var capped = vals.some(function (v) { return v > max; });
     var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
     if (fmt === "pct") max = Math.max(max, 0.05);
-    /* Single warm gold ramp on the dark ground: deep amber to bright gold light. */
-    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.6)("#4a3a1c", "#e7c777")).domain([0, max]).clamp(true);
+    /* White at zero to deep red at the cap. */
+    colorScale = d3.scaleSequential(d3.interpolateRgb.gamma(1.4)(ZERO_COLOR, HIGH_COLOR)).domain([0, max]).clamp(true);
     state._perIso = perIso; state._max = max; state._capped = capped; state._trueMax = trueMax;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
@@ -207,7 +208,7 @@
       '<span><span class="swatch" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span>No monitored outlets</span>' +
       '<span><span class="swatch" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
       '<span><span class="swatch" style="background:#1a1c1f"></span>Monitored, no China coverage in window</span>' +
-      '<span><span class="swatch" style="background:#23262a"></span>Monitored, zero detections</span>' +
+      '<span><span class="swatch" style="background:' + ZERO_COLOR + '"></span>Monitored, zero detections</span>' +
       (C.METRICS[state.metric] && C.METRICS[state.metric].allItems ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_ALL_ITEMS_DENOMINATOR + ' items published, share not shown</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].population ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, no population recorded or fewer than ' + C.MIN_POPULATION.toLocaleString("en-US") + ' residents</span>' :
        C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
