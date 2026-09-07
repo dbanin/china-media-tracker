@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", measure: "target", basis: "count", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -479,7 +479,22 @@
 
   /* -------------------------------------------------------------- controls */
   function bindControls() {
-    el("metric").addEventListener("change", function (e) { state.metric = e.target.value; renderMap(); if (state.selected) renderPanel(); });
+    /* Measure and Basis toggles form a three by three grid; the same Basis toggle is repeated above the
+       map and above the ranked list and every copy stays in step. The select holds the other denominators. */
+    function applyMetric() {
+      var other = el("metric").value;
+      state.metric = other || C.gridMetric(state.measure, state.basis);
+      Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-basis") === state.basis); });
+      Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-measure") === state.measure); });
+      renderMap(); if (state.selected) renderPanel();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
+      b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); el("metric").value = ""; applyMetric(); });
+    });
+    Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { state.measure = b.getAttribute("data-measure"); el("metric").value = ""; applyMetric(); });
+    });
+    el("metric").addEventListener("change", applyMetric);
     el("window").addEventListener("change", function (e) { state.windowDays = e.target.value === "all" ? "all" : Number(e.target.value); renderMap(); if (state.selected) renderPanel(); });
     Array.prototype.forEach.call(el("mode").querySelectorAll("button"), function (b) {
       b.addEventListener("click", function () {

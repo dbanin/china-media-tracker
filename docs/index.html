@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <header class="top">
@@ -21,19 +21,30 @@
 
 <div class="controls">
   <div class="control">
-    <label for="metric">Metric</label>
+    <label>Measure</label>
+    <div class="segment" id="measure">
+      <button data-measure="target" class="active" title="State placements plus pieces carrying official Chinese sourcing">Target articles</button>
+      <button data-measure="a" title="Text placed by the Chinese state and published unaltered">State origin only</button>
+      <button data-measure="china" title="Every article that concerns China">All China coverage</button>
+    </div>
+  </div>
+  <div class="control">
+    <label>Basis</label>
+    <div class="segment basis" data-basis-group>
+      <button data-basis="count" class="active">Amount</button>
+      <button data-basis="per_million">Per capita</button>
+      <button data-basis="share_of_all">Percent of all articles</button>
+    </div>
+  </div>
+  <div class="control">
+    <label for="metric">Other denominators</label>
     <select id="metric">
-      <option value="count_target" selected>Target articles: state placements plus official Chinese sourcing</option>
-      <option value="share_target">Share of China coverage that is a target article</option>
+      <option value="" selected>None, use the toggles</option>
+      <option value="share_target">Target share of China coverage</option>
       <option value="per_outlet_target">Target articles per monitored outlet</option>
-      <option value="per_million_target">Target articles per million people</option>
-      <option value="share_of_all_target">Target articles as a share of all items published by the largest outlets</option>
-      <option value="share_of_all_china">All China coverage as a share of all items published by the largest outlets</option>
       <option value="count_ab">Confirmed state origin plus unverified relay</option>
-      <option value="share_ab">Share confirmed as state origin or unverified relay</option>
-      <option value="count_a">State origin articles</option>
-      <option value="per_outlet_a">State origin articles per monitored outlet</option>
-      <option value="per_million_a">State origin articles per million people</option>
+      <option value="share_ab">Confirmed share of China coverage</option>
+      <option value="per_outlet_a">State origin per monitored outlet</option>
     </select>
   </div>
   <div class="control">
@@ -71,12 +82,26 @@
 
 <main>
   <div id="map-wrap">
+    <div class="map-head">
+      <div class="segment basis" data-basis-group>
+        <button data-basis="count" class="active">Amount</button>
+        <button data-basis="per_million">Per capita</button>
+        <button data-basis="share_of_all">Percent of all articles</button>
+      </div>
+    </div>
     <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric"></svg>
     <div id="legend"></div>
     <div id="tooltip" class="tooltip"></div>
   </div>
   <div id="bars-wrap">
-    <h2 id="bars-title">Ranked countries</h2>
+    <div class="bars-head">
+      <h2 id="bars-title">Ranked countries</h2>
+      <div class="segment basis" data-basis-group>
+        <button data-basis="count" class="active">Amount</button>
+        <button data-basis="per_million">Per capita</button>
+        <button data-basis="share_of_all">Percent of all articles</button>
+      </div>
+    </div>
     <div id="bars"></div>
   </div>
   <aside id="panel">
@@ -130,7 +155,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="compute.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

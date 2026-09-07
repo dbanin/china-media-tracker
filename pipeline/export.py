@@ -64,7 +64,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     counts = defaultdict(lambda: {"n": 0, "n_rules": 0, "n_llm": 0, "n_reviewed": 0, "groups": set()})
     coverage = defaultdict(lambda: {"discovered": 0, "gate_relevant": 0, "fetched": 0, "paywalled": 0,
                                     "failed": 0, "blocked_robots": 0, "classified": 0, "llm_pending": 0,
-                                    "top_discovered": 0, "top_target": 0, "top_china": 0})
+                                    "top_discovered": 0, "top_target": 0, "top_china": 0, "top_a": 0})
     for r in rows:
         d = _day(r)
         cov = coverage[(d, r["country"])]
@@ -76,6 +76,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
                 cov["top_target"] += 1
             if pending or r["m_cat"] in ("A", "B", "C"):
                 cov["top_china"] += 1
+            if r["m_cat"] == "A":
+                cov["top_a"] += 1
         if st in ("fetched", "classified", "awaiting_llm", "llm_submitted"):
             cov["fetched"] += 1
         if st == "paywalled":
@@ -119,11 +121,11 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     for (d, country), cov in coverage.items():
         conn.execute(
             """INSERT INTO daily_coverage(date, country, discovered, gate_relevant, fetched, paywalled, failed,
-               blocked_robots, classified, llm_pending, computed_at, top_discovered, top_target, top_china)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               blocked_robots, classified, llm_pending, computed_at, top_discovered, top_target, top_china, top_a)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d, country, cov["discovered"], cov["gate_relevant"], cov["fetched"], cov["paywalled"], cov["failed"],
              cov["blocked_robots"], cov["classified"], cov["llm_pending"], now,
-             cov["top_discovered"], cov["top_target"], cov["top_china"]),
+             cov["top_discovered"], cov["top_target"], cov["top_china"], cov["top_a"]),
         )
     conn.commit()
     return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows)}
@@ -132,7 +134,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
 def _empty_country() -> Dict:
     return {"A": 0, "B": 0, "C": 0, "N": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
-            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0}
+            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0}
 
 
 def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
@@ -177,6 +179,7 @@ def _derive(c: Dict, outlets_active: int) -> Dict:
     c["reviewed_share"] = round(c["rev"] / c["cls"], 4) if c["cls"] else None
     c["share_of_all_target"] = round(c["ttarget"] / c["tdisc"], 5) if c["tdisc"] else None
     c["share_of_all_china"] = round(c["tchina"] / c["tdisc"], 5) if c["tdisc"] else None
+    c["share_of_all_a"] = round(c["ta"] / c["tdisc"], 5) if c["tdisc"] else None
     return c
 
 
@@ -204,7 +207,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
             t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
             t["pending"] += r["llm_pending"]
-            t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]
+            t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
 
     countries = {}
     for country, os_ in by_country_outlets.items():
@@ -268,7 +271,7 @@ def build_daily(conn) -> Dict[str, Dict]:
         t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
         t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
         t["pending"] += r["llm_pending"]
-        t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]
+        t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
     ceiling_days = {r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1")}
     reviewed = defaultdict(lambda: defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0}))
     for r in conn.execute("SELECT * FROM daily_counts WHERE scope='reviewed'"):
