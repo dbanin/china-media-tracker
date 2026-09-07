@@ -111,6 +111,11 @@
     var ranked = (m && m.countries_with_audience_ranks) || [];
     if (m && !ranked.length) parts.push("The share of all published items metrics use every active outlet in a country as the denominator, because no outlet carries an audience rank yet. Once ranks are recorded in the registry, the denominator becomes the " + (m.top_outlets_per_country || 30) + " largest outlets by audience.");
     if (parts.length) { dn.textContent = parts.join(" "); dn.classList.remove("hidden"); } else dn.classList.add("hidden");
+    /* The human-reviewed switch is hidden until a review has actually been recorded; an empty
+       reviewed mode would only blank the map. */
+    var reviewed = !!(m && m.articles_reviewed);
+    el("mode-control").classList.toggle("hidden", !reviewed);
+    el("review-coverage-control").classList.toggle("hidden", !reviewed);
     el("review-coverage").textContent = m ? pct(m.review_coverage) + " of classified articles" : "n/a";
   }
 
