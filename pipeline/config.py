@@ -24,6 +24,9 @@ def _env(name: str, default: str) -> str:
 
 
 CONTACT = _env("TRACKER_CONTACT", "see repository issues")
+# Which collector this process is. Outlets whose feeds refuse GitHub's runner addresses carry
+# collector: self_hosted in the registry and are polled only by the self-hosted runner.
+COLLECTOR = _env("TRACKER_COLLECTOR", "hosted")
 USER_AGENT = (
     "{name}/1.0 (+{repo}; "
     "research crawler, contact {contact})"

@@ -109,6 +109,18 @@ and a write deploy key lets the owner's machine push. Still to add by the
 owner: the `ANTHROPIC_API_KEY` secret, which switches on the verification
 stage. Optional variables: `TRACKER_LLM_MODEL`, `TRACKER_LLM_DAILY_CEILING`.
 
+Some outlets answer 403 or time out for GitHub's runner addresses while
+their feeds work from an ordinary network. Those carry `collector:
+self_hosted` in the registry and are polled by a second workflow, `collect
+self-hosted`, which runs on a self-hosted GitHub Actions runner on the
+owner's own machine. It shares the database through the same cache and the
+same concurrency group, so there is still one writer at a time; when the
+machine is offline the job waits and times out without opening an issue. To
+set the runner up once: GitHub, repository Settings, Actions, Runners, New
+self-hosted runner, macOS, then run the commands shown, and finally
+`./svc.sh install` and `./svc.sh start` inside the runner directory so it
+survives reboots. `scripts/self_hosted_runner.md` has the details.
+
 Only the workflows write the database. Before running any local tool that
 reads it (the review queue, the agreement study, a reclassification), pull
 the latest snapshot:

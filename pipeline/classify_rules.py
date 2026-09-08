@@ -185,9 +185,11 @@ def ensure_body(conn, row) -> str:
     body = store.load_body(row["url_hash"])
     if body:
         return body
-    from pipeline import fetch_articles
+    from pipeline import fetch_articles, registry
     prior_status = row["status"]
     if row["fetch_attempts"] >= REFETCH_ATTEMPT_LIMIT:
+        return ""
+    if not registry.is_mine(row["outlet_id"]):
         return ""
     res = fetch_articles.process_article(store.connect, row)
     if res["status"] == "fetched":

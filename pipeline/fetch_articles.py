@@ -201,6 +201,12 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
     rows = list(store.articles_by_status(conn, status, limit=limit or 100000))
     retries = retry_candidates(conn) if status == "queued" else []
     rows += retries
+    # Only articles from outlets this collector is responsible for; the other collector's
+    # articles wait for it, rather than failing here with a 403 and burning an attempt.
+    from pipeline import registry
+    outlets = registry.load_outlets()
+    rows = [r for r in rows if registry.is_mine(r["outlet_id"], outlets)]
+    retries = [r for r in retries if registry.is_mine(r["outlet_id"], outlets)]
     # Group by domain so each domain is served sequentially by one worker while domains run in parallel.
     by_domain: Dict[str, List] = {}
     for r in rows:

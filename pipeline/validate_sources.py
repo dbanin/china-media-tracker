@@ -60,7 +60,7 @@ def check_outlet(outlet):
 def run(apply=False, json_out=None, workers=12):
     outlets = registry.load_outlets()
     today = dt.date.today().isoformat()
-    to_check = [o for o in outlets if o["active"]]
+    to_check = registry.collectable(outlets)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         nested = list(pool.map(check_outlet, to_check))
     results = [r for group in nested for r in group]

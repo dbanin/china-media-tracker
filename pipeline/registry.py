@@ -71,7 +71,7 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
-    key_order = ["id", "name", "country", "language", "feeds", "tier", "notes", "audience_rank", "active",
+    key_order = ["id", "name", "country", "language", "feeds", "tier", "notes", "audience_rank", "collector", "active",
                  "inactive_reason", "inactive_since"]
     ordered = []
     for o in outlets:
@@ -82,6 +82,24 @@ def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
 
 def active_outlets(outlets: List[Dict]) -> List[Dict]:
     return [o for o in outlets if o.get("active")]
+
+
+def collector_of(outlet: Dict) -> str:
+    return outlet.get("collector") or "hosted"
+
+
+def is_mine(outlet_id: str, outlets: List[Dict] = None, collector: str = None) -> bool:
+    """Whether this collector fetches for the outlet. Outlets not in the registry (test
+    fixtures, retired ids) belong to whoever asks, so nothing is stranded."""
+    collector = collector or config.COLLECTOR
+    owners = {o["id"]: collector_of(o) for o in (outlets if outlets is not None else load_outlets())}
+    return owners.get(outlet_id, collector) == collector
+
+
+def collectable(outlets: List[Dict], collector: str = None) -> List[Dict]:
+    """Active outlets that this collector is responsible for."""
+    collector = collector or config.COLLECTOR
+    return [o for o in outlets if o.get("active") and collector_of(o) == collector]
 
 
 def registry_summary(outlets: List[Dict]) -> Dict:
