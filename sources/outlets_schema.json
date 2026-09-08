@@ -70,6 +70,14 @@
         "type": "integer",
         "minimum": 1,
         "description": "Rank of the outlet by audience within its country, 1 = largest. Set from a readership source; unset means unknown. The share of all published items metric uses the 30 best ranked outlets of a country when ranks exist, otherwise every active outlet."
+      },
+      "collector": {
+        "type": "string",
+        "enum": [
+          "hosted",
+          "self_hosted"
+        ],
+        "description": "Which collector polls this outlet. hosted (default) is the GitHub-hosted runner; self_hosted is the runner on the owner's own network, for feeds that refuse GitHub's addresses."
       }
     }
   }

@@ -86,7 +86,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
         deadline: Optional[float] = None) -> Dict:
     log_id = store.start_stage(conn, run_id, "discover")
     if outlets is None:
-        outlets = registry.active_outlets(registry.load_outlets())
+        outlets = registry.collectable(registry.load_outlets())
     store.sync_outlets(conn, registry.load_outlets())
     counts = {"feeds": 0, "feeds_ok": 0, "items_seen": 0, "items_new": 0,
               "gate_relevant": 0, "near_duplicates": 0}
