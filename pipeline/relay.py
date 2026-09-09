@@ -55,6 +55,10 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS) -> bytes:
     rows = conn.execute("SELECT * FROM articles WHERE discovered_at >= ? ORDER BY id", (since,)).fetchall()
     buf = io.BytesIO()
     with gzip.open(buf, "wt", encoding="utf-8") as fh:
+        # Feed health travels too, so the site shows the relayed feeds as healthy rather than
+        # as the hosted runner sees them.
+        for h in conn.execute("SELECT * FROM feed_health"):
+            fh.write(json.dumps({"_type": "feed_health", **{k: h[k] for k in h.keys()}}, ensure_ascii=False) + "\n")
         for r in rows:
             item = {k: r[k] for k in ARTICLE_FIELDS}
             body = store.load_body(r["url_hash"]) if r["status"] in ("fetched", "classified", "awaiting_llm", "paywalled") else None
@@ -120,6 +124,18 @@ def ingest(conn, data: bytes) -> Dict:
     from pipeline.fetch_feeds import link_near_duplicates
     counts = {"seen": 0, "inserted": 0, "bodies": 0, "relevant": 0}
     for item in iter_bundle(data):
+        if item.get("_type") == "feed_health":
+            conn.execute(
+                """INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, last_error, last_entries,
+                   consecutive_failures, total_checks, total_failures) VALUES (?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(feed_url) DO UPDATE SET outlet_id=excluded.outlet_id, last_checked=excluded.last_checked,
+                     last_ok=excluded.last_ok, last_error=excluded.last_error, last_entries=excluded.last_entries,
+                     consecutive_failures=excluded.consecutive_failures, total_checks=excluded.total_checks,
+                     total_failures=excluded.total_failures""",
+                (item["feed_url"], item["outlet_id"], item["last_checked"], item["last_ok"], item["last_error"],
+                 item["last_entries"], item["consecutive_failures"], item["total_checks"], item["total_failures"]))
+            counts["feeds"] = counts.get("feeds", 0) + 1
+            continue
         counts["seen"] += 1
         if conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone():
             continue

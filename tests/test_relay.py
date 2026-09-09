@@ -27,6 +27,8 @@ def test_bundle_and_ingest_round_trip(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
     src = store.connect(tmp_path / "relay.db")
     _seed(src)
+    store.record_feed_health(src, "in_indianexpress", "https://blocked.test/feed", True, None, 40)
+    src.commit()
     data = relay.build_bundle(src)
     items = list(relay.iter_bundle(data))
     assert len(items) == 3
@@ -36,7 +38,8 @@ def test_bundle_and_ingest_round_trip(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
     dst = store.connect(tmp_path / "main.db")
     counts = relay.ingest(dst, data)
-    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2}
+    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2, "feeds": 1}
+    assert dst.execute("SELECT consecutive_failures FROM feed_health WHERE feed_url='https://blocked.test/feed'").fetchone()[0] == 0
     rows = dst.execute("SELECT status, gate_relevant, page_labels FROM articles ORDER BY id").fetchall()
     assert [tuple(r) for r in rows] == [("gated_out", 0, None), ("fetched", 1, "section: World"), ("fetched", 1, "section: World")]
     assert store.load_body(rows[1]["page_labels"] and store.url_hash("https://blocked.test/1")) == "Body 1 about China and trade."
