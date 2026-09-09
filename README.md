@@ -97,11 +97,13 @@ live sites, so the user agent identifies a real person. Set
 
 Repository: https://github.com/dbanin/china-media-tracker. Live site:
 https://dbanin.github.io/china-media-tracker/, rebuilt and deployed by the
-export workflow every day, scheduled for 02:00 UTC, from data the collect
-workflow gathers on an hourly schedule. GitHub Actions delays scheduled runs
+pipeline workflow every day, scheduled for 02:00 UTC, from data the same
+workflow gathers on an hourly schedule. There is one workflow on purpose:
+GitHub keeps at most one queued run per concurrency group and cancels the
+older one, so separate collect and export workflows used to cancel each other. GitHub Actions delays scheduled runs
 under load, often by one to four hours, so the real cadence is looser than
-the schedule and every run's actual time is in the run log. The validate
-feeds workflow runs weekly.
+the schedule and every run's actual time is in the run log. The weekly feed
+validation is the same workflow's Monday run.
 
 Set up on 2026-09-04: Pages deploys from Actions, workflows have write
 permission, the `TRACKER_CONTACT` variable holds the crawler contact address,
@@ -116,7 +118,7 @@ job runs `scripts/relay.sh` every hour, which polls and fetches only those
 outlets into a separate database (`data/relay.db`), then force-pushes one
 gzipped file of the last seven days of articles, bodies included, to the
 `relay` branch. That branch has no history, so the repository does not grow.
-The hosted collect job ingests the bundle at the start of every run and
+The hosted pipeline job ingests the bundle at the start of every run and
 inserts whatever it does not have yet; classification then happens on the
 hosted side. The main database still has exactly one writer. When the Mac
 is asleep the relay simply skips an hour; nothing queues and nothing is

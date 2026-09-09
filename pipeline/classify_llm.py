@@ -164,11 +164,19 @@ class DryRunClient:
         self.messages = DryRunClient._Messages(self)
 
 
+class NoApiKey(RuntimeError):
+    pass
+
+
 def make_client(dry_run: bool = False):
     if dry_run:
         return DryRunClient()
+    # GitHub Actions passes an unset secret as an empty string; the SDK would accept the
+    # empty key at construction and fail obscurely on the first request.
+    if not config._env("ANTHROPIC_API_KEY", ""):
+        raise NoApiKey("ANTHROPIC_API_KEY is not set; the verification stage is skipped")
     import anthropic
-    return anthropic.Anthropic()
+    return anthropic.Anthropic(api_key=config._env("ANTHROPIC_API_KEY", ""))
 
 
 def _copy_from_dup_group(conn, row) -> bool:
@@ -222,8 +230,13 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     if client is None:
         try:
             client = make_client(dry_run=dry_run)
+        except NoApiKey as exc:
+            counts["pending"] = conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0]
+            counts["skipped"] = "no_api_key"
+            store.finish_stage(conn, log_id, True, counts, notes=str(exc))
+            return counts
         except Exception as exc:
-            store.finish_stage(conn, log_id, False, counts, notes="client init failed: %s" % exc)
+            store.finish_stage(conn, log_id, False, counts, notes="client init failed: %s: %s" % (type(exc).__name__, exc))
             counts["error"] = "client_init_failed"
             return counts
 
@@ -281,8 +294,9 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         except Exception as exc:
             counts["errors"] += 1
             consecutive_errors += 1
+            counts["last_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
             if consecutive_errors >= max_consecutive_errors:
-                store.finish_stage(conn, log_id, False, counts, notes="aborted after repeated API errors: %s" % type(exc).__name__)
+                store.finish_stage(conn, log_id, False, counts, notes="aborted after repeated API errors: %s: %s" % (type(exc).__name__, str(exc)[:300]))
                 return counts
             time.sleep(min(30, 2 ** consecutive_errors))
             continue

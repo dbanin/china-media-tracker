@@ -1,0 +1,158 @@
+name: pipeline
+
+# One workflow, one queue. Every stage that touches the database runs here, so two runs can
+# never wait behind each other: GitHub keeps at most one queued run per concurrency group and
+# cancels the older one, which is how separate collect and export workflows cancelled each other.
+#
+#   hourly at :17     collect: ingest the relay bundle, discover, fetch, classify
+#   daily at 02:00    the same, then export: rollups, site data, snapshot, Pages deploy
+#   Mondays at 03:30  the same, then validate: check every feed, deactivate dead outlets
+#
+# Run workflow lets the owner pick a stage by hand.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+    - cron: "0 2 * * *"
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "collect, export (collect then export) or validate (collect then validate)"
+        default: export
+        type: choice
+        options: [collect, export, validate]
+
+concurrency:
+  group: tracker-database
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  issues: write
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TRACKER_CONTACT: ${{ vars.TRACKER_CONTACT }}
+      TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
+      TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
+      GH_TOKEN: ${{ github.token }}
+      STAGE: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - run: pip install -r requirements.txt
+      - run: echo "stage=$STAGE"
+      - name: Restore database from the most recent run
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            data/tracker.db
+            data/bodies
+          key: tracker-db-${{ github.run_id }}
+          restore-keys: tracker-db-
+      - name: Fall back to the snapshot or seed if no cache
+        run: scripts/db_restore.sh
+      - name: Ingest the relay bundle from the owner's machine, if there is one
+        run: python -m pipeline.relay ingest
+      - name: Discover, fetch, classify
+        run: |
+          set -o pipefail
+          python -X faulthandler -m pipeline.run all --budget-minutes 35 2>&1 | tee run.log
+          python - <<'PY'
+          import json, sqlite3
+          c = sqlite3.connect("data/tracker.db")
+          rows = c.execute("SELECT stage, counts FROM run_log WHERE id IN (SELECT MAX(id) FROM run_log GROUP BY stage) AND stage IN ('discover','fetch','classify_rules','classify_llm')").fetchall()
+          d = {s: json.loads(k or "{}") for s, k in rows}
+          disc = d.get("discover", {}); fet = d.get("fetch", {}); cr = d.get("classify_rules", {}); cl = d.get("classify_llm", {})
+          print("summary: %d new, %d relevant, %d fetched, %d paywalled, rules A %d, llm %d%s" % (
+              disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
+              cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else ""))
+          PY
+      - name: Export, rollups, site data and METHODOLOGY.md
+        if: env.STAGE == 'export'
+        run: python -m pipeline.export
+      - name: Tests, including schema validation of the files just generated
+        if: env.STAGE == 'export'
+        run: python -m pytest -q
+      - name: Commit generated files
+        if: env.STAGE == 'export'
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "tracker-bot@users.noreply.github.com"
+          git add docs/data docs/METHODOLOGY.md data/export METHODOLOGY.md
+          git diff --cached --quiet || git commit -m "export: daily rollups and site data $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash -X theirs origin ${{ github.ref_name }} || { git rebase --abort; exit 1; }
+          git push
+      - name: Publish the compressed database snapshot
+        if: env.STAGE == 'export'
+        run: scripts/db_snapshot.sh
+      - name: Validate every feed and deactivate dead outlets
+        if: env.STAGE == 'validate'
+        run: python -m pipeline.validate_sources --apply --json validation.json
+      - name: Commit registry changes
+        if: env.STAGE == 'validate'
+        run: |
+          git config user.name "tracker-bot"
+          git config user.email "tracker-bot@users.noreply.github.com"
+          git add sources/outlets.yaml
+          git diff --cached --quiet || git commit -m "validate: weekly feed check $(date -u +%Y-%m-%d)"
+          git pull --rebase --autostash -X theirs origin ${{ github.ref_name }} || { git rebase --abort; exit 1; }
+          git push
+      - name: Save database for the next run
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            data/tracker.db
+            data/bodies
+          key: tracker-db-${{ github.run_id }}
+      - uses: actions/configure-pages@v5
+        if: env.STAGE == 'export'
+      - uses: actions/upload-pages-artifact@v4
+        if: env.STAGE == 'export'
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        if: env.STAGE == 'export'
+      - name: Issue listing newly dead feeds
+        if: env.STAGE == 'validate'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const v = JSON.parse(fs.readFileSync("validation.json", "utf8"));
+            const failing = v.results.filter(r => !r.ok);
+            if (!v.newly_inactive.length && !failing.length) return;
+            const lines = [];
+            if (v.newly_inactive.length) lines.push("Outlets marked inactive this week: " + v.newly_inactive.join(", "));
+            if (failing.length) { lines.push("", "Feeds failing on " + v.date + ":"); failing.forEach(r => lines.push("- " + r.outlet_id + " " + r.feed_url + " (" + r.error + ")")); }
+            const title = "Feed validation " + v.date + ": " + v.newly_inactive.length + " outlets deactivated, " + failing.length + " feeds failing";
+            await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body: lines.join("\n"), labels: ["feeds"]});
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = "Pipeline workflow failing";
+            const body = "The pipeline workflow failed at stage " + process.env.STAGE + ". See the run: " + context.serverUrl + "/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId + "\n\nLast failure: " + new Date().toISOString();
+            const issues = await github.rest.issues.listForRepo({owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "pipeline-failure"});
+            const existing = issues.data.find(i => i.title === title);
+            if (existing) await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});
+            else await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["pipeline-failure"]});
