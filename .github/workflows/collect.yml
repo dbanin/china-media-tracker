@@ -43,6 +43,8 @@ jobs:
           restore-keys: tracker-db-
       - name: Fall back to the snapshot or seed if no cache
         run: scripts/db_restore.sh
+      - name: Ingest the relay bundle from the owner's machine, if there is one
+        run: python -m pipeline.relay ingest
       - name: Discover, fetch, classify
         run: |
           set -o pipefail

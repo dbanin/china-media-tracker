@@ -111,15 +111,16 @@ stage. Optional variables: `TRACKER_LLM_MODEL`, `TRACKER_LLM_DAILY_CEILING`.
 
 Some outlets answer 403 or time out for GitHub's runner addresses while
 their feeds work from an ordinary network. Those carry `collector:
-self_hosted` in the registry and are polled by a second workflow, `collect
-self-hosted`, which runs on a self-hosted GitHub Actions runner on the
-owner's own machine. It shares the database through the same cache and the
-same concurrency group, so there is still one writer at a time; when the
-machine is offline the job waits and times out without opening an issue. To
-set the runner up once: GitHub, repository Settings, Actions, Runners, New
-self-hosted runner, macOS, then run the commands shown, and finally
-`./svc.sh install` and `./svc.sh start` inside the runner directory so it
-survives reboots. `scripts/self_hosted_runner.md` has the details.
+self_hosted` in the registry and are relayed from the owner's Mac: a launchd
+job runs `scripts/relay.sh` every hour, which polls and fetches only those
+outlets into a separate database (`data/relay.db`), then force-pushes one
+gzipped file of the last seven days of articles, bodies included, to the
+`relay` branch. That branch has no history, so the repository does not grow.
+The hosted collect job ingests the bundle at the start of every run and
+inserts whatever it does not have yet; classification then happens on the
+hosted side. The main database still has exactly one writer. When the Mac
+is asleep the relay simply skips an hour; nothing queues and nothing is
+blocked. Logs are in `logs/relay-YYYY-MM-DD.log`.
 
 Only the workflows write the database. Before running any local tool that
 reads it (the review queue, the agreement study, a reclassification), pull

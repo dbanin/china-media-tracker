@@ -3,7 +3,17 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "tracker.db"
+
+
+def _env(name: str, default: str) -> str:
+    """Environment value, falling back to the default when the variable is unset or empty.
+    GitHub Actions passes an undefined repository variable as an empty string."""
+    value = os.environ.get(name)
+    return value if value else default
+
+
+# TRACKER_DB_PATH lets the relay collector keep its own database beside the main one.
+DB_PATH = ROOT / _env("TRACKER_DB_PATH", "data/tracker.db")
 BODIES_DIR = ROOT / "data" / "bodies"
 RAW_HTML_DIR = ROOT / "data" / "raw_html"
 OUTLETS_PATH = ROOT / "sources" / "outlets.yaml"
@@ -16,12 +26,6 @@ DIPLOMATS_PATH = ROOT / "pipeline" / "diplomats.yaml"
 EXPORT_DIR = ROOT / "docs" / "data"
 
 PROJECT_NAME = "ChinaStateMediaTracker"
-def _env(name: str, default: str) -> str:
-    """Environment value, falling back to the default when the variable is unset or empty.
-    GitHub Actions passes an undefined repository variable as an empty string."""
-    value = os.environ.get(name)
-    return value if value else default
-
 
 CONTACT = _env("TRACKER_CONTACT", "see repository issues")
 # Which collector this process is. Outlets whose feeds refuse GitHub's runner addresses carry
