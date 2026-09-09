@@ -31,9 +31,10 @@ def test_bundle_and_ingest_round_trip(tmp_path, monkeypatch):
     src.commit()
     data = relay.build_bundle(src)
     items = list(relay.iter_bundle(data))
-    assert len(items) == 3
-    assert sum(1 for it in items if it.get("body")) == 2
-    assert gzip.decompress(base64.b64decode(items[1]["body"])).decode() == "Body 1 about China and trade."
+    articles = [it for it in items if it.get("_type") != "feed_health"]
+    assert len(articles) == 3 and len(items) == 4
+    assert sum(1 for it in articles if it.get("body")) == 2
+    assert gzip.decompress(base64.b64decode(articles[1]["body"])).decode() == "Body 1 about China and trade."
 
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
     dst = store.connect(tmp_path / "main.db")
