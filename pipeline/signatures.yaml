@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.3"
+ruleset_version: "2026.09.4"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:

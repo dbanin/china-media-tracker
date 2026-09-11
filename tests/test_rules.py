@@ -55,11 +55,20 @@ def test_dateline_is_a():
     assert res["decision"] == "A"
 
 
-def test_two_weak_groups_is_a():
-    body = "Sponsored content\n\nThe city of Hangzhou welcomes investors.\n\nThe publisher has not reviewed this content."
+def test_two_weak_groups_is_a_when_a_state_entity_is_named():
+    body = ("Sponsored content\n\nThe city of Hangzhou welcomes investors, says the Hangzhou Municipal Government.\n\n"
+            "The publisher has not reviewed this content.")
     res = cr.match_signatures("", body, None)
     groups = {m["group"] for m in res["matches"] if m["strength"] == "weak"}
-    assert len(groups) >= 2 and res["decision"] == "A"
+    assert len(groups) >= 2 and res["state_entity"] and res["decision"] == "A"
+
+
+def test_two_weak_groups_without_a_state_entity_is_only_a_candidate():
+    body = ("Sponsored content\n\nChery Q bookings open with PKR 1.5 million. Your Q to beat the fuel bills, "
+            "with a Chinese hybrid drivetrain.\n\nThe publisher is not responsible for the content of this announcement.")
+    res = cr.match_signatures("", body, None)
+    groups = {m["group"] for m in res["matches"] if m["strength"] == "weak"}
+    assert len(groups) >= 2 and not res["state_entity"] and res["decision"] == "A_candidate"
 
 
 def test_one_weak_is_candidate():

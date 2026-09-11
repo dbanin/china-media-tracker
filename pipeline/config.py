@@ -65,5 +65,5 @@ PAYWALL_FLAG_SHARE = 0.33
 FEED_FAILURE_WARNING_SHARE = 0.5
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
-RULESET_VERSION = "2026.09.3"
+RULESET_VERSION = "2026.09.4"
 SCHEMA_VERSION = 3   # 2: population and top outlet denominators (tdisc, ttarget, tchina); 3: ta, state origin in the top outlet set
