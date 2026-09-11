@@ -4,7 +4,8 @@ Runs before any LLM call. Transparent and reproducible: every match records
 which pattern fired, so any Category A count can be broken down by mechanism.
 
 Decision rule:
-  - any strong signature, or weak signatures from two different groups
+  - any strong signature, or weak signatures from two different groups when a
+    Chinese state entity is named somewhere in the article or its page chrome
       -> Category A, confidence 1.0, method rules, no LLM call
   - one weak signature
       -> routed to the LLM as an A candidate
@@ -62,6 +63,22 @@ def load_diplomats(path=str(config.DIPLOMATS_PATH)) -> List[str]:
         data = yaml.safe_load(fh)
     return sorted({p["name"] for p in data.get("personnel", [])})
 
+
+# Two weak signals (an ad label plus a "not reviewed by the publisher" note, say) only add up to
+# state origin when the piece names a Chinese state entity. Without this, a Chery or Huawei
+# advertorial counted as state origin.
+STATE_ENTITY_RE = re.compile(
+    r"(?i)\b(Xinhua|Nuova Cina|CGTN|China Daily|Global Times|People'?s Daily|Quotidiano del Popolo|CCTV|China Central Television|"
+    r"China Media Group|CMG|CICG|China International Publishing|China News Service|ECNS|China Radio International|CRI Online|"
+    r"Chinese Embassy|Embassy of (the People'?s Republic of )?China|Chinese Consulate|Consulate[- ]General of (the People'?s Republic of )?China|"
+    r"ambasciata (cinese|della Cina|della Repubblica Popolare Cinese)|ambassade de Chine|embajada de China|embaixada da China|chinesische Botschaft|"
+    r"Ministry of (Foreign Affairs|Commerce|Culture and Tourism|Education) of (the People'?s Republic of )?China|Chinese (Foreign|Commerce|Culture) Ministry|"
+    r"State Council|Publicity Department|Information Office|Chinese government|governo cinese|gouvernement chinois|gobierno chino|governo chinês|"
+    r"People'?s Government|Municipal (People'?s )?Government|Provincial (People'?s )?Government|Government of [A-Z][a-z]+ (Province|Municipality|Autonomous Region)|"
+    r"Communist Party of China|Chinese Communist Party|Belt and Road|Silk Road|Confucius Institute|China Cultural Cent(er|re)|"
+    r"China (National )?Tourism (Administration|Office)|Hong Kong (SAR )?Government|Macao (SAR )?Government|Hong Kong Trade Development Council|Invest Hong Kong|"
+    r"Chinese People'?s Association|China Public Diplomacy|Taiwan Affairs Office|Overseas Chinese Affairs)\b"
+)
 
 _TITLE_RE = re.compile(
     r"(?i)\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|"
@@ -125,7 +142,8 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
 
     strong = [m for m in matches if m["strength"] == "strong"]
     weak_groups = {m["group"] for m in matches if m["strength"] == "weak"}  # hints never count
-    if strong or len(weak_groups) >= 2:
+    state_entity = bool(STATE_ENTITY_RE.search(scopes["any_with_labels"]))
+    if strong or (len(weak_groups) >= 2 and state_entity):
         decision = "A"
     elif matches:
         decision = "A_candidate"
@@ -140,7 +158,7 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             triggers.append({"id": t_id, "span": trig_text[max(0, m.start() - 60):m.end() + 60].strip()})
 
     return {"matches": matches, "exclusions": excl, "decision": decision, "triggers": triggers,
-            "ruleset_version": sigs["ruleset_version"]}
+            "state_entity": state_entity, "ruleset_version": sigs["ruleset_version"]}
 
 
 def body_relevance(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[bool, str]:

@@ -4,6 +4,18 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.4 (2026-09-11)
+
+Two weak signatures from different groups now give a state origin label
+only when a Chinese state entity is named somewhere in the article or its
+page chrome: a state media outlet, an embassy or consulate, a ministry, a
+provincial or municipal government, a party body, or a state cultural or
+tourism agency. Under 2026.09.3 a Chery car advertorial in a Pakistani
+outlet became state origin from an ad label plus a "not edited by the
+publisher" note, with no state entity anywhere in it. Such pieces now go to
+the model as candidates. Strong signatures are unchanged. Articles labelled
+under 2026.09.3 are reclassified forward during the hourly runs.
+
 ## Ruleset 2026.09.3 (2026-09-05)
 
 Parenthetical credits (cgtn_credit, china_daily_credit, global_times_credit,
