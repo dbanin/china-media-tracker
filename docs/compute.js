@@ -221,7 +221,7 @@
 
   function citation(accessDate, author) {
     return (author || "China State Media Tracker project") + ". China State Media Tracker: daily counts of Chinese state-origin and state-sourced news content by country. " +
-      "Stanford University. Accessed " + accessDate + ".";
+      "Accessed " + accessDate + ".";
   }
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_POPULATION: MIN_POPULATION, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
