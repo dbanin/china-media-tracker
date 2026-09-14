@@ -381,8 +381,12 @@
     tlDays = days().filter(function (d) { return !first || d >= first; });
     var scrub = el("scrub");
     scrub.max = Math.max(0, tlDays.length - 1);
-    scrub.value = scrub.max;
-    state.endDate = tlDays.length ? tlDays[tlDays.length - 1] : null;
+    /* The day the export ran is always partial, so the scrubber opens on the last complete day. */
+    var gen = state.meta && state.meta.generated_at ? state.meta.generated_at.slice(0, 10) : null;
+    var start = tlDays.length - 1;
+    if (start > 0 && tlDays[start] >= gen) start -= 1;
+    scrub.value = Math.max(0, start);
+    state.endDate = tlDays.length ? tlDays[scrub.value] : null;
     scrub.addEventListener("input", function () { setDay(Number(scrub.value)); });
     el("step-back").addEventListener("click", function () { setDay(Number(scrub.value) - 1); });
     el("step-fwd").addEventListener("click", function () { setDay(Number(scrub.value) + 1); });
