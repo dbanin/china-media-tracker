@@ -80,7 +80,7 @@
   function metricLabel() { return C.METRICS[state.metric] ? C.METRICS[state.metric].label : state.metric; }
   function windowLabel() {
     if (!state.endDate) return "no data";
-    if (state.windowDays === "all") return "all time to " + state.endDate;
+    if (state.windowDays === "all") return "total to " + state.endDate;
     if (Number(state.windowDays) === 1) return state.endDate;
     return Number(state.windowDays) + " days ending " + state.endDate;
   }
@@ -508,7 +508,15 @@
       b.addEventListener("click", function () { state.measure = b.getAttribute("data-measure"); el("metric").value = ""; applyMetric(); });
     });
     el("metric").addEventListener("change", applyMetric);
-    el("window").addEventListener("change", function (e) { state.windowDays = e.target.value === "all" ? "all" : Number(e.target.value); renderMap(); if (state.selected) renderPanel(); });
+    /* The Window toggle is repeated above the map and above the ranked list, like Basis. */
+    function applyWindow(v) {
+      state.windowDays = v === "all" ? "all" : Number(v);
+      Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) { b.classList.toggle("active", b.getAttribute("data-window") === v); });
+      renderMap(); if (state.selected) renderPanel();
+    }
+    Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) {
+      b.addEventListener("click", function () { applyWindow(b.getAttribute("data-window")); });
+    });
     Array.prototype.forEach.call(el("mode").querySelectorAll("button"), function (b) {
       b.addEventListener("click", function () {
         state.mode = b.getAttribute("data-mode");
