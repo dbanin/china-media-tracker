@@ -133,6 +133,17 @@ def test_acronym_expansion_in_prose_is_not_a_credit():
     assert cr.match_signatures("", "BEIJING (CGTN) -- China's economy grew 5 percent.", None)["decision"] == "A"
 
 
+def test_cgtn_section_heading_is_not_a_credit():
+    body = ("China This Week. What Chinese outlets said about BRICS.\n\nXinhua\nThe agency called the summit a success.\n\n"
+            "CGTN\nChina Global Television Network, or CGTN, is available in many languages and said the bloc would grow.\n\n"
+            "Global Times\nThe paper struck a harder tone.\n\n" + "More analysis follows here. " * 40)
+    res = cr.match_signatures("", body, "Explained Desk")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+    tail = "Chinese cinema inspires Burkina Faso, the delegation said.\n\nSource : CGTN\n"
+    assert cr.match_signatures("", tail, None)["decision"] == "A"
+    assert cr.match_signatures("", "A report on culture.\n\nCGTN\n", None)["decision"] == "A"
+
+
 def test_syndication_disclaimer_is_not_sponsorship():
     body = ("The minister opened the bridge on Monday.\n\n(Except for the headline, this article has not been edited by "
             "FPJ's editorial team and is auto-generated from a syndicated feed.)")

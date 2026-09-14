@@ -4,6 +4,16 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.5 (2026-09-14)
+
+A bare "CGTN" line now counts as a credit only in the last 600 characters
+of the body (cgtn_bare_line_tail). Under 2026.09.4 the same line anywhere in
+the body was a strong credit, and an Indian Express explainer that surveys
+Chinese outlets under the headings "Xinhua", "CGTN" and "Global Times" was
+labelled state origin. Credit lines of the form "Source: CGTN" and the
+dateline form are unchanged. Articles labelled under 2026.09.4 are
+reclassified forward during the hourly runs.
+
 ## Ruleset 2026.09.4 (2026-09-11)
 
 Two weak signatures from different groups now give a state origin label

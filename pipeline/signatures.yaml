@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.4"
+ruleset_version: "2026.09.5"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -85,9 +85,14 @@ groups:
         strength: strong
         scope: author
       - id: cgtn_credit
-        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|^[^\n]{0,60}\(CGTN\)\s*(--|—|-|–)|^\s*CGTN\s*$'
+        regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|by|di|par|von)\s*:?\s*CGTN\s*(\.|$)|^[^\n]{0,60}\(CGTN\)\s*(--|—|-|–)'
         strength: strong
-        note: Also covers a bare CGTN credit line. The parenthetical form must be a dateline ("BEIJING (CGTN) --"), because prose that expands the acronym, "China Global Television Network (CGTN) released", is a report about CGTN and not CGTN copy.
+        note: The parenthetical form must be a dateline ("BEIJING (CGTN) --"), because prose that expands the acronym, "China Global Television Network (CGTN) released", is a report about CGTN and not CGTN copy.
+      - id: cgtn_bare_line_tail
+        regex: '(?m)^\s*CGTN\s*$'
+        strength: strong
+        scope: tail
+        note: A bare "CGTN" line counts only at the end of the body, where a credit sits. In the middle of a body it is a section heading, as in an Indian Express explainer that surveys Chinese outlets under headings "Xinhua", "CGTN", "Global Times".
       - id: cgtn_author
         regex: '(?i)^\s*(CGTN|China Global Television Network)\s*$'
         strength: strong
