@@ -4,6 +4,43 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.7 (2026-09-15)
+
+Every one of the 229 published state origin labels was read, not sampled. Six
+were wrong, 2.6 percent, and all six are the same kind of mistake: an outlet's
+own coverage of Chinese state activity treated as Chinese state text. That is
+the distinction the instrument exists to draw, so the correction makes the
+headline number smaller and more defensible.
+
+Four rested on a cooperation phrase sitting near a Chinese entity: a Bahraini
+culture authority hosting a Chinese show "in cooperation with the Chinese
+embassy", a Senegalese report on a panel CGTN organised, a Sierra Leonean report
+on a Chinese medical team "in partnership with" a local clinic, a Syrian
+business story citing Xinhua. Those phrases are now removed from the paired
+sponsored patterns and from the bare Arabic, Indonesian and Russian patterns,
+which require a real disclosure term instead, and sponsored_prose_phrases_head_tail
+is retired. One rested on xinhua_writer_byline matching "According to a report by
+Xinhua reporter" mid sentence in a locally bylined article; that pattern is now
+anchored to a byline position. One rested on a diplomat name inside an author
+field that held navigation text; author fields are now cleaned in extraction,
+which is where the defect was, and backfilled over stored rows.
+
+Five further labels were correct but misrouted: Antara republishing Xinhua copy
+in Indonesian, recorded as a sponsored disclosure because no credit pattern
+matched a co-credit byline. Two additive patterns, xinhua_co_credit_author and
+xinhua_translator_credit, move them to wire credit, so the route table stops
+overstating sponsored placements by five.
+
+immediapress_with_state_entity and wire_stamp_with_state_entity are untouched.
+They carry 73 labels, the Italpress "(XINHUA/ITALPRESS)" syndication and the PR
+Newswire releases sourced to Xinhua and Global Times, and those are exactly what
+the paired patterns are for.
+
+Expect state origin to fall from 229 to about 223 as articles are reclassified
+forward at 2,000 per hourly run. The mixed ruleset marks stay on the timeline
+until that finishes, which is the honest reading: labels made under different
+rules should not be read as one series.
+
 ## Ruleset 2026.09.6 (2026-09-15)
 
 Bare sponsored disclosure patterns are now scoped to the article instead of the
