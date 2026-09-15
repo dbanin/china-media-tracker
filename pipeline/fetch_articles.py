@@ -160,7 +160,7 @@ def process_article(conn_factory, row) -> Dict:
         if ex["author"] and not row["author"]:
             fields["author"] = ex["author"]
         elif jsonld_author:
-            fields["author"] = jsonld_author
+            fields["author"] = extract.clean_author(jsonld_author)
         if ex["date"] and not row["published_at"]:
             fields["published_at"] = ex["date"]
         if paywalled:

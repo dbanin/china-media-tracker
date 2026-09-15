@@ -22,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pipeline import classify_rules, config, gate, registry, store
+from pipeline import classify_rules, config, extract, gate, registry, store
 from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
@@ -777,6 +777,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     pruned = store.prune_gated_out(conn)
     tagged = themes_mod.ensure(conn)
     routed = classify_rules.ensure_routes(conn)
+    authors_cleaned = extract.clean_stored_authors(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
@@ -796,7 +797,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
-              "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "audit_files": write_audit_files(conn, audit_dir)}
+              "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
     store.vacuum(conn)
