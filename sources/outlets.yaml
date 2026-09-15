@@ -89,10 +89,6 @@
   - https://www.adnkronos.com/RSS_PrimaPagina.xml
   - https://www.adnkronos.com/RSS_Esteri.xml
   section_feeds:
-  - url: https://www.adnkronos.com/milano-cortina-2026/press-release
-    kind: press_release
-    section: https://www.adnkronos.com/milano-cortina-2026/press-release
-    type: page
   - url: https://www.adnkronos.com/immediapress
     kind: press_release
     section: https://www.adnkronos.com/immediapress
@@ -105,10 +101,12 @@
       kind: press_release
       feed: null
       label: PRESS RELEASE
+      readable: false
     - url: https://www.adnkronos.com/immediapress
       kind: press_release
       feed: null
       label: IMMEDIAPRESS
+      readable: true
   tier: agency
   notes: Runs the Immediapress release wire that has carried Xinhua Silk Road releases. Immediapress has no working feed; items surface through page fetches of the main feeds. Verified 2026-09-02.
   active: true
@@ -131,6 +129,7 @@
       kind: press_release
       feed: null
       label: Comunicati
+      readable: true
   tier: agency
   notes: Agenzia Giornalistica Italia. Verified 2026-09-02.
   active: true
@@ -415,10 +414,12 @@
       kind: press_release
       feed: null
       label: GlobeNewswire
+      readable: true
     - url: https://www.thestar.com/sponsored-sections
       kind: sponsored
       feed: null
       label: Sponsored Content
+      readable: true
   tier: national_daily
   notes: Search endpoint feed. Site rate limits aggressively (429). Verified 2026-09-02.
   active: true
@@ -450,14 +451,17 @@
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
     - url: https://nationalpost.com/category/press-releases
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
     - url: https://nationalpost.com/category/sponsored
       kind: sponsored
       feed: https://nationalpost.com/category/sponsored/feed
       label: Sponsored
+      readable: true
   tier: national_daily
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -468,11 +472,6 @@
   feeds:
   - https://globalnews.ca/world/feed/
   - https://globalnews.ca/feed/
-  section_feeds:
-  - url: https://globalnews.ca/branded-content
-    kind: sponsored
-    section: https://globalnews.ca/branded-content
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -481,6 +480,7 @@
       kind: sponsored
       feed: null
       label: Branded Content
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -531,6 +531,7 @@
       kind: sponsored
       feed: https://vancouversun.com/category/sponsored/feed
       label: BC Top Employers
+      readable: true
   tier: regional
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -554,6 +555,7 @@
       kind: sponsored
       feed: https://ottawacitizen.com/category/sponsored/feed
       label: National Capital Region's Top Employers
+      readable: true
   tier: regional
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -584,14 +586,17 @@
       kind: press_release
       feed: https://financialpost.com/category/pmn/press-releases-pmn/feed
       label: More News Releases >
+      readable: true
     - url: https://financialpost.com/category/globe-newswire
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
     - url: https://financialpost.com/category/press-releases
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
   tier: business
   notes: Postmedia. Feed carries press releases, which is analytically useful. Verified 2026-09-02.
   active: true
@@ -636,14 +641,17 @@
       kind: press_release
       feed: https://torontosun.com/category/business/business-wire/feed
       label: More News Releases >
+      readable: true
     - url: https://torontosun.com/category/globe-newswire
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
     - url: https://torontosun.com/category/press-releases
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
   tier: national_daily
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -670,10 +678,12 @@
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
     - url: https://calgaryherald.com/category/sponsored
       kind: sponsored
       feed: https://calgaryherald.com/category/sponsored/feed
       label: Alberta's Top Employers
+      readable: true
   tier: regional
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -696,6 +706,7 @@
       kind: sponsored
       feed: https://edmontonjournal.com/category/sponsored/feed
       label: Alberta's Top Employers
+      readable: true
   tier: regional
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -705,27 +716,20 @@
   language: en
   feeds:
   - https://www.winnipegfreepress.com/rss/?path=/world
-  section_feeds:
-  - url: https://www.winnipegfreepress.com/feed
-    kind: sponsored
-    section: https://www.winnipegfreepress.com/./sponsored-content
-    type: rss
-  - url: https://www.winnipegfreepress.com/feed
-    kind: sponsored
-    section: https://www.winnipegfreepress.com/sponsored-content
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.winnipegfreepress.com/./sponsored-content
       kind: sponsored
-      feed: https://www.winnipegfreepress.com/feed
+      feed: null
       label: Sponsored Articles
+      readable: false
     - url: https://www.winnipegfreepress.com/sponsored-content
       kind: sponsored
-      feed: https://www.winnipegfreepress.com/feed
+      feed: null
       label: Sponsored Content
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -792,10 +796,12 @@
       kind: press_release
       feed: https://theprovince.com/category/business/business-wire/feed
       label: More News Releases >
+      readable: true
     - url: https://theprovince.com/category/globe-newswire
       kind: press_release
       feed: null
       label: More News Releases >
+      readable: true
   tier: regional
   notes: Postmedia. Verified 2026-09-02.
   active: true
@@ -1040,15 +1046,6 @@
   language: en
   feeds:
   - https://www.canberratimes.com.au/rss.xml
-  section_feeds:
-  - url: https://www.canberratimes.com.au/press-releases
-    kind: press_release
-    section: https://www.canberratimes.com.au/press-releases
-    type: page
-  - url: https://www.canberratimes.com.au/sponsored
-    kind: sponsored
-    section: https://www.canberratimes.com.au/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1057,10 +1054,12 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
+      readable: false
     - url: https://www.canberratimes.com.au/sponsored
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: false
   tier: regional
   notes: ACM. Verified 2026-09-02.
   active: true
@@ -1109,15 +1108,6 @@
   language: en
   feeds:
   - https://www.newcastleherald.com.au/rss.xml
-  section_feeds:
-  - url: https://www.newcastleherald.com.au/press-releases
-    kind: press_release
-    section: https://www.newcastleherald.com.au/press-releases
-    type: page
-  - url: https://www.newcastleherald.com.au/sponsored
-    kind: sponsored
-    section: https://www.newcastleherald.com.au/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1126,10 +1116,12 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
+      readable: false
     - url: https://www.newcastleherald.com.au/sponsored
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: false
   tier: regional
   notes: ACM. Verified 2026-09-02.
   active: true
@@ -1139,15 +1131,6 @@
   language: en
   feeds:
   - https://www.illawarramercury.com.au/rss.xml
-  section_feeds:
-  - url: https://www.illawarramercury.com.au/press-releases
-    kind: press_release
-    section: https://www.illawarramercury.com.au/press-releases
-    type: page
-  - url: https://www.illawarramercury.com.au/sponsored
-    kind: sponsored
-    section: https://www.illawarramercury.com.au/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1156,10 +1139,12 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
+      readable: false
     - url: https://www.illawarramercury.com.au/sponsored
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: false
   tier: regional
   notes: ACM. Verified 2026-09-02.
   active: true
@@ -1169,15 +1154,6 @@
   language: en
   feeds:
   - https://www.examiner.com.au/rss.xml
-  section_feeds:
-  - url: https://www.examiner.com.au/press-releases
-    kind: press_release
-    section: https://www.examiner.com.au/press-releases
-    type: page
-  - url: https://www.examiner.com.au/sponsored
-    kind: sponsored
-    section: https://www.examiner.com.au/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1186,10 +1162,12 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
+      readable: false
     - url: https://www.examiner.com.au/sponsored
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: false
   tier: regional
   notes: ACM, Launceston. Verified 2026-09-02.
   active: true
@@ -1225,6 +1203,7 @@
       kind: sponsored
       feed: https://7news.com.au/lifestyle/sponsored/feed
       label: Sponsored
+      readable: true
   tier: broadcaster
   notes: Seven Network. Verified 2026-09-02.
   active: true
@@ -1682,11 +1661,6 @@
   feeds:
   - https://www.clarin.com/rss/mundo/
   - https://www.clarin.com/rss/lo-ultimo/
-  section_feeds:
-  - url: https://www.clarin.com/brandstudio
-    kind: sponsored
-    section: https://www.clarin.com/brandstudio
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1695,6 +1669,7 @@
       kind: sponsored
       feed: null
       label: /brandstudio
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2339,19 +2314,15 @@
   language: fr
   feeds:
   - https://beninwebtv.com/feed/
-  section_feeds:
-  - url: https://beninwebtv.com/feed.xml
-    kind: press_release
-    section: https://beninwebtv.com/communiques
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://beninwebtv.com/communiques
       kind: press_release
-      feed: https://beninwebtv.com/feed.xml
+      feed: null
       label: COMMUNIQUE
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -2374,19 +2345,15 @@
   language: fr
   feeds:
   - https://lematinal.bj/feed/
-  section_feeds:
-  - url: https://lematinal.bj/comments/feed/
-    kind: press_release
-    section: https://lematinal.bj/category/avis-et-communiques
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://lematinal.bj/category/avis-et-communiques
       kind: press_release
-      feed: https://lematinal.bj/comments/feed/
+      feed: null
       label: Avis et communiqués
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2479,10 +2446,6 @@
     kind: press_release
     section: https://libreinfo.net/category/communique
     type: rss
-  - url: https://libreinfo.net/lonab-communique-de-dementi
-    kind: press_release
-    section: https://libreinfo.net/lonab-communique-de-dementi
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -2491,10 +2454,12 @@
       kind: press_release
       feed: https://libreinfo.net/category/communique/feed/
       label: Communiqué
+      readable: true
     - url: https://libreinfo.net/lonab-communique-de-dementi
       kind: press_release
       feed: null
       label: /lonab-communique-de-dementi
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2515,19 +2480,15 @@
   language: fr
   feeds:
   - https://minute.bf/feed/
-  section_feeds:
-  - url: https://www.minute.bf/feed/
-    kind: press_release
-    section: https://www.minute.bf/category/communiques-annonces
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.minute.bf/category/communiques-annonces
       kind: press_release
-      feed: https://www.minute.bf/feed/
+      feed: null
       label: COMMUNIQUES & ANNONCES
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2561,27 +2522,20 @@
   language: fr
   feeds:
   - https://www.sidwaya.info/feed/
-  section_feeds:
-  - url: https://www.sidwaya.info/comments/feed/
-    kind: press_release
-    section: https://www.sidwaya.info/bfcategories/focus/communique
-    type: rss
-  - url: https://www.sidwaya.info/comments/feed/
-    kind: press_release
-    section: https://www.sidwaya.info/communique-necrologique-2
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.sidwaya.info/bfcategories/focus/communique
       kind: press_release
-      feed: https://www.sidwaya.info/comments/feed/
+      feed: null
       label: COMMUNIQUE
+      readable: false
     - url: https://www.sidwaya.info/communique-necrologique-2
       kind: press_release
-      feed: https://www.sidwaya.info/comments/feed/
+      feed: null
       label: /communique-necrologique-2
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2640,6 +2594,7 @@
       kind: partner
       feed: null
       label: Supplement
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -2662,6 +2617,7 @@
       kind: partner
       feed: null
       label: Supplements
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -2960,19 +2916,15 @@
   language: en
   feeds:
   - https://www.bahrainthisweek.com/feed/
-  section_feeds:
-  - url: https://www.bahrainthisweek.com/category/pr-this-week/feed/
-    kind: press_release
-    section: https://www.bahrainthisweek.com/category/pr-this-week
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.bahrainthisweek.com/category/pr-this-week
       kind: press_release
-      feed: https://www.bahrainthisweek.com/category/pr-this-week/feed/
+      feed: null
       label: Press Release
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -3522,6 +3474,7 @@
       kind: sponsored
       feed: https://www.rfi.fr/fr/contenus-sponsoris%C3%A9s/rss
       label: Contenus sponsorisés
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -3584,15 +3537,6 @@
   feeds:
   - https://valor.globo.com/rss/valor/mundo
   - https://valor.globo.com/rss/valor
-  section_feeds:
-  - url: https://valor.globo.com/empresas/valor-empresas-360/atas-e-comunicados
-    kind: press_release
-    section: https://valor.globo.com/empresas/valor-empresas-360/atas-e-comunicados
-    type: page
-  - url: https://valor.globo.com/valor-ri/atas-e-comunicados
-    kind: press_release
-    section: https://valor.globo.com/valor-ri/atas-e-comunicados
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -3601,10 +3545,12 @@
       kind: press_release
       feed: null
       label: Atas e Comunicados
+      readable: false
     - url: https://valor.globo.com/valor-ri/atas-e-comunicados
       kind: press_release
       feed: null
       label: Atas e Comunicados
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -3741,19 +3687,15 @@
   language: en
   feeds:
   - https://thescoop.co/feed/
-  section_feeds:
-  - url: https://thescoop.co/comments/feed/
-    kind: sponsored
-    section: https://thescoop.co/category/extra/sponsored
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://thescoop.co/category/extra/sponsored
       kind: sponsored
-      feed: https://thescoop.co/comments/feed/
+      feed: null
       label: Sponsored Content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -3985,6 +3927,7 @@
       kind: sponsored
       feed: null
       label: /sponsored-content
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4205,27 +4148,20 @@
   language: fr
   feeds:
   - https://www.rti.info/feed/
-  section_feeds:
-  - url: https://rti.info/feed/
-    kind: press_release
-    section: https://rti.info/communiques
-    type: rss
-  - url: https://rti.info/feed/
-    kind: sponsored
-    section: https://rti.info/categorie/publi-reportage
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://rti.info/communiques
       kind: press_release
-      feed: https://rti.info/feed/
+      feed: null
       label: Voir plus
+      readable: false
     - url: https://rti.info/categorie/publi-reportage
       kind: sponsored
-      feed: https://rti.info/feed/
+      feed: null
       label: PUBLI-REPORTAGES
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -4287,6 +4223,7 @@
       kind: press_release
       feed: https://cameroonnewsagency.com/category/press-release/feed/
       label: Press Release
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -4321,19 +4258,15 @@
   feeds:
   - https://www.journalducameroun.com/feed/
   - https://www.journalducameroun.com/rss
-  section_feeds:
-  - url: https://fr.journalducameroun.com/feed/
-    kind: sponsored
-    section: https://fr.journalducameroun.com/category/sante/publi-reportage
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://fr.journalducameroun.com/category/sante/publi-reportage
       kind: sponsored
-      feed: https://fr.journalducameroun.com/feed/
+      feed: null
       label: Publi-reportage
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4383,19 +4316,15 @@
   language: fr
   feeds:
   - https://congoindependant.com/feed/
-  section_feeds:
-  - url: https://www.congoindependant.com/feed/
-    kind: press_release
-    section: https://www.congoindependant.com/category/communique
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.congoindependant.com/category/communique
       kind: press_release
-      feed: https://www.congoindependant.com/feed/
+      feed: null
       label: Communiqué
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4432,15 +4361,6 @@
   language: fr
   feeds:
   - https://www.politico.cd/feed/
-  section_feeds:
-  - url: https://beto.cd/communique
-    kind: press_release
-    section: https://beto.cd/communique
-    type: page
-  - url: https://beto.cd/format/communique
-    kind: press_release
-    section: https://beto.cd/format/communique
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -4449,10 +4369,12 @@
       kind: press_release
       feed: null
       label: Communiqués
+      readable: false
     - url: https://beto.cd/format/communique
       kind: press_release
       feed: null
       label: Communiqué
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4489,27 +4411,20 @@
   language: fr
   feeds:
   - https://zoom-eco.net/feed/
-  section_feeds:
-  - url: https://zoom-eco.net/comments/feed/
-    kind: press_release
-    section: https://zoom-eco.net/category/communique
-    type: rss
-  - url: https://zoom-eco.net/comments/feed/
-    kind: press_release
-    section: https://zoom-eco.net/communique
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://zoom-eco.net/category/communique
       kind: press_release
-      feed: https://zoom-eco.net/comments/feed/
+      feed: null
       label: Communique
+      readable: false
     - url: https://zoom-eco.net/communique
       kind: press_release
-      feed: https://zoom-eco.net/comments/feed/
+      feed: null
       label: 'Autres actualités13 heures agoRDC : L’ARSP alerte sur des tentatives d’usurpatio'
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -4558,6 +4473,7 @@
       kind: sponsored
       feed: https://www.journaldebrazza.com/category/eco-et-business/publi-reportage/feed/
       label: Publi-reportage
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4789,6 +4705,7 @@
       kind: sponsored
       feed: https://expressodasilhas.cv/conteudo-patrocinado/rss
       label: conteúdo patrocinado
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -4952,19 +4869,15 @@
   language: es
   feeds:
   - http://www.cubadebate.cu/feed/
-  section_feeds:
-  - url: http://www.cubadebate.cu/feed/atom/
-    kind: sponsored
-    section: http://www.cubadebate.cu/columna/publirreportaje
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: http://www.cubadebate.cu/columna/publirreportaje
       kind: sponsored
-      feed: http://www.cubadebate.cu/feed/atom/
+      feed: null
       label: Publirreportaje
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5138,10 +5051,6 @@
     kind: sponsored
     section: https://cyprus-mail.com/category/sponsored-content
     type: rss
-  - url: https://cyprus-mail.com/special-reports/supplements
-    kind: partner
-    section: https://cyprus-mail.com/special-reports/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -5150,14 +5059,17 @@
       kind: press_release
       feed: https://cyprus-mail.com/authors/press-release/feed
       label: Press Release
+      readable: true
     - url: https://cyprus-mail.com/category/sponsored-content
       kind: sponsored
       feed: https://cyprus-mail.com/category/sponsored-content/feed
       label: Sponsored Content
+      readable: true
     - url: https://cyprus-mail.com/special-reports/supplements
       kind: partner
       feed: null
       label: Read More
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5207,6 +5119,7 @@
       kind: press_release
       feed: null
       label: Δελτια Τυπου
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5538,14 +5451,17 @@
       kind: sponsored
       feed: https://www.n-tv.de/Spezial/finance26/rss
       label: Finance26 Anzeige
+      readable: true
     - url: https://www.n-tv.de/Spezial/fine_hotels
       kind: sponsored
       feed: https://www.n-tv.de/Spezial/fine_hotels/rss
       label: Fine Hotels Anzeige
+      readable: true
     - url: https://www.n-tv.de/Spezial/dubai
       kind: sponsored
       feed: https://www.n-tv.de/Spezial/dubai/rss
       label: Dubai Anzeige
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -5568,6 +5484,7 @@
       kind: sponsored
       feed: null
       label: /sponsored-content
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5606,11 +5523,6 @@
   feeds:
   - https://www.stern.de/feed/standard/politik/
   - https://www.stern.de/feed/standard/all/
-  section_feeds:
-  - url: https://spiele.stern.de/solitaer
-    kind: sponsored
-    section: https://spiele.stern.de/solitaer
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -5619,6 +5531,7 @@
       kind: sponsored
       feed: null
       label: Solitär (Anzeige)
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5670,6 +5583,7 @@
       kind: press_release
       feed: null
       label: ots-Pressemitteilungen von news aktuell
+      readable: true
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -5707,6 +5621,7 @@
       kind: sponsored
       feed: null
       label: „Wer nicht in den Wandel investiert, wird das Vertrauen der Kunden verlieren“
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -5822,6 +5737,7 @@
       kind: sponsored
       feed: null
       label: Advertorials
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -6012,6 +5928,7 @@
       kind: press_release
       feed: https://www.algerie360.com/category/communiques-de-presse/feed
       label: Communiqués de presse
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -6397,6 +6314,7 @@
       kind: sponsored
       feed: https://www.20minutos.es/rss/branded-content/
       label: Colaboración, impacto e innovación para regenerar el futuro de Grazalema
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -6433,6 +6351,7 @@
       kind: sponsored
       feed: https://feeds.elpais.com/mrss-s/list/ep/site/cincodias.elpais.com/section/branded-content
       label: 'Juan Pablo Vivas (Mastercard): “Dentro de poco, quien haga las compras ‘online’ '
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -6497,6 +6416,7 @@
       kind: sponsored
       feed: https://www.elespanol.com/rss/temas/branded_content/
       label: MARCAS Ñ MARCAS Ñ
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -6561,6 +6481,7 @@
       kind: press_release
       feed: https://www.europapress.es/rss/rss.aspx?ch=137
       label: Comunicados
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -6755,19 +6676,15 @@
   language: en
   feeds:
   - https://addisfortune.news/feed/
-  section_feeds:
-  - url: https://addisfortune.news/feed
-    kind: sponsored
-    section: https://addisfortune.news/sponsored-contents
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://addisfortune.news/sponsored-contents
       kind: sponsored
-      feed: https://addisfortune.news/feed
+      feed: null
       label: SPONSORED CONTENTS
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -6853,19 +6770,15 @@
   feeds:
   - https://www.hbl.fi/rss
   - https://www.hbl.fi/feed
-  section_feeds:
-  - url: https://www.hbl.fi/feeds/feed.xml
-    kind: sponsored
-    section: https://www.hbl.fi/brand-studio
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.hbl.fi/brand-studio
       kind: sponsored
-      feed: https://www.hbl.fi/feeds/feed.xml
+      feed: null
       label: Hur väl diversifierad är din investeringsportfölj? Placeringsproffs delar sex rå
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -6996,19 +6909,15 @@
   language: en
   feeds:
   - https://islandsbusiness.com/feed/
-  section_feeds:
-  - url: https://islandsbusiness.com/comments/feed/
-    kind: sponsored
-    section: https://islandsbusiness.com/category/paid-content
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://islandsbusiness.com/category/paid-content
       kind: sponsored
-      feed: https://islandsbusiness.com/comments/feed/
+      feed: null
       label: Paid Content
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -7097,6 +7006,7 @@
       kind: sponsored
       feed: https://www.france24.com/en/sponsored-contents/rss
       label: Sponsored contents
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -7120,6 +7030,7 @@
       kind: sponsored
       feed: https://www.france24.com/en/sponsored-contents/rss
       label: Sponsored contents
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -7156,6 +7067,7 @@
       kind: sponsored
       feed: null
       label: Contenus sponsorisés
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -7178,11 +7090,6 @@
   language: fr
   feeds:
   - https://www.latribune.fr/feed.xml
-  section_feeds:
-  - url: https://www.latribune.fr/supplement-349
-    kind: partner
-    section: https://www.latribune.fr/supplement-349
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -7191,6 +7098,7 @@
       kind: partner
       feed: null
       label: Supplément
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -7372,6 +7280,7 @@
       kind: sponsored
       feed: https://www.rfi.fr/fr/contenus-sponsoris%C3%A9s/rss
       label: Contenus sponsorisés
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -7394,6 +7303,7 @@
       kind: sponsored
       feed: https://www.rfi.fr/fr/contenus-sponsoris%C3%A9s/rss
       label: Contenus sponsorisés
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -7408,10 +7318,6 @@
     kind: partner
     section: https://www.sudouest.fr/contenu-partenaire
     type: rss
-  - url: https://kiosque.sudouest.fr/supplements
-    kind: partner
-    section: https://kiosque.sudouest.fr/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -7420,10 +7326,12 @@
       kind: partner
       feed: https://www.sudouest.fr/contenu-partenaire/rss.xml
       label: Contenus partenaires
+      readable: true
     - url: https://kiosque.sudouest.fr/supplements
       kind: partner
       feed: null
       label: /supplements
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -7433,19 +7341,15 @@
   language: fr
   feeds:
   - https://www.agpgabon.ga/feed/
-  section_feeds:
-  - url: https://agpgabon.ga/feed/
-    kind: press_release
-    section: https://agpgabon.ga/communiques-de-presse
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://agpgabon.ga/communiques-de-presse
       kind: press_release
-      feed: https://agpgabon.ga/feed/
+      feed: null
       label: Communiqués de presse
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -7562,6 +7466,7 @@
       kind: partner
       feed: null
       label: Partner Stories
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -7599,11 +7504,6 @@
   language: en
   feeds:
   - https://www.heraldscotland.com/news/rss/
-  section_feeds:
-  - url: https://www.heraldscotland.com/business_hq/supplements
-    kind: partner
-    section: https://www.heraldscotland.com/business_hq/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -7612,6 +7512,7 @@
       kind: partner
       feed: null
       label: Supplements
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -7661,6 +7562,7 @@
       kind: partner
       feed: https://www.mirror.co.uk/rss.xml
       label: Partner Stories
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -7883,11 +7785,6 @@
   feeds:
   - https://www.myjoyonline.com/feed/
   - https://www.myjoyonline.com/category/news/feed/
-  section_feeds:
-  - url: https://www.myjoyonline.com/podcasts
-    kind: press_release
-    section: https://www.myjoyonline.com/podcasts
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -7896,6 +7793,7 @@
       kind: press_release
       feed: null
       label: Newsfile
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -7943,19 +7841,15 @@
   language: fr
   feeds:
   - https://guinee7.com/feed/
-  section_feeds:
-  - url: https://www.guinee7.com/feed/
-    kind: press_release
-    section: https://www.guinee7.com/category/annonces
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.guinee7.com/category/annonces
       kind: press_release
-      feed: https://www.guinee7.com/feed/
+      feed: null
       label: Annonces & Communiqués
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -7978,6 +7872,7 @@
       kind: sponsored
       feed: https://guineelive.com/category/publireportage/feed/
       label: Publireportage
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8014,6 +7909,7 @@
       kind: sponsored
       feed: https://guineenews.org/category/publireportage/feed/
       label: Publireportage
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8073,19 +7969,15 @@
   language: en
   feeds:
   - https://alkambatimes.com/feed/
-  section_feeds:
-  - url: https://alkambatimes.com/comments/feed/
-    kind: press_release
-    section: https://alkambatimes.com/category/press-release
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://alkambatimes.com/category/press-release
       kind: press_release
-      feed: https://alkambatimes.com/comments/feed/
+      feed: null
       label: Press Release
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8132,6 +8024,7 @@
       kind: press_release
       feed: https://www.kerrfatou.com/category/kf-news/kf-press-release/feed/
       label: Press Release
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8329,6 +8222,7 @@
       kind: press_release
       feed: https://www.naftemporiki.gr/deltia-typou/feed/
       label: Δελτία Τύπου
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -8351,10 +8245,6 @@
   - https://www.protothema.gr/rss/
   - https://www.protothema.gr/rss/news/world/
   section_feeds:
-  - url: https://www.protothema.gr/thema-insights
-    kind: sponsored
-    section: https://www.protothema.gr/thema-insights
-    type: page
   - url: https://www.protothema.gr/advertorial/rss/
     kind: sponsored
     section: https://www.protothema.gr/advertorial
@@ -8367,10 +8257,12 @@
       kind: sponsored
       feed: null
       label: Thema Brand Studio
+      readable: false
     - url: https://www.protothema.gr/advertorial
       kind: sponsored
       feed: https://www.protothema.gr/advertorial/rss/
       label: Advertorial
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8535,6 +8427,7 @@
       kind: press_release
       feed: https://dpi.gov.gy/category/press-releases/feed/
       label: Press Releases
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -8657,19 +8550,15 @@
   feeds:
   - https://hongkongfp.com/feed/
   - https://www.hongkongfp.com/feed/
-  section_feeds:
-  - url: https://hongkongfp.com/comments/feed/
-    kind: sponsored
-    section: https://hongkongfp.com/category/topics/sponsored
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://hongkongfp.com/category/topics/sponsored
       kind: sponsored
-      feed: https://hongkongfp.com/comments/feed/
+      feed: null
       label: Paid Content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8768,6 +8657,7 @@
       kind: sponsored
       feed: null
       label: Brand Studio
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -8919,6 +8809,7 @@
       kind: sponsored
       feed: null
       label: Sport sponsored by
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -9347,11 +9238,6 @@
   feeds:
   - https://en.antaranews.com/rss/news.xml
   - https://en.antaranews.com/rss/world.xml
-  section_feeds:
-  - url: https://en.antaranews.com/press-release
-    kind: press_release
-    section: https://en.antaranews.com/press-release
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -9360,6 +9246,7 @@
       kind: press_release
       feed: null
       label: Press Release
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -9406,11 +9293,6 @@
   language: id
   feeds:
   - https://news.detik.com/rss
-  section_feeds:
-  - url: https://www.detik.com/media-partner
-    kind: partner
-    section: https://www.detik.com/media-partner
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -9419,6 +9301,7 @@
       kind: partner
       feed: null
       label: Media Partner
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -9530,6 +9413,7 @@
       kind: sponsored
       feed: null
       label: Advertorial
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -9738,11 +9622,6 @@
   language: en
   feeds:
   - https://www.freepressjournal.in/stories.rss
-  section_feeds:
-  - url: https://advertisement.freepressjournal.in/brandfocus
-    kind: press_release
-    section: https://advertisement.freepressjournal.in/brandfocus
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -9751,6 +9630,7 @@
       kind: press_release
       feed: null
       label: Press Release
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -9790,11 +9670,6 @@
   feeds:
   - https://www.indiatoday.in/rss/1206577
   - https://www.indiatoday.in/rss/home
-  section_feeds:
-  - url: https://www.indiatoday.in/pr-newswire
-    kind: press_release
-    section: https://www.indiatoday.in/pr-newswire
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -9803,6 +9678,7 @@
       kind: press_release
       feed: null
       label: Press Release
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -10056,6 +9932,7 @@
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -10700,6 +10577,7 @@
       kind: sponsored
       feed: null
       label: SPONSORED CONTENT
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -10855,6 +10733,7 @@
       kind: press_release
       feed: https://jis.gov.jm/category/press-release/feed/
       label: Press Releases
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -10892,10 +10771,12 @@
       kind: sponsored
       feed: https://www.jamaicaobserver.com/category/advertorial/feed
       label: Advertorial
+      readable: true
     - url: https://www.jamaicaobserver.com/supplements
       kind: partner
       feed: https://www.jamaicaobserver.com/supplements/feed
       label: Supplements
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -11002,11 +10883,6 @@
   language: ja
   feeds:
   - https://diamond.jp/list/feed/rss/dol
-  section_feeds:
-  - url: https://diamond.jp/list/sponsored
-    kind: sponsored
-    section: https://diamond.jp/list/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11015,6 +10891,7 @@
       kind: sponsored
       feed: null
       label: スポンサード
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -11025,10 +10902,6 @@
   feeds:
   - https://www.japantimes.co.jp/feed/
   section_feeds:
-  - url: https://www.japantimes.co.jp/about-us/press
-    kind: press_release
-    section: https://www.japantimes.co.jp/about-us/press
-    type: page
   - url: https://www.japantimes.co.jp/feed/topstories/
     kind: partner
     section: https://www.japantimes.co.jp/comfacts/348
@@ -11041,10 +10914,12 @@
       kind: press_release
       feed: null
       label: Press releases
+      readable: false
     - url: https://www.japantimes.co.jp/comfacts/348
       kind: partner
       feed: https://www.japantimes.co.jp/feed/topstories/
       label: GAKU Announces The Japan Times as an official media partner for the Esports Rese
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -11146,6 +11021,7 @@
       kind: press_release
       feed: null
       label: Press releases
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -11232,6 +11108,7 @@
       kind: sponsored
       feed: https://kz.kursiv.media/specials/feed
       label: Спецпроекты
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -11259,10 +11136,6 @@
     kind: press_release
     section: https://tengrinews.kz/press_releases
     type: page
-  - url: https://tengrinews.kz/spec
-    kind: sponsored
-    section: https://tengrinews.kz/spec
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11271,10 +11144,12 @@
       kind: press_release
       feed: null
       label: Пресс-центр
+      readable: true
     - url: https://tengrinews.kz/spec
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -11297,11 +11172,6 @@
   language: ru
   feeds:
   - https://vlast.kz/feed/
-  section_feeds:
-  - url: https://vlast.kz/specproekty
-    kind: sponsored
-    section: https://vlast.kz/specproekty
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11310,6 +11180,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -11367,19 +11238,15 @@
   language: en
   feeds:
   - https://ntvkenya.co.ke/feed/
-  section_feeds:
-  - url: https://ntvkenya.co.ke/comments/feed/
-    kind: sponsored
-    section: https://ntvkenya.co.ke/sponsored-content
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://ntvkenya.co.ke/sponsored-content
       kind: sponsored
-      feed: https://ntvkenya.co.ke/comments/feed/
+      feed: null
       label: episodes
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -11558,11 +11425,6 @@
   language: ru
   feeds:
   - https://ru.sputnik.kg/export/rss2/archive/index.xml
-  section_feeds:
-  - url: https://ru.sputnik.kg/press_release
-    kind: press_release
-    section: https://ru.sputnik.kg/press_release
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11571,6 +11433,7 @@
       kind: press_release
       feed: null
       label: пресс-релизы
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -11812,11 +11675,6 @@
   language: en
   feeds:
   - https://www.kedglobal.com/rss
-  section_feeds:
-  - url: https://www.kedglobal.com/brandedList
-    kind: sponsored
-    section: https://www.kedglobal.com/brandedList
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11825,6 +11683,7 @@
       kind: sponsored
       feed: null
       label: KED Global branded content
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -11874,11 +11733,6 @@
   language: en
   feeds:
   - https://www.koreaherald.com/rss/newsAll
-  section_feeds:
-  - url: https://www.koreaherald.com/PRnewswire
-    kind: press_release
-    section: https://www.koreaherald.com/PRnewswire
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11887,6 +11741,7 @@
       kind: press_release
       feed: null
       label: PR newswire
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -12005,11 +11860,6 @@
   feeds:
   - https://www.yna.co.kr/rss/international.xml
   - https://www.yna.co.kr/rss/news.xml
-  section_feeds:
-  - url: https://www.yna.co.kr/product/press-release
-    kind: press_release
-    section: https://www.yna.co.kr/product/press-release
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -12018,6 +11868,7 @@
       kind: press_release
       feed: null
       label: 보도자료 해외배포
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -12129,6 +11980,7 @@
       kind: press_release
       feed: https://laotiantimes.com/category/cision-pr-newswire/feed/
       label: Cision PR Newswire
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -12357,19 +12209,15 @@
   feeds:
   - https://frontpageafricaonline.com/feed/
   - https://frontpageafricaonline.com/rss
-  section_feeds:
-  - url: https://frontpageafricaonline.com/comments/feed/
-    kind: press_release
-    section: https://frontpageafricaonline.com/author/press-release
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://frontpageafricaonline.com/author/press-release
       kind: press_release
-      feed: https://frontpageafricaonline.com/comments/feed/
+      feed: null
       label: Press Release
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -12642,11 +12490,6 @@
   language: en
   feeds:
   - https://publiceyenews.com/feed/
-  section_feeds:
-  - url: https://publiceyenews.com/supplements
-    kind: partner
-    section: https://publiceyenews.com/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -12655,6 +12498,7 @@
       kind: partner
       feed: null
       label: Supplements
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -12986,19 +12830,15 @@
   language: en
   feeds:
   - https://macaudailytimes.com.mo/feed
-  section_feeds:
-  - url: https://macaudailytimes.com.mo/comments/feed
-    kind: sponsored
-    section: https://macaudailytimes.com.mo/category/macau/advertorial
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://macaudailytimes.com.mo/category/macau/advertorial
       kind: sponsored
-      feed: https://macaudailytimes.com.mo/comments/feed
+      feed: null
       label: Advertorial
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -13058,6 +12898,7 @@
       kind: press_release
       feed: null
       label: بلاغات
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -13890,6 +13731,7 @@
       kind: press_release
       feed: null
       label: /communiques-de-presse
+      readable: true
   tier: aggregator
   notes: Verified 2026-09-02.
   active: true
@@ -13960,6 +13802,7 @@
       kind: sponsored
       feed: https://lovinmalta.com/sponsored/feed/
       label: View All
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14315,19 +14158,15 @@
   language: fr
   feeds:
   - https://initiativesnews.com/feed/
-  section_feeds:
-  - url: https://initiativesnews.com/comments/feed/
-    kind: press_release
-    section: https://initiativesnews.com/category/courrier-communique
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://initiativesnews.com/category/courrier-communique
       kind: press_release
-      feed: https://initiativesnews.com/comments/feed/
+      feed: null
       label: Courrier & Communiqué
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14377,6 +14216,7 @@
       kind: press_release
       feed: https://ionnews.mu/category/communique/feed/
       label: Communique
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14615,11 +14455,6 @@
   language: en
   feeds:
   - https://www.nst.com.my/feed
-  section_feeds:
-  - url: https://www.nst.com.my/sponsored
-    kind: sponsored
-    section: https://www.nst.com.my/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -14628,6 +14463,7 @@
       kind: sponsored
       feed: null
       label: Branded Content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14719,10 +14555,12 @@
       kind: press_release
       feed: https://www.utusan.com.my/category/pr-newswire-bm/feed/
       label: PR NEWSWIRE (BM)
+      readable: true
     - url: https://www.utusan.com.my/category/pr-newswire-en
       kind: press_release
       feed: https://www.utusan.com.my/category/pr-newswire-en/feed/
       label: PR NEWSWIRE (EN)
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14759,11 +14597,6 @@
   feeds:
   - https://www.namibian.com.na/feed/
   - https://namibian.com.na/feed/
-  section_feeds:
-  - url: https://www.namibian.com.na/supplements
-    kind: partner
-    section: https://www.namibian.com.na/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -14772,6 +14605,7 @@
       kind: partner
       feed: null
       label: Supplements
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14808,19 +14642,15 @@
   language: fr
   feeds:
   - https://airinfoagadez.com/feed/
-  section_feeds:
-  - url: https://airinfoagadez.com/comments/feed/
-    kind: sponsored
-    section: https://airinfoagadez.com/category/publireportage
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://airinfoagadez.com/category/publireportage
       kind: sponsored
-      feed: https://airinfoagadez.com/comments/feed/
+      feed: null
       label: Publireportage
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14858,6 +14688,7 @@
       kind: press_release
       feed: https://www.lesahel.org/category/communique/feed/
       label: Communiqué
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -14942,18 +14773,22 @@
       kind: sponsored
       feed: https://businessday.ng/author/sponsored/feed/
       label: Sponsored Post
+      readable: true
     - url: https://businessday.ng/category/sponsored
       kind: sponsored
       feed: https://businessday.ng/category/sponsored/feed/
       label: Sponsored
+      readable: true
     - url: https://businessday.ng/category/partner-content
       kind: partner
       feed: https://businessday.ng/category/partner-content/feed/
       label: Partner Content
+      readable: true
     - url: https://businessday.ng/partner-content
       kind: partner
       feed: https://businessday.ng/category/partner-content/feed/
       label: /partner-content
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -15002,6 +14837,7 @@
       kind: sponsored
       feed: https://dailytrust.com/topics/sponsored-post/feed
       label: More Sponsored Post
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15103,10 +14939,12 @@
       kind: press_release
       feed: null
       label: Press Release
+      readable: true
     - url: https://thesun.ng/category/sponsored-post
       kind: sponsored
       feed: null
       label: Sponsored
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -15317,11 +15155,6 @@
   language: en
   feeds:
   - https://www.dutchnews.nl/feed/
-  section_feeds:
-  - url: https://www.dutchnews.nl/partner-posts
-    kind: partner
-    section: https://www.dutchnews.nl/partner-posts
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -15330,6 +15163,7 @@
       kind: partner
       feed: null
       label: Partner content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15339,19 +15173,15 @@
   language: en
   feeds:
   - https://nltimes.nl/rss
-  section_feeds:
-  - url: https://nltimes.nl/rssfeed2
-    kind: partner
-    section: https://nltimes.nl/partner-content
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://nltimes.nl/partner-content
       kind: partner
-      feed: https://nltimes.nl/rssfeed2
+      feed: null
       label: Partner Content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15403,6 +15233,7 @@
       kind: sponsored
       feed: null
       label: 'Grootste stijging zorgpremie ooit: dit betekent het voor jouAangeboden door: Ind'
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15742,19 +15573,15 @@
   feeds:
   - https://www.newsroom.co.nz/feed
   - https://newsroom.co.nz/rss
-  section_feeds:
-  - url: https://newsroom.co.nz/feed/
-    kind: partner
-    section: https://newsroom.co.nz/category/partner-newsroom
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://newsroom.co.nz/category/partner-newsroom
       kind: partner
-      feed: https://newsroom.co.nz/feed/
+      feed: null
       label: Partner content
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15788,6 +15615,7 @@
       kind: sponsored
       feed: null
       label: Partner content
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -15811,6 +15639,7 @@
       kind: press_release
       feed: null
       label: Media Releases
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -15833,6 +15662,7 @@
       kind: press_release
       feed: null
       label: Media Releases
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -16036,6 +15866,7 @@
       kind: sponsored
       feed: https://arynews.tv/category/advertorial/feed
       label: Advertorial
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -16264,6 +16095,7 @@
       kind: sponsored
       feed: https://www.tvn-2.com/rss/category/section/138347/
       label: Contenidos patrocinados
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -16365,6 +16197,7 @@
       kind: sponsored
       feed: https://gestion.pe/arcio/rss/category/publirreportaje/
       label: Notas Contratadas
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -16391,10 +16224,12 @@
       kind: press_release
       feed: null
       label: ver más
+      readable: true
     - url: https://larepublica.pe/publirreportajes
       kind: sponsored
       feed: null
       label: Prestamype, la fintech que no te descarta por estar en Infocorp o no tener histo
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -16429,6 +16264,7 @@
       kind: sponsored
       feed: null
       label: /campanas/publirreportaje
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -16703,6 +16539,7 @@
       kind: partner
       feed: https://www.businessadvantagepng.com/category/news/partners/feed/
       label: Partner Content
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -16713,19 +16550,15 @@
   feeds:
   - https://www.postcourier.com.pg/feed/
   - https://postcourier.com.pg/feed/
-  section_feeds:
-  - url: https://www.postcourier.com.pg/comments/feed/
-    kind: partner
-    section: https://www.postcourier.com.pg/new-category/supplements
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.postcourier.com.pg/new-category/supplements
       kind: partner
-      feed: https://www.postcourier.com.pg/comments/feed/
+      feed: null
       label: Supplements
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -16929,6 +16762,7 @@
       kind: press_release
       feed: null
       label: Comunicados de Imprensa
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17268,19 +17102,15 @@
   language: ar
   feeds:
   - https://www.alaraby.co.uk/rss
-  section_feeds:
-  - url: https://www.alaraby.co.uk/feeds
-    kind: partner
-    section: https://www.alaraby.co.uk/supplements
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.alaraby.co.uk/supplements
       kind: partner
-      feed: https://www.alaraby.co.uk/feeds
+      feed: null
       label: ملاحق
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17303,6 +17133,7 @@
       kind: sponsored
       feed: null
       label: Sponsored Content
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -17536,11 +17367,6 @@
   feeds:
   - https://aif.ru/rss/all.php
   - https://aif.ru/rss/politics.php
-  section_feeds:
-  - url: https://aif.ru/special
-    kind: sponsored
-    section: https://aif.ru/special
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -17549,6 +17375,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17597,19 +17424,15 @@
   language: ru
   feeds:
   - https://www.interfax.ru/rss.asp
-  section_feeds:
-  - url: https://www.interfax.ru/rss
-    kind: press_release
-    section: https://www.interfax.ru/pressreleases
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.interfax.ru/pressreleases
       kind: press_release
-      feed: https://www.interfax.ru/rss
+      feed: null
       label: Пресс-релизы
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -17670,6 +17493,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17745,11 +17569,6 @@
   language: ru
   feeds:
   - https://novayagazeta.eu/feed/rss
-  section_feeds:
-  - url: https://novayagazeta.eu/spec
-    kind: sponsored
-    section: https://novayagazeta.eu/spec
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -17758,6 +17577,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17780,6 +17600,7 @@
       kind: sponsored
       feed: https://novayagazeta.eu/feed/rss
       label: Спецпроекты
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -17828,11 +17649,6 @@
   language: ru
   feeds:
   - https://ria.ru/export/rss2/archive/index.xml
-  section_feeds:
-  - url: https://ria.ru/specialprojects
-    kind: sponsored
-    section: https://ria.ru/specialprojects
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -17841,6 +17657,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -17864,6 +17681,7 @@
       kind: sponsored
       feed: null
       label: Sponsored content
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -17886,6 +17704,7 @@
       kind: press_release
       feed: null
       label: Пресс-релизы
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -17921,6 +17740,7 @@
       kind: press_release
       feed: null
       label: Press Releases
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -18138,6 +17958,7 @@
       kind: sponsored
       feed: null
       label: Corporate and Sponsored Content
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -18260,19 +18081,15 @@
   language: en
   feeds:
   - https://www.sudanspost.com/feed/
-  section_feeds:
-  - url: https://www.sudanspost.com/comments/feed/
-    kind: press_release
-    section: https://www.sudanspost.com/category/press-releases
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.sudanspost.com/category/press-releases
       kind: press_release
-      feed: https://www.sudanspost.com/comments/feed/
+      feed: null
       label: PRESS RELEASES
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -18435,6 +18252,7 @@
       kind: press_release
       feed: null
       label: Paid Press Release
+      readable: true
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -18449,10 +18267,6 @@
   - url: https://www.channelnewsasia.com/media-releases
     kind: press_release
     section: https://www.channelnewsasia.com/media-releases
-    type: page
-  - url: https://www.channelnewsasia.com/branded-content-series
-    kind: sponsored
-    section: https://www.channelnewsasia.com/branded-content-series
     type: page
   - url: https://www.channelnewsasia.com/brand-studio
     kind: sponsored
@@ -18470,18 +18284,22 @@
       kind: press_release
       feed: null
       label: Media Releases
+      readable: true
     - url: https://www.channelnewsasia.com/branded-content-series
       kind: sponsored
       feed: null
       label: Branded Content
+      readable: false
     - url: https://www.channelnewsasia.com/brand-studio
       kind: sponsored
       feed: null
       label: Brand Studio
+      readable: true
     - url: https://www.channelnewsasia.com/advertorial
       kind: sponsored
       feed: null
       label: /advertorial
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -18528,19 +18346,15 @@
   language: en
   feeds:
   - https://www.ricemedia.co/feed/
-  section_feeds:
-  - url: https://www.ricemedia.co/comments/feed/
-    kind: sponsored
-    section: https://www.ricemedia.co/topic/sponsored
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.ricemedia.co/topic/sponsored
       kind: sponsored
-      feed: https://www.ricemedia.co/comments/feed/
+      feed: null
       label: Sponsored(220)
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -18568,10 +18382,12 @@
       kind: press_release
       feed: null
       label: Paid press releases
+      readable: true
     - url: https://www.straitstimes.com/tags/branded-content
       kind: sponsored
       feed: null
       label: Branded content
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -18705,19 +18521,15 @@
   language: en
   feeds:
   - https://thecalabashnewspaper.com/feed/
-  section_feeds:
-  - url: https://thecalabashnewspaper.com/feed
-    kind: press_release
-    section: https://thecalabashnewspaper.com/Topics/press-release
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://thecalabashnewspaper.com/Topics/press-release
       kind: press_release
-      feed: https://thecalabashnewspaper.com/feed
+      feed: null
       label: Press Release
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -19221,6 +19033,7 @@
       kind: sponsored
       feed: https://www.srherald.com/./advertorial/feed/
       label: Advertorial
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -19492,11 +19305,6 @@
   language: sv
   feeds:
   - https://feeds.expressen.se/nyheter/
-  section_feeds:
-  - url: https://www.expressen.se/brandstudio
-    kind: sponsored
-    section: https://www.expressen.se/brandstudio
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -19505,6 +19313,7 @@
       kind: sponsored
       feed: null
       label: Så enkelt, tryggt och säkert är valsystemet”Vi har ett robust valsystem – det gå
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -19623,11 +19432,6 @@
   language: en
   feeds:
   - https://www.sbc.sc/feed/
-  section_feeds:
-  - url: https://www.sbc.sc/public-documents
-    kind: press_release
-    section: https://www.sbc.sc/public-documents
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -19636,6 +19440,7 @@
       kind: press_release
       feed: null
       label: Press Releases and Statements
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -19852,19 +19657,15 @@
   language: fr
   feeds:
   - https://www.journaldutchad.com/feed/
-  section_feeds:
-  - url: https://journaldutchad.com/feed/
-    kind: sponsored
-    section: https://journaldutchad.com/category/eco-et-business/publi-reportage
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://journaldutchad.com/category/eco-et-business/publi-reportage
       kind: sponsored
-      feed: https://journaldutchad.com/feed/
+      feed: null
       label: Publi-reportage
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -19915,15 +19716,6 @@
   feeds:
   - https://atop.tg/feed/
   - https://www.atop.tg/feed/
-  section_feeds:
-  - url: https://atop.tg/communiques-de-presse
-    kind: press_release
-    section: https://atop.tg/communiques-de-presse
-    type: page
-  - url: https://atop.tg/avis-communiques
-    kind: press_release
-    section: https://atop.tg/avis-communiques
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -19932,10 +19724,12 @@
       kind: press_release
       feed: null
       label: Communiqués de Presse
+      readable: false
     - url: https://atop.tg/avis-communiques
       kind: press_release
       feed: null
       label: Communiqués
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -19984,6 +19778,7 @@
       kind: press_release
       feed: https://lanouvelletribune.info/rubrique/communique/feed/
       label: Communiqué
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -20006,19 +19801,15 @@
   language: fr
   feeds:
   - https://togoactualite.com/feed/
-  section_feeds:
-  - url: https://togoactualite.com/comments/feed/
-    kind: press_release
-    section: https://togoactualite.com/category/communique
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://togoactualite.com/category/communique
       kind: press_release
-      feed: https://togoactualite.com/comments/feed/
+      feed: null
       label: Communiqué
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -20143,11 +19934,6 @@
   language: en
   feeds:
   - https://prachataienglish.com/feed
-  section_feeds:
-  - url: https://prachataienglish.com/category/advertorial
-    kind: sponsored
-    section: https://prachataienglish.com/category/advertorial
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -20156,6 +19942,7 @@
       kind: sponsored
       feed: null
       label: Read more Advertorial
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -20218,6 +20005,7 @@
       kind: sponsored
       feed: https://asiaplus.news/feed/
       label: Спецпроекты
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -20293,6 +20081,7 @@
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -20409,10 +20198,12 @@
       kind: press_release
       feed: null
       label: Sponsored media release
+      readable: true
     - url: https://matangitonga.to/topic/press-releases
       kind: press_release
       feed: null
       label: Press Releases
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -20464,11 +20255,6 @@
   language: en
   feeds:
   - https://trinidadexpress.com/search/?f=rss&t=article&c=news&l=50&s=start_time&sd=desc
-  section_feeds:
-  - url: https://trinidadexpress.com/press-releases
-    kind: press_release
-    section: https://trinidadexpress.com/press-releases
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -20477,6 +20263,7 @@
       kind: press_release
       feed: null
       label: Press Releases
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -20500,19 +20287,15 @@
   feeds:
   - https://newsday.co.tt/feed/
   - https://newsday.co.tt/category/news/feed/
-  section_feeds:
-  - url: https://newsday.co.tt/comments/feed/
-    kind: partner
-    section: https://newsday.co.tt/category/supplements
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://newsday.co.tt/category/supplements
       kind: partner
-      feed: https://newsday.co.tt/comments/feed/
+      feed: null
       label: Special Publications
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -20559,19 +20342,15 @@
   language: fr
   feeds:
   - https://www.businessnews.com.tn/feed
-  section_feeds:
-  - url: https://businessnews.com.tn/feed/
-    kind: press_release
-    section: https://businessnews.com.tn/communiques
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://businessnews.com.tn/communiques
       kind: press_release
-      feed: https://businessnews.com.tn/feed/
+      feed: null
       label: Communiqués
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -20635,19 +20414,15 @@
   language: fr
   feeds:
   - https://www.leconomistemaghrebin.com/feed/
-  section_feeds:
-  - url: https://www.leconomistemaghrebin.com/comments/feed/
-    kind: press_release
-    section: https://www.leconomistemaghrebin.com/category/communiques
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.leconomistemaghrebin.com/category/communiques
       kind: press_release
-      feed: https://www.leconomistemaghrebin.com/comments/feed/
+      feed: null
       label: Communiqués
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -20904,11 +20679,6 @@
   feeds:
   - https://www.haberturk.com/rss/kategori/dunya.xml
   - https://www.haberturk.com/rss/manset.xml
-  section_feeds:
-  - url: https://www.haberturk.com/sponsorlu-icerik
-    kind: sponsored
-    section: https://www.haberturk.com/sponsorlu-icerik
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -20917,6 +20687,7 @@
       kind: sponsored
       feed: null
       label: ŞİRKETLER
+      readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -20932,10 +20703,6 @@
     kind: sponsored
     section: https://www.hurriyet.com.tr/advertorial
     type: page
-  - url: https://www.hurriyet.com.tr/haberleri/sponsorlu-icerik
-    kind: sponsored
-    section: https://www.hurriyet.com.tr/haberleri/sponsorlu-icerik
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -20944,10 +20711,12 @@
       kind: sponsored
       feed: null
       label: /advertorial
+      readable: true
     - url: https://www.hurriyet.com.tr/haberleri/sponsorlu-icerik
       kind: sponsored
       feed: null
       label: '#Sponsorlu İçerik'
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -21247,19 +21016,15 @@
   language: en
   feeds:
   - https://www.independent.co.ug/feed/
-  section_feeds:
-  - url: https://www.independent.co.ug/comments/feed/
-    kind: partner
-    section: https://www.independent.co.ug/supplement
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.independent.co.ug/supplement
       kind: partner
-      feed: https://www.independent.co.ug/comments/feed/
+      feed: null
       label: Supplement
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -21409,6 +21174,7 @@
       kind: press_release
       feed: https://news.liga.net/ua/all/rss.xml
       label: Новини компаній
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -21509,11 +21275,6 @@
   language: uk
   feeds:
   - https://www.epravda.com.ua/rss/
-  section_feeds:
-  - url: https://epravda.com.ua/press-release
-    kind: press_release
-    section: https://epravda.com.ua/press-release
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -21522,6 +21283,7 @@
       kind: press_release
       feed: null
       label: Новини компаній
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -21782,6 +21544,7 @@
       kind: sponsored
       feed: null
       label: Brand Studio
+      readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
   active: true
@@ -21803,11 +21566,6 @@
   feeds:
   - https://www.cnbc.com/id/100727362/device/rss/rss.html
   - https://www.cnbc.com/id/100003114/device/rss/rss.html
-  section_feeds:
-  - url: https://www.cnbc.com/cnbc-news-releases
-    kind: press_release
-    section: https://www.cnbc.com/cnbc-news-releases
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -21816,6 +21574,7 @@
       kind: press_release
       feed: null
       label: News Releases
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -21930,19 +21689,15 @@
   language: en
   feeds:
   - https://www.staradvertiser.com/feed/
-  section_feeds:
-  - url: https://www.staradvertiser.com/comments/feed/
-    kind: partner
-    section: https://www.staradvertiser.com/partner-content
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.staradvertiser.com/partner-content
       kind: partner
-      feed: https://www.staradvertiser.com/comments/feed/
+      feed: null
       label: Partner Content
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -21974,10 +21729,6 @@
     kind: partner
     section: https://www.reviewjournal.com/pc
     type: page
-  - url: https://www.reviewjournal.com/bp
-    kind: partner
-    section: https://www.reviewjournal.com/bp
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -21986,14 +21737,17 @@
       kind: partner
       feed: null
       label: Partner Content
+      readable: true
     - url: https://www.reviewjournal.com/pc
       kind: partner
       feed: null
       label: Partner Content
+      readable: true
     - url: https://www.reviewjournal.com/bp
       kind: partner
       feed: null
       label: Partnered Content
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -22017,6 +21771,7 @@
       kind: partner
       feed: https://www.latimes.com/specialsupplements.rss
       label: Special Supplements
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -22096,11 +21851,6 @@
   feeds:
   - https://rss.nytimes.com/services/xml/rss/nyt/World.xml
   - https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml
-  section_feeds:
-  - url: https://advertising.nytimes.com/custom-content
-    kind: sponsored
-    section: https://advertising.nytimes.com/custom-content
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -22109,6 +21859,7 @@
       kind: sponsored
       feed: null
       label: T Brand Studio
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -22192,14 +21943,6 @@
     kind: press_release
     section: https://www.prnewswire.com/ae/ar/news-releases
     type: page
-  - url: https://www.prnewswire.com/comunicados-de-prensa
-    kind: press_release
-    section: https://www.prnewswire.com/comunicados-de-prensa
-    type: page
-  - url: https://www.prnewswire.com/comunicados-para-a-imprensa
-    kind: press_release
-    section: https://www.prnewswire.com/comunicados-para-a-imprensa
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -22208,18 +21951,22 @@
       kind: press_release
       feed: null
       label: News
+      readable: true
     - url: https://www.prnewswire.com/ae/ar/news-releases
       kind: press_release
       feed: null
       label: Arabic
+      readable: true
     - url: https://www.prnewswire.com/comunicados-de-prensa
       kind: press_release
       feed: null
       label: español
+      readable: false
     - url: https://www.prnewswire.com/comunicados-para-a-imprensa
       kind: press_release
       feed: null
       label: português
+      readable: false
   tier: aggregator
   notes: Verified 2026-09-02.
   active: true
@@ -22294,6 +22041,7 @@
       kind: sponsored
       feed: https://www.seattletimes.com/sponsored/feed/
       label: Sponsored
+      readable: true
   tier: regional
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -22330,11 +22078,6 @@
   language: en
   feeds:
   - https://www.tampabay.com/arc/outboundfeeds/rss/?outputType=xml
-  section_feeds:
-  - url: https://www.tampabay.com/sponsored
-    kind: sponsored
-    section: https://www.tampabay.com/sponsored
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -22343,6 +22086,7 @@
       kind: sponsored
       feed: null
       label: Sponsored Content
+      readable: false
   tier: regional
   notes: Verified 2026-09-02.
   active: true
@@ -22353,19 +22097,15 @@
   feeds:
   - https://www.theatlantic.com/feed/all/
   - https://www.theatlantic.com/feed/channel/international/
-  section_feeds:
-  - url: https://www.theatlantic.com/feed/best-of/
-    kind: press_release
-    section: https://www.theatlantic.com/press-releases
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.theatlantic.com/press-releases
       kind: press_release
-      feed: https://www.theatlantic.com/feed/best-of/
+      feed: null
       label: Press
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -22549,19 +22289,15 @@
   language: ru
   feeds:
   - https://uz.kursiv.media/feed/
-  section_feeds:
-  - url: https://uz.kursiv.media/specials/feed
-    kind: sponsored
-    section: https://uz.kursiv.media/specials
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://uz.kursiv.media/specials
       kind: sponsored
-      feed: https://uz.kursiv.media/specials/feed
+      feed: null
       label: Спецпроекты
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -22576,10 +22312,6 @@
     kind: press_release
     section: https://podrobno.uz/cat/releases
     type: page
-  - url: https://podrobno.uz/project
-    kind: sponsored
-    section: https://podrobno.uz/project
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -22588,10 +22320,12 @@
       kind: press_release
       feed: null
       label: Пресс-релизы
+      readable: true
     - url: https://podrobno.uz/project
       kind: sponsored
       feed: null
       label: Спецпроекты
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -22642,19 +22376,15 @@
   feeds:
   - https://www.uzdaily.uz/en/rss
   - https://uzdaily.uz/ru/rss
-  section_feeds:
-  - url: https://www.uzdaily.uz/ru/rss/
-    kind: sponsored
-    section: https://www.uzdaily.uz/ru/special-projects
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.uzdaily.uz/ru/special-projects
       kind: sponsored
-      feed: https://www.uzdaily.uz/ru/rss/
+      feed: null
       label: Спецпроекты
+      readable: false
   tier: business
   notes: Verified 2026-09-02.
   active: true
@@ -22717,19 +22447,15 @@
   language: es
   feeds:
   - https://elestimulo.com/feed/
-  section_feeds:
-  - url: https://elestimulo.com/comments/feed/
-    kind: press_release
-    section: https://elestimulo.com/nota-de-prensa
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://elestimulo.com/nota-de-prensa
       kind: press_release
-      feed: https://elestimulo.com/comments/feed/
+      feed: null
       label: /nota-de-prensa
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -23283,6 +23009,7 @@
       kind: sponsored
       feed: https://www.citizen.co.za/sponsored/feed/
       label: VIEW ALL
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24190,19 +23917,15 @@
   feeds:
   - https://nowgrenada.com/feed/
   - https://www.nowgrenada.com/feed/
-  section_feeds:
-  - url: https://nowgrenada.com/comments/feed/
-    kind: press_release
-    section: https://nowgrenada.com/category/press-release
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://nowgrenada.com/category/press-release
       kind: press_release
-      feed: https://nowgrenada.com/comments/feed/
+      feed: null
       label: Press Releases
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24318,11 +24041,6 @@
   feeds:
   - https://jerseyeveningpost.com/feed/
   - https://jerseyeveningpost.com/rss
-  section_feeds:
-  - url: https://app.jerseyeveningpost.com/t/storefront/more_supplements
-    kind: partner
-    section: https://app.jerseyeveningpost.com/t/storefront/more_supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -24331,6 +24049,7 @@
       kind: partner
       feed: null
       label: Supplements
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24341,10 +24060,6 @@
   feeds:
   - https://www.sknis.gov.kn/feed/
   section_feeds:
-  - url: https://www.sknis.gov.kn/press-releases
-    kind: press_release
-    section: https://www.sknis.gov.kn/press-releases
-    type: page
   - url: https://www.sknis.gov.kn/category/pmo-press-releases/feed/
     kind: press_release
     section: https://www.sknis.gov.kn/category/pmo-press-releases
@@ -24357,10 +24072,12 @@
       kind: press_release
       feed: null
       label: Press Releases
+      readable: false
     - url: https://www.sknis.gov.kn/category/pmo-press-releases
       kind: press_release
       feed: https://www.sknis.gov.kn/category/pmo-press-releases/feed/
       label: PMO Press Releases
+      readable: true
   tier: agency
   notes: Verified 2026-09-02.
   active: true
@@ -24410,19 +24127,15 @@
   feeds:
   - https://stluciatimes.com/feed/
   - https://stluciatimes.com/rss
-  section_feeds:
-  - url: https://stluciatimes.com/comments/feed/
-    kind: press_release
-    section: https://stluciatimes.com/category/press-releases
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://stluciatimes.com/category/press-releases
       kind: press_release
-      feed: https://stluciatimes.com/comments/feed/
+      feed: null
       label: Press Releases
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24469,11 +24182,6 @@
   language: fr
   feeds:
   - https://www.lepelican-journal.com/feed/
-  section_feeds:
-  - url: https://www.lepelican-journal.com/fr/supplements
-    kind: partner
-    section: https://www.lepelican-journal.com/fr/supplements
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -24482,6 +24190,7 @@
       kind: partner
       feed: null
       label: Suppléments
+      readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24595,11 +24304,6 @@
   language: en
   feeds:
   - https://www.gov.ms/feed/
-  section_feeds:
-  - url: https://www.gov.ms/press-releases
-    kind: press_release
-    section: https://www.gov.ms/press-releases
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -24608,6 +24312,7 @@
       kind: press_release
       feed: null
       label: Press Releases
+      readable: false
   tier: agency
   notes: Verified 2026-09-02.
   collector: self_hosted
@@ -24735,6 +24440,7 @@
       kind: sponsored
       feed: null
       label: BrandStudio
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -24806,6 +24512,7 @@
       kind: sponsored
       feed: null
       label: BrandStudio
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -25059,6 +24766,7 @@
       kind: press_release
       feed: https://www.libertas.sm/categoria/comunicato-stampa/feed/
       label: comunicati stampa
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -25236,10 +24944,12 @@
       kind: press_release
       feed: https://www.searchlight.vc/category/press-release/feed
       label: Press Release
+      readable: true
     - url: https://www.searchlight.vc/press-release
       kind: press_release
       feed: https://www.searchlight.vc/press-release/feed
       label: Call for Caribbean Wellness to become a regional priority
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -25262,6 +24972,7 @@
       kind: press_release
       feed: https://www.stvincenttimes.com/category/press-release/feed/
       label: Press Release
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -25320,6 +25031,7 @@
       kind: sponsored
       feed: null
       label: /sponsored
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true
@@ -25355,6 +25067,7 @@
       kind: press_release
       feed: https://antilla-martinique.com/category/communique/feed/
       label: Communiqué
+      readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
   active: true

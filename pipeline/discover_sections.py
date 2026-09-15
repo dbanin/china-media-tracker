@@ -295,9 +295,95 @@ def apply(out_path) -> Dict:
     return changed
 
 
+COMMENT_FEED = re.compile(r"comment", re.I)
+COMMENT_TITLE = re.compile(r"^(comment(aire)?s? (on|sur)|comentario(s)? (en|sobre)|coment[aá]rio(s)? (em|sobre)|kommentar(e)? zu|commento a|reply to)\b", re.I)
+MIN_PAGE_ENTRIES = 3
+MAX_EDITORIAL_OVERLAP = 0.5
+
+
+def check_section_feed(outlet: Dict, feed: Dict, editorial_links: set) -> Tuple[bool, str]:
+    """Whether a registered section feed or page really yields that section's items."""
+    from pipeline import fetch_articles, section_pages
+    from pipeline.feeds_util import fetch_feed
+    if feed.get("type", "rss") == "page":
+        r = section_pages.fetch_entries(feed["url"])
+        n = len(r["entries"])
+        if n < MIN_PAGE_ENTRIES:
+            return False, "page yields %d article links" % n
+        return True, "page yields %d article links" % n
+    if COMMENT_FEED.search(feed["url"]):
+        return False, "comments feed"
+    fetch_articles._rate_wait(fetch_articles.domain_of(feed["url"]))
+    r = fetch_feed(feed["url"])
+    if not r["ok"]:
+        return False, r["error"] or "feed failed"
+    titles = [(e.get("title") or "") for e in r["entries"]]
+    if titles and sum(1 for x in titles if COMMENT_TITLE.search(x)) >= len(titles) / 2.0:
+        return False, "comments feed"
+    links = {store.canonical_url(e.get("link") or "") for e in r["entries"] if e.get("link")}
+    if links and editorial_links and len(links & editorial_links) / float(len(links)) >= MAX_EDITORIAL_OVERLAP:
+        return False, "mostly the same items as the editorial feeds"
+    return True, "%d entries" % len(r["entries"])
+
+
+def verify(workers: int = 16) -> Dict:
+    """Fetch every registered section feed and page once and keep only those that yield the section's
+    own items. Removed entries stay in release_sections with readable: false."""
+    from pipeline import fetch_articles
+    from pipeline.feeds_util import fetch_feed
+    outlets = registry.load_outlets()
+    todo = [o for o in outlets if o.get("section_feeds")]
+    results = {}
+    counts = {"outlets": len(todo), "kept": 0, "dropped": 0, "reasons": {}}
+
+    def one(o):
+        editorial = set()
+        for u in o.get("feeds", []):
+            fetch_articles._rate_wait(fetch_articles.domain_of(u))
+            r = fetch_feed(u)
+            editorial |= {store.canonical_url(e.get("link") or "") for e in r["entries"] if e.get("link")}
+        verdicts = []
+        for f in o["section_feeds"]:
+            try:
+                ok, why = check_section_feed(o, f, editorial)
+            except Exception as exc:
+                ok, why = False, "exception:%s" % type(exc).__name__
+            verdicts.append((f, ok, why))
+        with _lock:
+            results[o["id"]] = verdicts
+            for _, ok, why in verdicts:
+                counts["kept" if ok else "dropped"] += 1
+                if not ok:
+                    key = why.split(" yields")[0] if why.startswith("page") else why.split(":")[0]
+                    counts["reasons"][key] = counts["reasons"].get(key, 0) + 1
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(one, todo))
+    for o in outlets:
+        if o["id"] not in results:
+            continue
+        kept = [f for f, ok, _ in results[o["id"]] if ok]
+        dropped_sections = {f["section"] for f, ok, _ in results[o["id"]] if not ok}
+        kept_sections = {f["section"] for f in kept}
+        for s in (o.get("release_sections") or {}).get("sections", []):
+            if s["url"] in kept_sections:
+                s["readable"] = True
+            elif s["url"] in dropped_sections:
+                s["readable"] = False
+                s["feed"] = None
+        if kept:
+            o["section_feeds"] = kept
+        else:
+            o.pop("section_feeds", None)
+    registry.validate_outlets(outlets)
+    registry.save_outlets(outlets)
+    print("verified:", json.dumps(counts), flush=True)
+    return counts
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["probe", "apply"])
+    ap.add_argument("cmd", choices=["probe", "apply", "verify"])
     ap.add_argument("--out", default=str(config.ROOT / "data" / "sections_probe.json"))
     ap.add_argument("--limit", type=int)
     ap.add_argument("--only")
@@ -306,8 +392,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.cmd == "probe":
         probe(args.out, limit=args.limit, only=args.only.split(",") if args.only else None, workers=args.workers, redo=args.redo)
-    else:
+    elif args.cmd == "apply":
         apply(args.out)
+    else:
+        verify(workers=args.workers)
 
 
 if __name__ == "__main__":
