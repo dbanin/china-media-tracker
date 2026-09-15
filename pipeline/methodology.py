@@ -1,5 +1,4 @@
 """Generate METHODOLOGY.md from live values so it cannot drift from what the system does."""
-import datetime as dt
 from typing import Dict
 
 from pipeline import config, registry
@@ -17,15 +16,31 @@ A scheduled job polls the RSS feeds of every active outlet in
 sources/outlets.yaml, stores every item before doing anything else, and
 applies a loose multilingual keyword gate to the title and summary to decide
 whether an item plausibly concerns China. The schedule asks for one run an
-hour; GitHub Actions delays scheduled runs under load, often by one to four
-hours, so the actual interval varies and every run's real start and finish
-are recorded in the run log. Outlets in Hong Kong, Macau and Taiwan do not
-pass the gate on the name of their own territory, so their local news is not
-counted as coverage of China. Items that pass the gate are fetched in full, honoring
-robots.txt, at most one request per domain every three seconds, with an
-identifying user agent. Pages that declare themselves not free in schema.org
-metadata, or that present a paywall interstitial with a short body, are
-recorded as paywalled and never retrieved by any other route.
+hour; GitHub Actions delays and drops scheduled runs under load, so the actual
+interval varies and every run's real start and finish are recorded in the run
+log. The gate's terms include every Chinese province and the largest cities,
+because short wire and release items about one province often name no other
+China term. An item whose title or summary already carries a state origin
+signature passes the gate whatever its keywords say, so the gate never
+discards the material the instrument exists to find. Outlets in Hong Kong,
+Macau and Taiwan do not pass the gate on the name of their own territory, and
+outlets in Singapore and Malaysia do not pass it on phrases that describe their
+own Chinese communities ("Chinese New Year", "Malaysian Chinese Association"),
+so local news is not counted as coverage of China.
+
+Where an outlet's press release, sponsored or partner section has been found
+(sources/outlets.yaml, release_sections and section_feeds), that section is
+polled as well, and its items skip the gate: RSS feeds usually carry editorial
+coverage only, while paid placements sit in those sections. {release_text}
+
+Items that pass the gate are fetched in full, honoring robots.txt, at most one
+request per domain every three seconds, with an identifying user agent. Pages
+that declare themselves not free in schema.org metadata, or that present a
+paywall interstitial with a short body, are recorded as paywalled and never
+retrieved by any other route. Paywalled articles are never classified, so they
+are left out of every count and out of every denominator; a country where they
+pass a third of retrieved articles carries a warning on every figure the
+interface shows for it.
 
 Fetched articles pass through a deterministic signature matcher
 (pipeline/signatures.yaml) that detects state origin text by credit lines, datelines,
@@ -41,15 +56,21 @@ journalism judgement. Articles with no
 signature and no trigger are labelled independent journalism by rules when
 the body substantively concerns China (at least three distinct China terms,
 or five occurrences, or a term in the headline with two occurrences),
-otherwise not relevant. Those residual
-labels carry confidence below 1.0 and are sampled by the agreement study like
-every other label.
+otherwise not relevant. That threshold applies only to articles no signature
+has claimed. Those residual labels carry confidence below 1.0 and are sampled
+by the agreement study like every other label.
 
 The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
 countries tend to relay official sourcing. Its prompt contains the category
 definitions verbatim and instructs it to answer independent journalism when
 genuinely uncertain, because under-counting unverified relay is the safer error.
+At most {llm_daily_ceiling} model calls are made a day. When more articles are
+waiting than the ceiling allows, the articles sent are a stratified random
+draw: every country gets the same sampling fraction of its waiting articles, so
+the countries whose articles arrive late in the UTC day are not the ones the
+ceiling truncates. The eligible and drawn counts are recorded per country per
+day, so counts can be reweighted. Articles not drawn stay waiting for a later day.
 
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
@@ -77,6 +98,20 @@ confirms every claim is independent journalism. In the database and the data
 files these four labels are stored as the codes A, B, C and not_relevant, in
 that order, for compactness; the interface never shows the codes.
 
+## How state origin arrived
+
+Every state origin label stores its route: the mechanism named by the
+signature that established it. A wire credit line or dateline, a press release
+distribution stamp, a sponsored or partner disclosure, or a byline by a Chinese
+diplomat. A state origin label the model gave without any signature is
+unattributed. Separately, every article records its arrival: an editorial feed,
+or one of the outlet's press release, sponsored or partner sections. The two are
+different variables, and both are exported per day and per country and on each
+article, so penetration can be analysed by the routes available in a country
+rather than by the country alone.
+
+{route_text}
+
 ## Current state
 
 | Measure | Value |
@@ -96,52 +131,89 @@ that order, for compactness; the interface never shows the codes.
 | Independent journalism, all time | {c_total} |
 | Language model calls, all time | {llm_calls_total} |
 | Days on which the model call ceiling ({llm_daily_ceiling}) was hit | {llm_ceiling_days} |
+| Feed polls that returned a full window with nothing seen before | {saturation_text} |
+| Relay collector on the owner's machine | {relay_collector_text} |
+| Current labels by ruleset version | {ruleset_mix_text} |
 | Last successful run | {last_successful_run} |
 
-## Agreement
+## Agreement and what may be published
 
 {kappa_text}
 
+{relay_text}
+
 ## What the numbers mean
 
-Share of monitored China coverage that is state origin or unverified relay is
-the headline number. Raw
-counts mostly measure how many outlets the registry happens to track in a
-country. Articles per monitored outlet corrects for registry density.
-Articles per million people divide by the resident population
-({population_source}). The share of all published items divides target
-articles, or all China coverage, by every item the country's largest
-monitored outlets put in their feeds in the window, whether or not it
-concerns China. The largest outlets are the {top_n} best audience ranks
-recorded in sources/outlets.yaml; {ranked_text}
+The default measure is state origin only, because it is the one label decided
+without the model. Target articles add unverified relay and the candidates
+still waiting for the verification judgement; that measure mixes a measured
+quantity with an unmeasured pile whose composition varies by country, and is
+labelled as such.
+
+Raw counts mostly measure how many outlets the registry happens to track in a
+country. Articles per monitored outlet corrects for registry density. Articles
+per thousand published items divides by every item the country's monitored
+outlets put in their feeds in the window, whether or not it concerns China;
+the largest outlets are the {top_n} best audience ranks recorded in
+sources/outlets.yaml, and {ranked_text} A share of published items is not
+shown for a country with fewer than {min_outlets} outlets behind it, where it
+would describe a handful of feeds rather than a country. Articles per million
+people divide by the resident population ({population_source}); population
+measures people, not media saturation, so of the three denominators it is the
+least defensible, and it is offered last.
+
+A syndicated wire item placed in thirty outlets and thirty separate items are
+different phenomena. Near-duplicate titles within a country are linked as one
+underlying item; the interface shows both the number of placements and the
+number of underlying items.
+
+The color scale is fixed for a measure and window across every date on the
+timeline: the darkest step starts at the 95th percentile of the values of all
+dates, not of the day shown, so a color means the same number on every date and
+the countries above the cap sit in an overflow step.
 
 Absence of data and absence of content are different things. A country with no
-monitored outlets is drawn with a hatch pattern. A country with monitored
-outlets and no detections is drawn flat. Only detections above zero use the
-color scale. A country whose feeds are mostly failing, or whose articles are
-mostly paywalled, carries a warning and its tooltip says why.
+monitored outlets is drawn with a hatch pattern. A country whose outlets all
+publish in a language without a keyword list is drawn as unreadable, because
+the gate can only match international and English terms there. A country with
+monitored outlets and no detections is drawn flat. Only detections above zero
+use the color scale. A country whose feeds are mostly failing, whose articles
+are mostly paywalled, whose feeds lose items between polls, or whose relayed
+outlets were not collected carries a warning that travels with every figure
+for it, in the tooltip, the ranked list, the country panel and the CSV export.
+
+Feeds carry only their most recent entries. When a poll returns a full window
+with nothing seen before, items published since the previous successful poll
+were probably missed; a skipped run costs a busy media market more than a quiet
+one. Every poll records whether that happened, and the estimated number of
+missed items is the feed's own publishing rate times the gap. The relay
+collector on the owner's machine records every hourly pass; a day on which it
+ran in fewer than {relay_min_hours} hours is marked incomplete for the countries
+whose outlets it collects, so a sleeping laptop never reads as a decline.
 
 Themes. Every article that concerns China is tagged with each theme whose
-terms appear in its headline, its feed summary or the opening of its body
+terms appear in its headline, its feed summary or anywhere in its body
 (pipeline/themes.yaml, themes version {themes_version}): diplomacy and summits,
 trade and economy, Belt and Road and investment, technology, energy and
 electric vehicles, military and security, Taiwan and Hong Kong, human rights,
-Chinese domestic politics, culture and tourism, and disasters and health. An
-article can carry several themes; one with none is Other. The tags are
-multilingual keyword matches, not a reading of the article, so they describe
-what coverage is about in broad strokes and should be checked by hand before a
-theme count is cited.
-
-Near-duplicate titles within a country are linked as one underlying item.
-They count as multiple placements, which is what the map shows, and the
-number of underlying items is exported alongside.
+Chinese domestic politics, culture and tourism, and disasters and health.
+Until themes version 2026.09.4 only the first 800 characters of the body were
+read, which favored whatever an article names early. An article can carry
+several themes, so theme counts do not add up to article counts; one with none
+is Other. Theme terms exist for {theme_languages}; articles in other languages
+are matched on the English terms only. The tags are keyword matches, not a
+reading of the article, and should be checked by hand before a theme count is
+cited.
 
 ## Reproducibility
 
 Every classification row records the ruleset version and, for model labels,
 the model version. When the signature list changes, the ruleset version is
-bumped in pipeline/config.py, the change is recorded in CHANGELOG.md, and
-articles are reclassified forward. Earlier rows are kept and marked not
+bumped in pipeline/config.py, the change is recorded in CHANGELOG.md, and every
+earlier article is reclassified under the new ruleset during the hourly runs,
+not only new ones. Until that pass finishes, the timeline marks each ruleset
+change and each day that still carries labels from an older version, so a
+discontinuity is never read as a trend. Earlier rows are kept and marked not
 current, so a chart made from the database at any date can be reproduced.
 Human review labels are stored in a separate table and never overwrite
 machine labels.
@@ -154,26 +226,79 @@ is kept for the duration of a run and on any machine that runs the fetch
 stage locally; the page chrome labels the sponsored placement patterns need
 are extracted at fetch time and stored with the article, so they survive
 without the HTML. The permanent record in git is data/export, one JSON line per
-gated article per month with its current classification, plus the site data
-under docs/data. One deliberate exception to the never-delete rule: items the
-relevance gate rejected are pruned after {retention} days, once they have
-served the gate audit. They carry no classification.
+gated article per month with its current classification, route and arrival,
+plus the site data under docs/data. One deliberate exception to the never-delete
+rule: items the relevance gate rejected are pruned after {retention} days, once
+they have served the gate audit. They carry no classification.
 """
+
+
+def _fmt_kappa(v):
+    return "n/a" if v is None else "%.2f" % v
 
 
 def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None:
     tot = latest["totals"]["all_time"]
     k = meta.get("kappa")
+    threshold = meta["kappa_warning_threshold"]
     if k and k.get("bc") is not None:
-        settled = "Unverified relay counts are displayed as settled." if meta["b_counts_settled"] else (
-            "Kappa on the unverified relay versus independent journalism distinction is below %.1f, so the interface does not display unverified relay counts as settled." % meta["kappa_warning_threshold"])
         kappa_text = ("The most recent agreement study (%s) hand coded %d machine labelled articles. Cohen's kappa "
-                      "across all four categories is %.2f. Kappa on the unverified relay versus independent journalism distinction alone, computed over "
-                      "the %d articles that either coder placed in one of those two, is %.2f. %s") % (
-            k["computed_at"][:10], k["n"], k["all"] if k["all"] is not None else float("nan"), k["n_bc"] or 0, k["bc"], settled)
+                      "across all four categories is %s. Kappa on the unverified relay versus independent journalism distinction alone, computed over "
+                      "the %d articles that either coder placed in one of those two, is %.2f.") % (
+            k["computed_at"][:10], k["n"], _fmt_kappa(k["all"]), k["n_bc"] or 0, k["bc"])
+        by_cat = k.get("by_category") or {}
+        if by_cat:
+            kappa_text += " One category against the rest: " + "; ".join(
+                "%s %s" % ({"A": "state origin", "B": "unverified relay", "C": "independent journalism", "not_relevant": "not relevant"}.get(c, c),
+                           _fmt_kappa(v.get("kappa"))) for c, v in sorted(by_cat.items())) + "."
+        by_lang = k.get("bc_by_language") or {}
+        if by_lang:
+            kappa_text += " Unverified relay versus independent journalism by language: " + "; ".join(
+                "%s %s (n = %d)" % (lang, _fmt_kappa(v.get("kappa")), v.get("n") or 0) for lang, v in sorted(by_lang.items())) + "."
     else:
-        kappa_text = ("No agreement study has been completed yet. Until one is, the interface labels unverified relay counts as "
-                      "provisional. Run pipeline/agreement.py to draw a sample, hand code it, and compute kappa.")
+        kappa_text = ("No agreement study has been completed yet. Run pipeline/agreement.py to draw a sample, hand code it, "
+                      "and compute kappa.")
+    if not meta.get("relay_measured"):
+        relay_text = ("The verification stage has not run, so unverified relay is not measured. The interface shows it as not yet "
+                      "measured, never as zero, and the default measure is state origin only.")
+    elif not meta.get("relay_publishable"):
+        relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until an "
+                      "agreement study gives kappa on the unverified relay versus independent journalism distinction of at least "
+                      "%.1f. That boundary is where classification error concentrates." % threshold)
+    else:
+        relay_text = "Unverified relay counts are published, because kappa on the unverified relay versus independent journalism distinction is at least %.1f." % threshold
+    withheld = meta.get("relay_withheld_languages") or []
+    if withheld:
+        relay_text += (" They are withheld for outlets publishing in %s, where the per language kappa on at least %d items is below the threshold."
+                       % (", ".join(withheld), meta.get("kappa_min_language_items", config.KAPPA_MIN_LANGUAGE_ITEMS)))
+
+    routes = meta.get("routes") or []
+    totals = meta.get("route_totals") or {}
+    route_text = "State origin labels by route, all time: " + ("; ".join(
+        "%s %d" % (r["label"].lower(), totals.get(r["id"], 0)) for r in routes) + "." if routes else "none yet.")
+    rs = meta.get("release_sections") or {}
+    if rs.get("outlets_active"):
+        searched = rs["outlets_active"] - rs.get("not_searched", 0)
+        release_text = ("At export time %d of %d active outlets had been searched for such sections: %d had one, %d had none, "
+                        "%d blocked the search and %d could not be reached. Where no section was searched, state origin placed "
+                        "through that route cannot be found, and the count per country is part of every result."
+                        % (searched, rs["outlets_active"], rs.get("found", 0), rs.get("none_found", 0), rs.get("blocked", 0), rs.get("unreachable", 0)))
+    else:
+        release_text = "No outlet had been searched for such sections at export time."
+    fs = meta.get("feed_saturation") or {}
+    saturation_text = ("%d of %d polls, an estimated %d items missed" % (fs.get("saturated", 0), fs.get("polls", 0), fs.get("missed_estimate", 0))
+                       if fs.get("polls") else "not yet measured")
+    rc = meta.get("relay_collector") or {}
+    if rc.get("last_run"):
+        relay_collector_text = "%d outlets; last pass %s (%s hours before export); %d incomplete days" % (
+            rc.get("outlets", 0), rc["last_run"], rc.get("hours_since_last_run"), len(rc.get("incomplete_days") or []))
+    else:
+        relay_collector_text = "%d outlets; no heartbeat received yet" % rc.get("outlets", 0)
+    mix = meta.get("ruleset_mix") or {}
+    ruleset_mix_text = ", ".join("%s: %d" % (v, n) for v, n in sorted(mix.items())) or "none"
+    if mix and not meta.get("reclassification_complete"):
+        ruleset_mix_text += " (reclassification under %s in progress)" % meta["ruleset_version"]
+
     text = TEMPLATE.format(
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
@@ -185,18 +310,22 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         review_coverage_pct=round(meta["review_coverage"] * 100, 1),
         paywall_share_pct=("%.1f percent" % (meta["paywall_share"] * 100)) if meta["paywall_share"] is not None else "not yet measured",
         paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
-        a_total=tot["A"], b_total=tot["B"], c_total=tot["C"],
+        a_total=tot["A"], b_total=tot["B"] if meta.get("relay_publishable") else "withheld", c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
         llm_ceiling_days=", ".join(meta["llm_ceiling_days"]) or "none",
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
         themes_version=meta.get("themes_version", "not recorded"),
+        theme_languages=", ".join(meta.get("theme_languages") or []) or "no language yet",
         population_source=meta.get("population_source", "not recorded"),
         top_n=meta.get("top_outlets_per_country", 30),
+        min_outlets=meta.get("min_outlets_for_output_share", config.MIN_OUTLETS_FOR_OUTPUT_SHARE),
         ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))
-        if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the metric measures the monitored set rather than the thirty largest publications.",
-        kappa_text=kappa_text,
+        if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the measure is labelled a share of monitored output rather than of the largest publications.",
+        relay_min_hours=config.RELAY_DAY_MIN_HOURS,
+        kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, release_text=release_text,
+        saturation_text=saturation_text, relay_collector_text=relay_collector_text, ruleset_mix_text=ruleset_mix_text,
     )
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)

@@ -240,3 +240,17 @@ body.force-map #bars-wrap { display: none; }
 .csearch-list li mark { background: none; color: var(--gold); }
 .csearch-list li.active, .csearch-list li[data-iso]:hover { background: var(--ink-3); color: var(--bone); }
 .csearch-list li.none { color: var(--ash); cursor: default; }
+
+/* Review changes: withheld and unreadable states, the route filter, warnings in the ranked list, timeline marks. */
+.segment button:disabled, select:disabled { color: var(--ash-faint); cursor: not-allowed; }
+.segment button:disabled:hover { color: var(--ash-faint); border-color: var(--rule-strong); }
+#bars .bar-row { grid-template-columns: 10rem 1fr 6.5rem 1.2rem; }
+#bars .bar-row .bar.withheld { background: repeating-linear-gradient(45deg, var(--ink-2), var(--ink-2) 3px, var(--amber-deep) 3px, var(--amber-deep) 4px); }
+#bars .bar-row .bar.unreadable { background: repeating-linear-gradient(0deg, var(--ink-2), var(--ink-2) 3px, #3a4450 3px, #3a4450 4px); }
+#bars .bar-row .items { color: var(--ash); font-size: 0.74rem; margin-left: 0.3rem; }
+#bars .bar-warn { color: var(--warn); text-align: center; font-weight: 500; }
+.timeline svg.spark line.ruleset { stroke: var(--bone-soft); stroke-width: 1.2; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.timeline svg.spark rect.relay-gap { fill: var(--bad); opacity: 0.8; }
+.timeline svg.spark rect.older-ruleset { fill: var(--ash); opacity: 0.55; }
+aside#panel .relay-state { color: var(--ash); font-style: italic; }
+aside#panel .panel-note { color: var(--ash); font-size: 0.8rem; margin: -0.4rem 0 1rem; }

@@ -64,6 +64,26 @@ PAYWALL_FLAG_SHARE = 0.33
 # Fraction of a country's feeds that may fail before the country gets a warning marker
 FEED_FAILURE_WARNING_SHARE = 0.5
 
+# The share of all published items stands for a country only when at least this many outlets are
+# behind its denominator. Below it the share describes a handful of feeds and is not shown.
+MIN_OUTLETS_FOR_OUTPUT_SHARE = 5
+
+# Unverified relay counts are withheld, not merely annotated, until an agreement study settles them.
+# A language with at least this many items in the unverified relay versus independent journalism
+# comparison and a kappa below the threshold has its relay counts withheld even when the overall
+# kappa passes.
+KAPPA_MIN_LANGUAGE_ITEMS = 20
+
+# The relay collector on the owner's machine. A day on which it completed fewer than
+# RELAY_DAY_MIN_HOURS hourly runs is incomplete for the countries it collects, and a relay silent
+# for RELAY_STALE_HOURS puts a warning on those countries.
+RELAY_DAY_MIN_HOURS = 12
+RELAY_STALE_HOURS = 6
+
+# Share of a country's feed polls that came back as a full window with no overlap with the previous
+# poll, above which the country is warned that items were probably lost between polls.
+FEED_SATURATION_WARNING_SHARE = 0.25
+
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
 RULESET_VERSION = "2026.09.5"
-SCHEMA_VERSION = 4   # 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles
+SCHEMA_VERSION = 5   # 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

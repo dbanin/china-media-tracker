@@ -158,8 +158,8 @@ up to three attempts, under the usual politeness rules.
 
 Under the map, the theme counter shows what the coverage is about. Every
 article that concerns China is tagged at export time with each theme whose
-terms appear in its headline, its feed summary or the first 800 characters of
-its body: diplomacy and summits, trade and economy, Belt and Road and
+terms appear in its headline, its feed summary or anywhere in its body (the
+first 800 characters only, before themes version 2026.09.4): diplomacy and summits, trade and economy, Belt and Road and
 investment, technology, energy and electric vehicles, military and security,
 Taiwan and Hong Kong, human rights and repression, Chinese domestic politics,
 culture and tourism, and disasters and health. An article can carry several
@@ -224,8 +224,20 @@ countries and then expanded by region. The export records
 outlets per country, and the number of single-outlet countries). When the
 densest country has three or more times the median, the interface says so
 and reminds the reader that raw counts display the sampling. The default
-metric is the share of monitored China coverage that is A or B, and the
-per-outlet metrics are offered as the corrected count view.
+measure is state origin only, the one label decided without the model;
+per outlet and per 1,000 published items are the corrected views, and per
+capita is offered last as the least defensible denominator. Unverified relay
+is shown as not yet measured until the model stage has run, and withheld until
+an agreement study settles it.
+
+Methodology review, September 2026. The changes it prompted are listed in
+CHANGELOG.md under 2026-09-15: province terms and a state origin signature
+exemption in the relevance gate, community phrases for Singapore and Malaysia,
+a stratified random draw under the model call ceiling, a route and an arrival
+on every state origin label, press release and sponsored sections polled as
+feeds, feed saturation and missed-item estimates, a heartbeat from the relay
+collector, per language agreement, a color scale fixed across dates, and
+whole-body theme tagging.
 
 ## The Chinese language rule
 

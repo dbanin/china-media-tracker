@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS classifications (
     classified_at TEXT NOT NULL,
     is_current INTEGER NOT NULL DEFAULT 1,
     raw_response TEXT,
+    route TEXT,                       -- state origin only: how the item arrived (classify_rules.ROUTE_IDS)
     FOREIGN KEY(article_id) REFERENCES articles(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_article ON classifications(article_id, is_current);
@@ -206,6 +207,39 @@ CREATE TABLE IF NOT EXISTS agreement_studies (
     n_bc INTEGER,
     details TEXT
 );
+
+-- When the daily model call ceiling binds, the stratified draw's allocation per day and country:
+-- how many articles were eligible for the verification judgement and how many were sent. The
+-- ratio is the sampling fraction, so counts can be reweighted instead of silently undercounting.
+CREATE TABLE IF NOT EXISTS llm_sampling (
+    date TEXT NOT NULL,
+    country TEXT NOT NULL,
+    eligible INTEGER NOT NULL DEFAULT 0,
+    drawn INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(date, country)
+);
+
+-- Per feed per day: polls, polls that came back as a full window with nothing seen before
+-- (saturated), and the estimated number of items lost between polls.
+CREATE TABLE IF NOT EXISTS feed_polls (
+    date TEXT NOT NULL,
+    feed_url TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    country TEXT NOT NULL,
+    polls INTEGER NOT NULL DEFAULT 0,
+    saturated INTEGER NOT NULL DEFAULT 0,
+    entries INTEGER NOT NULL DEFAULT 0,
+    new_items INTEGER NOT NULL DEFAULT 0,
+    missed_estimate REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY(date, feed_url)
+);
+
+-- Discovery passes the relay collector on the owner's machine completed, from its bundle.
+CREATE TABLE IF NOT EXISTS relay_runs (
+    started_at TEXT PRIMARY KEY,
+    finished_at TEXT,
+    ok INTEGER
+);
 """
 
 
@@ -264,6 +298,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
                  SELECT COUNT(*) FROM articles a WHERE a.gate_relevant=1 AND a.outlet_id=daily_outlet_discovery.outlet_id
                    AND substr(a.discovered_at, 1, 10)=daily_outlet_discovery.date)"""
         )
+    cls = {r[1] for r in conn.execute("PRAGMA table_info(classifications)")}
+    if "route" not in cls:
+        conn.execute("ALTER TABLE classifications ADD COLUMN route TEXT")   # filled by classify_rules.ensure_routes
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
     for col in ("top_discovered", "top_target", "top_china", "top_a"):
         if col not in cov:
@@ -438,20 +475,21 @@ def insert_classification(conn: sqlite3.Connection, article_id: int, method: str
                           confirmation_evidence: Optional[str] = None,
                           model_version: Optional[str] = None,
                           raw_response: Optional[str] = None,
-                          ruleset_version: str = config.RULESET_VERSION) -> int:
+                          ruleset_version: str = config.RULESET_VERSION,
+                          route: Optional[str] = None) -> int:
     """Insert a new current classification, marking earlier ones for the article as not current.
-    Earlier rows are never deleted."""
+    Earlier rows are never deleted. route is set on state origin labels only."""
     conn.execute("UPDATE classifications SET is_current=0 WHERE article_id=?", (article_id,))
     cur = conn.execute(
         """INSERT INTO classifications
            (article_id, method, category, confidence, evidence_quote, reasoning, signatures_fired,
             china_sources_cited, independent_confirmation_present, confirmation_evidence,
-            model_version, ruleset_version, classified_at, is_current, raw_response)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)""",
+            model_version, ruleset_version, classified_at, is_current, raw_response, route)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)""",
         (article_id, method, category, confidence, evidence_quote, reasoning,
          json.dumps(signatures_fired or []), json.dumps(china_sources_cited or []),
          None if independent_confirmation_present is None else int(independent_confirmation_present),
-         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response),
+         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response, route),
     )
     conn.execute("UPDATE articles SET status='classified', llm_pending=0 WHERE id=?", (article_id,))
     return cur.lastrowid
@@ -502,6 +540,34 @@ def record_feed_health(conn: sqlite3.Connection, outlet_id: str, feed_url: str, 
                last_entries=?, consecutive_failures=?, total_checks=total_checks+1,
                total_failures=total_failures+? WHERE feed_url=?""",
             (outlet_id, now, now if ok else None, error, entries, cf, 0 if ok else 1, feed_url),
+        )
+
+
+def feed_health_row(conn: sqlite3.Connection, feed_url: str) -> Optional[sqlite3.Row]:
+    return conn.execute("SELECT * FROM feed_health WHERE feed_url=?", (feed_url,)).fetchone()
+
+
+def record_feed_poll(conn: sqlite3.Connection, outlet_id: str, country: str, feed_url: str, entries: int,
+                     new_items: int, saturated: bool, missed_estimate: float) -> None:
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    conn.execute(
+        """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items, missed_estimate)
+           VALUES (?,?,?,?,1,?,?,?,?)
+           ON CONFLICT(date, feed_url) DO UPDATE SET outlet_id=excluded.outlet_id, country=excluded.country,
+             polls=polls+1, saturated=saturated+excluded.saturated, entries=entries+excluded.entries,
+             new_items=new_items+excluded.new_items, missed_estimate=missed_estimate+excluded.missed_estimate""",
+        (today, feed_url, outlet_id, country, 1 if saturated else 0, entries, new_items, missed_estimate or 0.0),
+    )
+
+
+def record_llm_sampling(conn: sqlite3.Connection, date: str, allocation: Dict[str, List[int]]) -> None:
+    """allocation: {country: [eligible, drawn]}. Eligible keeps the day's largest pool, drawn accumulates
+    over the day's runs, so drawn / eligible is the day's sampling fraction for the country."""
+    for country, (eligible, drawn) in allocation.items():
+        conn.execute(
+            """INSERT INTO llm_sampling(date, country, eligible, drawn) VALUES (?,?,?,?)
+               ON CONFLICT(date, country) DO UPDATE SET eligible=MAX(eligible, excluded.eligible), drawn=drawn+excluded.drawn""",
+            (date, country, eligible, drawn),
         )
 
 

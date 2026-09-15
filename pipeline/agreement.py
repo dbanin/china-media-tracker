@@ -110,9 +110,25 @@ def compute_from_pairs(items: List[Dict]) -> Dict:
     confusion = defaultdict(Counter)
     for m, h in pairs:
         confusion[m][h] += 1
+    # One category against the rest, for every category either coder used. A single kappa across
+    # four categories hides where the disagreement sits.
+    by_category = {}
+    for cat in CATEGORIES:
+        binary = [(m == cat, h == cat) for m, h in pairs]
+        if any(m or h for m, h in binary):
+            by_category[cat] = {"kappa": cohens_kappa(binary), "n_machine": sum(1 for m, _ in binary if m),
+                                "n_human": sum(1 for _, h in binary if h)}
+    # The unverified relay versus independent journalism judgement, per language of the article.
+    bc_by_language = {}
+    for lang in sorted({it.get("language") for it in items if it.get("language")}):
+        sub = [("B" if it["machine_category"] == "B" else "notB", "B" if it["human_category"] == "B" else "notB")
+               for it in items if it.get("language") == lang
+               and (it["machine_category"] in ("B", "C") or it["human_category"] in ("B", "C"))]
+        bc_by_language[lang] = {"kappa": cohens_kappa(sub), "n": len(sub)}
     return {"kappa_all": kappa_all, "kappa_bc": kappa_bc, "n": len(pairs), "n_bc": len(bc),
             "agreement": sum(1 for m, h in pairs if m == h) / float(len(pairs)) if pairs else None,
-            "confusion": {m: dict(c) for m, c in confusion.items()}}
+            "confusion": {m: dict(c) for m, c in confusion.items()},
+            "kappa_by_category": by_category, "bc_by_language": bc_by_language}
 
 
 def cmd_compute(conn, csv_path: Path, reviewer: str, record: bool = True) -> Dict:
@@ -129,8 +145,13 @@ def cmd_compute(conn, csv_path: Path, reviewer: str, record: bool = True) -> Dic
             aid = int(row["article_id"])
             if aid not in machine:
                 continue
+            language = machine[aid].get("language")
+            if not language:   # key files from before per-language kappa carry no language
+                found = conn.execute("SELECT language FROM articles WHERE id=?", (aid,)).fetchone()
+                language = found[0] if found else None
             items.append({"article_id": aid, "machine_category": machine[aid]["machine_category"], "human_category": h,
-                          "classification_id": machine[aid]["classification_id"], "note": row.get("human_note") or ""})
+                          "classification_id": machine[aid]["classification_id"], "note": row.get("human_note") or "",
+                          "language": language})
     res = compute_from_pairs(items)
     if not items:
         print("no coded rows found in %s" % csv_path)

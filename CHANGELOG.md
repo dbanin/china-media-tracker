@@ -4,6 +4,41 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Gate, sampling and publication changes, no ruleset version (2026-09-15)
+
+Made after a methodology review. The signature list is unchanged, so the
+ruleset version stays 2026.09.5; these change what reaches classification and
+what the interface may publish.
+
+The relevance gate now carries every Chinese province, autonomous region and
+the largest cities, and an item whose title or summary already fires a state
+origin decision passes whatever its keywords say. In three days of rejected
+items, province-only headlines such as a Jiangxi cooperation anniversary and a
+Dalian APEC meeting were discarded before any signature ran. Outlets in
+Singapore and Malaysia no longer pass on phrases about their own Chinese
+communities (home_phrases in pipeline/keywords.yaml). Items from an outlet's
+press release, sponsored or partner section skip the gate.
+
+When the daily model call ceiling binds, the articles sent are a stratified
+random draw across countries with the allocation recorded per day, instead of
+the oldest first.
+
+Every state origin label now stores its route (the signature group that
+established it) and every article its arrival (editorial feed or a release
+section). Existing labels are filled at the next export. Every feed poll records
+whether its window reached the previous poll, with an estimate of missed items,
+and the relay collector's hourly passes travel in its bundle.
+
+The interface shows unverified relay as not yet measured until the model has
+run, withholds relay counts until kappa on the relay versus independent
+journalism distinction reaches the threshold, defaults to state origin only,
+renames the share of all published items to a share of monitored output with a
+floor of five outlets, fixes the color scale across dates, and adds a no data
+state for languages without a keyword list.
+
+Themes version 2026.09.4 tags on the whole body instead of the first 800
+characters; every article is re-tagged at the next export.
+
 ## Ruleset 2026.09.5 (2026-09-14)
 
 A bare "CGTN" line now counts as a credit only in the last 600 characters

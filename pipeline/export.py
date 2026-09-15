@@ -1,29 +1,53 @@
 """Rebuild rollups and generate the static JSON the front end reads.
 
 Outputs in docs/data/:
-  latest.json          per-country totals, all time and last 30 days, with coverage flags
-  daily/YYYY-MM.json   per-day, per-country counts by category and method
-  outlets.json         registry with coverage metadata and feed health
-  meta.json            last run, kappa, review coverage, ruleset and schema versions, gaps
+  latest.json          per-country totals, all time and last 30 days, with coverage flags,
+                       language support, release section search status and warnings
+  daily/YYYY-MM.json   per-day, per-country counts by category and method, state origin by
+                       route, feed saturation, the model draw allocation and relay collector hours
+  outlets.json         registry with coverage metadata, feed health and release section status
+  meta.json            last run, kappa, review coverage, ruleset and schema versions, gaps, and
+                       the gates that decide what the interface may publish
   articles/ISO3.json   most recent classified articles per country for the country panel
   global_series.json   per-day global totals for the sparkline
 
 A day with an LLM ceiling event is marked in the daily file so a truncated day
-is never mistaken for a quiet day.
+is never mistaken for a quiet day, and a day on which the relay collector ran for
+too few hours is marked so a sleeping laptop is never mistaken for a quiet country.
 """
 import datetime as dt
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pipeline import config, registry, store
+from pipeline import classify_rules, config, gate, registry, store
 from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
 
 STALE_PUBLISHED_DAYS = 14
+
+ROUTE_LABELS = {
+    "wire_credit": "Wire credit line or dateline",
+    "distribution_stamp": "Press release distribution stamp",
+    "sponsored_disclosure": "Sponsored or partner disclosure",
+    "diplomatic_byline": "Signed by a Chinese diplomat",
+    "press_release_section": "Outlet's press release section",
+    "sponsored_section": "Outlet's sponsored content section",
+    "partner_section": "Outlet's partner content section",
+    "unattributed": "No signature; model judgement",
+}
+ARRIVAL_LABELS = {
+    "editorial_feed": "Editorial feed",
+    "press_release_section": "Outlet's press release section",
+    "sponsored_section": "Outlet's sponsored content section",
+    "partner_section": "Outlet's partner content section",
+}
+RELEASE_STATUSES = ["found", "none_found", "blocked", "unreachable"]
+CHANGELOG_HEADING = re.compile(r"^## Ruleset (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
 
 
 def _day(row) -> str:
@@ -44,13 +68,17 @@ def _day(row) -> str:
     return disc
 
 
+def _today() -> str:
+    return dt.datetime.now(dt.timezone.utc).date().isoformat()
+
+
 def article_rows(conn) -> List[Dict]:
     """One row per article with its current machine label and its latest human label."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.language, a.title, a.url, a.published_at, a.discovered_at,
-                  a.status, a.gate_relevant, a.dup_group_id, a.fail_reason, a.themes,
+                  a.status, a.gate_relevant, a.dup_group_id, a.fail_reason, a.themes, a.gate_terms,
                   c.category AS m_cat, c.method AS m_method, c.confidence AS m_conf, c.evidence_quote,
-                  c.reasoning, c.signatures_fired, c.classified_at, c.ruleset_version, c.model_version,
+                  c.reasoning, c.signatures_fired, c.classified_at, c.ruleset_version, c.model_version, c.route,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS h_cat
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1"""
@@ -136,7 +164,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
 def _empty_country() -> Dict:
     return {"A": 0, "B": 0, "C": 0, "N": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
-            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0}
+            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0,
+            "polls": 0, "sat": 0, "miss": 0}
 
 
 def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
@@ -153,6 +182,14 @@ def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
         target["uniqAB"] += row["n_unique_items"]
         if cat == "A":
             target["uniqA"] += row["n_unique_items"]
+
+
+def _feed_poll_days(conn):
+    """Per day and country: feed polls, saturated polls, and the estimated items missed between polls."""
+    return conn.execute(
+        """SELECT date, country, SUM(polls) polls, SUM(saturated) sat, SUM(missed_estimate) miss
+           FROM feed_polls GROUP BY date, country"""
+    ).fetchall()
 
 
 def _reviewed_block(conn, country: Optional[str], since: Optional[str]) -> Dict:
@@ -177,12 +214,99 @@ def _derive(c: Dict, outlets_active: int) -> Dict:
     c["per_outlet_ab"] = round((c["A"] + c["B"]) / outlets_active, 3) if outlets_active else None
     c["per_outlet_a"] = round(c["A"] / outlets_active, 3) if outlets_active else None
     attempted = c["fetched"] + c["paywalled"] + c["failed"] + c["blocked"]
+    # Paywalled articles are never classified, so they sit in no count and no denominator.
     c["paywall_share"] = round(c["paywalled"] / attempted, 4) if attempted else None
     c["reviewed_share"] = round(c["rev"] / c["cls"], 4) if c["cls"] else None
     c["share_of_all_target"] = round(c["ttarget"] / c["tdisc"], 5) if c["tdisc"] else None
     c["share_of_all_china"] = round(c["tchina"] / c["tdisc"], 5) if c["tdisc"] else None
     c["share_of_all_a"] = round(c["ta"] / c["tdisc"], 5) if c["tdisc"] else None
+    c["saturation_share"] = round(c.get("sat", 0) / c["polls"], 4) if c.get("polls") else None
     return c
+
+
+# ---------------------------------------------------------------------------
+# Relay collector heartbeat, language support, release sections, ruleset history
+# ---------------------------------------------------------------------------
+
+def relay_hours_by_day(conn) -> Dict[str, int]:
+    """Distinct clock hours per UTC day in which the relay collector completed a discovery pass."""
+    hours = defaultdict(set)
+    for r in conn.execute("SELECT started_at FROM relay_runs WHERE ok=1"):
+        hours[r["started_at"][:10]].add(r["started_at"][11:13])
+    return {d: len(h) for d, h in hours.items()}
+
+
+def relay_incomplete_days(conn, today: Optional[str] = None) -> List[str]:
+    """Complete UTC days, from the first full day with a heartbeat, on which the relay collector
+    ran in fewer than RELAY_DAY_MIN_HOURS hours. The first day is skipped because the bundle's
+    seven-day window usually cuts it."""
+    by_day = relay_hours_by_day(conn)
+    if not by_day:
+        return []
+    today = dt.date.fromisoformat(today or _today())
+    d = dt.date.fromisoformat(min(by_day)) + dt.timedelta(days=1)
+    out = []
+    while d < today:
+        if by_day.get(d.isoformat(), 0) < config.RELAY_DAY_MIN_HOURS:
+            out.append(d.isoformat())
+        d += dt.timedelta(days=1)
+    return out
+
+
+def relay_status(conn, outlets: List[Dict]) -> Dict:
+    relayed = [o for o in outlets if o.get("active") and registry.collector_of(o) == "self_hosted"]
+    last = conn.execute("SELECT MAX(COALESCE(finished_at, started_at)) FROM relay_runs WHERE ok=1").fetchone()[0]
+    hours = stale = None
+    if last:
+        t = dt.datetime.fromisoformat(last)
+        t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
+        hours = round((dt.datetime.now(dt.timezone.utc) - t).total_seconds() / 3600.0, 1)
+        stale = hours >= config.RELAY_STALE_HOURS
+    return {"outlets": len(relayed), "countries": sorted({o["country"] for o in relayed}), "last_run": last,
+            "hours_since_last_run": hours, "stale": stale, "incomplete_days": relay_incomplete_days(conn),
+            "min_hours_per_day": config.RELAY_DAY_MIN_HOURS, "stale_after_hours": config.RELAY_STALE_HOURS}
+
+
+def language_support(languages, supported) -> str:
+    """full when every language has its own term list, none when no language does. English is
+    always supported, because every language is also matched on the English terms."""
+    langs = [l for l in languages if l]
+    if not langs:
+        return "none"
+    n = sum(1 for l in langs if l == "en" or l in supported)
+    return "full" if n == len(langs) else ("partial" if n else "none")
+
+
+def release_summary(outlets: List[Dict]) -> Dict:
+    """Active outlets by the status of the search for press release, sponsored and partner sections."""
+    active = [o for o in outlets if o.get("active")]
+    out = {s: 0 for s in RELEASE_STATUSES}
+    out["not_searched"] = 0
+    for o in active:
+        st = (o.get("release_sections") or {}).get("status")
+        out[st if st in RELEASE_STATUSES else "not_searched"] += 1
+    out["section_feeds"] = sum(len(o.get("section_feeds") or []) for o in active)
+    out["outlets_active"] = len(active)
+    return out
+
+
+def _arrival_totals(conn) -> Dict[str, int]:
+    """Current state origin labels by where the article was collected."""
+    out = defaultdict(int)
+    for r in conn.execute(
+        """SELECT a.gate_terms FROM classifications c JOIN articles a ON a.id=c.article_id
+           WHERE c.is_current=1 AND c.category='A'"""
+    ):
+        out[classify_rules.arrival_of(r["gate_terms"])] += 1
+    return dict(out)
+
+
+def ruleset_changes(path: Path = None) -> List[Dict]:
+    path = path or (config.ROOT / "CHANGELOG.md")
+    if not path.exists():
+        return []
+    found = CHANGELOG_HEADING.findall(path.read_text(encoding="utf-8"))
+    return sorted(({"version": v, "date": d} for v, d in found), key=lambda x: x["date"])
 
 
 def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Optional[Dict] = None) -> Dict:
@@ -194,6 +318,10 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
     for o in outlets:
         by_country_outlets[o["country"]].append(o)
     feed_health = {r["feed_url"]: dict(r) for r in conn.execute("SELECT * FROM feed_health")}
+    gate_langs = gate.supported_languages()
+    theme_langs = themes_mod.languages()
+    relay = relay_status(conn, outlets)
+    relay_inc30 = [d for d in relay["incomplete_days"] if d >= since30]
 
     all_time = defaultdict(_empty_country)
     last30 = defaultdict(_empty_country)
@@ -210,36 +338,63 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
             t["pending"] += r["llm_pending"]
             t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
+    for r in _feed_poll_days(conn):
+        for target, ok in ((all_time, True), (last30, r["date"] >= since30)):
+            if ok:
+                t = target[r["country"]]
+                t["polls"] += r["polls"] or 0; t["sat"] += r["sat"] or 0; t["miss"] += int(round(r["miss"] or 0))
 
     countries = {}
     for country, os_ in by_country_outlets.items():
         active = [o for o in os_ if o["active"]]
-        feeds = [f for o in active for f in o["feeds"]]
+        # Feed health counts editorial feeds only. A quiet or unreadable sponsored section is not a failing feed,
+        # so section feeds are reported beside them and never trip the failing feeds warning.
+        entries = [f for o in active for f in registry.feed_entries(o)]
+        feeds = [f["url"] for f in entries if f.get("kind", registry.EDITORIAL) == registry.EDITORIAL]
+        section_urls = [f["url"] for f in entries if f.get("kind", registry.EDITORIAL) != registry.EDITORIAL]
         feeds_ok = sum(1 for f in feeds if feed_health.get(f) and feed_health[f]["consecutive_failures"] == 0)
+        languages = sorted({o["language"] for o in active})
+        relayed = sum(1 for o in active if registry.collector_of(o) == "self_hosted")
         entry = {
             "coverage": "monitored" if active else "no_active_outlets",
             "outlets_total": len(os_), "outlets_active": len(active),
             "feeds_total": len(feeds), "feeds_ok": feeds_ok,
+            "section_feeds_total": len(section_urls),
+            "section_feeds_ok": sum(1 for f in section_urls if feed_health.get(f) and feed_health[f]["consecutive_failures"] == 0),
             "population": population.get(country),
             "top_outlets": len(top_ids.get(country, ())), "top_outlets_ranked": country in ranked,
+            "languages": languages,
+            "language_support": language_support(languages, gate_langs),
+            "theme_language_support": language_support(languages, theme_langs),
+            "relay_outlets": relayed,
+            "release_sections": release_summary(os_),
             "all_time": _derive(dict(all_time[country]), len(active)),
             "last_30d": _derive(dict(last30[country]), len(active)),
             "reviewed_all_time": _reviewed_block(conn, country, None),
             "reviewed_last_30d": _reviewed_block(conn, country, since30),
             "warnings": [],
         }
+        at = entry["all_time"]
         if feeds and (len(feeds) - feeds_ok) / float(len(feeds)) >= config.FEED_FAILURE_WARNING_SHARE:
             entry["warnings"].append({"type": "feeds_failing", "text": "%d of %d feeds are failing" % (len(feeds) - feeds_ok, len(feeds))})
-        pw = entry["all_time"]["paywall_share"]
-        if pw is not None and pw >= config.PAYWALL_FLAG_SHARE and entry["all_time"]["rel"] >= 10:
-            entry["warnings"].append({"type": "paywalled", "text": "%d percent of retrieved articles were paywalled; counts are not comparable to other countries" % round(pw * 100)})
-        at = entry["all_time"]
+        pw = at["paywall_share"]
+        if pw is not None and pw >= config.PAYWALL_FLAG_SHARE and at["rel"] >= 10:
+            entry["warnings"].append({"type": "paywalled", "text": "%d percent of retrieved articles were paywalled and are left out of every count and every share; counts are not comparable to other countries" % round(pw * 100)})
         attempted = at["fetched"] + at["paywalled"] + at["failed"] + at["blocked"]
         if attempted >= 10 and (at["failed"] + at["blocked"]) / float(attempted) >= config.PAYWALL_FLAG_SHARE:
             entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
-        pending = entry["all_time"]["pending"]
-        if pending >= 5 and pending >= 0.25 * max(entry["all_time"]["rel"], 1):
+        pending = at["pending"]
+        if pending >= 5 and pending >= 0.25 * max(at["rel"], 1):
             entry["warnings"].append({"type": "llm_backlog", "text": "%d articles carrying official Chinese sourcing are awaiting the verification judgement, so the confirmed counts are a floor" % pending})
+        if at["polls"] >= 10 and at["sat"] / float(at["polls"]) >= config.FEED_SATURATION_WARNING_SHARE:
+            entry["warnings"].append({"type": "feed_saturation", "text": "%d percent of feed polls came back as a full window with nothing seen before, so items were lost between polls; an estimated %d were missed" % (round(100.0 * at["sat"] / at["polls"]), at["miss"])})
+        if relayed:
+            if relay["stale"]:
+                entry["warnings"].append({"type": "relay_stale", "text": "%d of this country's outlets are collected from the owner's machine, which has not collected for %.0f hours; recent counts are incomplete" % (relayed, relay["hours_since_last_run"])})
+            if relay_inc30:
+                entry["warnings"].append({"type": "relay_incomplete", "text": "%d of this country's outlets are collected from the owner's machine, which ran in fewer than %d hours on %d of the last 30 days; counts on those days are incomplete" % (relayed, config.RELAY_DAY_MIN_HOURS, len(relay_inc30))})
+        if active and entry["language_support"] == "none":
+            entry["warnings"].append({"type": "unsupported_language", "text": "no keyword list exists for %s, so only international and English terms are matched; an empty map here says little" % ", ".join(languages)})
         if not active:
             entry["warnings"].append({"type": "no_active_outlets", "text": "all registered outlets are inactive"})
         countries[country] = entry
@@ -247,17 +402,18 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         if g["country"] not in countries:
             countries[g["country"]] = {"coverage": "gap", "gap_reason": g["reason"], "outlets_total": 0, "outlets_active": 0,
                                        "feeds_total": 0, "feeds_ok": 0, "population": population.get(g["country"]),
-                                       "top_outlets": 0, "top_outlets_ranked": False, "all_time": _derive(_empty_country(), 0),
-                                       "last_30d": _derive(_empty_country(), 0), "warnings": []}
+                                       "top_outlets": 0, "top_outlets_ranked": False, "languages": [], "language_support": "none",
+                                       "theme_language_support": "none", "relay_outlets": 0, "release_sections": release_summary([]),
+                                       "all_time": _derive(_empty_country(), 0), "last_30d": _derive(_empty_country(), 0), "warnings": []}
 
-    totals = {"all_time": _derive(_empty_country(), sum(1 for o in outlets if o["active"])),
-              "last_30d": _derive(_empty_country(), sum(1 for o in outlets if o["active"]))}
+    n_active = sum(1 for o in outlets if o["active"])
+    totals = {"all_time": _derive(_empty_country(), n_active), "last_30d": _derive(_empty_country(), n_active)}
     for scope_key, src in (("all_time", all_time), ("last_30d", last30)):
         t = totals[scope_key]
         for c in src.values():
             for k in _empty_country():
                 t[k] += c[k]
-        _derive(t, sum(1 for o in outlets if o["active"]))
+        _derive(t, n_active)
     totals["population"] = sum(v["population"] or 0 for v in countries.values() if v["coverage"] == "monitored")
     return {"generated_at": store.utcnow(), "window_start_30d": since30, "countries": countries, "totals": totals}
 
@@ -274,20 +430,37 @@ def build_daily(conn) -> Dict[str, Dict]:
         t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
         t["pending"] += r["llm_pending"]
         t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
+    for r in _feed_poll_days(conn):
+        t = months[r["date"][:7]]["days"][r["date"]][r["country"]]
+        t["polls"] += r["polls"] or 0; t["sat"] += r["sat"] or 0; t["miss"] += int(round(r["miss"] or 0))
     ceiling_days = {r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1")}
     reviewed = defaultdict(lambda: defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0}))
     for r in conn.execute("SELECT * FROM daily_counts WHERE scope='reviewed'"):
         reviewed[r["date"]][r["country"]][{"A": "A", "B": "B", "C": "C", "not_relevant": "N"}[r["category"]]] += r["n"]
+    sampling = defaultdict(dict)
+    for r in conn.execute("SELECT date, country, eligible, drawn FROM llm_sampling"):
+        sampling[r["date"]][r["country"]] = [r["eligible"], r["drawn"]]
+    relay_hours = relay_hours_by_day(conn)
+    relay_incomplete = set(relay_incomplete_days(conn))
     # Theme counts per day and country: theme id -> [all China coverage, target articles, state origin].
     # Only China coverage counts (state origin, relay, independent, and pending candidates). An article
     # carries every theme it matches, so a country's theme counts can sum to more than its articles.
     theme_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0, 0, 0])))
+    # State origin per day and country by the route it arrived by, and labels still carrying an older ruleset.
+    routes = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    arrivals = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    older_ruleset = defaultdict(int)
     for r in article_rows(conn):
         pending = r["status"] in ("awaiting_llm", "llm_submitted")
         cat = r["m_cat"]
+        d = _day(r)
+        if cat and r["ruleset_version"] and r["ruleset_version"] != config.RULESET_VERSION:
+            older_ruleset[d] += 1
+        if cat == "A":
+            routes[d][r["country"]][r["route"] or "unattributed"] += 1
+            arrivals[d][r["country"]][classify_rules.arrival_of(r["gate_terms"])] += 1
         if not (pending or cat in ("A", "B", "C")):
             continue
-        d = _day(r)
         for t in themes_mod.themes_of(r["themes"]):
             v = theme_counts[d][r["country"]][t]
             v[0] += 1
@@ -295,8 +468,8 @@ def build_daily(conn) -> Dict[str, Dict]:
                 v[1] += 1
             if cat == "A":
                 v[2] += 1
-    for d in theme_counts:
-        months[d[:7]]["days"][d]  # a day that has theme counts always gets an entry, even with no rollup rows
+    for d in list(theme_counts) + list(routes):
+        months[d[:7]]["days"][d]  # a day that has theme or route counts always gets an entry, even with no rollup rows
     out = {}
     for month, m in months.items():
         days = {}
@@ -304,7 +477,13 @@ def build_daily(conn) -> Dict[str, Dict]:
             days[d] = {"countries": {c: v for c, v in per_country.items()},
                        "reviewed": {c: v for c, v in reviewed.get(d, {}).items()},
                        "themes": {c: {t: v for t, v in ts.items()} for c, ts in theme_counts.get(d, {}).items()},
-                       "llm_ceiling_hit": d in ceiling_days}
+                       "routes": {c: dict(rs) for c, rs in routes.get(d, {}).items()},
+                       "arrivals": {c: dict(xs) for c, xs in arrivals.get(d, {}).items()},
+                       "llm_sampling": sampling.get(d, {}),
+                       "llm_ceiling_hit": d in ceiling_days,
+                       "relay_hours": relay_hours.get(d),
+                       "relay_incomplete": d in relay_incomplete,
+                       "labels_on_older_ruleset": older_ruleset.get(d, 0)}
         out[month] = {"month": month, "days": days}
     return out
 
@@ -314,7 +493,9 @@ def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
     for month in sorted(daily):
         for d, day in sorted(daily[month]["days"].items()):
             tot = {"date": d, "A": 0, "B": 0, "C": 0, "N": 0, "rel": 0, "paywalled": 0, "pending": 0,
-                   "countries_with_A": 0, "llm_ceiling_hit": day["llm_ceiling_hit"]}
+                   "countries_with_A": 0, "llm_ceiling_hit": day["llm_ceiling_hit"],
+                   "relay_incomplete": day.get("relay_incomplete", False),
+                   "labels_on_older_ruleset": day.get("labels_on_older_ruleset", 0)}
             for c, v in day["countries"].items():
                 for k in ("A", "B", "C", "N", "rel", "paywalled", "pending"):
                     tot[k] += v[k]
@@ -351,16 +532,22 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
         t["disc"] = r["disc"]; t["rel"] = r["rel"] or 0; t["fetched"] = r["fetched"] or 0
         t["paywalled"] = r["paywalled"] or 0; t["failed"] = r["failed"] or 0; t["blocked"] = r["blocked"] or 0
         t["pending"] = r["pending"] or 0
+    for r in conn.execute("SELECT outlet_id, SUM(polls) polls, SUM(saturated) sat, SUM(missed_estimate) miss FROM feed_polls GROUP BY outlet_id"):
+        t = per_outlet[r["outlet_id"]]
+        t["polls"] = r["polls"] or 0; t["sat"] = r["sat"] or 0; t["miss"] = int(round(r["miss"] or 0))
     out = []
     for o in outlets:
         feeds = []
-        for f in o["feeds"]:
-            h = feed_health.get(f)
-            feeds.append({"url": f, "ok": bool(h and h["consecutive_failures"] == 0), "last_ok": h["last_ok"] if h else None,
-                          "last_error": h["last_error"] if h else None, "consecutive_failures": h["consecutive_failures"] if h else None})
+        for fe in registry.feed_entries(o):
+            h = feed_health.get(fe["url"])
+            feeds.append({"url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL), "ok": bool(h and h["consecutive_failures"] == 0),
+                          "last_ok": h["last_ok"] if h else None, "last_error": h["last_error"] if h else None,
+                          "consecutive_failures": h["consecutive_failures"] if h else None})
         out.append({"id": o["id"], "name": o["name"], "country": o["country"], "language": o["language"],
                     "tier": o["tier"], "active": o["active"], "notes": o.get("notes"),
-                    "inactive_reason": o.get("inactive_reason"), "feeds": feeds, "counts": dict(per_outlet[o["id"]])})
+                    "inactive_reason": o.get("inactive_reason"), "feeds": feeds, "counts": dict(per_outlet[o["id"]]),
+                    "collector": registry.collector_of(o),
+                    "release_sections": (o.get("release_sections") or {}).get("status") or "not_searched"})
     return {"generated_at": store.utcnow(), "outlets": out}
 
 
@@ -392,9 +579,9 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
     Chinese sourcing whose verification judgement is pending, then independent journalism."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.title, a.url, a.published_at, a.discovered_at, a.dup_group_id,
-                  a.status, a.llm_trigger, a.themes,
+                  a.status, a.llm_trigger, a.themes, a.gate_terms,
                   c.category, c.method, c.confidence, c.evidence_quote, c.reasoning, c.signatures_fired, c.model_version,
-                  c.ruleset_version, c.china_sources_cited,
+                  c.ruleset_version, c.china_sources_cited, c.route,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 AND (c.category IN ('A','B','C') OR a.status IN ('awaiting_llm','llm_submitted'))
@@ -413,6 +600,8 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
             "sources": json.loads(r["china_sources_cited"] or "[]"),
             "model": r["model_version"], "ruleset": r["ruleset_version"], "dup_group": r["dup_group_id"],
             "themes": themes_mod.themes_of(r["themes"]),
+            "route": r["route"] if cat == "A" else None,
+            "arrival": classify_rules.arrival_of(r["gate_terms"]),
         }
         if pending and r["llm_trigger"]:
             try:
@@ -441,6 +630,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     # than reporting the previous export's time.
     last_runs["export"] = store.utcnow()
     kappa = conn.execute("SELECT * FROM agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
+    details = {}
+    if kappa and kappa["details"]:
+        try:
+            details = json.loads(kappa["details"]) or {}
+        except ValueError:
+            details = {}
     cls_total = conn.execute("SELECT COUNT(*) FROM classifications WHERE is_current=1").fetchone()[0]
     reviewed_total = conn.execute("SELECT COUNT(DISTINCT article_id) FROM human_reviews").fetchone()[0]
     llm = conn.execute("SELECT SUM(calls) calls, SUM(ceiling_hit) ceilings FROM llm_usage").fetchone()
@@ -451,6 +646,15 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     attempted = tot["fetched"] + tot["paywalled"] + tot["failed"] + tot["blocked"]
     paywall_countries = [c for c, v in latest["countries"].items()
                          if any(w["type"] == "paywalled" for w in v.get("warnings", []))]
+    settled = bool(kappa and kappa["kappa_bc"] is not None and kappa["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD)
+    withheld_languages = sorted(
+        lang for lang, v in (details.get("bc_by_language") or {}).items()
+        if (v.get("n") or 0) >= config.KAPPA_MIN_LANGUAGE_ITEMS and v.get("kappa") is not None
+        and v["kappa"] < config.KAPPA_WARNING_THRESHOLD)
+    mix = {r[0]: r[1] for r in conn.execute("SELECT ruleset_version, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY ruleset_version")}
+    route_totals = {r[0] or "unattributed": r[1] for r in conn.execute(
+        "SELECT route, COUNT(*) FROM classifications WHERE is_current=1 AND category='A' GROUP BY route")}
+    sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), COALESCE(SUM(missed_estimate), 0) FROM feed_polls").fetchone()
     return {
         "schema_version": config.SCHEMA_VERSION,
         "ruleset_version": config.RULESET_VERSION,
@@ -464,9 +668,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "countries_in_gaps": len(gaps),
         "themes": themes_mod.catalog(),
         "themes_version": themes_mod.version(),
+        "theme_languages": sorted(themes_mod.languages()),
+        "gate_languages": len(gate.supported_languages()),
         "population_source": registry.population_source(),
         "top_outlets_per_country": registry.TOP_OUTLETS_PER_COUNTRY,
         "countries_with_audience_ranks": registry.top_outlets(outlets)[1],
+        "min_outlets_for_output_share": config.MIN_OUTLETS_FOR_OUTPUT_SHARE,
         "gaps": gaps,
         "articles_discovered": conn.execute("SELECT COALESCE(SUM(discovered), 0) FROM daily_discovery").fetchone()[0],
         "first_discovered": (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None,
@@ -478,14 +685,34 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "review_coverage": round(reviewed_total / cls_total, 4) if cls_total else 0.0,
         "paywall_share": round(tot["paywalled"] / attempted, 4) if attempted else None,
         "paywall_flagged_countries": sorted(paywall_countries),
+        "paywalled_in_denominator": False,
         "kappa": {"all": kappa["kappa_all"], "bc": kappa["kappa_bc"], "n": kappa["sample_size"], "n_bc": kappa["n_bc"],
-                  "computed_at": kappa["computed_at"]} if kappa else None,
+                  "computed_at": kappa["computed_at"], "by_category": details.get("kappa_by_category"),
+                  "bc_by_language": details.get("bc_by_language")} if kappa else None,
         "kappa_warning_threshold": config.KAPPA_WARNING_THRESHOLD,
-        "b_counts_settled": bool(kappa and kappa["kappa_bc"] is not None and kappa["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD),
+        "kappa_min_language_items": config.KAPPA_MIN_LANGUAGE_ITEMS,
+        "b_counts_settled": settled,
+        # The interface publishes unverified relay counts only when this is true. Until the verification
+        # stage has run, relay is not measured at all and is shown as such, never as zero.
+        "relay_measured": bool(llm["calls"]),
+        "relay_publishable": settled and bool(llm["calls"]),
+        "relay_withheld_languages": withheld_languages,
         "llm_calls_total": llm["calls"] or 0,
         "llm_ceiling_days": ceiling_days,
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,
+        "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],
         "paywall_flag_share": config.PAYWALL_FLAG_SHARE,
+        "ruleset_changes": ruleset_changes(),
+        "ruleset_mix": mix,
+        "reclassification_complete": set(mix) <= {config.RULESET_VERSION},
+        "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r)} for r in classify_rules.ROUTE_IDS],
+        "route_totals": route_totals,
+        "arrivals": [{"id": r, "label": ARRIVAL_LABELS.get(r, r)} for r in classify_rules.ARRIVAL_IDS],
+        "arrival_totals": _arrival_totals(conn),
+        "relay_collector": relay_status(conn, outlets),
+        "feed_saturation": {"polls": sat[0], "saturated": sat[1], "missed_estimate": int(round(sat[2])),
+                            "warning_share": config.FEED_SATURATION_WARNING_SHARE},
+        "release_sections": release_summary(outlets),
         "categories": {
             "A": "State origin. Text written by an entity of the Chinese state and published essentially unaltered.",
             "B": "Unverified relay. Written by the local outlet but passes on official Chinese sourcing without independent confirmation.",
@@ -507,8 +734,8 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
     audit_dir.mkdir(parents=True, exist_ok=True)
     rows = conn.execute(
         """SELECT a.id, a.url, a.url_hash, a.outlet_id, a.country, a.language, a.title, a.published_at, a.discovered_at,
-                  a.status, a.dup_group_id, a.themes, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
-                  c.signatures_fired, c.china_sources_cited, c.model_version, c.ruleset_version, c.classified_at,
+                  a.status, a.dup_group_id, a.themes, a.gate_terms, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
+                  c.signatures_fired, c.china_sources_cited, c.model_version, c.ruleset_version, c.classified_at, c.route,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 ORDER BY a.id"""
@@ -534,6 +761,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     log_id = store.start_stage(conn, run_id, "export")
     pruned = store.prune_gated_out(conn)
     tagged = themes_mod.ensure(conn)
+    routed = classify_rules.ensure_routes(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
@@ -553,7 +781,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
-              "pruned_gated_out": pruned, "themes_tagged": tagged, "audit_files": write_audit_files(conn, audit_dir)}
+              "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
     store.vacuum(conn)
