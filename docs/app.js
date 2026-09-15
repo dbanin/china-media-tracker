@@ -126,7 +126,8 @@
   /* Seven distinct steps, interpolated in Lab so lightness falls steadily: the darker the shade, the more articles. Bin edges follow a square law, so the low end gets most of the
      resolution: a country at a fifth of the cap is already three steps away from white. */
   var STEPS = 7;
-  var STEP_COLORS = d3.range(STEPS).map(function (i) { return d3.interpolateLab(LOW_COLOR, HIGH_COLOR)(STEPS === 1 ? 1 : i / (STEPS - 1)); });
+  var RAMP = d3.piecewise(d3.interpolateLab, [LOW_COLOR, "#ef8a73", "#d23a2e", "#9e0f17", HIGH_COLOR]);
+  var STEP_COLORS = d3.range(STEPS).map(function (i) { return RAMP(STEPS === 1 ? 1 : i / (STEPS - 1)); });
   function stepEdges(max) { return d3.range(1, STEPS).map(function (i) { return max * Math.pow(i / STEPS, 2); }); }
   function setupMap() {
     svg = d3.select("#map");
