@@ -16,9 +16,12 @@ The daily call ceiling (config.LLM_DAILY_CALL_CEILING) stops the stage and
 records a ceiling event in llm_usage and run_log, so a truncated day is never
 mistaken for a quiet day.
 """
+import datetime as dt
 import json
+import random
 import time
-from typing import Dict, List, Optional
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 
 from pipeline import config, store
 
@@ -202,6 +205,18 @@ def _copy_from_dup_group(conn, row) -> bool:
     return True
 
 
+def _model_route(conn, article_id: int) -> str:
+    """Route of a state origin label the model gave, from the candidate signatures that sent the
+    article to the model; unattributed when only an official sourcing trigger did."""
+    from pipeline.classify_rules import route_of_ids
+    row = conn.execute("SELECT llm_trigger FROM articles WHERE id=?", (article_id,)).fetchone()
+    try:
+        ids = (json.loads((row and row["llm_trigger"]) or "{}") or {}).get("a_candidate", [])
+    except (ValueError, AttributeError):
+        ids = []
+    return route_of_ids(ids)
+
+
 def store_result(conn, article_id: int, data: Dict, model_version: str) -> None:
     store.insert_classification(
         conn, article_id, "llm", data["category"], data["confidence"],
@@ -210,13 +225,44 @@ def store_result(conn, article_id: int, data: Dict, model_version: str) -> None:
         independent_confirmation_present=data.get("independent_confirmation_present"),
         confirmation_evidence=data.get("confirmation_evidence"), model_version=model_version,
         raw_response=data.get("_raw"),
+        route=_model_route(conn, article_id) if data["category"] == "A" else None,
     )
 
 
 def pending_articles(conn, limit: int) -> List:
     return conn.execute(
-        "SELECT * FROM articles WHERE status='awaiting_llm' ORDER BY discovered_at ASC LIMIT ?", (limit,)
+        "SELECT * FROM articles WHERE status='awaiting_llm' ORDER BY discovered_at ASC, id ASC LIMIT ?", (limit,)
     ).fetchall()
+
+
+def draw(rows: List, k: int, seed: str) -> Tuple[List, Dict[str, List[int]]]:
+    """Stratified random draw of k rows across countries.
+
+    Every country gets the same sampling fraction of its eligible rows; the rounding remainder
+    goes to the largest fractional parts, ties broken at random. First come first served would
+    sample by time zone: the countries whose articles arrive late in the UTC day would be the ones
+    the ceiling truncates. Rows come back in random order, so a run that stops at its deadline
+    also stops at random. Returns the chosen rows and {country: [eligible, drawn]}."""
+    rng = random.Random(seed)
+    by_country = defaultdict(list)
+    for r in rows:
+        by_country[r["country"]].append(r)
+    total = len(rows)
+    k = max(0, min(k, total))
+    quota, remainders = {}, []
+    for c in sorted(by_country):
+        exact = len(by_country[c]) * k / float(total)
+        quota[c] = int(exact)
+        remainders.append((exact - quota[c], rng.random(), c))
+    for _, _, c in sorted(remainders, reverse=True)[:k - sum(quota.values())]:
+        quota[c] += 1
+    chosen = []
+    for c in sorted(by_country):
+        pool = list(by_country[c])
+        rng.shuffle(pool)
+        chosen.extend(pool[:quota[c]])
+    rng.shuffle(chosen)
+    return chosen, {c: [len(by_country[c]), quota[c]] for c in sorted(by_country)}
 
 
 def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False, dry_run: bool = False,
@@ -250,27 +296,31 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             conn.commit()
         else:
             todo.append(r)
-    # In synchronous mode, later members of a group can copy from a member classified in this run,
-    # so the copy check runs again inside the loop. Keep group members adjacent.
-    todo.sort(key=lambda r: (r["dup_group_id"] or r["id"], r["id"]))
+    # When the ceiling binds, the articles sent are a stratified random draw across countries and the
+    # allocation is recorded; otherwise every article is sent, in random order. In synchronous mode,
+    # later members of a near-duplicate group still copy from a member classified earlier in this run.
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    binding = remaining < len(todo)
+    chosen, allocation = draw(todo, remaining, "llm-draw-%s" % today)
+    if binding:
+        counts["ceiling_hit"] = True
+        counts["draw"] = {"eligible": len(todo), "drawn": len(chosen), "countries": len(allocation)}
 
     if batch and not dry_run:
         counts.update(_collect_batches(conn, client))
-        if remaining == 0 and todo:
-            store.record_llm_usage(conn, 0, 0, 0, ceiling_hit=True)
-            counts["ceiling_hit"] = True
-        else:
-            n = _submit_batch(conn, client, todo[:remaining])
-            counts["batch_submitted"] = n
-            store.record_llm_usage(conn, n, 0, 0, ceiling_hit=(n < len(todo)))
-            counts["ceiling_hit"] = n < len(todo)
+        n = _submit_batch(conn, client, chosen)
+        counts["batch_submitted"] = n
+        store.record_llm_usage(conn, n, 0, 0, ceiling_hit=binding)
+        if binding:
+            store.record_llm_sampling(conn, today, allocation)
         conn.commit()
-        store.finish_stage(conn, log_id, True, counts, ceiling_hit=counts["ceiling_hit"],
-                           notes="ceiling %d reached; %d left pending" % (ceiling, len(todo) - counts["batch_submitted"]) if counts["ceiling_hit"] else "")
+        store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
+                           notes="ceiling %d reached; %d left pending after a stratified draw" % (ceiling, len(todo) - n) if binding else "")
         return counts
 
+    sent = defaultdict(int)
     consecutive_errors = 0
-    for r in todo:
+    for r in chosen:
         if deadline and time.time() > deadline:
             counts["skipped_deadline"] += 1
             continue
@@ -279,9 +329,6 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             conn.commit()
             continue
         if remaining <= 0:
-            counts["ceiling_hit"] = True
-            store.record_llm_usage(conn, 0, 0, 0, ceiling_hit=True)
-            conn.commit()
             break
         from pipeline.classify_rules import ensure_body
         body = ensure_body(conn, r)
@@ -296,12 +343,14 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             consecutive_errors += 1
             counts["last_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
             if consecutive_errors >= max_consecutive_errors:
+                _record_draw(conn, today, binding, allocation, sent)
                 store.finish_stage(conn, log_id, False, counts, notes="aborted after repeated API errors: %s: %s" % (type(exc).__name__, str(exc)[:300]))
                 return counts
             time.sleep(min(30, 2 ** consecutive_errors))
             continue
         remaining -= 1
         counts["calls"] += 1
+        sent[r["country"]] += 1
         data = parse_response(message)
         usage = data.get("_usage") if data else None
         store.record_llm_usage(conn, 1, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
@@ -316,10 +365,21 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         store_result(conn, r["id"], data, getattr(message, "model", None) or config.LLM_MODEL)
         counts["classified"] += 1
         conn.commit()
+    _record_draw(conn, today, binding, allocation, sent)
     left = conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0]
-    store.finish_stage(conn, log_id, True, counts, ceiling_hit=counts["ceiling_hit"],
-                       notes=("daily ceiling of %d calls reached with %d articles left pending" % (ceiling, left)) if counts["ceiling_hit"] else "")
+    store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
+                       notes=("daily ceiling of %d calls reached; a stratified draw left %d articles pending" % (ceiling, left)) if binding else "")
     return counts
+
+
+def _record_draw(conn, today: str, binding: bool, allocation: Dict[str, List[int]], sent: Dict[str, int]) -> None:
+    """Record a binding draw: the ceiling event, and per country the eligible articles and the calls
+    actually made, which fall short of the allocation when a body is missing or the deadline passes."""
+    if not binding:
+        return
+    store.record_llm_usage(conn, 0, 0, 0, ceiling_hit=True)
+    store.record_llm_sampling(conn, today, {c: [eligible, sent.get(c, 0)] for c, (eligible, _) in allocation.items()})
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------

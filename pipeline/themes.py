@@ -2,9 +2,11 @@
 
 Deterministic and multilingual, so the counts are reproducible without a model: an
 article carries every theme whose terms (pipeline/themes.yaml) appear in its title, its
-feed summary, or the first BODY_CHARS characters of its body. An article with no theme
-is Other. Tags are stored on the article with the themes version, and an export
-re-tags any article whose stored version differs, so a term change applies to history.
+feed summary, or anywhere in its body. Until themes version 2026.09.4 only the first 800
+characters of the body were read, which favored whatever an article names early,
+typically diplomacy and place names. An article with no theme is Other. Tags are stored
+on the article with the themes version, and an export re-tags any article whose stored
+version differs, so a term change applies to history.
 """
 import json
 import re
@@ -16,7 +18,6 @@ import yaml
 from pipeline import config, gate, store
 
 THEMES_PATH = config.ROOT / "pipeline" / "themes.yaml"
-BODY_CHARS = 800
 _ACRONYM = re.compile(r"[A-Z0-9][A-Z0-9\-]{1,5}")
 
 
@@ -71,8 +72,15 @@ def _compiled(language: str):
     return out
 
 
+def languages() -> set:
+    """Languages with theme terms of their own, aliases included."""
+    data = load()
+    langs = {l for t in data["themes"] for l in t["terms"] if l != "all"}
+    return langs | {a for a, target in (data.get("language_aliases") or {}).items() if target in langs}
+
+
 def tag(title: Optional[str], summary: Optional[str], body: Optional[str], language: str) -> List[str]:
-    text = "\n".join([title or "", gate.strip_html(summary or ""), (body or "")[:BODY_CHARS]])
+    text = "\n".join([title or "", gate.strip_html(summary or ""), body or ""])
     found = [tid for tid, pats in _compiled(language or "en") if any(p.search(text) for p in pats)]
     return found or ["other"]
 

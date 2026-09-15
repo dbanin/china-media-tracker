@@ -56,10 +56,12 @@ def test_acronyms_are_case_sensitive():
     assert "technology" not in t("Ai que saudade da praia", "pt")
 
 
-def test_body_head_counts_but_not_the_whole_body():
+def test_the_whole_body_counts():
+    """Themes version 2026.09.4: the whole body is read, not only the first 800 characters, which
+    favored whatever an article names early."""
     head = "The delegation discussed the summit agenda. "
     assert "diplomacy" in t("A visit", "en", body=head)
-    assert "diplomacy" not in t("A visit", "en", body="x " * 1000 + "summit")
+    assert "diplomacy" in t("A visit", "en", body="x " * 1000 + "summit")
 
 
 def test_ensure_tags_and_retags_on_version_change(tmp_path, monkeypatch):

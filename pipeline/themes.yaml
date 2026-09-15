@@ -1,5 +1,5 @@
-version: 2026.09.3
-note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or the first 800 characters of its body; an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged at the next export.
+version: 2026.09.4
+note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or anywhere in its body (only the first 800 characters before 2026.09.4); an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged at the next export.
 language_aliases:
   ms: id
 substring_languages:

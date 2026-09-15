@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=54">
+<link rel="stylesheet" href="style.css?v=55">
 </head>
 <body>
 <header class="top">
@@ -22,8 +22,8 @@
   <div class="control">
     <label>Measure</label>
     <div class="segment" id="measure">
-      <button data-measure="target" class="active" title="State placements plus pieces carrying official Chinese sourcing">Target articles</button>
-      <button data-measure="a" title="Text placed by the Chinese state and published unaltered">State origin only</button>
+      <button data-measure="a" class="active" title="Text placed by the Chinese state and published unaltered, decided by signatures without the model">State origin only</button>
+      <button data-measure="target" title="State origin, confirmed unverified relay, and pieces carrying official Chinese sourcing whose verification has not run">Target articles</button>
       <button data-measure="china" title="Every article that concerns China">All China coverage</button>
     </div>
   </div>
@@ -31,19 +31,26 @@
     <label>Basis</label>
     <div class="segment basis" data-basis-group>
       <button data-basis="count" class="active">Amount</button>
-      <button data-basis="per_million">Per capita</button>
-      <button data-basis="share_of_all">Percent of all articles</button>
+      <button data-basis="per_outlet">Per outlet</button>
+      <button data-basis="per_thousand">Per 1,000 published items</button>
+      <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
     </div>
+  </div>
+  <div class="control">
+    <label for="route">Route of state origin</label>
+    <select id="route">
+      <option value="" selected>Every route</option>
+    </select>
   </div>
   <div class="control">
     <label for="metric">Other denominators</label>
     <select id="metric">
       <option value="" selected>None, use the toggles</option>
+      <option value="share_a">State origin share of China coverage</option>
       <option value="share_target">Target share of China coverage</option>
-      <option value="per_outlet_target">Target articles per monitored outlet</option>
-      <option value="count_ab">Confirmed state origin plus unverified relay</option>
+      <option value="count_ab">State origin plus confirmed unverified relay</option>
       <option value="share_ab">Confirmed share of China coverage</option>
-      <option value="per_outlet_a">State origin per monitored outlet</option>
+      <option value="per_outlet_ab">Confirmed per monitored outlet</option>
     </select>
   </div>
   <div class="control">
@@ -84,8 +91,9 @@
     <div class="map-head">
       <div class="segment basis" data-basis-group>
         <button data-basis="count" class="active">Amount</button>
-        <button data-basis="per_million">Per capita</button>
-        <button data-basis="share_of_all">Percent of all articles</button>
+        <button data-basis="per_outlet">Per outlet</button>
+        <button data-basis="per_thousand">Per 1,000 published items</button>
+        <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
       </div>
       <div class="segment window" data-window-group>
         <button data-window="1">That day</button>
@@ -105,8 +113,9 @@
       <h2 id="bars-title">Ranked countries</h2>
       <div class="segment basis" data-basis-group>
         <button data-basis="count" class="active">Amount</button>
-        <button data-basis="per_million">Per capita</button>
-        <button data-basis="share_of_all">Percent of all articles</button>
+        <button data-basis="per_outlet">Per outlet</button>
+        <button data-basis="per_thousand">Per 1,000 published items</button>
+        <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
       </div>
       <div class="segment window" data-window-group>
         <button data-window="1">That day</button>
@@ -129,7 +138,7 @@
         <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Day shown on the map">
       </div>
     </div>
-    <div class="tl-hint">Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily total of target articles: state placements plus pieces carrying official Chinese sourcing. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
+    <div class="tl-hint" id="tl-hint"></div>
   </div>
   <section id="themes" aria-labelledby="themes-title">
     <div class="th-kicker">Theme counter</div>
@@ -183,15 +192,19 @@
     <p><strong>Unverified relay.</strong> The article was written by the local outlet, but it passes on official Chinese sourcing without independent confirmation. A ministry spokesperson is quoted and nothing checks the claim. Xinhua is cited as the authority for a factual assertion with no second source. State media is described as reporting something, and the report is treated as the fact.</p>
     <p><strong>Independent journalism.</strong> The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.</p>
     <p><strong>Not relevant.</strong> Does not concern China.</p>
-    <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and the 95th percentile of the countries on the map, so the low end gets most of the resolution and one outlier does not flatten every other country; countries above the cap take the darkest step and the legend shows the true maximum.</p>
-    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms, in sixteen languages, appear in its headline, its feed summary or the opening of its body. An article can carry several themes, and one with none is Other. The theme counter follows the Measure toggle and has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country: the map zooms to that country and keeps the world color scale, and the theme counter shows that country's themes day by day. Its tags are keyword matches, not a reading of the article, so they show what coverage is about in broad strokes and should be checked by hand before a theme count is cited.</p>
-    <p><strong>Denominators.</strong> Per million people divides by the resident population in sources/population.json and is not shown for territories under 100,000 residents, where one article would dominate the scale. The share of all published items divides by every item the country's largest monitored outlets put in their feeds during the window, whether or not it concerns China; the largest outlets are the thirty best audience ranks recorded in the registry, and every active outlet until ranks are recorded.</p>
-    <p><strong>Official Chinese sourcing, verification pending.</strong> Not a fifth category. A deterministic pass marks every article that cites Xinhua, CGTN, Global Times, China Daily, CCTV or People's Daily, quotes a foreign ministry spokesperson, a Chinese embassy or a named official spokesperson, or says that Chinese state media reported something. Those are the candidates for unverified relay. Whether the article checked the claim is the verification judgement, made by the model stage and audited by hand coding; until it runs, the candidate is shown as a target with the sentence that triggered it.</p>
+    <p><strong>Unverified relay is published only when it is measured and reliable.</strong> Until the model stage has run, unverified relay is shown as not yet measured, never as zero, and the map defaults to state origin only. Once it has run, relay counts stay withheld, not merely annotated, until an agreement study puts Cohen's kappa on the relay versus independent journalism judgement at or above the threshold, and they stay withheld for any language whose own kappa falls below it. That boundary is where classification error concentrates. Target articles add the candidates still waiting for the judgement, so that measure mixes a measured quantity with an unmeasured one.</p>
+    <p><strong>Routes and arrival.</strong> Every state origin label records its route, the mechanism named by the signature that established it: a wire credit line or dateline, a press release distribution stamp, a sponsored or partner disclosure, or a byline by a Chinese diplomat. A label the model gave without a signature is unattributed. Every article also records where it was collected: an editorial feed, or the outlet's press release, sponsored or partner section. The route filter shows state origin for one route or one arrival at a time.</p>
+    <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and a cap, the 95th percentile of every country's value on every date of the timeline for the chosen measure and window, so the scale does not move when the day changes and a shade means the same number on every date. Values above the cap sit in the darkest, overflow step, and the legend gives the highest value. Countries withheld, unreadable, not monitored or with too small a denominator have their own patterns and are never on the scale.</p>
+    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms appear in its headline, its feed summary or anywhere in its body. Until themes version 2026.09.4 only the first 800 characters of the body were read, which favored whatever an article names early. An article can carry several themes, so theme counts do not add up to article counts, and one with none is Other. The theme counter follows the Measure toggle and has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country. Its tags are keyword matches, not a reading of the article, so they should be checked by hand before a theme count is cited.</p>
+    <p><strong>Denominators.</strong> Per outlet divides by the country's active monitored outlets. Per 1,000 published items divides by every item the country's monitored outlets put in their feeds during the window, whether or not it concerns China; until audience ranks are recorded in the registry that is every active outlet, not the largest publications, and no rate is shown for a country with fewer than five outlets, where it would describe a handful of feeds. Per capita divides by the resident population in sources/population.json and is not shown for territories under 100,000 residents; population measures people, not media saturation, so it is the least defensible of the three. Paywalled articles are never classified and are left out of every count and every denominator; a country where they pass a third of retrieved articles carries a warning on every figure shown for it.</p>
+    <p><strong>Placements and underlying items.</strong> One wire item syndicated to thirty outlets and thirty separate items are different phenomena. Near-duplicate titles within a country are linked as one underlying item, and the tooltip, the ranked list, the country panel and the CSV export show both numbers.</p>
+    <p><strong>Official Chinese sourcing, verification pending.</strong> Not a fifth category. A deterministic pass marks every article that cites Xinhua, CGTN, Global Times, China Daily, CCTV or People's Daily, quotes a foreign ministry spokesperson, a Chinese embassy or a named official spokesperson, or says that Chinese state media reported something. Those are the candidates for unverified relay. When more candidates wait than the daily model ceiling allows, the ones sent are a random draw with the same fraction in every country, recorded per day so counts can be reweighted.</p>
+    <p><strong>Gaps in collection.</strong> Feeds carry only their latest entries, so a skipped hourly run loses more items in a busy media market than in a quiet one; every poll records whether its window reached back to the previous one, and the estimated missed items are shown. Some outlets are collected from the owner's machine; days on which it ran too few hours are marked on the timeline and on the countries concerned, so a sleeping laptop is never read as a decline. Ruleset changes and the days still carrying labels from an older ruleset are marked on the timeline too, so a discontinuity is not read as a trend.</p>
     <p>The critical distinction is between unverified relay and independent journalism, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still unverified relay. An article sympathetic to China that independently confirms every claim is independent journalism.</p>
   </div>
   <dl id="method-facts"></dl>
   <div class="owner-note">
-    <p id="owner-note">What this can tell you is how often, in a fixed set of outlets that I can actually read, Chinese state text appears unaltered, and how often local journalists pass on official Chinese claims without checking them. What it cannot tell you is what happens behind paywalls I do not cross, in outlets I do not track, in languages I excluded, or in the ordinary gaps of an hourly poll of RSS feeds. A country that looks empty here may simply be a country I have not yet found a working feed for. Read the hatching before you read the color.</p>
+    <p id="owner-note">What this can tell you is how often, in a fixed set of outlets that I can actually read, Chinese state text appears unaltered, and how often local journalists pass on official Chinese claims without checking them. What it cannot tell you is what happens behind paywalls I do not cross, in outlets I do not track, in sections I have not searched, in languages I excluded, or in the ordinary gaps of an hourly poll of RSS feeds. A country that looks empty here may simply be a country I have not yet found a working feed for. Read the hatching before you read the color.</p>
   </div>
   <h3>Export</h3>
   <div class="export-row">
@@ -208,7 +221,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=54"></script>
-<script src="app.js?v=54"></script>
+<script src="compute.js?v=55"></script>
+<script src="app.js?v=55"></script>
 </body>
 </html>

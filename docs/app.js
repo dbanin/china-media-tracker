@@ -6,9 +6,9 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
+    metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
-    articlesCache: {}
+    articlesCache: {}, scaleCache: {}
   };
 
   /* ------------------------------------------------------------------ data */
@@ -77,11 +77,10 @@
   function esc(s) { return String(s === null || s === undefined ? "" : s).replace(/[&<>"]/g, function (c) { return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]; }); }
   function pct(v) { return v === null || v === undefined ? "n/a" : (v * 100).toFixed(1) + "%"; }
   function days() { return C.listDays(state.months); }
-  function currentAgg() {
-    return C.aggregateWindow(state.months, state.endDate, state.windowDays === "all" ? null : Number(state.windowDays));
-  }
-  function bProvisional() { return !(state.meta && state.meta.b_counts_settled); }
-  function metricLabel() { return C.METRICS[state.metric] ? C.METRICS[state.metric].label : state.metric; }
+  function windowArg(w) { return w === "all" ? null : Number(w); }
+  function currentAgg() { return C.aggregateWindow(state.months, state.endDate, windowArg(state.windowDays)); }
+  function metricDef() { return C.METRICS[state.metric] || {}; }
+  function metricLabel() { return metricDef().label || state.metric; }
   function windowLabel() { return windowLabelFor(state.endDate, state.windowDays); }
   function windowLabelFor(date, days) {
     if (!date) return "no data";
@@ -89,33 +88,86 @@
     if (Number(days) === 1) return date;
     return Number(days) + " days ending " + date;
   }
+  function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+
+  /* Unverified relay is published only when the verification stage has run and an agreement study has
+     settled it, and never for a country whose outlets publish in a language withheld on its own kappa.
+     Data files from before those fields existed fall back to the older flags. */
+  function relayFor(entry) {
+    var m = state.meta || {};
+    var measured = m.relay_measured !== undefined ? !!m.relay_measured : !!m.llm_calls_total;
+    var publishable = m.relay_publishable !== undefined ? !!m.relay_publishable : !!(m.b_counts_settled && measured);
+    var langs = m.relay_withheld_languages || [];
+    if (publishable && entry && (entry.languages || []).some(function (l) { return langs.indexOf(l) !== -1; })) publishable = false;
+    return {measured: measured, publishable: publishable};
+  }
+  function relayText(relay, b) { return relay.publishable ? String(b) : (relay.measured ? "withheld" : "not yet measured"); }
+
+  function routeList() { return ((state.meta && state.meta.routes) || []).map(function (r) { return {kind: "route", id: r.id, label: r.label}; }); }
+  function arrivalList() { return ((state.meta && state.meta.arrivals) || []).map(function (r) { return {kind: "arrival", id: r.id, label: r.label}; }); }
+  function routeLabel(f) {
+    var hit = routeList().concat(arrivalList()).filter(function (r) { return f && r.kind === f.kind && r.id === f.id; })[0];
+    return hit ? hit.label : (f ? f.id : "");
+  }
+  function routeActive() { return !!(state.route && metricDef().measure === "a"); }
+
+  /* Everything metricValue needs beyond the counts, for one country. */
+  function ctxFor(iso, entry, agg) {
+    return {population: entry.population, topOutlets: entry.top_outlets, relay: relayFor(entry),
+            routeCount: routeActive() ? C.routeCount(agg, iso, state.route) : null};
+  }
 
   /* --------------------------------------------------------------- notices */
   function renderNotices() {
     var kn = el("kappa-notice");
     var m = state.meta;
-    if (!m) { kn.textContent = "No data has been exported yet. The interface is rendering an empty dataset."; kn.classList.remove("hidden"); }
-    else if (!m.b_counts_settled) {
-      var k = m.kappa;
-      kn.innerHTML = k && k.bc !== null && k.bc !== undefined
-        ? "Unverified relay counts are provisional. Cohen's kappa on the unverified relay versus independent journalism distinction is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold. Metrics that include unverified relay are shown but are not settled."
-        : "Unverified relay counts are provisional. No agreement study has been completed yet, so the machine labels have not been checked against hand coding. Metrics that include unverified relay are shown but are not settled.";
-      kn.classList.remove("hidden");
-    } else kn.classList.add("hidden");
+    var kparts = [];
+    if (!m) kparts.push("No data has been exported yet. The interface is rendering an empty dataset.");
+    else {
+      var relay = relayFor(null), k = m.kappa;
+      if (!relay.measured) kparts.push("Unverified relay has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
+      else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
+        ? "Unverified relay counts are withheld. Cohen's kappa on the relay versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
+        : "Unverified relay counts are withheld until an agreement study checks the relay versus independent journalism judgement against hand coding.");
+      var wl = m.relay_withheld_languages || [];
+      if (wl.length) kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold.");
+      if (m.official_sourcing_pending) kparts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and wait for that judgement. The Target articles measure counts them, so it mixes a measured quantity with an unmeasured pile.");
+    }
+    kn.textContent = kparts.join(" ");
+    kn.classList.toggle("hidden", !kparts.length);
+
     var dn = el("data-notice");
-    var flagged = (m && m.paywall_flagged_countries) || [];
-    var gaps = (m && m.countries_in_gaps) || 0;
     var parts = [];
-    if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Those countries are not comparable to the rest and carry a warning marker.");
-    if (m && m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
-    if (gaps) parts.push(gaps + " countries are recorded as coverage gaps with a stated reason.");
-    if (m && !m.llm_calls_total) parts.push("The verification stage that separates unverified relay from independent journalism has not run yet, so no article has been confirmed as unverified relay. Candidates are shown as pending.");
-    if (m && m.official_sourcing_pending) parts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and are waiting for the verification judgement that separates unverified relay from independent journalism. They are counted as targets and listed in each country panel with the sentence that triggered them.");
-    var u = m && m.registry_unevenness;
-    if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling. Share and per-outlet metrics correct for it; count metrics do not.");
-    var ranked = (m && m.countries_with_audience_ranks) || [];
-    if (m && !ranked.length) parts.push("The share of all published items metrics use every active outlet in a country as the denominator, because no outlet carries an audience rank yet. Once ranks are recorded in the registry, the denominator becomes the " + (m.top_outlets_per_country || 30) + " largest outlets by audience.");
-    if (parts.length) { dn.textContent = parts.join(" "); dn.classList.remove("hidden"); } else dn.classList.add("hidden");
+    if (m) {
+      var flagged = m.paywall_flagged_countries || [];
+      if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Paywalled articles are left out of every count and every denominator, so those countries are not comparable to the rest and carry a warning on every figure.");
+      if (m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
+      if (m.countries_in_gaps) parts.push(m.countries_in_gaps + " countries are recorded as coverage gaps with a stated reason.");
+      var u = m.registry_unevenness;
+      if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling; Per outlet and Per 1,000 published items correct for it.");
+      if (!(m.countries_with_audience_ranks || []).length) parts.push("No outlet carries an audience rank yet, so Per 1,000 published items divides by everything a country's monitored outlets published, not by its largest publications, and it is not shown for countries with fewer than " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets.");
+      var rs = m.release_sections;
+      if (rs && rs.outlets_active) {
+        var searched = rs.outlets_active - (rs.not_searched || 0);
+        parts.push(searched + " of " + rs.outlets_active + " active outlets have had their press release, sponsored and partner sections searched" + (searched ? ", and " + (rs.found || 0) + " had one" : "") + ". State origin placed through a section nobody searched cannot be found.");
+      }
+      var rc = m.relay_collector;
+      if (rc && rc.outlets) {
+        if (!rc.last_run) parts.push("The collector on the owner's machine, which fetches " + rc.outlets + " outlets the hosted runner cannot reach, has not reported a heartbeat yet, so gaps in those outlets cannot yet be told from quiet days.");
+        else if (rc.stale) parts.push("The collector on the owner's machine has not collected for " + Math.round(rc.hours_since_last_run) + " hours, so recent counts for its " + rc.outlets + " outlets in " + (rc.countries || []).length + " countries are incomplete.");
+        if ((rc.incomplete_days || []).length) parts.push("It ran in too few hours on " + plural(rc.incomplete_days.length, "day") + ", marked in red along the timeline.");
+      }
+      if (m.reclassification_complete === false) {
+        var older = 0;
+        Object.keys(m.ruleset_mix || {}).forEach(function (v) { if (v !== m.ruleset_version) older += m.ruleset_mix[v]; });
+        parts.push("Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset. The days affected are marked on the timeline, so a jump there is not a trend.");
+      }
+      var fs = m.feed_saturation;
+      if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: an estimated " + fs.missed_estimate + " in all. Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
+      if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
+    }
+    dn.textContent = parts.join(" ");
+    dn.classList.toggle("hidden", !parts.length);
     /* The human-reviewed switch is hidden until a review has actually been recorded; an empty
        reviewed mode would only blank the map. */
     var reviewed = !!(m && m.articles_reviewed);
@@ -146,6 +198,14 @@
     var pat3 = defs.append("pattern").attr("id", "sparse").attr("patternUnits", "userSpaceOnUse").attr("width", 5).attr("height", 5);
     pat3.append("rect").attr("width", 5).attr("height", 5).attr("fill", "#23262a");
     pat3.append("rect").attr("x", 2).attr("y", 2).attr("width", 1.2).attr("height", 1.2).attr("fill", "#8a7443");
+    /* Withheld: unverified relay not measured or not publishable. A cross hatch in dark amber. */
+    var pat4 = defs.append("pattern").attr("id", "withheld").attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6);
+    pat4.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#141618");
+    pat4.append("path").attr("d", "M0,0 L6,6 M6,0 L0,6").attr("stroke", "#5a4520").attr("stroke-width", 1);
+    /* Unreadable: monitored, but no keyword list for the outlets' language. Horizontal rules. */
+    var pat5 = defs.append("pattern").attr("id", "unreadable").attr("patternUnits", "userSpaceOnUse").attr("width", 5).attr("height", 5);
+    pat5.append("rect").attr("width", 5).attr("height", 5).attr("fill", "#141618");
+    pat5.append("line").attr("x1", 0).attr("y1", 2.5).attr("x2", 5).attr("y2", 2.5).attr("stroke", "#3a4450").attr("stroke-width", 1.2);
     projection = robinson();
     path = d3.geoPath(projection);
     projection.fitSize([960, 500], {type: "Sphere"});
@@ -167,10 +227,20 @@
     if (cls === "nocoverage") return "url(#hatch)";
     if (cls === "gap") return "url(#stipple)";
     if (cls === "inactive") return "url(#stipple)";
+    if (cls === "withheld") return "url(#withheld)";
+    if (cls === "unreadable") return "url(#unreadable)";
     if (cls === "nodata") return "#1a1c1f";
     if (cls === "sparse") return "url(#sparse)";
     if (cls === "zero") return ZERO_COLOR;
     return colorScale(value);
+  }
+
+  /* The scale cap for the current measure, window, mode and route, pooled over every date of the timeline
+     and cached, so moving the day never rescales the map. */
+  function scaleFor() {
+    var key = [state.metric, state.windowDays, state.mode, state.route ? state.route.kind + ":" + state.route.id : "", (state.meta && state.meta.generated_at) || ""].join("|");
+    if (!state.scaleCache[key]) state.scaleCache[key] = C.scaleCap(state.months, tlDays, state.latest, state.metric, windowArg(state.windowDays), state.mode, ctxFor);
+    return state.scaleCache[key];
   }
 
   function renderMap() {
@@ -180,23 +250,21 @@
     var perIso = {};
     Object.keys(state.latest.countries || {}).forEach(function (iso) {
       var entry = state.latest.countries[iso];
-      var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], {population: entry.population});
+      var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg));
       var cls = C.fillClass(entry, mv);
       perIso[iso] = {entry: entry, mv: mv, cls: cls};
       if (cls === "value") vals.push(mv.value);
     });
-    /* The ramp tops out at the 95th percentile so one outlier does not flatten every other country.
-       Values above the cap take the darkest color; the legend says the cap is a cap. */
-    var trueMax = vals.length ? d3.max(vals) : 1;
-    var max = vals.length ? C.percentile(vals, 0.95) : 1;
-    if (!max) max = trueMax || 1;
-    var capped = vals.some(function (v) { return v > max; });
-    var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
+    var fmt = metricDef().format || "int";
+    var sc = scaleFor();
+    var max = sc.cap || (vals.length ? d3.max(vals) : 1) || 1;
     if (fmt === "pct") max = Math.max(max, 0.05);
+    var trueMax = sc.max !== null && sc.max !== undefined ? sc.max : (vals.length ? d3.max(vals) : max);
+    var capped = trueMax > max || vals.some(function (v) { return v > max; });
     /* White for exactly zero; any positive value takes one of STEPS tinted steps up to deep red at the cap. */
     var stepScale = d3.scaleThreshold().domain(stepEdges(max)).range(STEP_COLORS);
     colorScale = function (v) { return v > 0 ? stepScale(v) : ZERO_COLOR; };
-    state._perIso = perIso; state._max = max; state._capped = capped; state._trueMax = trueMax;
+    state._perIso = perIso; state._agg = agg; state._max = max; state._capped = capped; state._trueMax = trueMax;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
     // the CSS transition on path.country smooths color to color changes instead.
@@ -211,13 +279,22 @@
     gMarkers.selectAll("*").remove();
     gCountries.selectAll("path.country").each(function (f) {
       var p = f.iso && perIso[f.iso];
-      if (!p || !(p.entry.warnings || []).length) return;
+      if (!p || !countryWarnings(p.entry, agg).length) return;
       var c = path.centroid(f);
       if (isNaN(c[0])) return;
       gMarkers.append("path").attr("class", "warn-marker").attr("d", d3.symbol(d3.symbolTriangle, 40)()).attr("transform", "translate(" + c[0] + "," + c[1] + ") scale(" + (1 / state.zoomK) + ")");
     });
     renderLegend(max, fmt);
     renderBars(agg);
+  }
+
+  /* The warnings that travel with every figure for a country: the export's standing warnings plus
+     the ones that depend on the window shown. */
+  function countryWarnings(entry, agg) {
+    var out = (entry.warnings || []).map(function (w) { return w.text; });
+    var gaps = (agg && agg.relayIncompleteDays) || [];
+    if (entry.relay_outlets && gaps.length) out.push("the collector on the owner's machine, which fetches " + plural(entry.relay_outlets, "outlet") + " here, ran in too few hours on " + plural(gaps.length, "day") + " of this window");
+    return out;
   }
 
   /* Single country view on the map: zoom to the selected country and dim the rest. Shades keep the
@@ -283,28 +360,32 @@
       }
       steps.push('<li><span class="sw" style="background:' + color + '"></span><span>' + esc(label) + '</span></li>');
     });
-    var m = C.METRICS[state.metric] || {};
-    var notShown = m.allItems ? "Not enough articles published in this window to give a percent"
+    var m = metricDef();
+    var notShown = m.allItems ? "Fewer than " + C.MIN_OUTLETS_FOR_OUTPUT_SHARE + " outlets, or too few items published in this window, for a rate"
       : m.population ? "No population figure, or under " + C.MIN_POPULATION.toLocaleString("en-US") + " residents"
       : m.format === "pct" ? "Fewer than " + C.MIN_SHARE_DENOMINATOR + " China articles, so no share"
       : null;
+    var relay = relayFor(null);
     el("legend").innerHTML =
       '<div class="lg-group">' +
         '<div class="lg-kicker">Color scale</div>' +
-        '<div class="lg-head">' + esc(metricLabel()) + '</div>' +
+        '<div class="lg-head">' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + '</div>' +
         '<div class="lg-when">' + esc(windowLabel()) + '</div>' +
         '<ul class="lg-steps">' +
           '<li><span class="sw" style="background:' + ZERO_COLOR + '"></span><span>None found</span></li>' +
           steps.join("") +
         '</ul>' +
+        '<p class="lg-note">The scale is fixed for this measure and window across every date on the timeline, so a shade means the same number on every day.' +
+          (state._capped ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatValue(state._trueMax, fmt)) + '.' : '') + '</p>' +
         (state.zoomIso ? '<p class="lg-note">Zoomed to ' + esc(countryName(state.zoomIso)) + '. Shades keep the world scale, so they compare directly with every other country.</p>' : '') +
-        (state._capped ? '<p class="lg-note">The darkest shade starts at the 95th percentile, so a few extreme countries do not wash out the rest. The highest value is ' + esc(C.formatValue(state._trueMax, fmt)) + '.</p>' : '') +
       '</div>' +
       '<div class="lg-group">' +
         '<div class="lg-kicker">Not on the scale</div>' +
         '<ul class="lg-keys">' +
           '<li><span class="sw" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span><span>Not monitored: no outlets registered</span></li>' +
           '<li><span class="sw" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span><span>Coverage gap, or every outlet inactive</span></li>' +
+          (m.relay ? '<li><span class="sw" style="background:repeating-linear-gradient(45deg,transparent,transparent 3px,#5a4520 3px,#5a4520 4px),repeating-linear-gradient(-45deg,#141618,#141618 3px,#5a4520 3px,#5a4520 4px)"></span><span>' + esc(relay.measured ? "Unverified relay withheld until agreement is settled" : "Unverified relay not yet measured") + '</span></li>' : '') +
+          '<li><span class="sw" style="background:repeating-linear-gradient(0deg,#141618,#141618 3px,#3a4450 3px,#3a4450 4px)"></span><span>Monitored, but no keyword list for the outlets\' language, and nothing found</span></li>' +
           '<li><span class="sw" style="background:#1a1c1f"></span><span>Monitored, but no China coverage in this window</span></li>' +
           (notShown ? '<li><span class="sw" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span><span>' + esc(notShown) + '</span></li>' : '') +
           '<li><svg class="sw-tri" viewBox="0 0 16 13" aria-hidden="true"><path d="M8,1.5 L14.5,12 L1.5,12 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg><span>Data warning: hover the country to read it</span></li>' +
@@ -320,19 +401,23 @@
     var html = '<div class="t-name">' + esc(name) + '</div>';
     if (!p) html += '<div class="muted">No monitored outlets. Absence of data, not absence of content.</div>';
     else {
-      var e = p.entry, mv = p.mv;
+      var e = p.entry, mv = p.mv, agg = state._agg || currentAgg();
+      var k = agg.countries[iso] || C.emptyCounts();
       if (p.cls === "gap") html += '<div class="muted">Coverage gap: ' + esc(e.gap_reason) + '</div>';
       else if (p.cls === "inactive") html += '<div class="muted">' + e.outlets_total + ' outlets registered, none active.</div>';
       else {
-        html += '<div>' + esc(metricLabel()) + ': <strong>' + C.formatValue(mv.value, C.METRICS[state.metric].format) + '</strong></div>';
-        html += '<div class="muted">State origin ' + mv.a + ', unverified relay ' + mv.b + (bProvisional() ? ' (provisional)' : '') + ', official sourcing pending ' + mv.pending + ', independent ' + mv.c + ' in ' + esc(windowLabel()) + '</div>';
+        html += '<div>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + ': <strong>' + (p.cls === "withheld" ? esc(relayText(relayFor(e), 0)) : C.formatValue(mv.value, metricDef().format)) + '</strong></div>';
+        if (mv.note && mv.value === null) html += '<div class="muted">' + esc(mv.note) + '</div>';
+        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + '; unverified relay ' + esc(relayText(relayFor(e), mv.b)) + '; official sourcing pending verification ' + mv.pending + '; independent ' + mv.c + '; ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
+        if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' left out of every count and share.</div>';
+        if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; an estimated ' + k.miss + ' items were missed.</div>';
+        if (e.language_support === "none") html += '<div class="muted">No keyword list for ' + esc((e.languages || []).join(", ")) + ': only international and English terms are matched.</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
-        if (p.cls === "sparse" && mv.note) html += '<div class="muted">' + esc(mv.note) + '</div>';
-        if (C.METRICS[state.metric] && C.METRICS[state.metric].allItems) html += '<div class="muted">' + mv.allItems + ' items published by the ' + e.top_outlets + ' largest monitored outlets' + (e.top_outlets_ranked ? '' : ' (no audience ranks recorded, so every active outlet counts)') + ', ' + mv.allItemsTarget + ' targets and ' + mv.allItemsChina + ' China items among them</div>';
-        if (C.METRICS[state.metric] && C.METRICS[state.metric].population && e.population) html += '<div class="muted">Population ' + e.population.toLocaleString("en-US") + '</div>';
+        if (metricDef().allItems) html += '<div class="muted">' + mv.allItems + ' items published by ' + (e.top_outlets_ranked ? 'the ' + e.top_outlets + ' largest monitored outlets' : 'all ' + e.top_outlets + ' monitored outlets (no audience ranks are recorded)') + ', ' + mv.allItemsTarget + ' targets and ' + mv.allItemsChina + ' China items among them</div>';
+        if (metricDef().population && e.population) html += '<div class="muted">Population ' + e.population.toLocaleString("en-US") + '</div>';
       }
-      (e.warnings || []).forEach(function (w) { html += '<div class="t-warn">Warning: ' + esc(w.text) + '</div>'; });
+      countryWarnings(e, agg).forEach(function (w) { html += '<div class="t-warn">Warning: ' + esc(w) + '</div>'; });
     }
     tip.innerHTML = html;
     tip.style.display = "block";
@@ -345,14 +430,20 @@
 
   /* ------------------------------------------------------------------ bars */
   function renderBars(agg) {
-    var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names);
-    var fmt = C.METRICS[state.metric] ? C.METRICS[state.metric].format : "int";
+    var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names, ctxFor);
+    var fmt = metricDef().format || "int";
     var max = d3.max(rows, function (r) { return r.value || 0; }) || 1;
-    el("bars-title").textContent = metricLabel() + ", " + windowLabel();
+    var showItems = metricDef().measure === "a" && state.basis === "count" && !el("metric").value && !routeActive();
+    el("bars-title").textContent = metricLabel() + (routeActive() ? ", " + routeLabel(state.route).toLowerCase() : "") + ", " + windowLabel();
     el("bars").innerHTML = rows.map(function (r) {
       var w = r.value ? Math.max(2, 100 * r.value / max) : 0;
       var cls = r.fill === "value" ? "" : (r.fill === "sparse" ? "zero" : r.fill);
-      return '<div class="bar-row" data-iso="' + r.iso + '"><span>' + esc(r.name) + '</span><span><span class="bar ' + cls + '" style="width:' + (r.fill === "value" ? w : (r.fill === "nocoverage" ? 100 : 6)) + '%"></span></span><span class="num">' + C.formatValue(r.value, fmt) + '</span></div>';
+      var entry = state.latest.countries[r.iso] || {};
+      var warns = countryWarnings(entry, agg);
+      var num = r.fill === "withheld" ? relayText(relayFor(entry), 0) : C.formatValue(r.value, fmt);
+      return '<div class="bar-row" data-iso="' + r.iso + '"><span>' + esc(r.name) + '</span><span><span class="bar ' + cls + '" style="width:' + (r.fill === "value" ? w : (r.fill === "nocoverage" ? 100 : 6)) + '%"></span></span>' +
+        '<span class="num">' + esc(num) + (showItems && r.value ? '<span class="items" title="Underlying items: syndicated placements of one item count once">' + r.state_origin_underlying_items + ' items</span>' : '') + '</span>' +
+        '<span class="bar-warn"' + (warns.length ? ' title="' + esc(warns.join("; ")) + '">!' : '>') + '</span></div>';
     }).join("") || '<p class="muted">No countries in the dataset.</p>';
     Array.prototype.forEach.call(el("bars").querySelectorAll(".bar-row"), function (row) {
       row.addEventListener("click", function () { selectCountry(row.getAttribute("data-iso")); });
@@ -374,7 +465,7 @@
     return THEME_HEAT[i];
   }
   function measureNoun() { return {target: "target articles", a: "state origin articles", china: "China articles"}[state.measure] || "articles"; }
-  function measureIndex() { var i = C.MEASURE_INDEX[state.measure]; return i === undefined ? 1 : i; }
+  function measureIndex() { var i = C.MEASURE_INDEX[state.measure]; return i === undefined ? 2 : i; }
   function denominator(k, mi) {
     k = k || C.emptyCounts();
     if (mi === 0) return k.A + k.B + k.C + (k.pending || 0);
@@ -385,7 +476,7 @@
 
   function themeModel(agg) {
     var catalog = (state.meta && state.meta.themes) || [];
-    var byIso = C.aggregateThemes(state.months, state.themeEnd, state.themeWindow === "all" ? null : Number(state.themeWindow));
+    var byIso = C.aggregateThemes(state.months, state.themeEnd, windowArg(state.themeWindow));
     var mi = measureIndex();
     var rows = [];
     var world = {name: "All monitored countries", n: 0, t: {}};
@@ -411,8 +502,11 @@
     var model = themeModel(agg);
     var catalog = model.catalog;
     var noun = measureNoun();
+    var langs = (state.meta && state.meta.theme_languages) || [];
     el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
-      ". An article can carry more than one theme, so theme counts can add up to more than the number of articles.";
+      ". Tags read the headline, the feed summary and the whole body. An article can carry more than one theme, so theme counts do not add up to the number of articles." +
+      (langs.length ? " Theme terms exist in " + langs.length + " languages; articles in other languages are matched on English terms only." : "") +
+      (routeActive() ? " Themes are not split by route, so the route filter does not apply here." : "");
     if (!catalog.length || !model.rows.length) {
       el("theme-focus").innerHTML = '<p class="muted">No ' + esc(noun) + ' with themes in this window. Theme counts are computed at each daily export.</p>';
       el("theme-grid").innerHTML = "";
@@ -478,7 +572,7 @@
       THEME_BANDS.map(function (b, i) { return '<span class="tl-i"><span class="sw" style="background:' + THEME_HEAT[i] + '"></span>' + b + '</span>'; }).join("") +
       '<span class="tl-foot">The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
       (sortKey ? ' in ' + esc(label[sortKey].label.toLowerCase()) : '') + ' in this window' +
-      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
+      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Shares in a row can add up to more than 100 percent, because an article can carry several themes. Click a country to open it, or a theme heading to rank by it.</span>';
   }
 
   /* Single country view of the theme counter: themes down, days across, ending on the counter's own day.
@@ -667,7 +761,7 @@
       b.addEventListener("click", function () {
         if (b.getAttribute("data-scope") === "world") { selectCountry(null); return; }
         if (state.selected) return;
-        var top = C.rankCountries(currentAgg(), state.latest, state.metric, state.mode, state.names).filter(function (r) { return r.value > 0; })[0];
+        var top = C.rankCountries(currentAgg(), state.latest, state.metric, state.mode, state.names, ctxFor).filter(function (r) { return r.value > 0; })[0];
         var first = Object.keys((state.latest && state.latest.countries) || {})[0];
         selectCountry(state.lastCountry || (top && top.iso) || first || null);
       });
@@ -683,12 +777,15 @@
     });
   }
 
+  var RELEASE_LABELS = {found: "found", none_found: "none", blocked: "blocked", unreachable: "unreachable", not_searched: "not searched"};
+
   function renderPanel() {
     var body = el("panel-body");
+    var relayAll = relayFor(null);
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
-      body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</th><td class="num">' + t.B + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+      body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, routes, monitored outlets and recent classified articles.</p>' +
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, left out of every count</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
       return;
     }
     var iso = state.selected;
@@ -698,38 +795,60 @@
     var html = '<button class="close" id="panel-close">Close</button><h2>' + esc(name) + '</h2>';
     if (!entry) { html += '<p class="muted">No monitored outlets in ' + esc(name) + '. This is absence of data, not absence of content. To add coverage, add an outlet with a working feed to sources/outlets.yaml, or record the reason in sources/gaps.yaml.</p>'; body.innerHTML = html; bindClose(); return; }
     if (entry.coverage === "gap") { html += '<p class="warn">Coverage gap: ' + esc(entry.gap_reason) + '</p>'; body.innerHTML = html; bindClose(); return; }
-    (entry.warnings || []).forEach(function (w) { html += '<p class="warn">Warning: ' + esc(w.text) + '</p>'; });
-    var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], {population: entry.population});
-    html += '<p>' + esc(metricLabel()) + ', ' + esc(windowLabel()) + ': <strong>' + C.formatValue(mv.value, C.METRICS[state.metric].format) + '</strong></p>';
+    countryWarnings(entry, agg).forEach(function (w) { html += '<p class="warn">Warning: ' + esc(w) + '</p>'; });
+    var relay = relayFor(entry);
+    var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg));
+    html += '<p>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + ', ' + esc(windowLabel()) + ': <strong>' + (mv.withheld ? esc(relayText(relay, 0)) : C.formatValue(mv.value, metricDef().format)) + '</strong></p>';
+    if (mv.note && mv.value === null) html += '<p class="panel-note">' + esc(mv.note) + '</p>';
     html += '<h3>Time series, all days</h3><svg class="mini" id="mini"></svg>';
     var k = agg.countries[iso] || C.emptyCounts();
     var rv = agg.reviewed[iso] || {A: 0, B: 0, C: 0, N: 0};
+    var relayCells = relay.publishable
+      ? '<td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td>'
+      : '<td class="num relay-state" colspan="4">' + esc(relayText(relay, 0)) + '</td>';
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
       '<tr><td>State origin</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
-      '<tr><td>Unverified relay' + (bProvisional() ? ' <span class="badge">provisional</span>' : '') + '</td><td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td></tr>' +
+      '<tr><td class="muted">Underlying items among them</td><td class="num">' + k.uniqA + '</td><td></td><td></td><td></td></tr>' +
+      '<tr><td>Unverified relay</td>' + relayCells + '</tr>' +
       '<tr><td>Official Chinese sourcing, verification pending</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
       '<tr><td>Independent journalism</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
       '<tr><td>Not relevant</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
-      '<tr><td class="muted">Underlying items (state origin plus unverified relay)</td><td class="num">' + k.uniqAB + '</td><td></td><td></td><td></td></tr>' +
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
+      '<tr><td class="muted">Feed polls full with nothing seen before / estimated items missed</td><td class="num" colspan="4">' + k.sat + ' of ' + k.polls + ' / ' + k.miss + '</td></tr>' +
       '</table>';
-    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th></tr>';
+    if (k.paywalled) html += '<p class="panel-note">Paywalled articles are never classified and are left out of every count and every share above.</p>';
+    var rts = (agg.routes || {})[iso] || {}, arr = (agg.arrivals || {})[iso] || {};
+    if (routeList().length) {
+      html += '<h3>How state origin arrived, ' + esc(windowLabel()) + '</h3><table><tr><th>Route</th><th class="num">Articles</th></tr>' +
+        routeList().map(function (r) { return '<tr><td>' + esc(r.label) + '</td><td class="num">' + (rts[r.id] || 0) + '</td></tr>'; }).join("") + '</table>';
+      if (arrivalList().length) html += '<table><tr><th>Collected from</th><th class="num">Articles</th></tr>' +
+        arrivalList().map(function (r) { return '<tr><td>' + esc(r.label) + '</td><td class="num">' + (arr[r.id] || 0) + '</td></tr>'; }).join("") + '</table>';
+    }
+    var rs = entry.release_sections;
+    if (rs && rs.outlets_active) {
+      var searched = rs.outlets_active - (rs.not_searched || 0);
+      html += '<p class="panel-note">Press release, sponsored and partner sections searched at ' + searched + ' of ' + rs.outlets_active + ' active outlets' + (searched ? ', found at ' + (rs.found || 0) : '') + '. Where no section was searched, state origin placed there cannot be found.</p>';
+    }
+    if (entry.language_support && entry.language_support !== "full") html += '<p class="panel-note">Keyword lists cover ' + (entry.language_support === "none" ? 'none' : 'only some') + ' of this country\'s outlet languages (' + esc((entry.languages || []).join(", ")) + '); the rest are matched on international and English terms only.</p>';
+    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th><th>Release section</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
-      var okN = o.feeds.filter(function (f) { return f.ok; }).length;
-      var feedCls = !o.active ? "muted" : (okN === o.feeds.length ? "ok" : (okN === 0 ? "fail" : "warn"));
-      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + o.counts.B + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td></tr>';
+      /* Health counts editorial feeds; release section feeds are listed in the title but never make an outlet look failing. */
+      var editorial = o.feeds.filter(function (f) { return !f.kind || f.kind === "editorial"; });
+      var okN = editorial.filter(function (f) { return f.ok; }).length;
+      var feedCls = !o.active ? "muted" : (okN === editorial.length ? "ok" : (okN === 0 ? "fail" : "warn"));
+      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (o.collector === "self_hosted" ? ' <span class="badge" title="Collected from the owner\'s machine">relayed</span>' : '') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.publishable ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
     });
     html += '</table>';
     html += '<h3>Target articles first, then the rest</h3><p class="muted">State placements, unverified relay, and pieces carrying official Chinese sourcing that still await the verification judgement, each with the sentence that triggered it. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
     body.innerHTML = html;
     bindClose();
-    renderMini(iso);
+    renderMini(iso, relay);
     loadArticles(iso);
   }
 
   function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { selectCountry(null); }); }
 
-  function renderMini(iso) {
+  function renderMini(iso, relay) {
     var svgm = d3.select("#mini");
     if (svgm.empty()) return;
     var w = 360, h = 88;
@@ -737,7 +856,7 @@
     var pts = days().map(function (d) {
       var e = C.dayEntry(state.months, d);
       var c = (e && e.countries && e.countries[iso]) || C.emptyCounts();
-      return {date: new Date(d + "T00:00:00Z"), A: c.A, B: c.B, P: c.pending || 0};
+      return {date: new Date(d + "T00:00:00Z"), A: c.A, B: relay.publishable ? c.B : 0, P: c.pending || 0};
     });
     if (!pts.length) { svgm.append("text").attr("x", 4).attr("y", 14).text("No daily data"); return; }
     var x = d3.scaleUtc().domain(d3.extent(pts, function (p) { return p.date; })).range([4, w - 4]);
@@ -747,10 +866,10 @@
     var lineP = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.P); });
     svgm.append("path").attr("class", "p").attr("d", lineP(pts));
     svgm.append("path").attr("class", "a").attr("d", lineA(pts));
-    svgm.append("path").attr("class", "b").attr("d", lineB(pts));
+    if (relay.publishable) svgm.append("path").attr("class", "b").attr("d", lineB(pts));
     svgm.append("text").attr("x", 4).attr("y", h - 4).text(pts[0].date.toISOString().slice(0, 10));
     svgm.append("text").attr("x", w - 4).attr("y", h - 4).attr("text-anchor", "end").text(pts[pts.length - 1].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, dashed unverified relay, dotted pending, max " + y.domain()[1] + " per day");
+    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, " + (relay.publishable ? "dashed unverified relay, " : "") + "dotted pending, max " + y.domain()[1] + " per day");
   }
 
   function loadArticles(iso) {
@@ -760,13 +879,16 @@
       if (!arts || !arts.length) { target.innerHTML = '<p class="muted">No classified China coverage yet.</p>'; return; }
       var outletName = {};
       state.outlets.forEach(function (o) { outletName[o.id] = o.name; });
+      var relay = relayFor((state.latest.countries || {})[iso]);
       target.innerHTML = arts.slice(0, 60).map(function (a) {
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
         var srcs = (a.sources && a.sources.length) ? '<div class="a-meta">Chinese sources carried: ' + esc(a.sources.join(", ")) + '</div>' : '';
+        var catLabel = cat === "B" && !relay.publishable ? "Relay judgement, " + (relay.measured ? "withheld" : "not settled") : C.nameOf(cat);
+        var route = cat === "A" && a.route ? '<div class="a-meta">Route: ' + esc(routeLabel({kind: "route", id: a.route})) + (a.arrival && a.arrival !== "editorial_feed" ? '; collected from ' + esc(routeLabel({kind: "arrival", id: a.arrival}).toLowerCase()) : '') + '</div>' : '';
         return '<div class="article"><a class="a-title" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.title || a.url) + '</a>' +
-          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(C.nameOf(cat)) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
-          srcs + (a.evidence_quote ? '<p class="a-quote">' + esc(a.evidence_quote) + '</p>' : '') +
+          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(catLabel) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
+          srcs + route + (a.evidence_quote ? '<p class="a-quote">' + esc(a.evidence_quote) + '</p>' : '') +
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + esc(a.signatures.join(", ")) + '</div>' : '') + '</div>';
       }).join("");
     };
@@ -820,24 +942,46 @@
       setDay(i + 1);
     }, 550);
   }
+  /* The global daily total of the chosen measure, with the marks that keep a gap from reading as a trend:
+     model ceiling days, days the relay collector ran too few hours, ruleset changes, and days whose labels
+     still carry an older ruleset. */
   function renderSpark() {
     var s = d3.select("#spark");
     s.selectAll("*").remove();
     var w = 1000, h = 40;
     s.attr("viewBox", "0 0 " + w + " " + h);
+    var byRoute = routeActive();
     var pts = tlDays.map(function (d, i) {
       var e = C.dayEntry(state.months, d);
-      var tot = 0, ceiling = false;
-      if (e) { ceiling = !!e.llm_ceiling_hit; Object.keys(e.countries || {}).forEach(function (c) { tot += (e.countries[c].A || 0) + (e.countries[c].B || 0) + (e.countries[c].pending || 0); }); }
-      return {i: i, v: tot, ceiling: ceiling};
+      var tot = 0;
+      if (e) {
+        if (byRoute) {
+          var src = state.route.kind === "arrival" ? e.arrivals : e.routes;
+          Object.keys(src || {}).forEach(function (c) { tot += (src[c] || {})[state.route.id] || 0; });
+        } else Object.keys(e.countries || {}).forEach(function (c) {
+          var k = e.countries[c];
+          tot += state.measure === "a" ? (k.A || 0) : (k.A || 0) + (k.B || 0) + (k.pending || 0) + (state.measure === "china" ? (k.C || 0) : 0);
+        });
+      }
+      return {i: i, d: d, v: tot, ceiling: !!(e && e.llm_ceiling_hit), relayGap: !!(e && e.relay_incomplete), older: !!(e && e.labels_on_older_ruleset)};
     });
+    var noun = byRoute ? "state origin articles, " + routeLabel(state.route).toLowerCase() : measureNoun();
+    el("tl-hint").textContent = "Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily number of " + noun + ". Amber bars are days on which the model call ceiling was hit, so those days are truncated, not quiet. Red ticks along the bottom are days the collector on the owner's machine ran too few hours. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset.";
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
     var area = d3.area().x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX);
     s.append("path").attr("d", area(pts));
-    pts.filter(function (p) { return p.ceiling; }).forEach(function (p) {
-      s.append("rect").attr("class", "ceiling").attr("x", x(p.i) - 2).attr("y", 0).attr("width", 4).attr("height", h);
+    pts.forEach(function (p) {
+      if (p.ceiling) s.append("rect").attr("class", "ceiling").attr("x", x(p.i) - 2).attr("y", 0).attr("width", 4).attr("height", h);
+      if (p.relayGap) s.append("rect").attr("class", "relay-gap").attr("x", x(p.i) - 3).attr("y", h - 3).attr("width", 6).attr("height", 3);
+      if (p.older) s.append("rect").attr("class", "older-ruleset").attr("x", x(p.i) - 3).attr("y", 0).attr("width", 6).attr("height", 2);
+    });
+    ((state.meta && state.meta.ruleset_changes) || []).forEach(function (rc) {
+      var idx = tlDays.indexOf(rc.date);
+      if (idx === -1) return;
+      s.append("line").attr("class", "ruleset").attr("x1", x(idx)).attr("x2", x(idx)).attr("y1", 0).attr("y2", h)
+        .append("title").text("Ruleset " + rc.version + " from " + rc.date);
     });
   }
 
@@ -846,7 +990,7 @@
      Starting either animation stops the other, so the two never run at the same time. */
   function themeWindowLabel() { return windowLabelFor(state.themeEnd, state.themeWindow); }
   function themeAgg() {
-    return C.aggregateWindow(state.months, state.themeEnd, state.themeWindow === "all" ? null : Number(state.themeWindow));
+    return C.aggregateWindow(state.months, state.themeEnd, windowArg(state.themeWindow));
   }
   function setupThemeTimeline() {
     var scrub = el("th-scrub");
@@ -911,18 +1055,25 @@
     var m = state.meta;
     var dl = el("method-facts");
     if (!m) { dl.innerHTML = '<dt>Status</dt><dd>No export has run yet.</dd>'; el("citation").textContent = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR); return; }
-    var k = m.kappa;
+    var k = m.kappa, relay = relayFor(null);
+    var rs = m.release_sections, rc = m.relay_collector, fs = m.feed_saturation;
+    var routeTotals = m.route_totals || {};
     var rows = [
       ["Outlets monitored", m.outlets_active + " active of " + m.outlets_total + " registered, across " + m.countries_monitored + " countries"],
       ["Population figures", m.population_source || "not recorded"],
-      ["Largest outlets denominator", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts"],
+      ["Per 1,000 published items", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
-      ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
-      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured; unverified relay counts are provisional"],
+      ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles, left out of every count and every denominator" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
+      ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run" : (relay.publishable ? "published" : "withheld until the agreement study settles it") + ((m.relay_withheld_languages || []).length ? "; withheld for " + m.relay_withheld_languages.join(", ") : "")],
+      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
+      ["Routes of state origin", (m.routes || []).map(function (r) { return r.label.toLowerCase() + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
+      ["Release sections searched", rs && rs.outlets_active ? (rs.outlets_active - (rs.not_searched || 0)) + " of " + rs.outlets_active + " active outlets; " + (rs.found || 0) + " found, " + (rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
+      ["Feed polls with nothing seen before", fs && fs.polls ? fs.saturated + " of " + fs.polls + ", an estimated " + fs.missed_estimate + " items missed" : "not yet measured"],
+      ["Collector on the owner's machine", rc ? rc.outlets + " outlets; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
       ["Human review coverage", pct(m.review_coverage) + " of classified articles (" + m.articles_reviewed + ")"],
-      ["Ruleset version", m.ruleset_version],
-      ["Classifier model", m.llm_model + ", " + m.llm_calls_total + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", ceiling hit on " + m.llm_ceiling_days.join(", ") : "")],
+      ["Ruleset version", m.ruleset_version + (m.reclassification_complete === false ? ", reclassification in progress (" + Object.keys(m.ruleset_mix || {}).sort().map(function (v) { return v + ": " + m.ruleset_mix[v]; }).join(", ") + ")" : "")],
+      ["Classifier model", m.llm_model + ", " + m.llm_calls_total + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", ceiling hit on " + m.llm_ceiling_days.join(", ") : "") + ((m.llm_sampling_days || []).length ? "; stratified draws on " + m.llm_sampling_days.length + " days" : "")],
       ["Last successful run", m.last_successful_run || "none"],
       ["Data generated", m.generated_at]
     ];
@@ -940,49 +1091,83 @@
   }
   function exportView() {
     var agg = currentAgg();
-    var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names).map(function (r) {
-      r.metric = state.metric; r.window = windowLabel(); r.mode = state.mode; r.relay_provisional = bProvisional();
-      r.citation = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
+    var cite = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
+    var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names, ctxFor).map(function (r) {
+      r.metric = state.metric; r.route = routeActive() ? state.route.kind + ":" + state.route.id : ""; r.window = windowLabel(); r.mode = state.mode;
+      r.warnings = countryWarnings(state.latest.countries[r.iso] || {}, agg).join("; ");
+      r.citation = cite;
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "window", "mode", "value", "fill", "state_origin", "unverified_relay", "official_sourcing_pending", "target", "relay_provisional", "independent", "china_total", "outlets_active", "population", "all_items_top_outlets", "target_in_top_outlets", "china_in_top_outlets", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "unverified_relay", "relay_status", "official_sourcing_pending", "target", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "target_in_published_items", "china_in_published_items", "language_support", "warnings", "citation"]));
   }
   function exportDaily() {
     var rows = [];
     var cite = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
+    var routeCols = routeList().map(function (r) { return "route_" + r.id; }).concat(arrivalList().map(function (r) { return "arrival_" + r.id; }));
     days().forEach(function (d) {
       var e = C.dayEntry(state.months, d);
       if (!e) return;
       Object.keys(e.countries).forEach(function (iso) {
         var c = e.countries[iso], r = (e.reviewed || {})[iso] || {};
-        rows.push({date: d, iso: iso, name: state.names[iso] || iso, state_origin: c.A, unverified_relay: c.B, independent: c.C, not_relevant: c.N, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: c.Br, unverified_relay_model: c.Bl,
-                   reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: r.B || 0, human_independent: r.C || 0, unique_items_origin_relay: c.uniqAB, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
+        var relay = relayFor((state.latest.countries || {})[iso]);
+        var blank = function (v) { return relay.publishable ? v : ""; };
+        var row = {date: d, iso: iso, name: state.names[iso] || iso, state_origin: c.A, state_origin_underlying_items: c.uniqA, unverified_relay: blank(c.B), relay_status: C.relayStatus(relay), independent: c.C, not_relevant: c.N,
+                   state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: blank(c.Br), unverified_relay_model: blank(c.Bl),
+                   reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: blank(r.B || 0), human_independent: r.C || 0, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
                    paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending,
-                   all_items_top_outlets: c.tdisc, target_in_top_outlets: c.ttarget, china_in_top_outlets: c.tchina, llm_ceiling_hit: e.llm_ceiling_hit, citation: cite});
+                   items_published_monitored_outlets: c.tdisc, target_in_published_items: c.ttarget, china_in_published_items: c.tchina,
+                   feed_polls: c.polls || 0, feed_polls_saturated: c.sat || 0, items_missed_estimate: c.miss || 0,
+                   model_draw_eligible: ((e.llm_sampling || {})[iso] || [""])[0], model_draw_sent: ((e.llm_sampling || {})[iso] || ["", ""])[1],
+                   llm_ceiling_hit: e.llm_ceiling_hit, relay_collector_incomplete: !!e.relay_incomplete, labels_on_older_ruleset: e.labels_on_older_ruleset || 0, citation: cite};
+        routeList().forEach(function (x) { row["route_" + x.id] = ((e.routes || {})[iso] || {})[x.id] || 0; });
+        arrivalList().forEach(function (x) { row["arrival_" + x.id] = ((e.arrivals || {})[iso] || {})[x.id] || 0; });
+        rows.push(row);
       });
     });
-    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "state_origin", "unverified_relay", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "unique_items_origin_relay", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "all_items_top_outlets", "target_in_top_outlets", "china_in_top_outlets", "llm_ceiling_hit", "citation"]));
+    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "state_origin", "state_origin_underlying_items", "unverified_relay", "relay_status", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "items_published_monitored_outlets", "target_in_published_items", "china_in_published_items", "feed_polls", "feed_polls_saturated", "items_missed_estimate", "model_draw_eligible", "model_draw_sent"].concat(routeCols).concat(["llm_ceiling_hit", "relay_collector_incomplete", "labels_on_older_ruleset", "citation"])));
   }
 
   /* -------------------------------------------------------------- controls */
+  function setupRouteSelect() {
+    var sel = el("route");
+    if (!sel) return;
+    var groups = [["How it arrived on the page", routeList()], ["Where it was collected", arrivalList()]];
+    sel.innerHTML = '<option value="">Every route</option>' + groups.filter(function (g) { return g[1].length; }).map(function (g) {
+      return '<optgroup label="' + esc(g[0]) + '">' + g[1].map(function (r) { return '<option value="' + r.kind + ':' + esc(r.id) + '">' + esc(r.label) + '</option>'; }).join("") + '</optgroup>';
+    }).join("");
+  }
+
   function bindControls() {
     bindThemes();
-    /* Measure and Basis toggles form a three by three grid; the same Basis toggle is repeated above the
-       map and above the ranked list and every copy stays in step. The select holds the other denominators. */
+    setupRouteSelect();
+    /* Measure and Basis toggles form a grid; the same Basis toggle is repeated above the map and above
+       the ranked list and every copy stays in step. The select holds the other denominators. A route
+       applies to state origin only, so choosing one switches the measure to state origin. */
     function applyMetric() {
       var other = el("metric").value;
       state.metric = other || C.gridMetric(state.measure, state.basis);
       Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-basis") === state.basis); });
       Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-measure") === state.measure); });
-      renderMap(); renderThemes(); if (state.selected) renderPanel();
+      el("route").value = state.route ? state.route.kind + ":" + state.route.id : "";
+      renderMap(); renderSpark(); renderThemes(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
       b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); el("metric").value = ""; applyMetric(); });
     });
     Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) {
-      b.addEventListener("click", function () { state.measure = b.getAttribute("data-measure"); el("metric").value = ""; applyMetric(); });
+      b.addEventListener("click", function () {
+        state.measure = b.getAttribute("data-measure");
+        if (state.measure !== "a") state.route = null;
+        el("metric").value = ""; applyMetric();
+      });
     });
-    el("metric").addEventListener("change", applyMetric);
+    el("metric").addEventListener("change", function () { if (el("metric").value) state.route = null; applyMetric(); });
+    el("route").addEventListener("change", function () {
+      var v = el("route").value;
+      state.route = v ? {kind: v.slice(0, v.indexOf(":")), id: v.slice(v.indexOf(":") + 1)} : null;
+      if (state.route) { state.measure = "a"; el("metric").value = ""; if (state.basis === "per_thousand") state.basis = "count"; }
+      applyMetric();
+    });
     /* The Window toggle is repeated above the map and above the ranked list, like Basis. */
     function applyWindow(v) {
       state.windowDays = v === "all" ? "all" : Number(v);

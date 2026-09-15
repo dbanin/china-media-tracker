@@ -52,6 +52,48 @@ all:
   - Macau
   - Macao
   - Dalai Lama
+  # Provinces, autonomous regions and the largest cities. Short wire and release items about one
+  # province ("Hainan Free Trade Port", "Jiangxi delegation") often name no other China term.
+  - Anhui
+  - Fujian
+  - Gansu
+  - Guangdong
+  - Guangxi
+  - Guizhou
+  - Hainan
+  - Hebei
+  - Heilongjiang
+  - Henan
+  - Hubei
+  - Hunan
+  - Jiangsu
+  - Jiangxi
+  - Jilin
+  - Liaoning
+  - Ningxia
+  - Qinghai
+  - Shaanxi
+  - Shandong
+  - Shanxi
+  - Sichuan
+  - Yunnan
+  - Zhejiang
+  - Inner Mongolia
+  - Chongqing
+  - Tianjin
+  - Guangzhou
+  - Hangzhou
+  - Wuhan
+  - Chengdu
+  - Nanjing
+  - Xiamen
+  - Qingdao
+  - Dalian
+  - Harbin
+  - Kunming
+  - Suzhou
+  - Hengqin
+  - Greater Bay Area
 en:
   - Chinese Communist Party
   - CCP
@@ -709,3 +751,20 @@ home_terms:
   HKG: [Hong Kong, Hongkong, 香港, 홍콩, Hồng Kông]
   MAC: [Macau, Macao, 澳門, 澳门, 마카오]
   TWN: [Taiwan, Taïwan, 台灣, 台湾, 대만, Đài Loan]
+
+# Phrases removed before matching for outlets in the country they are listed under. The same
+# problem as home_terms from the other direction: Singapore and Malaysia have large Chinese
+# communities, and their domestic coverage of those communities ("Chinese New Year", "Malaysian
+# Chinese Association") is not coverage of China. Only the phrase is removed; any other China
+# term in the item still counts. Other countries with the same pattern can be added here.
+home_phrases:
+  SGP: [Chinese New Year, Chinese community, Chinese communities, ethnic Chinese, Chinese Singaporean, Chinese Singaporeans,
+        Singaporean Chinese, Singapore Chinese, Chinese Development Assistance Council, Singapore Chinese Chamber of Commerce and Industry,
+        Chinese clan, Chinese clans, Chinese clan associations, Chinese temple, Chinese temples, Chinese opera, Chinese-language,
+        Chinese language, Chinese school, Chinese schools, Chinese-medium, Chinese Heritage Centre, Chinese Garden, Chinese cuisine,
+        Chinese New Year's Eve, Chinese Chamber of Commerce]
+  MYS: [Chinese New Year, Chinese community, Chinese communities, ethnic Chinese, Malaysian Chinese, Chinese Malaysian, Chinese Malaysians,
+        Malaysian Chinese Association, Chinese voters, Chinese-majority, Chinese-language, Chinese language, Chinese school, Chinese schools,
+        Chinese vernacular schools, Chinese-medium, Chinese independent schools, Chinese education, Chinese clan, Chinese clans,
+        Chinese clan associations, Chinese temple, Chinese temples, Chinese Assembly Hall, Chinese Chamber of Commerce, Chinese cuisine,
+        Tahun Baru Cina, masyarakat Cina, kaum Cina, etnik Cina, sekolah Cina, sekolah jenis kebangsaan Cina, pengundi Cina, persatuan Cina]

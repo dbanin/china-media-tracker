@@ -64,6 +64,78 @@ def load_diplomats(path=str(config.DIPLOMATS_PATH)) -> List[str]:
     return sorted({p["name"] for p in data.get("personnel", [])})
 
 
+# The route by which a state origin item reached the page, named after the signature group that
+# established it. Stored on every state origin label, so penetration can be broken down by route
+# rather than only by country.
+ROUTES = [("credit_dateline", "wire_credit"), ("distribution_stamp", "distribution_stamp"),
+          ("sponsored_placement", "sponsored_disclosure"), ("authored_by_state", "diplomatic_byline")]
+ROUTE_IDS = [r for _, r in ROUTES] + ["unattributed"]
+
+# Where an article was collected, a separate variable from the route: an editorial feed, or an outlet's
+# press release, sponsored or partner section (registry section_feeds). A Xinhua Silk Road release found in
+# a press release section arrived by the section and carries a distribution stamp or wire credit.
+SECTION_ARRIVALS = {"press_release": "press_release_section", "sponsored": "sponsored_section", "partner": "partner_section"}
+ARRIVAL_IDS = ["editorial_feed"] + list(SECTION_ARRIVALS.values())
+
+
+def arrival_of(gate_terms) -> str:
+    """Arrival from an article's stored gate terms: items from a section feed carry "section:<kind>"."""
+    try:
+        terms = json.loads(gate_terms or "[]") if isinstance(gate_terms, str) else (gate_terms or [])
+    except ValueError:
+        terms = []
+    for t in terms:
+        if isinstance(t, str) and t.startswith("section:") and t[8:] in SECTION_ARRIVALS:
+            return SECTION_ARRIVALS[t[8:]]
+    return "editorial_feed"
+
+
+def route_of(matches: List[Dict]) -> str:
+    """Route of a state origin label. Strong signatures decide before weak ones, and when several
+    groups fired at the same strength the first in ROUTES wins, so the field is deterministic.
+    Hints never set a route. A label that no signature supports is unattributed."""
+    for strength in ("strong", "weak"):
+        groups = {m["group"] for m in matches if m["strength"] == strength}
+        for group, route in ROUTES:
+            if group in groups:
+                return route
+    return "unattributed"
+
+
+@lru_cache(maxsize=None)
+def _signature_index() -> Dict[str, Tuple[str, str]]:
+    sigs = load_signatures()
+    idx = {p["id"]: (p["group"], p["strength"]) for pats in sigs["groups"].values() for p in pats}
+    idx["diplomat_list_author"] = ("authored_by_state", "strong")
+    idx["diplomat_list_name_only"] = ("authored_by_state", "weak")
+    return idx
+
+
+def route_of_ids(ids) -> str:
+    """Route from stored signature ids. Ids no longer in the ruleset are ignored."""
+    idx = _signature_index()
+    return route_of([{"group": idx[i][0], "strength": idx[i][1]} for i in (ids or []) if i in idx])
+
+
+def ensure_routes(conn) -> int:
+    """Fill the route of every current state origin label that lacks one: a rules label from the
+    signatures that fired, a model label from the candidate signatures that sent it to the model."""
+    rows = conn.execute(
+        """SELECT c.id, c.method, c.signatures_fired, a.llm_trigger FROM classifications c JOIN articles a ON a.id=c.article_id
+           WHERE c.is_current=1 AND c.category='A' AND c.route IS NULL"""
+    ).fetchall()
+    for r in rows:
+        ids = json.loads(r["signatures_fired"] or "[]") if r["method"] == "rules" else []
+        if not ids:
+            try:
+                ids = (json.loads(r["llm_trigger"] or "{}") or {}).get("a_candidate", [])
+            except (ValueError, AttributeError):
+                ids = []
+        conn.execute("UPDATE classifications SET route=? WHERE id=?", (route_of_ids(ids), r["id"]))
+    conn.commit()
+    return len(rows)
+
+
 # Two weak signals (an ad label plus a "not reviewed by the publisher" note, say) only add up to
 # state origin when the piece names a Chinese state entity. Without this, a Chery or Huawei
 # advertorial counted as state origin.
@@ -236,6 +308,7 @@ def classify_article(conn, row) -> Dict:
             conn, row["id"], "rules", "A", 1.0, evidence_quote=evidence,
             reasoning="Deterministic signature match: %s" % ", ".join(fired),
             signatures_fired=fired, ruleset_version=res["ruleset_version"],
+            route=route_of(res["matches"]),
         )
         return {"outcome": "A"}
     if res["decision"] == "A_candidate" or res["triggers"]:

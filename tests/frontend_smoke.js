@@ -14,13 +14,27 @@ assert(C.fillClass({coverage: "monitored", outlets_active: 3}, {value: 0, chinaT
 assert(C.fillClass({coverage: "gap"}, mv) === "gap", "gap");
 assert(C.rankCountries(agg, {countries: {}}, "count_a", "all", {}).length === 0, "rank empty");
 assert(C.toCSV([], ["a"]) === "a\n", "csv header only");
-var months = {"2026-09": {days: {"2026-09-01": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 2, C: 3})}, reviewed: {}, llm_ceiling_hit: false},
-                                 "2026-09-02": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 1, B: 1, C: 1})}, reviewed: {}, llm_ceiling_hit: true}}}};
+var months = {"2026-09": {days: {"2026-09-01": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 2, C: 3})}, reviewed: {}, llm_ceiling_hit: false, routes: {ITA: {wire_credit: 2}}},
+                                 "2026-09-02": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 1, B: 1, C: 1})}, reviewed: {}, llm_ceiling_hit: true, relay_incomplete: true,
+                                                routes: {ITA: {diplomatic_byline: 1}}, arrivals: {ITA: {press_release_section: 1}}}}}};
 var a2 = C.aggregateWindow(months, "2026-09-02", 2);
-assert(a2.countries.ITA.A === 3 && a2.countries.ITA.B === 1 && a2.ceilingDays.length === 1, "window sum");
+assert(a2.countries.ITA.A === 3 && a2.countries.ITA.B === 1 && a2.ceilingDays.length === 1 && a2.relayIncompleteDays.length === 1, "window sum");
+assert(a2.routes.ITA.wire_credit === 2 && a2.routes.ITA.diplomatic_byline === 1 && C.routeCount(a2, "ITA", {kind: "arrival", id: "press_release_section"}) === 1, "routes and arrivals");
 var a1 = C.aggregateWindow(months, "2026-09-02", 1);
 assert(a1.countries.ITA.A === 1, "single day");
 assert(Math.abs(C.metricValue(a2.countries.ITA, "share_ab", 5, "all").value - 4 / 8) < 1e-9, "share");
+/* Unverified relay is never shown as zero when it has not been measured, and is withheld until publishable. */
+var unmeasured = C.metricValue(a2.countries.ITA, "count_ab", 5, "all", undefined, {relay: {measured: false, publishable: false}});
+assert(unmeasured.value === null && unmeasured.withheld && unmeasured.note === C.RELAY_NOT_MEASURED, "relay not measured");
+assert(C.fillClass({coverage: "monitored", outlets_active: 5}, unmeasured) === "withheld", "withheld fill");
+var withheld = C.metricValue(a2.countries.ITA, "share_ab", 5, "all", undefined, {relay: {measured: true, publishable: false}});
+assert(withheld.value === null && withheld.note === C.RELAY_WITHHELD, "relay withheld");
+assert(C.metricValue(a2.countries.ITA, "count_a", 5, "all", undefined, {relay: {measured: false, publishable: false}}).value === 3, "state origin unaffected by the relay gate");
+var rows = C.rankCountries(a2, {countries: {ITA: {coverage: "monitored", outlets_active: 5}}}, "count_a", "all", {}, function () { return {relay: {measured: false, publishable: false}}; });
+assert(rows[0].unverified_relay === "" && rows[0].relay_status === "not measured", "csv leaves unmeasured relay blank");
+/* The route filter replaces the state origin count and applies to state origin only. */
+assert(C.metricValue(a2.countries.ITA, "count_a", 5, "all", undefined, {routeCount: 1}).value === 1, "route filter");
+assert(C.metricValue(a2.countries.ITA, "count_china", 5, "all", undefined, {routeCount: 1}).value === null, "route filter is state origin only");
 var withPending = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 3});
 var tv = C.metricValue(withPending, "count_target", 2, "all");
 assert(tv.value === 4 && tv.chinaTotal === 6 && tv.target === 4, "pending counts as target and as coverage");
@@ -34,19 +48,30 @@ assert(Math.abs(pm.value - 2) < 1e-9, "per million people");
 var nopop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {});
 assert(nopop.value === null && nopop.sparse === true && nopop.note, "no population gives no value");
 var all = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 1, tdisc: 200, ttarget: 2, tchina: 4});
-assert(Math.abs(C.metricValue(all, "share_of_all_target", 2, "all").value - 0.01) < 1e-9, "share of all items");
-assert(Math.abs(C.metricValue(all, "share_of_all_china", 2, "all").value - 0.02) < 1e-9, "china share of all items");
+assert(Math.abs(C.metricValue(all, "per_thousand_target", 2, "all", undefined, {topOutlets: 8}).value - 10) < 1e-9, "per thousand published items");
+assert(Math.abs(C.metricValue(all, "per_thousand_china", 2, "all", undefined, {topOutlets: 8}).value - 20) < 1e-9, "china per thousand published items");
+var floor = C.metricValue(all, "per_thousand_target", 2, "all", undefined, {topOutlets: 4});
+assert(floor.value === null && floor.sparse === true && /Fewer than 5 monitored outlets/.test(floor.note), "outlet floor");
 var few = Object.assign(C.emptyCounts(), {A: 1, tdisc: 10, ttarget: 1});
-assert(C.metricValue(few, "share_of_all_target", 1, "all").value === null, "small stream gives no share");
-assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_all_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
+assert(C.metricValue(few, "per_thousand_target", 1, "all").value === null, "small stream gives no rate");
+assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "per_thousand_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
+assert(C.fillClass({coverage: "monitored", outlets_active: 2, language_support: "none"}, C.metricValue(C.emptyCounts(), "count_a", 2, "all")) === "unreadable", "unreadable language");
 var tinyPop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 3700});
 assert(tinyPop.value === null && tinyPop.sparse === true, "tiny population gives no per capita value");
 assert(Math.abs(C.percentile([1, 2, 3, 4, 100], 0.95) - 80.8) < 1e-9 && C.percentile([], 0.95) === null && C.percentile([5], 0.95) === 5, "percentile");
-assert(C.gridMetric("a", "share_of_all") === "share_of_all_a" && C.gridMetric("china", "count") === "count_china" && C.gridMetric("nope", "nope") === "count_target", "grid");
+assert(C.gridMetric("a", "per_thousand") === "per_thousand_a" && C.gridMetric("china", "count") === "count_china" && C.gridMetric("nope", "nope") === "count_a", "grid");
+assert(C.BASES[C.BASES.length - 1] === "per_million", "per capita is offered last");
 var allA = Object.assign(C.emptyCounts(), {A: 2, C: 8, tdisc: 400, ttarget: 3, tchina: 10, ta: 2});
-assert(Math.abs(C.metricValue(allA, "share_of_all_a", 1, "all").value - 0.005) < 1e-9, "state origin share of all items");
+assert(Math.abs(C.metricValue(allA, "per_thousand_a", 1, "all").value - 5) < 1e-9, "state origin per thousand items");
 assert(C.metricValue(allA, "count_china", 1, "all").value === 10, "china count");
 assert(Math.abs(C.metricValue(allA, "per_million_china", 1, "all", undefined, {population: 5000000}).value - 2) < 1e-9, "china per million");
+assert(C.metricValue(allA, "per_outlet_china", 2, "all").value === 5, "china per outlet");
+/* The scale cap is pooled across dates, so it does not move with the day shown. */
+var latest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}, FRA: {coverage: "monitored", outlets_active: 5}}};
+var scaleMonths = {"2026-09": {days: {"2026-09-01": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 10, C: 1}), FRA: Object.assign(C.emptyCounts(), {A: 1, C: 1})}},
+                                      "2026-09-02": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 2, C: 1}), FRA: Object.assign(C.emptyCounts(), {A: 2, C: 1})}}}}};
+var s = C.scaleCap(scaleMonths, ["2026-09-01", "2026-09-02"], latest, "count_a", 1, "all");
+assert(s.values === 4 && s.max === 10 && Math.abs(s.cap - C.percentile([10, 1, 2, 2], 0.95)) < 1e-9, "pooled scale cap");
 var themeMonths = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [2, 1, 1]}}},
                                       "2026-09-02": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [1, 1, 0], culture: [3, 0, 0]}}}}}};
 var th = C.aggregateThemes(themeMonths, "2026-09-02", 2);

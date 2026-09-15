@@ -63,6 +63,10 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS) -> bytes:
         # rows are exact; the hosted side replaces its rows for these outlets with them.
         for d in conn.execute("SELECT date, outlet_id, country, discovered, gate_relevant FROM daily_outlet_discovery"):
             fh.write(json.dumps({"_type": "outlet_discovery", **{k: d[k] for k in d.keys()}}) + "\n")
+        # Every discovery pass the relay ran, so the hosted side can tell a quiet day in the relayed
+        # countries from a day on which the machine was asleep.
+        for run in conn.execute("SELECT started_at, finished_at, ok FROM run_log WHERE stage='discover' AND started_at >= ?", (since,)):
+            fh.write(json.dumps({"_type": "relay_run", **{k: run[k] for k in run.keys()}}) + "\n")
         for r in rows:
             item = {k: r[k] for k in ARTICLE_FIELDS}
             body = store.load_body(r["url_hash"]) if r["status"] in ("fetched", "classified", "awaiting_llm", "paywalled") else None
@@ -137,6 +141,13 @@ def ingest(conn, data: bytes) -> Dict:
                      gate_relevant=excluded.gate_relevant""",
                 (item["date"], item["outlet_id"], item["country"], item["discovered"], item.get("gate_relevant", 0)))
             counts["outlet_days"] = counts.get("outlet_days", 0) + 1
+            continue
+        if item.get("_type") == "relay_run":
+            conn.execute("INSERT OR IGNORE INTO relay_runs(started_at, finished_at, ok) VALUES (?,?,?)",
+                         (item["started_at"], item.get("finished_at"), item.get("ok")))
+            conn.execute("UPDATE relay_runs SET finished_at=?, ok=? WHERE started_at=? AND finished_at IS NULL",
+                         (item.get("finished_at"), item.get("ok"), item["started_at"]))
+            counts["relay_runs"] = counts.get("relay_runs", 0) + 1
             continue
         if item.get("_type") == "feed_health":
             conn.execute(
