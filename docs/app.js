@@ -7,7 +7,7 @@
 
   var state = {
     metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
-    meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
+    meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
 
@@ -31,12 +31,16 @@
       getJSON("data/global_series.json").catch(function () { return []; }),
       getJSON("data/outlets.json").catch(function () { return {outlets: []}; }),
       getJSON("vendor/countries-110m.json").catch(function () { return null; }),
-      getJSON("vendor/iso3166.json").catch(function () { return []; })
+      getJSON("vendor/iso3166.json").catch(function () { return []; }),
+      getJSON("country-names.json").catch(function () { return {names: {}}; })
     ]).then(function (res) {
       state.meta = res[0]; state.latest = res[1] || {countries: {}, totals: {}};
       state.series = res[2] || []; state.outlets = (res[3] && res[3].outlets) || [];
       state.topo = res[4];
-      (res[5] || []).forEach(function (r) { state.names[r["alpha-3"]] = r.name; state.numToIso[String(parseInt(r["country-code"], 10))] = r["alpha-3"]; });
+      (res[5] || []).forEach(function (r) { state.names[r["alpha-3"]] = r.name; state.officialNames[r["alpha-3"]] = r.name; state.numToIso[String(parseInt(r["country-code"], 10))] = r["alpha-3"]; });
+      /* ISO short names are often formal or inverted ("Korea, Republic of"); show the common English name. */
+      var common = (res[6] && res[6].names) || {};
+      Object.keys(common).forEach(function (iso) { state.names[iso] = common[iso]; });
       var monthsWanted = {};
       state.series.forEach(function (d) { monthsWanted[d.date.slice(0, 7)] = true; });
       return Promise.all(Object.keys(monthsWanted).map(function (m) {
@@ -607,17 +611,19 @@
   function setupCountryPicks() {
     var entries = Object.keys((state.latest && state.latest.countries) || {}).map(function (iso) {
       var name = String(countryName(iso));
-      return {iso: iso, name: name, fold: foldText(name), key: foldText(name + " " + iso + " " + (COUNTRY_ALIASES[iso] || ""))};
+      return {iso: iso, name: name, fold: foldText(name), key: foldText(name + " " + iso + " " + (state.officialNames[iso] || "") + " " + (COUNTRY_ALIASES[iso] || ""))};
     }).sort(function (x, y) { return x.name.localeCompare(y.name); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-country-pick]"), function (box) {
       var input = box.querySelector("input"), list = box.querySelector("ul"), matches = [], active = -1;
       function close() { list.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); active = -1; }
       function draw() {
         var q = foldText(input.value.trim());
+        var words = q.replace(/[,()]/g, " ").split(/\s+/).filter(Boolean);
         var first = [], rest = [];
+        /* Every typed word must appear somewhere, in any order, so "republic of korea" finds "Korea, Republic of". */
         entries.forEach(function (e) {
           if (!q || e.fold.indexOf(q) === 0) first.push(e);
-          else if (e.key.indexOf(q) !== -1) rest.push(e);
+          else if (words.every(function (w) { return e.key.indexOf(w) !== -1; })) rest.push(e);
         });
         matches = first.concat(rest);
         if (active >= matches.length) active = matches.length - 1;

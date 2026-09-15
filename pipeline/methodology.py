@@ -2,7 +2,7 @@
 import datetime as dt
 from typing import Dict
 
-from pipeline import config
+from pipeline import config, registry
 
 TEMPLATE = """# Methodology
 
@@ -61,11 +61,11 @@ countries.
 
 ## The categories
 
-State origin. {cat_a}
+{cat_a}
 
-Unverified relay. {cat_b}
+{cat_b}
 
-Independent journalism. {cat_c}
+{cat_c}
 
 Not relevant. {cat_n}
 
@@ -184,7 +184,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         articles_classified=meta["articles_classified"], articles_reviewed=meta["articles_reviewed"],
         review_coverage_pct=round(meta["review_coverage"] * 100, 1),
         paywall_share_pct=("%.1f percent" % (meta["paywall_share"] * 100)) if meta["paywall_share"] is not None else "not yet measured",
-        paywall_flagged=", ".join(meta["paywall_flagged_countries"]) or "none",
+        paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
         a_total=tot["A"], b_total=tot["B"], c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
         llm_ceiling_days=", ".join(meta["llm_ceiling_days"]) or "none",

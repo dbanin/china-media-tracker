@@ -27,6 +27,27 @@ def _alpha2_map() -> Dict[str, str]:
     return _ALPHA2
 
 
+_NAMES = None
+
+
+def country_name(iso: str) -> str:
+    """Common English name for an ISO alpha-3 code: docs/country-names.json first, then the ISO short name."""
+    global _NAMES
+    if _NAMES is None:
+        m = {}
+        table = config.ROOT / "docs" / "vendor" / "iso3166.json"
+        if table.exists():
+            with open(table, "r", encoding="utf-8") as fh:
+                for row in json.load(fh):
+                    m[row["alpha-3"]] = row["name"]
+        common = config.ROOT / "docs" / "country-names.json"
+        if common.exists():
+            with open(common, "r", encoding="utf-8") as fh:
+                m.update(json.load(fh).get("names", {}))
+        _NAMES = m
+    return _NAMES.get(iso, iso)
+
+
 def load_outlets(path: Path = config.OUTLETS_PATH, validate: bool = True) -> List[Dict]:
     with open(path, "r", encoding="utf-8") as fh:
         outlets = yaml.safe_load(fh) or []
