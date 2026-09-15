@@ -122,11 +122,11 @@
 
   /* ------------------------------------------------------------------- map */
   var svg, gCountries, gMarkers, path, projection, colorScale;
-  var ZERO_COLOR = "#f6f1e8", LOW_COLOR = "#f1c4bd", HIGH_COLOR = "#7d0a10";
-  /* Seven distinct steps. Bin edges follow a square law, so the low end gets most of the
+  var ZERO_COLOR = "#f6f1e8", LOW_COLOR = "#f7d3cb", HIGH_COLOR = "#3d0306";
+  /* Seven distinct steps, interpolated in Lab so lightness falls steadily: the darker the shade, the more articles. Bin edges follow a square law, so the low end gets most of the
      resolution: a country at a fifth of the cap is already three steps away from white. */
   var STEPS = 7;
-  var STEP_COLORS = d3.range(STEPS).map(function (i) { return d3.interpolateRgb.gamma(1.2)(LOW_COLOR, HIGH_COLOR)(STEPS === 1 ? 1 : i / (STEPS - 1)); });
+  var STEP_COLORS = d3.range(STEPS).map(function (i) { return d3.interpolateLab(LOW_COLOR, HIGH_COLOR)(STEPS === 1 ? 1 : i / (STEPS - 1)); });
   function stepEdges(max) { return d3.range(1, STEPS).map(function (i) { return max * Math.pow(i / STEPS, 2); }); }
   function setupMap() {
     svg = d3.select("#map");
@@ -181,7 +181,7 @@
       if (cls === "value") vals.push(mv.value);
     });
     /* The ramp tops out at the 95th percentile so one outlier does not flatten every other country.
-       Values above the cap take the brightest color; the legend says the cap is a cap. */
+       Values above the cap take the darkest color; the legend says the cap is a cap. */
     var trueMax = vals.length ? d3.max(vals) : 1;
     var max = vals.length ? C.percentile(vals, 0.95) : 1;
     if (!max) max = trueMax || 1;
@@ -310,8 +310,10 @@
   }
 
   /* ---------------------------------------------------------------- themes */
-  /* Cells are shaded by the share of that country's articles in the theme: one red hue, dark to bright. */
-  var THEME_HEAT = ["#2a1618", "#4a1a1e", "#6f1c22", "#962026", "#bf2a31"];
+  /* Cells are shaded by the share of that country's articles in the theme, using swatches taken from the
+     map ramp so the two charts read the same way: light for a small share, dark for a large one. */
+  var THEME_HEAT = [0, 2, 3, 5, 6].map(function (i) { return STEP_COLORS[i]; });
+  function inkOn(color) { return d3.lab(color).l > 62 ? "#0c0d0f" : "#f3ede2"; }
   var THEME_EDGES = [0.05, 0.15, 0.3, 0.5];
   var THEME_BANDS = ["under 5%", "5 to 15%", "15 to 30%", "30 to 50%", "50% or more"];
   var THEME_ROWS = 15;
@@ -413,7 +415,7 @@
           '<th scope="row" class="c-country">' + esc(r.name) + '</th><td class="c-n">' + r.n + '</td>' +
           catalog.map(function (c) {
             var v = r.t[c.id] || 0, share = Math.min(1, v / Math.max(r.n, 1)), bg = heat(share);
-            return '<td class="cell" data-theme="' + c.id + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + '"' : '') + '>' + (v || "") + '</td>';
+            return '<td class="cell" data-theme="' + c.id + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
           }).join("") + '</tr>';
       }).join("") + '</tbody>';
     updateGridScroll();
