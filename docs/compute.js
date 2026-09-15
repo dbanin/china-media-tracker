@@ -78,7 +78,7 @@
 
   /* Share metrics are undefined on tiny denominators: two A items out of two is not a 100 percent country. */
   var MIN_SHARE_DENOMINATOR = 5;
-  /* Items per thousand published needs a real stream of items behind it. */
+  /* A share of monitored output needs a real stream of items behind it. */
   var MIN_ALL_ITEMS_DENOMINATOR = 50;
   /* ...and enough outlets that the stream describes a country rather than a handful of feeds. */
   var MIN_OUTLETS_FOR_OUTPUT_SHARE = 5;
@@ -90,15 +90,15 @@
   var METRICS = {
     count_a: {label: "State origin articles", format: "int", measure: "a"},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", measure: "a"},
-    per_thousand_a: {label: "State origin articles per 1,000 items published by the monitored outlets", format: "dec", measure: "a", allItems: true},
+    share_of_output_a: {label: "Share of monitored output: state origin articles as a share of every item the monitored outlets published", format: "pct", measure: "a", allItems: true},
     per_million_a: {label: "State origin articles per million people", format: "dec", measure: "a", population: true},
     count_target: {label: "Target articles: state origin, confirmed unverified relay and sourcing candidates not yet verified", format: "int", measure: "target"},
     per_outlet_target: {label: "Target articles per monitored outlet", format: "dec", measure: "target"},
-    per_thousand_target: {label: "Target articles per 1,000 items published by the monitored outlets", format: "dec", measure: "target", allItems: true},
+    share_of_output_target: {label: "Share of monitored output: target articles as a share of every item the monitored outlets published", format: "pct", measure: "target", allItems: true},
     per_million_target: {label: "Target articles per million people", format: "dec", measure: "target", population: true},
     count_china: {label: "All China coverage: every article that concerns China", format: "int", measure: "china"},
     per_outlet_china: {label: "All China coverage per monitored outlet", format: "dec", measure: "china"},
-    per_thousand_china: {label: "All China coverage per 1,000 items published by the monitored outlets", format: "dec", measure: "china", allItems: true},
+    share_of_output_china: {label: "Share of monitored output: all China coverage as a share of every item the monitored outlets published", format: "pct", measure: "china", allItems: true},
     per_million_china: {label: "All China coverage per million people", format: "dec", measure: "china", population: true},
     share_a: {label: "Share of China coverage that is state origin", format: "pct", measure: "a"},
     share_target: {label: "Share of China coverage that is state origin, confirmed relay or a sourcing candidate", format: "pct", measure: "target"},
@@ -157,23 +157,23 @@
           else if (population < MIN_POPULATION) { sparse = china > 0; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; }
           else value = num / population * 1e6;
           break;
-        case "per_thousand_a": case "per_thousand_target": case "per_thousand_china":
-          if (mode === "reviewed") note = "Items per 1,000 published is not available for human-reviewed labels only.";
-          else if (byRoute) note = "Items per 1,000 published is not available by route, because the published items are not split by route.";
+        case "share_of_output_a": case "share_of_output_target": case "share_of_output_china":
+          if (mode === "reviewed") note = "The share of monitored output is not available for human-reviewed labels only.";
+          else if (byRoute) note = "The share of monitored output is not available by route, because the published items are not split by route.";
           else if (ctx.topOutlets !== undefined && ctx.topOutlets !== null && ctx.topOutlets < MIN_OUTLETS_FOR_OUTPUT_SHARE) {
             sparse = allItems > 0 || china > 0;
-            note = "Fewer than " + MIN_OUTLETS_FOR_OUTPUT_SHARE + " monitored outlets, so a rate per published item would describe a handful of feeds, not a country.";
+            note = "Fewer than " + MIN_OUTLETS_FOR_OUTPUT_SHARE + " monitored outlets, so a share of their output would describe a handful of feeds, not a country.";
           } else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) {
             sparse = allItems > 0 || china > 0;
-            note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the monitored outlets in this window, so a rate is not shown.";
-          } else value = (metric === "per_thousand_china" ? (k.tchina || 0) : metric === "per_thousand_a" ? (k.ta || 0) : (k.ttarget || 0)) / allItems * 1000;
+            note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the monitored outlets in this window, so a share is not shown.";
+          } else value = (metric === "share_of_output_china" ? (k.tchina || 0) : metric === "share_of_output_a" ? (k.ta || 0) : (k.ttarget || 0)) / allItems;
           break;
         default: value = null;
       }
     }
     if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
     return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, withheld: withheld, note: note,
-            allItems: allItems, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0, population: population || null};
+            allItems: allItems, allItemsA: k.ta || 0, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0, population: population || null};
   }
 
   /* State origin in the window for one route or arrival: filter {kind: "route" | "arrival", id}. */
@@ -209,11 +209,11 @@
 
   /* The grid behind the Measure and Basis toggles. Per capita comes last: population measures people,
      not media saturation, so it is the least defensible of the denominators. */
-  var BASES = ["count", "per_outlet", "per_thousand", "per_million"];
+  var BASES = ["count", "per_outlet", "share_of_output", "per_million"];
   var GRID = {
-    a: {count: "count_a", per_outlet: "per_outlet_a", per_thousand: "per_thousand_a", per_million: "per_million_a"},
-    target: {count: "count_target", per_outlet: "per_outlet_target", per_thousand: "per_thousand_target", per_million: "per_million_target"},
-    china: {count: "count_china", per_outlet: "per_outlet_china", per_thousand: "per_thousand_china", per_million: "per_million_china"}
+    a: {count: "count_a", per_outlet: "per_outlet_a", share_of_output: "share_of_output_a", per_million: "per_million_a"},
+    target: {count: "count_target", per_outlet: "per_outlet_target", share_of_output: "share_of_output_target", per_million: "per_million_target"},
+    china: {count: "count_china", per_outlet: "per_outlet_china", share_of_output: "share_of_output_china", per_million: "per_million_china"}
   };
   function gridMetric(measure, basis) { return (GRID[measure] || GRID.a)[basis] || GRID.a.count; }
 
