@@ -115,7 +115,7 @@ Some outlets answer 403 or time out for GitHub's runner addresses while
 their feeds work from an ordinary network. Those carry `collector:
 self_hosted` in the registry and are relayed from the owner's Mac: a launchd
 job runs `scripts/relay.sh` every hour, which polls and fetches only those
-outlets into a separate database (`data/relay.db`), then force-pushes one
+outlets into a separate database (`data/relay.db`), running from its own git worktree pinned to the published main branch so local uncommitted edits never reach it,, then force-pushes one
 gzipped file of the last seven days of articles, bodies included, to the
 `relay` branch. That branch has no history, so the repository does not grow.
 The hosted pipeline job ingests the bundle at the start of every run and

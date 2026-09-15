@@ -73,3 +73,16 @@ def test_pruned_items_are_not_delivered_twice(tmp_path, monkeypatch):
     assert second["inserted"] == 0 and second["already_delivered"] == 1
     assert dst.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 2
     assert dst.execute("SELECT discovered FROM daily_outlet_discovery").fetchone()[0] == 3
+
+
+def test_unknown_record_types_are_skipped_not_fatal(tmp_path, monkeypatch):
+    import gzip, io, json
+    from pipeline import config
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    buf = io.BytesIO()
+    with gzip.open(buf, "wt", encoding="utf-8") as fh:
+        fh.write(json.dumps({"_type": "something_newer", "x": 1}) + "\n")
+        fh.write(json.dumps({"no_url_hash": True}) + "\n")
+    dst = store.connect(tmp_path / "m.db")
+    counts = relay.ingest(dst, buf.getvalue())
+    assert counts["skipped_unknown"] == 2 and counts["inserted"] == 0

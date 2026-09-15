@@ -150,6 +150,11 @@ def ingest(conn, data: bytes) -> Dict:
                  item["last_entries"], item["consecutive_failures"], item["total_checks"], item["total_failures"]))
             counts["feeds"] = counts.get("feeds", 0) + 1
             continue
+        if item.get("_type") or "url_hash" not in item:
+            # A record type this version does not know, from a newer relay. Skip it rather than fail
+            # the whole run: on 2026-09-14 a bundle with a new record type stopped two hourly runs.
+            counts["skipped_unknown"] = counts.get("skipped_unknown", 0) + 1
+            continue
         counts["seen"] += 1
         if conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone():
             continue
