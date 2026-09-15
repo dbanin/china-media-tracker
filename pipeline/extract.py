@@ -7,6 +7,7 @@ mirrors, no reader proxies, no bypass services.
 """
 import json
 import re
+from html import unescape
 from typing import Dict, Optional, Tuple
 
 import trafilatura
@@ -71,7 +72,7 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
         get = lambda k, d=None: getattr(doc, k, d)  # noqa: E731
     out["text"] = get("text") or None
     out["title"] = get("title") or None
-    out["author"] = get("author") or None
+    out["author"] = clean_author(get("author"))
     out["date"] = get("date") or None
     out["sitename"] = get("sitename") or None
     out["description"] = get("description") or None
@@ -116,6 +117,70 @@ META_RE = re.compile(
 )
 TITLE_RE = re.compile(r'(?is)<title[^>]*>(.*?)</title>')
 TAG_RE = re.compile(r'<[^>]+>')
+
+# A byline is a name, sometimes a desk or a wire co-credit. It is never a slab of page chrome.
+AUTHOR_MAX_CHARS = 80
+# In a list of bylines every element is short and reads as a name; an affiliation or a bio does not.
+# "Wanning Sun, Professor of Media and Cultural Studies, University of Technology Sydney" has three
+# short segments but only the first is a name, so length alone cannot tell them apart.
+AUTHOR_SEGMENT_MAX = 40
+AUTHOR_NAME_WORDS_MAX = 4
+# Words that belong to navigation and furniture, never to a byline. "Trending" is deliberately absent:
+# "India Today Trending Desk" is a real desk byline, and desk names have to survive.
+AUTHOR_JUNK_RE = re.compile(
+    r"(?i)\b(sections?|menu|navigation|subscribe|newsletter|breadcrumb|follow us|share this|sign ?up|"
+    r"log ?in|cookies?)\b")
+# Furniture that extraction tacks onto the end of an otherwise good byline.
+AUTHOR_TRAILING_JUNK_RE = re.compile(r"(?i)[\s|,;-]*(read more|share this|follow us|more from .*)$")
+
+
+def clean_author(value: Optional[str]) -> Optional[str]:
+    """An author field a byline pattern can trust, or None.
+
+    Extraction sometimes returns markup ("di <a href=...>Annamaria Grisorio</a>") or a slab of page
+    chrome ("SECTIONS China represented by Foreign Minister Wang Yi"). Author scoped signatures read
+    this field, so junk in it becomes a false state origin label: that Economic Times navigation text
+    put a diplomat's name and title in the author field and the diplomat list matched it.
+
+    The rules, each measured against the real fields in the database rather than guessed. Markup is
+    stripped rather than rejected, because a byline wrapped in a link is still a byline. Trailing
+    furniture is trimmed. Navigation words reject the field outright. A long field is kept whole when
+    it reads as a list of names, and reduced to its first element when a name is followed by an
+    affiliation, which is how The Conversation bylines its academics. Anything else too long to be a
+    byline is dropped. Wire co-credits ("Antaranews Com; Xinhua") and desk names ("Advertorial Desk")
+    must survive: credit and disclosure patterns depend on them.
+    """
+    if not value:
+        return None
+    text = TAG_RE.sub(" ", unescape(value))
+    text = re.sub(r"\s+", " ", text).strip()
+    text = AUTHOR_TRAILING_JUNK_RE.sub("", text).strip().strip(",;|-").strip()
+    if not text or AUTHOR_JUNK_RE.search(text):
+        return None
+    if len(text) <= AUTHOR_MAX_CHARS:
+        return text
+    segments = [s.strip() for s in text.split(",") if s.strip()]
+    looks_like_names = all(len(s) <= AUTHOR_SEGMENT_MAX and len(s.split()) <= AUTHOR_NAME_WORDS_MAX for s in segments)
+    if len(segments) > 1 and looks_like_names:
+        return text
+    head = segments[0] if segments else ""
+    if head and len(head) <= AUTHOR_MAX_CHARS and re.search(r"[^\W\d_]", head):
+        return head
+    return None
+
+
+def clean_stored_authors(conn) -> int:
+    """Apply clean_author to author fields already stored, returning the number changed. Author
+    scoped patterns read the stored field, so without this a reclassification would keep matching
+    junk captured before the rule existed."""
+    changed = 0
+    for r in conn.execute("SELECT id, author FROM articles WHERE author IS NOT NULL AND author != ''").fetchall():
+        cleaned = clean_author(r["author"])
+        if cleaned != r["author"]:
+            conn.execute("UPDATE articles SET author=? WHERE id=?", (cleaned, r["id"]))
+            changed += 1
+    conn.commit()
+    return changed
 
 
 def page_labels(html: str) -> str:

@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
 
-from pipeline import gate, registry, store
+from pipeline import extract, gate, registry, store
 from pipeline.feeds_util import fetch_feed
 
 TITLE_JACCARD_THRESHOLD = 0.7
@@ -165,7 +165,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     item = {
                         "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
                         "language": outlet["language"], "feed_url": feed_url, "title": title,
-                        "summary": gate.strip_html(summary)[:2000], "author": _entry_author(entry),
+                        "summary": gate.strip_html(summary)[:2000], "author": extract.clean_author(_entry_author(entry)),
                         "published_at": _entry_time(entry),
                         "status": "queued" if relevant else "gated_out",
                         "gate_relevant": 1 if relevant else 0, "gate_terms": terms,
