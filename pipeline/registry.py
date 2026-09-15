@@ -92,13 +92,29 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
-    key_order = ["id", "name", "country", "language", "feeds", "tier", "notes", "audience_rank", "collector", "active",
-                 "inactive_reason", "inactive_since"]
+    key_order = ["id", "name", "country", "language", "feeds", "section_feeds", "release_sections", "tier", "notes",
+                 "audience_rank", "collector", "active", "inactive_reason", "inactive_since"]
     ordered = []
     for o in outlets:
         ordered.append({k: o[k] for k in key_order if k in o})
     with open(path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(ordered, fh, allow_unicode=True, sort_keys=False, width=200)
+
+
+EDITORIAL = "editorial"
+GATE_EXEMPT_KINDS = ("press_release", "sponsored", "partner")
+
+
+def feed_entries(outlet: Dict) -> List[Dict]:
+    """Every feed the outlet is polled on, as {url, kind}: the editorial feeds first, then the
+    press release, sponsored and partner section feeds found by pipeline/discover_sections.py."""
+    out = [{"url": u, "kind": EDITORIAL, "type": "rss"} for u in outlet.get("feeds", [])]
+    seen = {e["url"] for e in out}
+    for f in outlet.get("section_feeds", []) or []:
+        if f["url"] not in seen:
+            out.append({"url": f["url"], "kind": f["kind"], "type": f.get("type", "rss")})
+            seen.add(f["url"])
+    return out
 
 
 def active_outlets(outlets: List[Dict]) -> List[Dict]:
