@@ -174,7 +174,7 @@ aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric
 .timeline .tl-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.45rem; }
 .th-timeline { margin: 0 0 1.5rem; padding: 0.9rem 0 1rem; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .th-timeline svg.spark path { fill: rgba(191, 42, 49, 0.22) !important; stroke: #c2343b !important; }
-.th-timeline input[type="range"] { accent-color: #c2343b; }
+.timeline.th-timeline input[type="range"] { accent-color: #c2343b; }
 .timeline .tl-row { display: flex; align-items: center; gap: 0.8rem; }
 .timeline .tl-date { min-width: 8rem; font-variant-numeric: tabular-nums; font-family: var(--display); font-size: 1.3rem; }
 .timeline .tl-track { position: relative; flex: 1; height: 3.2rem; }
