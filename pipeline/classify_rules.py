@@ -184,6 +184,11 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
         "body": body_clean,
         "labels": labels or "",
         "labels_head_tail": "\n".join([labels or "", body_clean[:HEAD_CHARS], body_clean[-TAIL_CHARS:]]),
+        # Article scoped: where a disclosure attached to THIS article sits. Page labels carry site
+        # furniture (navigation strips, ad slots, site-wide menu items), so a bare sponsored phrase
+        # found there says nothing about the article; only the paired state entity patterns may read them.
+        "byline_head": "\n".join([author, title, body_clean[:HEAD_CHARS]]),
+        "head_tail": "\n".join([body_clean[:HEAD_CHARS], body_clean[-TAIL_CHARS:]]),
         "any": "\n".join([author, title, body_clean]),
         "any_with_labels": "\n".join([author, title, body_clean, labels or ""]),
     }

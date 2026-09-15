@@ -69,8 +69,10 @@
   expect_decision: A_candidate
   expect_ids_include:
   - wire_stamp_alone
+  - sponsored_en
   note: Hard negative for the distribution stamp group. A Huawei product launch on PR Newswire, republished under an advertorial
-    label. Huawei is a company, not the state. Routed to the LLM, never A by rules.
+    label. Huawei is a company, not the state. Routed to the LLM, never A by rules. The advertorial disclosure is in the author
+    field, which is article scoped, so sponsored_en must keep firing after the 2026.09.6 rescoping.
 - file: yeclo_ambassador_quoted_in_report.txt
   author: Christian Aka
   labels: null
@@ -81,3 +83,28 @@
   - diplomat_byline_head
   note: Hard negative for the authored by state group. A reporter's account of a minister receiving the Chinese ambassador.
     Names the ambassador with his full title in the first sentence, but the journalist formed the editorial view. Not A.
+- file: nst_branded_content_nav.txt
+  author: Asila Jalil
+  labels: nst_branded_content_nav.labels.txt
+  source: https://www.nst.com.my/business/corporate/2026/09/1525189/media-chinese-disposes-canadian-property-rm20mil
+  expect_decision: none
+  expect_ids_exclude:
+  - sponsored_en
+  - sponsored_it
+  - sponsored_es
+  - sponsored_pt
+  - sponsored_nl
+  note: Hard negative, sponsored placement group. A staff bylined story whose page chrome carries the site's 'What To Read
+    Next ... Branded Content' navigation strip. Before 2026.09.6 the bare disclosure patterns read page labels and routed
+    74 New Straits Times articles to the model on navigation text alone.
+- file: focus_anzeige_ad_slot.txt
+  author: Philine Ehmler
+  labels: focus_anzeige_ad_slot.labels.txt
+  source: https://www.focus.de/politik/ausland/russland-greift-die-ukraine-mit-immer-schnelleren-drohnen-an-fuer-die-neuen-systeme-braucht-moskau-wichtige-technologie-aus-china_8e8361d0-4526-4f06-8da4-366a0c3bc7d5.html
+  expect_decision: none
+  expect_ids_exclude:
+  - sponsored_prose_phrases_head_tail
+  - sponsored_de
+  note: Hard negative, sponsored placement group. A staff bylined war report whose page chrome carries '(Anzeige) Solaranlagen
+    Angebote von regionalen Firmen' ad slots. Disclosure phrases that also occur in ordinary prose now count only in the body's
+    head and tail, never in page labels.
