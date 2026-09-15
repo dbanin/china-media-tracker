@@ -496,6 +496,19 @@
     var total = function (id) { return (sel && sel.t[id]) || 0; };
     var order = catalog.filter(function (c) { return c.id !== "other"; }).sort(function (a, b) { return total(b.id) - total(a.id); });
     if (label.other) order.push(label.other);
+    /* Shaded by the number of articles, on the map's steps: darker always means more. A share of a
+       day's articles would paint a day with one article as dark as the busiest day. */
+    var counts = [];
+    perDay.forEach(function (p) { order.forEach(function (c) { if (p.t[c.id] > 0) counts.push(p.t[c.id]); }); });
+    var cap = counts.length ? Math.max(1, C.percentile(counts, 0.95)) : 1;
+    var edges = stepEdges(cap);
+    var shade = d3.scaleThreshold().domain(edges).range(STEP_COLORS);
+    var bands = [];
+    STEP_COLORS.forEach(function (color, i) {
+      var lo = i === 0 ? 1 : Math.floor(edges[i - 1]) + 1, hi = i < edges.length ? Math.floor(edges[i]) : null;
+      if (hi !== null && hi < lo) return;
+      bands.push({color: color, text: hi === null ? lo + " or more" : (lo === hi ? String(lo) : lo + " to " + hi)});
+    });
     var grid = el("theme-grid");
     grid.classList.add("days");
     grid.innerHTML =
@@ -507,14 +520,14 @@
         return '<tr data-theme-row="' + c.id + '"' + (state.themeSort === c.id ? ' class="selected"' : '') + '>' +
           '<th scope="row" class="c-country">' + esc(c.label) + '</th><td class="c-n">' + total(c.id) + '</td>' +
           perDay.map(function (p) {
-            var v = p.t[c.id] || 0, share = Math.min(1, v / Math.max(p.n, 1)), bg = heat(share);
+            var v = p.t[c.id] || 0, share = Math.min(1, v / Math.max(p.n, 1)), bg = v > 0 ? shade(v) : null;
             return '<td class="cell" data-theme="' + c.id + '" data-day="' + p.d + '" data-n="' + p.n + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
           }).join("") + '</tr>';
       }).join("") + '</tbody>';
     updateGridScroll();
     el("theme-legend").innerHTML =
-      '<span class="tl-title">Cell shade: share of ' + esc(name) + '\'s ' + esc(noun) + ' that day in the theme</span>' +
-      THEME_BANDS.map(function (b, i) { return '<span class="tl-i"><span class="sw" style="background:' + THEME_HEAT[i] + '"></span>' + b + '</span>'; }).join("") +
+      '<span class="tl-title">Cell shade: number of ' + esc(noun) + ' that day, same steps as the map</span>' +
+      bands.map(function (b) { return '<span class="tl-i"><span class="sw" style="background:' + b.color + '"></span>' + b.text + '</span>'; }).join("") +
       '<span class="tl-foot">' + esc(name) + ', the ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
   }
 
