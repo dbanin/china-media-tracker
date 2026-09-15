@@ -32,7 +32,11 @@ The gate has its own version, {gate_version}, separate from the ruleset: it
 decides what enters the corpus, not how an article is labelled. Gate decisions
 are recorded per item and never revisited, so a change to the gate applies only
 to items discovered after it. Items an earlier gate rejected are not
-re-examined, and rejected items are pruned after {retention} days.
+re-examined, and rejected items are pruned after {retention} days. Re-running a
+new gate over the rejections still stored measures only what is recoverable
+from them; it cannot speak for items already pruned, or for feed entries that
+rolled off a feed before any poll saw them, so a small recovery is never
+evidence that the earlier gate lost nothing.
 {gate_changes_text}
 
 Where an outlet's press release, sponsored or partner section has been found
