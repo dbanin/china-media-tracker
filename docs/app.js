@@ -596,12 +596,64 @@
     renderPanel();
   }
   function countryName(iso) { return String(iso).indexOf("name:") === 0 ? String(iso).slice(5) : (state.names[iso] || iso); }
-  /* The Country pickers above the map and above the theme counter open the same single country view. */
+  /* The Country search boxes above the map and above the theme counter open the same single country
+     view. Typing filters the monitored countries: names that start with the query first, then any
+     name, ISO code or common alias that contains it, ignoring accents. */
+  var COUNTRY_ALIASES = {USA: "usa us america united states", GBR: "uk britain great britain england", KOR: "south korea", PRK: "north korea",
+    RUS: "russia", VNM: "vietnam", IRN: "iran", TWN: "taiwan", CZE: "czech republic czechia", TUR: "turkey turkiye", BOL: "bolivia",
+    VEN: "venezuela", TZA: "tanzania", SYR: "syria", LAO: "laos", MDA: "moldova", COD: "drc congo kinshasa", COG: "congo brazzaville",
+    CIV: "ivory coast", ARE: "uae emirates", HKG: "hong kong", MAC: "macau macao", PSE: "palestine", MMR: "burma myanmar", SWZ: "swaziland eswatini"};
+  function foldText(t) { return String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
   function setupCountryPicks() {
-    var isos = Object.keys((state.latest && state.latest.countries) || {}).sort(function (a, b) { return String(countryName(a)).localeCompare(String(countryName(b))); });
-    Array.prototype.forEach.call(document.querySelectorAll("select[data-country-pick]"), function (s) {
-      s.innerHTML = '<option value="">Whole world</option>' + isos.map(function (iso) { return '<option value="' + esc(iso) + '">' + esc(countryName(iso)) + '</option>'; }).join("");
-      s.addEventListener("change", function () { selectCountry(s.value || null); });
+    var entries = Object.keys((state.latest && state.latest.countries) || {}).map(function (iso) {
+      var name = String(countryName(iso));
+      return {iso: iso, name: name, fold: foldText(name), key: foldText(name + " " + iso + " " + (COUNTRY_ALIASES[iso] || ""))};
+    }).sort(function (x, y) { return x.name.localeCompare(y.name); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-country-pick]"), function (box) {
+      var input = box.querySelector("input"), list = box.querySelector("ul"), matches = [], active = -1;
+      function close() { list.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); active = -1; }
+      function draw() {
+        var q = foldText(input.value.trim());
+        var first = [], rest = [];
+        entries.forEach(function (e) {
+          if (!q || e.fold.indexOf(q) === 0) first.push(e);
+          else if (e.key.indexOf(q) !== -1) rest.push(e);
+        });
+        matches = first.concat(rest);
+        if (active >= matches.length) active = matches.length - 1;
+        list.innerHTML = matches.length ? matches.map(function (e, i) {
+          var at = q ? e.fold.indexOf(q) : -1;
+          var label = at >= 0 && e.name.length === e.fold.length ?
+            esc(e.name.slice(0, at)) + '<mark>' + esc(e.name.slice(at, at + q.length)) + '</mark>' + esc(e.name.slice(at + q.length)) : esc(e.name);
+          return '<li role="option" id="' + input.id + '-o' + i + '" data-iso="' + esc(e.iso) + '" aria-selected="' + (i === active) + '"' + (i === active ? ' class="active"' : '') + '>' + label + '</li>';
+        }).join("") : '<li class="none">No monitored country matches</li>';
+        list.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        if (active >= 0) {
+          input.setAttribute("aria-activedescendant", input.id + "-o" + active);
+          var li = list.children[active];
+          if (li && li.scrollIntoView) li.scrollIntoView({block: "nearest"});
+        } else input.removeAttribute("aria-activedescendant");
+      }
+      function restore() { input.value = state.selected ? countryName(state.selected) : ""; }
+      function choose(iso) { close(); input.blur(); selectCountry(iso); restore(); }
+      input.addEventListener("focus", function () { input.select(); active = -1; draw(); });
+      input.addEventListener("input", function () { active = input.value.trim() ? 0 : -1; draw(); });
+      input.addEventListener("keydown", function (ev) {
+        if (ev.key === "ArrowDown") { ev.preventDefault(); active = Math.min(matches.length - 1, active + 1); draw(); }
+        else if (ev.key === "ArrowUp") { ev.preventDefault(); active = Math.max(0, active - 1); draw(); }
+        else if (ev.key === "Enter") {
+          ev.preventDefault();
+          var pick = matches[active >= 0 ? active : 0];
+          if (pick && (active >= 0 || input.value.trim())) choose(pick.iso);
+        } else if (ev.key === "Escape") { close(); restore(); input.blur(); }
+      });
+      list.addEventListener("mousedown", function (ev) {
+        var li = ev.target.closest("li[data-iso]");
+        ev.preventDefault();
+        if (li) choose(li.getAttribute("data-iso"));
+      });
+      input.addEventListener("blur", function () { close(); restore(); });
     });
     /* Whole world and One country flip between the two views; One country reopens the last country
        chosen, or the top country on the map when none has been chosen yet. */
@@ -617,11 +669,8 @@
     syncCountryPicks();
   }
   function syncCountryPicks() {
-    var v = state.selected || "";
-    Array.prototype.forEach.call(document.querySelectorAll("select[data-country-pick]"), function (s) {
-      var has = Array.prototype.some.call(s.options, function (o) { return o.value === v; });
-      if (!has) { var o = document.createElement("option"); o.value = v; o.textContent = countryName(v); s.appendChild(o); }
-      s.value = v;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-country-pick] input"), function (input) {
+      if (document.activeElement !== input) input.value = state.selected ? countryName(state.selected) : "";
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-scope-group] button"), function (b) {
       b.classList.toggle("active", (b.getAttribute("data-scope") === "country") === !!state.selected);
