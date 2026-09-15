@@ -6,6 +6,9 @@ name: pipeline
 #
 #   hourly at :17     collect: ingest the relay bundle, discover, fetch, classify
 #   daily at 02:00    the same, then export: rollups, site data, snapshot, Pages deploy
+#   any scheduled run exports if the published site data is more than 12 hours old, because
+#   GitHub drops many scheduled runs (the 02:00 slot often never fires) and the site must still
+#   update every day
 #   Mondays at 03:30  the same, then validate: check every feed, deactivate dead outlets
 #
 # Run workflow lets the owner pick a stage by hand.
@@ -14,6 +17,7 @@ on:
   schedule:
     - cron: "17 * * * *"
     - cron: "0 2 * * *"
+    - cron: "41 13 * * *"
     - cron: "30 3 * * 1"
   workflow_dispatch:
     inputs:
@@ -44,7 +48,7 @@ jobs:
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
       GH_TOKEN: ${{ github.token }}
-      STAGE: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
+      STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -57,7 +61,25 @@ jobs:
         with:
           node-version: "20"
       - run: pip install -r requirements.txt
-      - run: echo "stage=$STAGE"
+      - name: Pick the stage, exporting whenever the site data is stale
+        run: |
+          stage="$STAGE_REQUESTED"
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$stage" = "collect" ]; then
+            age=$(python - <<'PY'
+          import json, datetime
+          try:
+              g = json.load(open("docs/data/meta.json")).get("generated_at") or json.load(open("docs/data/meta.json"))["generated"]
+              t = datetime.datetime.fromisoformat(g.replace("Z", "+00:00"))
+              print(int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() // 3600))
+          except Exception:
+              print(999)
+          PY
+            )
+            echo "site data is ${age} hours old"
+            if [ "$age" -ge 12 ]; then stage=export; fi
+          fi
+          echo "STAGE=$stage" >> "$GITHUB_ENV"
+          echo "stage=$stage"
       - name: Restore database from the most recent run
         uses: actions/cache/restore@v5
         with:
@@ -69,6 +91,8 @@ jobs:
       - name: Fall back to the snapshot or seed if no cache
         run: scripts/db_restore.sh
       - name: Ingest the relay bundle from the owner's machine, if there is one
+        # A bad bundle must never stop the daily update; the outlets it carries wait for the next run.
+        continue-on-error: true
         run: python -m pipeline.relay ingest
       - name: Discover, fetch, classify
         run: |
