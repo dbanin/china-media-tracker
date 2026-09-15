@@ -78,6 +78,100 @@
           "self_hosted"
         ],
         "description": "Which collector polls this outlet. hosted (default) is the GitHub-hosted runner; self_hosted is the runner on the owner's own network, for feeds that refuse GitHub's addresses."
+      },
+      "section_feeds": {
+        "type": "array",
+        "description": "Press release, sponsored and partner sections that editorial RSS usually leaves out, found by pipeline/discover_sections.py. type rss is a feed; type page is the section's index page, read for article links. Items from these sections skip the relevance gate; classification decides.",
+        "items": {
+          "type": "object",
+          "required": [
+            "url",
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^https?://"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "press_release",
+                "sponsored",
+                "partner"
+              ]
+            },
+            "section": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "rss",
+                "page"
+              ],
+              "description": "rss: a feed. page: a section index page whose article links are read like feed entries."
+            }
+          }
+        }
+      },
+      "release_sections": {
+        "type": "object",
+        "description": "Whether the outlet's site was searched for press release, sponsored or partner sections, when, and what was found. Unsearched outlets have no entry. The flag is a finding: state origin can only be found where the route was looked for.",
+        "required": [
+          "searched_on",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "searched_on": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "found",
+              "none_found",
+              "blocked",
+              "unreachable"
+            ]
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "kind"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "press_release",
+                    "sponsored",
+                    "partner"
+                  ]
+                },
+                "feed": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
