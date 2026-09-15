@@ -250,6 +250,7 @@ body.force-map #bars-wrap { display: none; }
 #bars .bar-row .items { color: var(--ash); font-size: 0.74rem; margin-left: 0.3rem; }
 #bars .bar-warn { color: var(--warn); text-align: center; font-weight: 500; }
 .timeline svg.spark line.ruleset { stroke: var(--bone-soft); stroke-width: 1.2; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.timeline svg.spark line.gate { stroke: var(--gold-soft); stroke-width: 1.2; stroke-dasharray: 1 3; vector-effect: non-scaling-stroke; }
 .timeline svg.spark rect.relay-gap { fill: var(--bad); opacity: 0.8; }
 .timeline svg.spark rect.older-ruleset { fill: var(--ash); opacity: 0.55; }
 aside#panel .relay-state { color: var(--ash); font-style: italic; }
