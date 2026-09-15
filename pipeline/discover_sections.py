@@ -80,6 +80,24 @@ def outlet_homepage(outlet: Dict, conn=None) -> Optional[str]:
     return "%s://%s/" % (p.scheme or "https", host)
 
 
+_STORY_SEGMENT = re.compile(r"(\.s?html?$|\.php$|\d{5,})", re.I)
+_NOT_CONTENT = re.compile(r"^(advertis\w*|advertising|anunci\w*|publicit\w*|werbung|media-?kit|mediadaten|rate-?card|"
+                          r"tarifs?|pubblicit\w*|reklam\w*|contact\w*|about\w*|jobs|careers|shop|store|subscribe\w*)$", re.I)
+
+
+def plausible_section(url: str) -> bool:
+    """A section index, not a single story and not the page that sells advertising."""
+    segs = [s for s in urlsplit(url).path.split("/") if s]
+    if not segs:
+        return False
+    last = segs[-1]
+    if last.count("-") >= 4 or len(last) > 50 or _STORY_SEGMENT.search(last):
+        return False
+    if re.match(r"^\d{4}$", segs[0]):          # /2026/05/... is a dated story path
+        return False
+    return not any(_NOT_CONTENT.match(s) for s in segs)
+
+
 def normalize_section(url: str) -> Optional[str]:
     """Trim a link to the section it names: ".../advertorial/some-story-slug" becomes ".../advertorial".
     Returns None when the link is a single article rather than a section."""
@@ -95,7 +113,8 @@ def normalize_section(url: str) -> Optional[str]:
             return None
     if len(segs) > 3:
         return None
-    return "%s://%s/%s" % (parts.scheme or "https", parts.netloc, "/".join(segs))
+    out = "%s://%s/%s" % (parts.scheme or "https", parts.netloc, "/".join(segs))
+    return out if plausible_section(out) else None
 
 
 def section_links(html: str, base: str) -> List[Dict]:
@@ -251,6 +270,11 @@ def apply(out_path) -> Dict:
         rec = results.get(o["id"])
         if not rec:
             continue
+        # Results from an earlier probe version are filtered again, so single stories and advertising
+        # sales pages recorded then never become sections.
+        rec = dict(rec, sections=[s for s in rec["sections"] if plausible_section(s["url"])])
+        if rec["status"] == "found" and not any(s.get("reachable", True) for s in rec["sections"]):
+            rec["status"] = "none_found"
         o["release_sections"] = {
             "searched_on": rec["searched_on"], "status": rec["status"],
             "sections": [{"url": s["url"], "kind": s["kind"], "feed": s.get("feed"), "label": s.get("label") or ""}

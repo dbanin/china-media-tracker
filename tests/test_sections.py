@@ -88,3 +88,36 @@ def test_apply_writes_sections_and_page_feeds(tmp_path, monkeypatch):
         {"url": "https://x.com/media-releases", "kind": "press_release", "section": "https://x.com/media-releases", "type": "page"},
         {"url": "https://x.com/brand-studio/feed", "kind": "sponsored", "section": "https://x.com/brand-studio", "type": "rss"}]
     assert "release_sections" not in other
+
+
+def test_plausible_section_rejects_stories_and_ad_sales_pages():
+    assert ds.plausible_section("https://www.la-croix.com/tag/contenus-sponsorises")
+    assert ds.plausible_section("https://www.sudanspost.com/category/press-releases")
+    assert not ds.plausible_section("https://initiativesnews.com/communique-de-presse-de-la-cea-le-president-sortant-du-bureau-")
+    assert not ds.plausible_section("https://www.independent.co.uk/us/beam-biotic-supplements-b3011821.html")
+    assert not ds.plausible_section("https://observador.pt/anunciar")
+    assert not ds.plausible_section("https://magneticmediatv.com/2026/05/academy-eagles-fc-crowned")
+
+
+def test_apply_refilters_old_probe_results(tmp_path, monkeypatch):
+    import json
+    outlets = [{"id": "mr_x", "name": "X", "country": "MRT", "language": "fr", "feeds": ["https://x.com/rss"], "tier": "national_daily", "active": True}]
+    saved = {}
+    monkeypatch.setattr(registry, "load_outlets", lambda: [dict(o) for o in outlets])
+    monkeypatch.setattr(registry, "save_outlets", lambda os_: saved.setdefault("o", os_))
+    probe = {"mr_x": {"id": "mr_x", "searched_on": "2026-09-15", "status": "found", "sections": [
+        {"url": "https://x.com/communique-de-presse-du-mouvement-des-jeunes-patriotes-section", "kind": "press_release",
+         "label": "", "feed": "https://x.com/communique-de-presse-du-mouvement-des-jeunes-patriotes-section/feed", "reachable": True}]}}
+    p = tmp_path / "probe.json"
+    p.write_text(json.dumps(probe))
+    ds.apply(p)
+    o = saved["o"][0]
+    assert o["release_sections"]["status"] == "none_found" and o["release_sections"]["sections"] == []
+    assert "section_feeds" not in o
+
+
+def test_tag_listing_accepts_stories_elsewhere_on_site():
+    html = ('<a href="/economie/entreprise-chinoise-signe-un-accord-avec-le-port">Une entreprise chinoise signe un accord avec le port</a>'
+            '<a href="/abonnement">Abonnez-vous au journal maintenant</a>')
+    entries = section_pages.article_links(html, "https://www.la-croix.com/tag/contenus-sponsorises")
+    assert [e["link"] for e in entries] == ["https://www.la-croix.com/economie/entreprise-chinoise-signe-un-accord-avec-le-port"]
