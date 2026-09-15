@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=52">
+<link rel="stylesheet" href="style.css?v=53">
 </head>
 <body>
 <header class="top">
@@ -94,7 +94,7 @@
         <button data-window="all">Total</button>
       </div>
       <div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div>
-      <label class="pick"><span>Country</span><select id="map-country" data-country-pick aria-label="Country shown on the map"></select></label>
+      <div class="pick"><label for="map-country">Country</label><div class="csearch" data-country-pick><input type="search" id="map-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="map-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the map"><ul class="csearch-list" id="map-country-list" role="listbox" hidden></ul></div></div>
     </div>
     <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric"></svg>
     <div id="legend"></div>
@@ -143,7 +143,7 @@
         <button data-theme-window="all">Total</button>
       </div>
       <div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div>
-      <label class="pick"><span>Country</span><select id="theme-country" data-country-pick aria-label="Country shown in the theme counter"></select></label>
+      <div class="pick"><label for="theme-country">Country</label><div class="csearch" data-country-pick><input type="search" id="theme-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="theme-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the theme counter"><ul class="csearch-list" id="theme-country-list" role="listbox" hidden></ul></div></div>
     </div>
     <div class="th-body">
       <div class="th-focus" id="theme-focus"></div>
@@ -184,7 +184,7 @@
     <p><strong>Independent journalism.</strong> The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.</p>
     <p><strong>Not relevant.</strong> Does not concern China.</p>
     <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and the 95th percentile of the countries on the map, so the low end gets most of the resolution and one outlier does not flatten every other country; countries above the cap take the darkest step and the legend shows the true maximum.</p>
-    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms, in sixteen languages, appear in its headline, its feed summary or the opening of its body. An article can carry several themes, and one with none is Other. The theme counter follows the Measure toggle and has its own window and timeline, separate from the map. The One country toggle, either Country picker, or a click on a country opens the single country view in both places, and Whole world returns to every country: the map zooms to that country and keeps the world color scale, and the theme counter shows that country's themes day by day. Its tags are keyword matches, not a reading of the article, so they show what coverage is about in broad strokes and should be checked by hand before a theme count is cited.</p>
+    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms, in sixteen languages, appear in its headline, its feed summary or the opening of its body. An article can carry several themes, and one with none is Other. The theme counter follows the Measure toggle and has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country: the map zooms to that country and keeps the world color scale, and the theme counter shows that country's themes day by day. Its tags are keyword matches, not a reading of the article, so they show what coverage is about in broad strokes and should be checked by hand before a theme count is cited.</p>
     <p><strong>Denominators.</strong> Per million people divides by the resident population in sources/population.json and is not shown for territories under 100,000 residents, where one article would dominate the scale. The share of all published items divides by every item the country's largest monitored outlets put in their feeds during the window, whether or not it concerns China; the largest outlets are the thirty best audience ranks recorded in the registry, and every active outlet until ranks are recorded.</p>
     <p><strong>Official Chinese sourcing, verification pending.</strong> Not a fifth category. A deterministic pass marks every article that cites Xinhua, CGTN, Global Times, China Daily, CCTV or People's Daily, quotes a foreign ministry spokesperson, a Chinese embassy or a named official spokesperson, or says that Chinese state media reported something. Those are the candidates for unverified relay. Whether the article checked the claim is the verification judgement, made by the model stage and audited by hand coding; until it runs, the candidate is shown as a target with the sentence that triggered it.</p>
     <p>The critical distinction is between unverified relay and independent journalism, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still unverified relay. An article sympathetic to China that independently confirms every claim is independent journalism.</p>
@@ -208,7 +208,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=52"></script>
-<script src="app.js?v=52"></script>
+<script src="compute.js?v=53"></script>
+<script src="app.js?v=53"></script>
 </body>
 </html>

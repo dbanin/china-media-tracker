@@ -223,8 +223,20 @@ body.force-map #bars-wrap { display: none; }
 
 /* Single country view: the pickers above the map and the theme counter, and the day grid. */
 [hidden] { display: none !important; }
-.pick { display: inline-flex; align-items: center; gap: 0.55rem; font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
-.pick select { text-transform: none; letter-spacing: 0; font-size: 0.86rem; max-width: 15rem; }
+.pick { display: inline-flex; position: relative; align-items: center; gap: 0.55rem; font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
 .th-grid.days thead th.c-day { cursor: default; min-width: 1.7rem; padding-left: 0.1rem; padding-right: 0.1rem; }
 .th-grid.days td.cell { min-width: 1.7rem; padding: 0.3rem 0.1rem; font-size: 0.74rem; }
 .th-grid.days tbody th { cursor: pointer; }
+.pick label { cursor: pointer; }
+.csearch { position: relative; }
+.csearch input { width: 15rem; max-width: 62vw; box-sizing: border-box; font: inherit; font-size: 0.86rem; text-transform: none; letter-spacing: 0; color: var(--bone);
+  background: var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='6.5' cy='6.5' r='4.8' fill='none' stroke='%239c968b' stroke-width='1.5'/%3E%3Cpath d='M10.2 10.2 14 14' stroke='%239c968b' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 0.6rem center / 0.85rem;
+  border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0.42rem 0.6rem 0.42rem 1.9rem; }
+.csearch input::placeholder { color: var(--ash); }
+.csearch input:focus { border-color: var(--gold); outline: none; }
+.csearch-list { position: absolute; z-index: 30; top: calc(100% + 3px); left: 0; min-width: 100%; box-sizing: border-box; margin: 0; padding: 0.25rem 0; list-style: none;
+  background: var(--ink-2); border: 1px solid var(--rule-strong); max-height: 19rem; overflow-y: auto; text-transform: none; letter-spacing: 0; font-size: 0.86rem; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
+.csearch-list li { padding: 0.4rem 0.75rem; color: var(--bone-soft); cursor: pointer; white-space: nowrap; }
+.csearch-list li mark { background: none; color: var(--gold); }
+.csearch-list li.active, .csearch-list li[data-iso]:hover { background: var(--ink-3); color: var(--bone); }
+.csearch-list li.none { color: var(--ash); cursor: default; }
