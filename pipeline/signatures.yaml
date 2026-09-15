@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.6"
+ruleset_version: "2026.09.7"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -61,6 +61,16 @@ groups:
         regex: '(?im)^\s*(source|fonte|credit|crediti|quelle|fuente|origine|por|by|di|par|von|editing by|editor)\s*:?\s*(the\s+)?Xinhua(\s+News\s+Agency)?\s*(\.|$)'
         strength: strong
         note: Explicit credit line naming Xinhua as the source of the text.
+      - id: xinhua_co_credit_author
+        regex: '(?i)(^|[;,/|]|\band\b)\s*(Agenzia\s+)?Xinhua(\s+News\s+Agency)?\s*$'
+        strength: strong
+        scope: author
+        note: 'A co-credited byline, for example Antaranews Com followed by Xinhua. The wire is named as an author of the text, not cited in it.'
+      - id: xinhua_translator_credit
+        regex: '(?im)^\s*(penerjemah|penterjemah|sumber|fonte|source|traduzione)\s*:\s*(agenzia\s+)?Xinhua\b'
+        strength: strong
+        scope: tail
+        note: 'Trailer on republished wire copy, for example Antara translator credits naming Xinhua.'
       - id: xinhua_author_field
         regex: '(?i)^\s*(Xinhua|Xinhua News Agency|Agenzia Xinhua|Agence Xinhua|Agencia Xinhua)\s*$'
         strength: strong
@@ -122,8 +132,10 @@ groups:
         scope: head
         note: Italian syndication often opens with "Xinhua/" or "(Xinhua) " before the dateline.
       - id: xinhua_writer_byline
-        regex: '(?i)\b(by|di|par|por)\s+Xinhua\s+(writer|writers|reporter|corrispondente)s?\b'
+        regex: '(?im)^\s*(by|di|par|por)\s+Xinhua\s+(writer|writers|reporter|corrispondente)s?\b'
         strength: strong
+        scope: byline_head
+        note: 'Must stand where a byline stands. Matched anywhere, it fired on prose citing a Xinhua report inside an outlet piece written by its own reporter.'
 
   distribution_stamp:
     description: Press release wire stamps whose issuing entity is Chinese state linked, and disclosures that the publisher has not reviewed the content.
@@ -154,11 +166,11 @@ groups:
       carry navigation strips, ad slots and site-wide menu items that name no article.
     patterns:
       - id: sponsored_with_state_entity_en
-        regex: '(?is)\b(sponsored (content|by|post|feature|article)|paid (post|content|partnership|for by)|presented by|branded content|advertorial|partner content|in partnership with|brought to you by|promoted content|advertisement feature|special report by)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China|Consulate General of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute|Hainan|Guangdong|Shandong|Sichuan|Zhejiang|Jiangsu|Fujian|Hubei|Hunan|Yunnan|Chongqing|Tianjin|Shanghai|Beijing)\b.{0,80}?\b(government|province|provincial|municipal|department|bureau|administration|office|committee|council|daily|times|CGTN|Xinhua|embassy|consulate|institute|group|cent(er|re)|People.s Daily)\b'
+        regex: '(?is)\b(sponsored (content|by|post|feature|article)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content|advertisement feature|special report by)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China|Consulate General of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute|Hainan|Guangdong|Shandong|Sichuan|Zhejiang|Jiangsu|Fujian|Hubei|Hunan|Yunnan|Chongqing|Tianjin|Shanghai|Beijing)\b.{0,80}?\b(government|province|provincial|municipal|department|bureau|administration|office|committee|council|daily|times|CGTN|Xinhua|embassy|consulate|institute|group|cent(er|re)|People.s Daily)\b'
         strength: strong
         scope: labels_head_tail
       - id: state_entity_then_sponsored_en
-        regex: '(?is)\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,600}?\b(sponsored (content|by|post|feature)|paid (post|content|partnership|for by)|presented by|branded content|advertorial|partner content|in partnership with|brought to you by|promoted content)\b'
+        regex: '(?is)\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,600}?\b(sponsored (content|by|post|feature)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content)\b'
         strength: strong
         scope: labels_head_tail
       - id: china_watch_supplement
@@ -175,7 +187,7 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_it_with_state_entity
-        regex: '(?is)\b(contenuto sponsorizzato|publiredazionale|pubbliredazionale|in collaborazione con|branded content|informazione pubblicitaria|contenuto promozionale|sponsorizzato da|realizzato da)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Ambasciata della Cina|Consolato (Generale )?Cinese|Consolato della Cina|Istituto Confucio|Centro Culturale Cinese|Ufficio (Informazioni|Turistico) (della|del) Cina|Governo (Popolare )?(Provinciale|Municipale)|Provincia (dello|del|di) (Shandong|Hainan|Sichuan|Zhejiang|Jiangsu|Fujian|Guangdong|Hubei|Hunan|Yunnan|Henan|Anhui|Shaanxi|Shanxi|Hebei))\b'
+        regex: '(?is)\b(contenuto sponsorizzato|publiredazionale|pubbliredazionale|branded content|informazione pubblicitaria|contenuto promozionale|sponsorizzato da|realizzato da)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Ambasciata della Cina|Consolato (Generale )?Cinese|Consolato della Cina|Istituto Confucio|Centro Culturale Cinese|Ufficio (Informazioni|Turistico) (della|del) Cina|Governo (Popolare )?(Provinciale|Municipale)|Provincia (dello|del|di) (Shandong|Hainan|Sichuan|Zhejiang|Jiangsu|Fujian|Guangdong|Hubei|Hunan|Yunnan|Henan|Anhui|Shaanxi|Shanxi|Hebei))\b'
         strength: strong
         scope: labels_head_tail
       - id: cairorcs_studio
@@ -187,17 +199,12 @@ groups:
         regex: '(?is)\b(CairoRcs Studio|Cairo Rcs Studio|RCS Studio|Studio Rcs)\b.{0,1200}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Consolato (Generale )?Cinese|Istituto Confucio|Centro Culturale Cinese|Governo (Popolare )?(Provinciale|Municipale)|Repubblica Popolare Cinese|Provincia (dello|del|di) )'
         strength: strong
         scope: labels_head_tail
-      - id: sponsored_prose_phrases_head_tail
-        regex: '(?i)\b(presented by|in partnership with|brought to you by|sponsored by|in association with|in collaborazione con|realizzato in collaborazione|in partnership con|partenariat|en partenariat avec|présenté par|proposé par|en colaboración con|presentado por|em parceria com|apresentado por|in kooperation mit|in zusammenarbeit mit|präsentiert von|anzeige|werbung|in samenwerking met|aangeboden door)\b'
-        strength: weak
-        scope: head_tail
-        note: Phrases that also occur in ordinary prose. Only counted where disclosures live.
       - id: sponsored_fr
         regex: '(?i)\b(contenu sponsorisé|contenu partenaire|contenu de marque|contenu commandité|publireportage|publi-reportage|article sponsorisé|contenu payant)\b'
         strength: weak
         scope: byline_head
       - id: sponsored_fr_with_state_entity
-        regex: "(?is)\\b(contenu sponsorisé|contenu partenaire|publireportage|publi-reportage|en partenariat avec|article sponsorisé|présenté par|contenu commandité)\\b.{0,600}?\\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Quotidien du Peuple|ambassade de (la République populaire de )?Chine|consulat (général )?de Chine|Institut Confucius|Centre culturel (de )?Chin(e|ois)|gouvernement (populaire )?(provincial|municipal)|province d[eu] )"
+        regex: "(?is)\\b(contenu sponsorisé|contenu partenaire|publireportage|publi-reportage|article sponsorisé|contenu commandité)\\b.{0,600}?\\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Quotidien du Peuple|ambassade de (la République populaire de )?Chine|consulat (général )?de Chine|Institut Confucius|Centre culturel (de )?Chin(e|ois)|gouvernement (populaire )?(provincial|municipal)|province d[eu] )"
         strength: strong
         scope: labels_head_tail
       - id: sponsored_es
@@ -205,7 +212,7 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_es_with_state_entity
-        regex: '(?is)\b(publirreportaje|contenido patrocinado|contenido de marca|patrocinado por|presentado por|contenido pagado|en colaboración con)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diario del Pueblo|embajada de (la República Popular )?China|consulado (general )?de China|Instituto Confucio|Centro Cultural (de )?China|gobierno (popular )?(provincial|municipal)|provincia de )'
+        regex: '(?is)\b(publirreportaje|contenido patrocinado|contenido de marca|patrocinado por|contenido pagado)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diario del Pueblo|embajada de (la República Popular )?China|consulado (general )?de China|Instituto Confucio|Centro Cultural (de )?China|gobierno (popular )?(provincial|municipal)|provincia de )'
         strength: strong
         scope: labels_head_tail
       - id: sponsored_pt
@@ -213,7 +220,7 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_pt_with_state_entity
-        regex: '(?is)\b(conteúdo patrocinado|publieditorial|informe publicitário|patrocinado por|apresentado por|em parceria com|conteúdo pago)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diário do Povo|embaixada da (República Popular da )?China|consulado (geral )?da China|Instituto Confúcio|Centro Cultural da China|governo (popular )?(provincial|municipal)|província de )'
+        regex: '(?is)\b(conteúdo patrocinado|publieditorial|informe publicitário|patrocinado por|conteúdo pago)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diário do Povo|embaixada da (República Popular da )?China|consulado (geral )?da China|Instituto Confúcio|Centro Cultural da China|governo (popular )?(provincial|municipal)|província de )'
         strength: strong
         scope: labels_head_tail
       - id: sponsored_de
@@ -221,7 +228,7 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_de_with_state_entity
-        regex: '(?is)\b(gesponsert|gesponserter|anzeige|advertorial|in kooperation mit|in zusammenarbeit mit|präsentiert von|bezahlter|partnerinhalt)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Volkszeitung|Botschaft der Volksrepublik China|chinesische(n|r)? Botschaft|Generalkonsulat der Volksrepublik China|Konfuzius-?Institut|Chinesisches Kulturzentrum|Provinzregierung|Provinz )'
+        regex: '(?is)\b(gesponsert|gesponserter|anzeige|advertorial|bezahlter|partnerinhalt)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Volkszeitung|Botschaft der Volksrepublik China|chinesische(n|r)? Botschaft|Generalkonsulat der Volksrepublik China|Konfuzius-?Institut|Chinesisches Kulturzentrum|Provinzregierung|Provinz )'
         strength: strong
         scope: labels_head_tail
       - id: sponsored_nl
@@ -237,27 +244,27 @@ groups:
         strength: strong
         scope: labels_head_tail
       - id: sponsored_ru
-        regex: '(?i)(на правах рекламы|партнерский материал|партнёрский материал|спонсорский материал|реклама\b|материал подготовлен при поддержке|при поддержке)'
+        regex: '(?i)(на правах рекламы|партнерский материал|партнёрский материал|спонсорский материал|реклама\b)'
         strength: weak
         scope: byline_head
       - id: sponsored_ru_with_state_entity
-        regex: '(?is)(на правах рекламы|партн[её]рский материал|спонсорский материал|при поддержке).{0,600}?(Синьхуа|Xinhua|CGTN|China Daily|Global Times|Жэньминь жибао|Медиакорпорац[ия][яи] Китая|Посольств[оа] (Китайской Народной Республики|КНР|Китая)|Генеральн[оы][ег]о? консульств[оа] (КНР|Китая)|Институт Конфуция|Китайский культурный центр|Народное правительство)'
+        regex: '(?is)(на правах рекламы|партн[её]рский материал|спонсорский материал).{0,600}?(Синьхуа|Xinhua|CGTN|China Daily|Global Times|Жэньминь жибао|Медиакорпорац[ия][яи] Китая|Посольств[оа] (Китайской Народной Республики|КНР|Китая)|Генеральн[оы][ег]о? консульств[оа] (КНР|Китая)|Институт Конфуция|Китайский культурный центр|Народное правительство)'
         strength: strong
         scope: labels_head_tail
       - id: sponsored_ar
-        regex: '(?i)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع|بالتعاون مع|برعاية)'
+        regex: '(?i)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع)'
         strength: weak
         scope: byline_head
       - id: sponsored_ar_with_state_entity
-        regex: '(?is)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع|بالتعاون مع|برعاية).{0,600}?(شينخوا|سي جي تي إن|CGTN|تشاينا ديلي|China Daily|غلوبال تايمز|صحيفة الشعب|سفارة (جمهورية )?الصين|القنصلية (العامة )?الصينية|معهد كونفوشيوس|المركز الثقافي الصيني)'
+        regex: '(?is)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع).{0,600}?(شينخوا|سي جي تي إن|CGTN|تشاينا ديلي|China Daily|غلوبال تايمز|صحيفة الشعب|سفارة (جمهورية )?الصين|القنصلية (العامة )?الصينية|معهد كونفوشيوس|المركز الثقافي الصيني)'
         strength: strong
         scope: labels_head_tail
       - id: sponsored_asia
-        regex: '(?i)(konten bersponsor|konten berbayar|artikel sponsor|kerja sama dengan|iklan\b|nội dung được tài trợ|bài viết tài trợ|quảng cáo\b|เนื้อหาที่ได้รับการสนับสนุน|โฆษณา|スポンサード|広告|PR記事|提供:|스폰서 콘텐츠|광고\b|협찬|प्रायोजित सामग्री|विज्ञापन)'
+        regex: '(?i)(konten bersponsor|konten berbayar|artikel sponsor|iklan\b|nội dung được tài trợ|bài viết tài trợ|quảng cáo\b|เนื้อหาที่ได้รับการสนับสนุน|โฆษณา|スポンサード|広告|PR記事|提供:|스폰서 콘텐츠|광고\b|협찬|प्रायोजित सामग्री|विज्ञापन)'
         strength: weak
         scope: byline_head
       - id: sponsored_asia_with_state_entity
-        regex: '(?is)(konten bersponsor|konten berbayar|artikel sponsor|kerja sama dengan|nội dung được tài trợ|bài viết tài trợ|เนื้อหาที่ได้รับการสนับสนุน|スポンサード|PR記事|提供:|스폰서 콘텐츠|협찬|प्रायोजित).{0,600}?(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Kedutaan (Besar )?(Republik Rakyat )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc|Tân Hoa Xã|สถานทูตจีน|ซินหัว|新華社|中国大使館|中国国際テレビ|中国日報|신화통신|중국 대사관|चीनी दूतावास|शिन्हुआ)'
+        regex: '(?is)(konten bersponsor|konten berbayar|artikel sponsor|nội dung được tài trợ|bài viết tài trợ|เนื้อหาที่ได้รับการสนับสนุน|スポンサード|PR記事|提供:|스폰서 콘텐츠|협찬|प्रायोजित).{0,600}?(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Kedutaan (Besar )?(Republik Rakyat )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc|Tân Hoa Xã|สถานทูตจีน|ซินหัว|新華社|中国大使館|中国国際テレビ|中国日報|신화통신|중국 대사관|चीनी दूतावास|शिन्हुआ)'
         strength: strong
         scope: labels_head_tail
 
