@@ -4,6 +4,32 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.6 (2026-09-15)
+
+Bare sponsored disclosure patterns are now scoped to the article instead of the
+whole page. The eleven weak sponsored_* patterns move from any_with_labels to a
+new byline_head scope (author field, headline, first 400 characters of the
+body), sponsored_prose_phrases_head_tail moves to a head_tail scope that does
+not read page labels, and cairorcs_studio moves to labels_head_tail. Every
+pattern that pairs a disclosure with a named Chinese state entity is unchanged
+and still reads page chrome, because there the entity names who paid.
+
+Page labels capture site furniture, so the unscoped patterns fired on
+navigation strips, ad slots and menu entries rather than on a disclosure
+attached to the article: a staff bylined New Straits Times sports report with a
+"Branded Content" item in its "What To Read Next" strip, a Focus war report
+beside an "(Anzeige) Solaranlagen" ad slot, a site-wide "Sponsored Content" menu
+entry. Measured on the model queue, 459 of 2,586 waiting articles, 18 percent,
+were queued this way.
+
+Measured effect over 673 articles: 194 fired before, 75 still fire, 119 stop.
+None of the 119 had "Advertorial" or "Xinhua" in the author field, and all 52
+that did still fire, so signed advertorials and wire bylines are untouched. In
+that set no article moved into or out of state origin; the changes are
+candidates that are no longer sent to the model. Two fixtures were added from
+real articles, and articles labelled under 2026.09.5 are reclassified forward
+during the hourly runs, 2,000 per run.
+
 ## Gate 2026.09.6 (2026-09-15)
 
 Made after a methodology review. The signature list is unchanged, so the

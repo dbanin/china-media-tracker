@@ -162,7 +162,11 @@ def test_gate_version_is_separate_from_the_ruleset(tmp_path):
     """A gate change moves what is collected, not how anything is labelled, so it carries its own
     version and never triggers reclassification."""
     assert {"version": config.GATE_VERSION, "date": "2026-09-15"} in export.gate_changes()
-    assert not any(c["version"] == config.GATE_VERSION for c in export.ruleset_changes())
+    assert {"version": config.RULESET_VERSION, "date": "2026-09-15"} in export.ruleset_changes()
+    # The two series are read from their own headings and never pick up each other's entries, even
+    # when a gate change and a ruleset change happen to carry the same version number on one day.
+    assert not any(c["version"] == "2026.09.5" for c in export.gate_changes())
+    assert {"version": "2026.09.5", "date": "2026-09-14"} in export.ruleset_changes()
     conn = store.connect(tmp_path / "g.db")
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["gate_version"] == config.GATE_VERSION and meta["gate_applies_forward_only"] is True
