@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -78,12 +78,12 @@
   }
   function bProvisional() { return !(state.meta && state.meta.b_counts_settled); }
   function metricLabel() { return C.METRICS[state.metric] ? C.METRICS[state.metric].label : state.metric; }
-  function windowLabel() { return windowLabelFor(state.endDate); }
-  function windowLabelFor(date) {
+  function windowLabel() { return windowLabelFor(state.endDate, state.windowDays); }
+  function windowLabelFor(date, days) {
     if (!date) return "no data";
-    if (state.windowDays === "all") return "total to " + date;
-    if (Number(state.windowDays) === 1) return date;
-    return Number(state.windowDays) + " days ending " + date;
+    if (days === "all") return "total to " + date;
+    if (Number(days) === 1) return date;
+    return Number(days) + " days ending " + date;
   }
 
   /* --------------------------------------------------------------- notices */
@@ -333,7 +333,7 @@
 
   function themeModel(agg) {
     var catalog = (state.meta && state.meta.themes) || [];
-    var byIso = C.aggregateThemes(state.months, state.endDate, state.windowDays === "all" ? null : Number(state.windowDays));
+    var byIso = C.aggregateThemes(state.months, state.themeEnd, state.themeWindow === "all" ? null : Number(state.themeWindow));
     var mi = measureIndex();
     var rows = [];
     var world = {name: "All monitored countries", n: 0, t: {}};
@@ -436,6 +436,15 @@
 
   function bindThemes() {
     if (!el("themes")) return;
+    /* The theme counter's own window, independent of the map's Window toggle. */
+    Array.prototype.forEach.call(document.querySelectorAll("[data-theme-window-group] button"), function (b) {
+      b.addEventListener("click", function () {
+        var v = b.getAttribute("data-theme-window");
+        state.themeWindow = v === "all" ? "all" : Number(v);
+        Array.prototype.forEach.call(document.querySelectorAll("[data-theme-window-group] button"), function (x) { x.classList.toggle("active", x === b); });
+        renderThemes();
+      });
+    });
     el("theme-grid-wrap").addEventListener("scroll", updateGridScroll);
     window.addEventListener("resize", updateGridScroll);
     function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(); }
@@ -637,9 +646,9 @@
   /* ------------------------------------------------------ theme timeline */
   /* The theme counter has its own day and its own Play, separate from the map's timeline.
      Starting either animation stops the other, so the two never run at the same time. */
-  function themeWindowLabel() { return windowLabelFor(state.themeEnd); }
+  function themeWindowLabel() { return windowLabelFor(state.themeEnd, state.themeWindow); }
   function themeAgg() {
-    return C.aggregateWindow(state.months, state.themeEnd, state.windowDays === "all" ? null : Number(state.windowDays));
+    return C.aggregateWindow(state.months, state.themeEnd, state.themeWindow === "all" ? null : Number(state.themeWindow));
   }
   function setupThemeTimeline() {
     var scrub = el("th-scrub");
@@ -692,7 +701,7 @@
       return {i: i, v: v};
     });
     var who = state.selected ? (state.names[state.selected] || state.selected) : "all monitored countries";
-    el("th-hint").textContent = "Moves only the theme counter; the map keeps its own day. The curve is the daily number of " + noun + " in " + who + ".";
+    el("th-hint").textContent = "Moves only the theme counter; the map keeps its own day and window. The curve is the daily number of " + noun + " in " + who + ".";
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
@@ -780,7 +789,7 @@
     function applyWindow(v) {
       state.windowDays = v === "all" ? "all" : Number(v);
       Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) { b.classList.toggle("active", b.getAttribute("data-window") === v); });
-      renderMap(); renderThemes(); if (state.selected) renderPanel();
+      renderMap(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) {
       b.addEventListener("click", function () { applyWindow(b.getAttribute("data-window")); });

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=46">
+<link rel="stylesheet" href="style.css?v=48">
 </head>
 <body>
 <header class="top">
@@ -127,12 +127,28 @@
         <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Day shown on the map">
       </div>
     </div>
-    <div class="tl-hint">Moves only the map; the theme counter keeps its own day. The shaded curve is the global daily total of target articles: state placements plus pieces carrying official Chinese sourcing. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
+    <div class="tl-hint">Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily total of target articles: state placements plus pieces carrying official Chinese sourcing. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
   </div>
   <section id="themes" aria-labelledby="themes-title">
     <div class="th-kicker">Theme counter</div>
     <h2 id="themes-title">What the coverage is about</h2>
     <p class="th-sub" id="themes-sub"></p>
+    <div class="th-head">
+      <div class="segment window" data-theme-window-group>
+        <button data-theme-window="1">That day</button>
+        <button data-theme-window="7">7 days</button>
+        <button data-theme-window="30" class="active">30 days</button>
+        <button data-theme-window="all">Total</button>
+      </div>
+    </div>
+    <div class="th-body">
+      <div class="th-focus" id="theme-focus"></div>
+      <div>
+        <div class="th-grid-wrap" id="theme-grid-wrap"><table class="th-grid" id="theme-grid"></table></div>
+        <p class="th-scroll-hint">Scroll the grid sideways to see every theme.</p>
+      </div>
+    </div>
+    <div class="th-legend" id="theme-legend"></div>
     <div class="timeline th-timeline" id="theme-timeline">
       <div class="tl-kicker">Theme timeline</div>
       <div class="tl-row">
@@ -147,14 +163,6 @@
       </div>
       <div class="tl-hint" id="th-hint"></div>
     </div>
-    <div class="th-body">
-      <div class="th-focus" id="theme-focus"></div>
-      <div>
-        <div class="th-grid-wrap" id="theme-grid-wrap"><table class="th-grid" id="theme-grid"></table></div>
-        <p class="th-scroll-hint">Scroll the grid sideways to see every theme.</p>
-      </div>
-    </div>
-    <div class="th-legend" id="theme-legend"></div>
     <div id="theme-tip" class="tooltip"></div>
   </section>
   <aside id="panel">
@@ -172,7 +180,7 @@
     <p><strong>Independent journalism.</strong> The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.</p>
     <p><strong>Not relevant.</strong> Does not concern China.</p>
     <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and the 95th percentile of the countries on the map, so the low end gets most of the resolution and one outlier does not flatten every other country; countries above the cap take the darkest step and the legend shows the true maximum.</p>
-    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms, in sixteen languages, appear in its headline, its feed summary or the opening of its body. An article can carry several themes, and one with none is Other. The theme counter follows the Measure and Window toggles. Its tags are keyword matches, not a reading of the article, so they show what coverage is about in broad strokes and should be checked by hand before a theme count is cited.</p>
+    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms, in sixteen languages, appear in its headline, its feed summary or the opening of its body. An article can carry several themes, and one with none is Other. The theme counter follows the Measure toggle and has its own window and timeline, separate from the map. Its tags are keyword matches, not a reading of the article, so they show what coverage is about in broad strokes and should be checked by hand before a theme count is cited.</p>
     <p><strong>Denominators.</strong> Per million people divides by the resident population in sources/population.json and is not shown for territories under 100,000 residents, where one article would dominate the scale. The share of all published items divides by every item the country's largest monitored outlets put in their feeds during the window, whether or not it concerns China; the largest outlets are the thirty best audience ranks recorded in the registry, and every active outlet until ranks are recorded.</p>
     <p><strong>Official Chinese sourcing, verification pending.</strong> Not a fifth category. A deterministic pass marks every article that cites Xinhua, CGTN, Global Times, China Daily, CCTV or People's Daily, quotes a foreign ministry spokesperson, a Chinese embassy or a named official spokesperson, or says that Chinese state media reported something. Those are the candidates for unverified relay. Whether the article checked the claim is the verification judgement, made by the model stage and audited by hand coding; until it runs, the candidate is shown as a target with the sentence that triggered it.</p>
     <p>The critical distinction is between unverified relay and independent journalism, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still unverified relay. An article sympathetic to China that independently confirms every claim is independent journalism.</p>
@@ -196,7 +204,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=46"></script>
-<script src="app.js?v=46"></script>
+<script src="compute.js?v=48"></script>
+<script src="app.js?v=48"></script>
 </body>
 </html>
