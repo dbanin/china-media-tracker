@@ -14,10 +14,18 @@ today.
 
 Gate decisions are recorded per item and never revisited, so this gate applies
 to items discovered from 2026-09-15 onward. Items the old gate rejected are not
-re-examined, and those rejected more than three days ago are already pruned. The
-recovery this would have brought is small and was measured rather than assumed:
-over 40,000 recently rejected items, the signature exemption admits 0 and the
-new province terms admit 1.
+re-examined, and those rejected more than three days ago are already pruned.
+
+What re-examining them would recover was measured rather than assumed. Running
+the new gate over the 151,367 rejections still stored admits 7: all of them on
+the new province and city terms (Jiangxi, Hengqin, Shanxi, Guangdong, Dalian),
+none on the state origin signature exemption, and two of the seven are the
+Dalian Commodity Exchange in palm oil reports, which the residual relevance rule
+drops afterwards. A re-gate pass is therefore not worth the run time. That
+figure bounds only what is recoverable from rejections still stored: it cannot
+speak for items already pruned, or for feed entries that rolled off a feed
+before any poll saw them, so it is not evidence that the earlier gate lost
+nothing.
 
 The relevance gate now carries every Chinese province, autonomous region and
 the largest cities, and an item whose title or summary already fires a state
