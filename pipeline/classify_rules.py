@@ -214,9 +214,9 @@ def ensure_body(conn, row) -> str:
         conn.execute("UPDATE articles SET status=? WHERE id=?", (prior_status, row["id"]))
         conn.commit()
         return store.load_body(row["url_hash"]) or ""
-    if prior_status in ("awaiting_llm", "llm_submitted"):
-        # A candidate stays a candidate. The failed re-fetch is recorded in fail_reason and
-        # fetch_attempts, not by silently dropping the article from the pending pool.
+    if prior_status in ("awaiting_llm", "llm_submitted", "classified"):
+        # A candidate stays a candidate and a classified article keeps its label. The failed
+        # re-fetch is recorded in fail_reason and fetch_attempts, not by demoting the article.
         conn.execute("UPDATE articles SET status=?, fail_reason=? WHERE id=?",
                      (prior_status, "refetch_%s:%s" % (res["status"], res.get("reason")), row["id"]))
         conn.commit()
@@ -268,10 +268,17 @@ def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetc
     load_diplomats()
     # Repair articles a broken ruleset marked failed on an earlier run: queue them for a fresh fetch.
     repaired = conn.execute("UPDATE articles SET status='queued', fail_reason=NULL WHERE fail_reason LIKE 'classify_exception:%'").rowcount
-    if repaired:
+    # Repair articles an earlier failed body re-fetch demoted to failed although they still carry a
+    # current label: the label stands, the status goes back to classified.
+    relabelled = conn.execute(
+        """UPDATE articles SET status='classified' WHERE status='failed'
+             AND EXISTS (SELECT 1 FROM classifications c WHERE c.article_id=articles.id AND c.is_current=1)"""
+    ).rowcount
+    if repaired or relabelled:
         conn.commit()
     rows = store.articles_by_status(conn, status, limit=100000)
-    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0, "repaired": repaired, "body_unavailable": 0}
+    counts = {"input": len(rows), "A": 0, "llm": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0, "repaired": repaired,
+              "relabelled": relabelled, "body_unavailable": 0}
     for r in rows:
         if deadline and time.time() > deadline:
             counts["skipped_deadline"] += 1

@@ -144,7 +144,15 @@ CREATE TABLE IF NOT EXISTS daily_outlet_discovery (
     outlet_id TEXT NOT NULL,
     country TEXT NOT NULL,
     discovered INTEGER NOT NULL DEFAULT 0,
+    gate_relevant INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(date, outlet_id)
+);
+
+-- Articles the relay has already delivered, so a bundle that still carries an item the
+-- hosted side has since pruned does not insert it, and count it, a second time.
+CREATE TABLE IF NOT EXISTS relay_seen (
+    url_hash TEXT PRIMARY KEY,
+    seen_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS feed_health (
@@ -244,6 +252,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
     if "page_labels" not in cols:
         conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
+    od = {r[1] for r in conn.execute("PRAGMA table_info(daily_outlet_discovery)")}
+    if "gate_relevant" not in od:
+        conn.execute("ALTER TABLE daily_outlet_discovery ADD COLUMN gate_relevant INTEGER NOT NULL DEFAULT 0")
+        # Relevant articles are never pruned, so their per outlet-day counts are exactly recoverable.
+        conn.execute(
+            """UPDATE daily_outlet_discovery SET gate_relevant = (
+                 SELECT COUNT(*) FROM articles a WHERE a.gate_relevant=1 AND a.outlet_id=daily_outlet_discovery.outlet_id
+                   AND substr(a.discovered_at, 1, 10)=daily_outlet_discovery.date)"""
+        )
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
     for col in ("top_discovered", "top_target", "top_china", "top_a"):
         if col not in cov:
@@ -275,10 +292,23 @@ def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool, out
     )
     if outlet_id:
         conn.execute(
-            """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered) VALUES (?,?,?,1)
-               ON CONFLICT(date, outlet_id) DO UPDATE SET discovered=discovered+1""",
-            (today, outlet_id, country),
+            """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered, gate_relevant) VALUES (?,?,?,1,?)
+               ON CONFLICT(date, outlet_id) DO UPDATE SET discovered=discovered+1,
+                 gate_relevant=gate_relevant+excluded.gate_relevant""",
+            (today, outlet_id, country, 1 if relevant else 0),
         )
+
+
+def rebuild_daily_discovery(conn: sqlite3.Connection) -> int:
+    """daily_discovery is the per country sum of the per outlet-day table. The outlet table is
+    the source of truth because the relay replaces its outlets' rows wholesale."""
+    conn.execute("DELETE FROM daily_discovery")
+    cur = conn.execute(
+        """INSERT INTO daily_discovery(date, country, discovered, gate_relevant)
+           SELECT date, country, SUM(discovered), SUM(gate_relevant) FROM daily_outlet_discovery GROUP BY date, country"""
+    )
+    conn.commit()
+    return cur.rowcount
 
 
 # ---------------------------------------------------------------------------

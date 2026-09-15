@@ -370,8 +370,12 @@
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + esc(a.signatures.join(", ")) + '</div>' : '') + '</div>';
       }).join("");
     };
-    if (state.articlesCache[iso]) { render(state.articlesCache[iso]); return; }
-    getJSON("data/articles/" + iso + ".json").then(function (arts) { state.articlesCache[iso] = arts; render(arts); }).catch(function () { render([]); });
+    /* Cache the request, not just the result, so re-renders while it is in flight (the timeline
+       scrubber re-renders the panel on every step) reuse it instead of fetching again. */
+    if (!state.articlesCache[iso]) {
+      state.articlesCache[iso] = getJSON("data/articles/" + iso + ".json").catch(function () { delete state.articlesCache[iso]; return []; });
+    }
+    state.articlesCache[iso].then(function (arts) { if (el("panel-articles") === target) render(arts); });
   }
 
   /* -------------------------------------------------------------- timeline */
