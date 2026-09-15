@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", measure: "target", basis: "count", windowDays: 30, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, mode: "all", endDate: null, selected: null, playing: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -211,22 +211,55 @@
     });
     renderLegend(max, fmt);
     renderBars(agg);
+    renderThemes(agg);
   }
 
+  /* The legend reads top to bottom: what the color measures and over which days, the value range
+     each shade stands for, then everything on the map that is not on the color scale. */
   function renderLegend(max, fmt) {
-    var edges = [0].concat(stepEdges(max));
-    var ramp = STEP_COLORS.map(function (c, i) { return '<span style="background:' + c + '" title="' + (i === 0 ? "above 0" : "from " + C.formatValue(edges[i], fmt)) + '"></span>'; }).join("");
+    var bounds = [0].concat(stepEdges(max)).concat([Infinity]);
+    var steps = [];
+    STEP_COLORS.forEach(function (color, i) {
+      var lo = bounds[i], hi = bounds[i + 1], label;
+      if (fmt === "int") {
+        /* Whole-number metrics: step i covers lo <= v < hi, so list the whole numbers inside it. */
+        var a = i === 0 ? 1 : Math.ceil(lo);
+        var b = hi === Infinity ? null : Math.ceil(hi) - 1;
+        if (b !== null && b < a) return;
+        label = b === null ? a + " or more" : (a === b ? String(a) : a + " to " + b);
+      } else if (i === 0) {
+        label = "Above 0, under " + C.formatValue(hi, fmt);
+      } else {
+        label = hi === Infinity ? C.formatValue(lo, fmt) + " or more" : C.formatValue(lo, fmt) + " to " + C.formatValue(hi, fmt);
+      }
+      steps.push('<li><span class="sw" style="background:' + color + '"></span><span>' + esc(label) + '</span></li>');
+    });
+    var m = C.METRICS[state.metric] || {};
+    var notShown = m.allItems ? "Not enough articles published in this window to give a percent"
+      : m.population ? "No population figure, or under " + C.MIN_POPULATION.toLocaleString("en-US") + " residents"
+      : m.format === "pct" ? "Fewer than " + C.MIN_SHARE_DENOMINATOR + " China articles, so no share"
+      : null;
     el("legend").innerHTML =
-      '<span><span class="swatch" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span>No monitored outlets</span>' +
-      '<span><span class="swatch" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span>Coverage gap recorded, or all outlets inactive</span>' +
-      '<span><span class="swatch" style="background:#1a1c1f"></span>Monitored, no China coverage in window</span>' +
-      '<span><span class="swatch" style="background:' + ZERO_COLOR + '"></span>Monitored, zero detections</span>' +
-      (C.METRICS[state.metric] && C.METRICS[state.metric].allItems ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_ALL_ITEMS_DENOMINATOR + ' items published, share not shown</span>' :
-       C.METRICS[state.metric] && C.METRICS[state.metric].population ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, no population recorded or fewer than ' + C.MIN_POPULATION.toLocaleString("en-US") + ' residents</span>' :
-       C.METRICS[state.metric] && C.METRICS[state.metric].format === "pct" ? '<span><span class="swatch" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span>Monitored, fewer than ' + C.MIN_SHARE_DENOMINATOR + ' China items, share not shown</span>' : '') +
-      '<span>above 0 <span class="ramp">' + ramp + '</span> ' + C.formatValue(max, fmt) + (state._capped ? '+' : '') + ' ' + esc(metricLabel().toLowerCase()) + ' <span class="faint">(' + STEPS + ' steps, edges at ' + edges.slice(1).map(function (e) { return C.formatValue(e, fmt); }).join(", ") + (state._capped ? '; capped at the 95th percentile, top value ' + C.formatValue(state._trueMax, fmt) : '') + ')</span></span>' +
-      '<span><svg width="14" height="12"><path d="M7,1 L13,11 L1,11 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg> Warning, see tooltip</span>' +
-      '<span class="faint">' + esc(windowLabel()) + (state.mode === "reviewed" ? ", human-reviewed labels only" : "") + '</span>';
+      '<div class="lg-group">' +
+        '<div class="lg-kicker">Color scale</div>' +
+        '<div class="lg-head">' + esc(metricLabel()) + '</div>' +
+        '<div class="lg-when">' + esc(windowLabel()) + '</div>' +
+        '<ul class="lg-steps">' +
+          '<li><span class="sw" style="background:' + ZERO_COLOR + '"></span><span>None found</span></li>' +
+          steps.join("") +
+        '</ul>' +
+        (state._capped ? '<p class="lg-note">The darkest shade starts at the 95th percentile, so a few extreme countries do not wash out the rest. The highest value is ' + esc(C.formatValue(state._trueMax, fmt)) + '.</p>' : '') +
+      '</div>' +
+      '<div class="lg-group">' +
+        '<div class="lg-kicker">Not on the scale</div>' +
+        '<ul class="lg-keys">' +
+          '<li><span class="sw" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span><span>Not monitored: no outlets registered</span></li>' +
+          '<li><span class="sw" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span><span>Coverage gap, or every outlet inactive</span></li>' +
+          '<li><span class="sw" style="background:#1a1c1f"></span><span>Monitored, but no China coverage in this window</span></li>' +
+          (notShown ? '<li><span class="sw" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span><span>' + esc(notShown) + '</span></li>' : '') +
+          '<li><svg class="sw-tri" viewBox="0 0 16 13" aria-hidden="true"><path d="M8,1.5 L14.5,12 L1.5,12 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg><span>Data warning: hover the country to read it</span></li>' +
+        '</ul>' +
+      '</div>';
   }
 
   function showTip(ev, f) {
@@ -274,6 +307,163 @@
     Array.prototype.forEach.call(el("bars").querySelectorAll(".bar-row"), function (row) {
       row.addEventListener("click", function () { selectCountry(row.getAttribute("data-iso")); });
     });
+  }
+
+  /* ---------------------------------------------------------------- themes */
+  /* Cells are shaded by the share of that country's articles in the theme: one red hue, dark to bright. */
+  var THEME_HEAT = ["#2a1618", "#4a1a1e", "#6f1c22", "#962026", "#bf2a31"];
+  var THEME_EDGES = [0.05, 0.15, 0.3, 0.5];
+  var THEME_BANDS = ["under 5%", "5 to 15%", "15 to 30%", "30 to 50%", "50% or more"];
+  var THEME_ROWS = 15;
+  function heat(share) {
+    if (!share) return null;
+    var i = 0;
+    while (i < THEME_EDGES.length && share >= THEME_EDGES[i]) i++;
+    return THEME_HEAT[i];
+  }
+  function measureNoun() { return {target: "target articles", a: "state origin articles", china: "China articles"}[state.measure] || "articles"; }
+  function measureIndex() { var i = C.MEASURE_INDEX[state.measure]; return i === undefined ? 1 : i; }
+  function denominator(k, mi) {
+    k = k || C.emptyCounts();
+    if (mi === 0) return k.A + k.B + k.C + (k.pending || 0);
+    if (mi === 1) return k.A + k.B + (k.pending || 0);
+    return k.A;
+  }
+  function pctText(share) { return share >= 0.995 ? "100%" : (share < 0.005 && share > 0 ? "<1%" : Math.round(100 * share) + "%"); }
+
+  function themeModel(agg) {
+    var catalog = (state.meta && state.meta.themes) || [];
+    var byIso = C.aggregateThemes(state.months, state.endDate, state.windowDays === "all" ? null : Number(state.windowDays));
+    var mi = measureIndex();
+    var rows = [];
+    var world = {name: "All monitored countries", n: 0, t: {}};
+    Object.keys(byIso).forEach(function (iso) {
+      var t = {}, most = 0;
+      catalog.forEach(function (c) {
+        var v = (byIso[iso][c.id] || [0, 0, 0])[mi];
+        t[c.id] = v;
+        most = Math.max(most, v);
+        world.t[c.id] = (world.t[c.id] || 0) + v;
+      });
+      var n = Math.max(denominator(agg.countries[iso], mi), most);
+      world.n += n;
+      if (n > 0) rows.push({iso: iso, name: state.names[iso] || iso, n: n, t: t});
+    });
+    return {catalog: catalog, rows: rows, world: world};
+  }
+
+  function renderThemes(agg) {
+    if (!el("themes")) return;
+    var model = themeModel(agg);
+    var catalog = model.catalog;
+    var noun = measureNoun();
+    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme, " + windowLabel() +
+      ". An article can carry more than one theme, so theme counts can add up to more than the number of articles.";
+    if (!catalog.length || !model.rows.length) {
+      el("theme-focus").innerHTML = '<p class="muted">No ' + esc(noun) + ' with themes in this window. Theme counts are computed at each daily export.</p>';
+      el("theme-grid").innerHTML = "";
+      el("theme-legend").innerHTML = "";
+      return;
+    }
+    var label = {};
+    catalog.forEach(function (c) { label[c.id] = c; });
+    if (state.themeSort && !label[state.themeSort]) state.themeSort = null;
+
+    /* Left: the theme mix for the selected country, or for every monitored country together. */
+    var sel = null;
+    model.rows.forEach(function (r) { if (r.iso === state.selected) sel = r; });
+    var selName = state.selected ? (state.selected.indexOf("name:") === 0 ? state.selected.slice(5) : (state.names[state.selected] || state.selected)) : null;
+    var focus = sel || model.world;
+    var list = catalog.filter(function (c) { return c.id !== "other"; }).map(function (c) { return {c: c, v: focus.t[c.id] || 0}; })
+      .sort(function (a, b) { return b.v - a.v; });
+    if (label.other) list.push({c: label.other, v: focus.t.other || 0});
+    var fmax = d3.max(list, function (x) { return x.v; }) || 1;
+    el("theme-focus").innerHTML =
+      '<div class="tf-head"><span class="tf-name">' + esc(sel ? sel.name : (selName && !sel ? selName : focus.name)) + '</span>' +
+      '<span class="tf-n">' + (sel || !selName ? focus.n + " " + esc(noun) : "") + '</span></div>' +
+      (selName && !sel ? '<p class="muted">No ' + esc(noun) + ' for this country in this window. The grid shows the countries that have some.</p>' :
+      '<ul class="tf-list">' + list.map(function (x) {
+        var share = focus.n ? x.v / focus.n : 0;
+        return '<li data-theme="' + x.c.id + '"' + (state.themeSort === x.c.id ? ' class="active"' : '') + ' title="Rank the countries by ' + esc(x.c.label.toLowerCase()) + '">' +
+          '<span class="tf-label">' + esc(x.c.label) + '</span>' +
+          '<span class="tf-track"><span class="tf-bar" style="width:' + (x.v ? Math.max(1.5, 100 * x.v / fmax) : 0) + '%"></span></span>' +
+          '<span class="tf-v">' + x.v + '</span><span class="tf-s">' + (x.v ? pctText(share) : "") + '</span></li>';
+      }).join("") + '</ul><p class="tf-hint">Click a theme to rank the countries in the grid by it. Click it again to go back.</p>');
+
+    /* Right: countries down, themes across, the number of articles in each cell. */
+    var sortKey = state.themeSort;
+    var rows = model.rows.slice().sort(function (a, b) {
+      if (sortKey) {
+        var d = (b.t[sortKey] || 0) - (a.t[sortKey] || 0);
+        if (d) return d;
+      }
+      return b.n - a.n || a.name.localeCompare(b.name);
+    });
+    var shown = rows.slice(0, THEME_ROWS);
+    if (sel && shown.indexOf(sel) === -1) shown.push(sel);
+    el("theme-grid").innerHTML =
+      '<thead><tr><th class="c-country" scope="col">Country</th><th class="c-n" scope="col">' + esc(noun.charAt(0).toUpperCase() + noun.slice(1)) + '</th>' +
+      catalog.map(function (c) {
+        return '<th scope="col" class="c-theme' + (sortKey === c.id ? ' sorted' : '') + '" data-theme="' + c.id + '" title="' + esc(c.label) + '">' + esc(c.short) + '</th>';
+      }).join("") + '</tr></thead><tbody>' +
+      shown.map(function (r) {
+        return '<tr data-iso="' + esc(r.iso) + '"' + (r.iso === state.selected ? ' class="selected"' : '') + '>' +
+          '<th scope="row" class="c-country">' + esc(r.name) + '</th><td class="c-n">' + r.n + '</td>' +
+          catalog.map(function (c) {
+            var v = r.t[c.id] || 0, share = Math.min(1, v / Math.max(r.n, 1)), bg = heat(share);
+            return '<td class="cell" data-theme="' + c.id + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + '"' : '') + '>' + (v || "") + '</td>';
+          }).join("") + '</tr>';
+      }).join("") + '</tbody>';
+    updateGridScroll();
+    el("theme-legend").innerHTML =
+      '<span class="tl-title">Cell shade: share of that country\'s ' + esc(noun) + ' in the theme</span>' +
+      THEME_BANDS.map(function (b, i) { return '<span class="tl-i"><span class="sw" style="background:' + THEME_HEAT[i] + '"></span>' + b + '</span>'; }).join("") +
+      '<span class="tl-foot">The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
+      (sortKey ? ' in ' + esc(label[sortKey].label.toLowerCase()) : '') + ' in this window' +
+      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
+  }
+
+  /* The grid scrolls sideways only when the column is too narrow for every theme; say so when it does. */
+  function updateGridScroll() {
+    var wrap = el("theme-grid-wrap");
+    if (!wrap) return;
+    var scrolls = wrap.scrollWidth > wrap.clientWidth + 2;
+    wrap.classList.toggle("scrolls", scrolls);
+    wrap.classList.toggle("at-end", scrolls && wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 2);
+  }
+
+  function bindThemes() {
+    if (!el("themes")) return;
+    el("theme-grid-wrap").addEventListener("scroll", updateGridScroll);
+    window.addEventListener("resize", updateGridScroll);
+    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(currentAgg()); }
+    el("theme-focus").addEventListener("click", function (ev) {
+      var li = ev.target.closest("li[data-theme]");
+      if (li) toggleSort(li.getAttribute("data-theme"));
+    });
+    el("theme-grid").addEventListener("click", function (ev) {
+      var th = ev.target.closest("th[data-theme]");
+      if (th) { toggleSort(th.getAttribute("data-theme")); return; }
+      var tr = ev.target.closest("tr[data-iso]");
+      if (tr) selectCountry(tr.getAttribute("data-iso"));
+    });
+    var tip = el("theme-tip");
+    el("theme-grid").addEventListener("mousemove", function (ev) {
+      var td = ev.target.closest("td.cell");
+      if (!td) { tip.style.display = "none"; return; }
+      var tr = td.parentNode, iso = tr.getAttribute("data-iso");
+      var theme = ((state.meta && state.meta.themes) || []).filter(function (c) { return c.id === td.getAttribute("data-theme"); })[0];
+      var n = tr.querySelector("td.c-n").textContent;
+      var v = Number(td.getAttribute("data-v")), share = Number(td.getAttribute("data-share"));
+      tip.innerHTML = '<div><strong>' + v + '</strong> of ' + esc(n) + ' ' + esc(measureNoun()) + (v ? ' (' + pctText(share) + ')' : '') + '</div>' +
+        '<div class="t-name">' + esc(state.names[iso] || iso) + '</div><div class="muted">' + esc(theme ? theme.label : "") + ', ' + esc(windowLabel()) + '</div>';
+      tip.style.display = "block";
+      var box = el("themes").getBoundingClientRect();
+      var x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
+      if (x + 300 > box.width) x = ev.clientX - box.left - 300;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    });
+    el("theme-grid").addEventListener("mouseleave", function () { tip.style.display = "none"; });
   }
 
   /* ---------------------------------------------------------------- panel */
@@ -500,6 +690,7 @@
 
   /* -------------------------------------------------------------- controls */
   function bindControls() {
+    bindThemes();
     /* Measure and Basis toggles form a three by three grid; the same Basis toggle is repeated above the
        map and above the ranked list and every copy stays in step. The select holds the other denominators. */
     function applyMetric() {

@@ -47,4 +47,10 @@ var allA = Object.assign(C.emptyCounts(), {A: 2, C: 8, tdisc: 400, ttarget: 3, t
 assert(Math.abs(C.metricValue(allA, "share_of_all_a", 1, "all").value - 0.005) < 1e-9, "state origin share of all items");
 assert(C.metricValue(allA, "count_china", 1, "all").value === 10, "china count");
 assert(Math.abs(C.metricValue(allA, "per_million_china", 1, "all", undefined, {population: 5000000}).value - 2) < 1e-9, "china per million");
+var themeMonths = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [2, 1, 1]}}},
+                                      "2026-09-02": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [1, 1, 0], culture: [3, 0, 0]}}}}}};
+var th = C.aggregateThemes(themeMonths, "2026-09-02", 2);
+assert(th.ITA.diplomacy[0] === 3 && th.ITA.diplomacy[1] === 2 && th.ITA.diplomacy[2] === 1 && th.ITA.culture[0] === 3, "theme window sum");
+assert(C.aggregateThemes(themeMonths, "2026-09-02", 1).ITA.diplomacy[0] === 1, "theme single day");
+assert(Object.keys(C.aggregateThemes({}, null, 30)).length === 0 && C.MEASURE_INDEX.target === 1, "themes on empty");
 console.log("frontend smoke ok");
