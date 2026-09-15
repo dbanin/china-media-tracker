@@ -140,7 +140,7 @@
     var parts = [];
     if (m) {
       var flagged = m.paywall_flagged_countries || [];
-      if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Paywalled articles are left out of every count and every denominator, so those countries are not comparable to the rest and carry a warning on every figure.");
+      if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Paywalled articles cannot be read, so they are missing from every count. They stay in the share of monitored output denominator, which counts every item the outlets published, so that share is a lower bound in those countries, and their counts are not comparable to the rest.");
       if (m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
       if (m.countries_in_gaps) parts.push(m.countries_in_gaps + " countries are recorded as coverage gaps with a stated reason.");
       var u = m.registry_unevenness;
@@ -162,6 +162,8 @@
         Object.keys(m.ruleset_mix || {}).forEach(function (v) { if (v !== m.ruleset_version) older += m.ruleset_mix[v]; });
         parts.push("Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset. The days affected are marked on the timeline, so a jump there is not a trend.");
       }
+      var gc = (m.gate_changes || []).slice(-1)[0];
+      if (gc) parts.push("The relevance gate changed on " + gc.date + " (version " + gc.version + "). The gate decides what enters the corpus, not how an article is labelled, and it applies only to items discovered after that date; items rejected earlier are not re-examined.");
       var fs = m.feed_saturation;
       if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: an estimated " + fs.missed_estimate + " in all. Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
@@ -410,7 +412,7 @@
         if (mv.note && mv.value === null) html += '<div class="muted">' + esc(mv.note) + '</div>';
         html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + '; unverified relay ' + esc(relayText(relayFor(e), mv.b)) + '; official sourcing pending verification ' + mv.pending + '; independent ' + mv.c + '; ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
-        if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' left out of every count and share.</div>';
+        if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' unread: missing from every count, still counted in the monitored output denominator.</div>';
         if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; an estimated ' + k.miss + ' items were missed.</div>';
         if (e.language_support === "none") html += '<div class="muted">No keyword list for ' + esc((e.languages || []).join(", ")) + ': only international and English terms are matched.</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
@@ -786,7 +788,7 @@
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
       body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, routes, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, left out of every count</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, unread and uncounted</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
       return;
     }
     var iso = state.selected;
@@ -817,7 +819,7 @@
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
       '<tr><td class="muted">Feed polls full with nothing seen before / estimated items missed</td><td class="num" colspan="4">' + k.sat + ' of ' + k.polls + ' / ' + k.miss + '</td></tr>' +
       '</table>';
-    if (k.paywalled) html += '<p class="panel-note">Paywalled articles are never classified and are left out of every count and every share above.</p>';
+    if (k.paywalled) html += '<p class="panel-note">Paywalled articles are never classified, so they are missing from every count above and from the share of China coverage. They remain in the share of monitored output denominator, which counts every item the monitored outlets published, so that share is a lower bound here.</p>';
     var rts = (agg.routes || {})[iso] || {}, arr = (agg.arrivals || {})[iso] || {};
     if (routeList().length) {
       html += '<h3>How state origin arrived, ' + esc(windowLabel()) + '</h3><table><tr><th>Route</th><th class="num">Articles</th></tr>' +
@@ -967,7 +969,7 @@
       return {i: i, d: d, v: tot, ceiling: !!(e && e.llm_ceiling_hit), relayGap: !!(e && e.relay_incomplete), older: !!(e && e.labels_on_older_ruleset)};
     });
     var noun = byRoute ? "state origin articles, " + routeLabel(state.route).toLowerCase() : measureNoun();
-    el("tl-hint").textContent = "Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily number of " + noun + ". Amber bars are days on which the model call ceiling was hit, so those days are truncated, not quiet. Red ticks along the bottom are days the collector on the owner's machine ran too few hours. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset.";
+    el("tl-hint").textContent = "Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily number of " + noun + ". Amber bars are days on which the model call ceiling was hit, so those days are truncated, not quiet. Red ticks along the bottom are days the collector on the owner's machine ran too few hours. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset. Gold dotted lines are relevance gate changes, which apply only to items discovered after them.";
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
@@ -983,6 +985,13 @@
       if (idx === -1) return;
       s.append("line").attr("class", "ruleset").attr("x1", x(idx)).attr("x2", x(idx)).attr("y1", 0).attr("y2", h)
         .append("title").text("Ruleset " + rc.version + " from " + rc.date);
+    });
+    /* Gate changes move what is collected rather than how it is labelled, so they get their own mark. */
+    ((state.meta && state.meta.gate_changes) || []).forEach(function (gc) {
+      var idx = tlDays.indexOf(gc.date);
+      if (idx === -1) return;
+      s.append("line").attr("class", "gate").attr("x1", x(idx)).attr("x2", x(idx)).attr("y1", 0).attr("y2", h)
+        .append("title").text("Relevance gate " + gc.version + " from " + gc.date + ", applies to items discovered after it");
     });
   }
 
@@ -1065,7 +1074,7 @@
       ["Share of monitored output", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
-      ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles, left out of every count and every denominator" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
+      ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles: missing from every count, but still counted in the share of monitored output denominator, so that share is a lower bound" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
       ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run" : (relay.publishable ? "published" : "withheld until the agreement study settles it") + ((m.relay_withheld_languages || []).length ? "; withheld for " + m.relay_withheld_languages.join(", ") : "")],
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return r.label.toLowerCase() + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
@@ -1073,6 +1082,7 @@
       ["Feed polls with nothing seen before", fs && fs.polls ? fs.saturated + " of " + fs.polls + ", an estimated " + fs.missed_estimate + " items missed" : "not yet measured"],
       ["Collector on the owner's machine", rc ? rc.outlets + " outlets; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
       ["Human review coverage", pct(m.review_coverage) + " of classified articles (" + m.articles_reviewed + ")"],
+      ["Relevance gate version", (m.gate_version || "not recorded") + (m.gate_applies_forward_only ? ", applying to items discovered after each gate change; earlier rejections are not re-examined and are pruned after three days" : "")],
       ["Ruleset version", m.ruleset_version + (m.reclassification_complete === false ? ", reclassification in progress (" + Object.keys(m.ruleset_mix || {}).sort().map(function (v) { return v + ": " + m.ruleset_mix[v]; }).join(", ") + ")" : "")],
       ["Classifier model", m.llm_model + ", " + m.llm_calls_total + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", ceiling hit on " + m.llm_ceiling_days.join(", ") : "") + ((m.llm_sampling_days || []).length ? "; stratified draws on " + m.llm_sampling_days.length + " days" : "")],
       ["Last successful run", m.last_successful_run || "none"],

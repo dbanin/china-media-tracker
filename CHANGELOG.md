@@ -4,11 +4,20 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
-## Gate, sampling and publication changes, no ruleset version (2026-09-15)
+## Gate 2026.09.6 (2026-09-15)
 
 Made after a methodology review. The signature list is unchanged, so the
-ruleset version stays 2026.09.5; these change what reaches classification and
-what the interface may publish.
+ruleset version stays 2026.09.5 and no article is relabelled; these change what
+reaches classification and what the interface may publish. The gate carries its
+own version because it decides what enters the corpus, and that boundary moved
+today.
+
+Gate decisions are recorded per item and never revisited, so this gate applies
+to items discovered from 2026-09-15 onward. Items the old gate rejected are not
+re-examined, and those rejected more than three days ago are already pruned. The
+recovery this would have brought is small and was measured rather than assumed:
+over 40,000 recently rejected items, the signature exemption admits 0 and the
+new province terms admit 1.
 
 The relevance gate now carries every Chinese province, autonomous region and
 the largest cities, and an item whose title or summary already fires a state

@@ -47,7 +47,8 @@ ARRIVAL_LABELS = {
     "partner_section": "Outlet's partner content section",
 }
 RELEASE_STATUSES = ["found", "none_found", "blocked", "unreachable"]
-CHANGELOG_HEADING = re.compile(r"^## Ruleset (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
+CHANGELOG_RULESET = re.compile(r"^## Ruleset (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
+CHANGELOG_GATE = re.compile(r"^## Gate (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
 
 
 def _day(row) -> str:
@@ -301,12 +302,23 @@ def _arrival_totals(conn) -> Dict[str, int]:
     return dict(out)
 
 
-def ruleset_changes(path: Path = None) -> List[Dict]:
+def _changelog_changes(pattern, path: Path = None) -> List[Dict]:
     path = path or (config.ROOT / "CHANGELOG.md")
     if not path.exists():
         return []
-    found = CHANGELOG_HEADING.findall(path.read_text(encoding="utf-8"))
+    found = pattern.findall(path.read_text(encoding="utf-8"))
     return sorted(({"version": v, "date": d} for v, d in found), key=lambda x: x["date"])
+
+
+def ruleset_changes(path: Path = None) -> List[Dict]:
+    """Dates the signature ruleset changed, so the timeline can mark a relabelling."""
+    return _changelog_changes(CHANGELOG_RULESET, path)
+
+
+def gate_changes(path: Path = None) -> List[Dict]:
+    """Dates the relevance gate changed. A gate change moves the boundary of what is collected and
+    applies only to items discovered after it, because gate decisions are never revisited."""
+    return _changelog_changes(CHANGELOG_GATE, path)
 
 
 def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Optional[Dict] = None) -> Dict:
@@ -379,7 +391,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             entry["warnings"].append({"type": "feeds_failing", "text": "%d of %d feeds are failing" % (len(feeds) - feeds_ok, len(feeds))})
         pw = at["paywall_share"]
         if pw is not None and pw >= config.PAYWALL_FLAG_SHARE and at["rel"] >= 10:
-            entry["warnings"].append({"type": "paywalled", "text": "%d percent of retrieved articles were paywalled and are left out of every count and every share; counts are not comparable to other countries" % round(pw * 100)})
+            entry["warnings"].append({"type": "paywalled", "text": "%d percent of retrieved articles were paywalled and could not be read. They are missing from every count, but they stay in the share of monitored output denominator, which counts everything the outlets published, so that share is a lower bound here and counts are not comparable to other countries" % round(pw * 100)})
         attempted = at["fetched"] + at["paywalled"] + at["failed"] + at["blocked"]
         if attempted >= 10 and (at["failed"] + at["blocked"]) / float(attempted) >= config.PAYWALL_FLAG_SHARE:
             entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
@@ -703,6 +715,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],
         "paywall_flag_share": config.PAYWALL_FLAG_SHARE,
         "ruleset_changes": ruleset_changes(),
+        "gate_version": config.GATE_VERSION,
+        "gate_changes": gate_changes(),
+        "gate_applies_forward_only": True,
         "ruleset_mix": mix,
         "reclassification_complete": set(mix) <= {config.RULESET_VERSION},
         "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r)} for r in classify_rules.ROUTE_IDS],

@@ -28,6 +28,13 @@ outlets in Singapore and Malaysia do not pass it on phrases that describe their
 own Chinese communities ("Chinese New Year", "Malaysian Chinese Association"),
 so local news is not counted as coverage of China.
 
+The gate has its own version, {gate_version}, separate from the ruleset: it
+decides what enters the corpus, not how an article is labelled. Gate decisions
+are recorded per item and never revisited, so a change to the gate applies only
+to items discovered after it. Items an earlier gate rejected are not
+re-examined, and rejected items are pruned after {retention} days.
+{gate_changes_text}
+
 Where an outlet's press release, sponsored or partner section has been found
 (sources/outlets.yaml, release_sections and section_feeds), that section is
 polled as well, and its items skip the gate: RSS feeds usually carry editorial
@@ -38,9 +45,12 @@ request per domain every three seconds, with an identifying user agent. Pages
 that declare themselves not free in schema.org metadata, or that present a
 paywall interstitial with a short body, are recorded as paywalled and never
 retrieved by any other route. Paywalled articles are never classified, so they
-are left out of every count and out of every denominator; a country where they
-pass a third of retrieved articles carries a warning on every figure the
-interface shows for it.
+are missing from every count, and from the share of China coverage, where an
+unread article is in neither half. They do remain in the share of monitored
+output denominator, which counts every item the outlets published whether or
+not it could be read, so in a country with many paywalls that share is a lower
+bound. A country where paywalls pass a third of retrieved articles carries a
+warning on every figure the interface shows for it.
 
 Fetched articles pass through a deterministic signature matcher
 (pipeline/signatures.yaml) that detects state origin text by credit lines, datelines,
@@ -316,6 +326,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
+        gate_version=meta.get("gate_version", config.GATE_VERSION),
+        gate_changes_text=(("The gate last changed on %s, to version %s." % (gc[-1]["date"], gc[-1]["version"]))
+                           if (gc := meta.get("gate_changes")) else "No gate change has been recorded yet."),
         themes_version=meta.get("themes_version", "not recorded"),
         theme_languages=", ".join(meta.get("theme_languages") or []) or "no language yet",
         population_source=meta.get("population_source", "not recorded"),

@@ -86,4 +86,12 @@ FEED_SATURATION_WARNING_SHARE = 0.25
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
 RULESET_VERSION = "2026.09.5"
+
+# Current relevance gate version. Separate from the ruleset: the ruleset decides an article's label
+# and is stored on every classification row, while the gate decides what enters the corpus at all.
+# Gate decisions are recorded per item and never revisited, so a change here relabels nothing and
+# must not trigger reclassification; it does move the boundary of what is collected, which is why the
+# version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
+# "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
+GATE_VERSION = "2026.09.6"
 SCHEMA_VERSION = 5   # 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
