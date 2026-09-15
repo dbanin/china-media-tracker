@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=42">
+<link rel="stylesheet" href="style.css?v=45">
 </head>
 <body>
 <header class="top">
@@ -115,10 +115,38 @@
     </div>
     <div id="bars"></div>
   </div>
+  <div id="timeline" class="timeline">
+    <div class="tl-kicker">Map timeline</div>
+    <div class="tl-row">
+      <button id="play" title="Play the map through the days">Play</button>
+      <button id="step-back" title="Previous day">&lsaquo;</button>
+      <button id="step-fwd" title="Next day">&rsaquo;</button>
+      <div class="tl-date" id="tl-date"></div>
+      <div class="tl-track">
+        <svg class="spark" id="spark" preserveAspectRatio="none"></svg>
+        <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Day shown on the map">
+      </div>
+    </div>
+    <div class="tl-hint">Moves only the map; the theme counter keeps its own day. The shaded curve is the global daily total of target articles: state placements plus pieces carrying official Chinese sourcing. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
+  </div>
   <section id="themes" aria-labelledby="themes-title">
     <div class="th-kicker">Theme counter</div>
     <h2 id="themes-title">What the coverage is about</h2>
     <p class="th-sub" id="themes-sub"></p>
+    <div class="timeline th-timeline" id="theme-timeline">
+      <div class="tl-kicker">Theme timeline</div>
+      <div class="tl-row">
+        <button id="th-play" title="Play the theme counter through the days">Play</button>
+        <button id="th-back" title="Previous day">&lsaquo;</button>
+        <button id="th-fwd" title="Next day">&rsaquo;</button>
+        <div class="tl-date" id="th-date"></div>
+        <div class="tl-track">
+          <svg class="spark" id="th-spark" preserveAspectRatio="none"></svg>
+          <input type="range" id="th-scrub" min="0" max="0" value="0" step="1" aria-label="Day shown in the theme counter">
+        </div>
+      </div>
+      <div class="tl-hint" id="th-hint"></div>
+    </div>
     <div class="th-body">
       <div class="th-focus" id="theme-focus"></div>
       <div>
@@ -134,19 +162,6 @@
   </aside>
 </main>
 
-<div id="timeline">
-  <div class="tl-row">
-    <button id="play" title="Play">Play</button>
-    <button id="step-back" title="Previous day">&lsaquo;</button>
-    <button id="step-fwd" title="Next day">&rsaquo;</button>
-    <div class="tl-date" id="tl-date"></div>
-    <div class="tl-track">
-      <svg class="spark" id="spark" preserveAspectRatio="none"></svg>
-      <input type="range" id="scrub" min="0" max="0" value="0" step="1" aria-label="Selected day">
-    </div>
-  </div>
-  <div class="tl-hint">The shaded curve is the global daily total of target articles: state placements plus pieces carrying official Chinese sourcing. Amber marks are days on which the model call ceiling was hit, so those days are truncated, not quiet.</div>
-</div>
 
 <section class="method" id="method">
   <div class="eyebrow">How the numbers are made</div>
@@ -181,7 +196,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=42"></script>
-<script src="app.js?v=42"></script>
+<script src="compute.js?v=45"></script>
+<script src="app.js?v=45"></script>
 </body>
 </html>
