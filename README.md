@@ -225,7 +225,7 @@ outlets per country, and the number of single-outlet countries). When the
 densest country has three or more times the median, the interface says so
 and reminds the reader that raw counts display the sampling. The default
 measure is state origin only, the one label decided without the model;
-per outlet and per 1,000 published items are the corrected views, and per
+per outlet and the share of monitored output are the corrected views, and per
 capita is offered last as the least defensible denominator. Unverified relay
 is shown as not yet measured until the model stage has run, and withheld until
 an agreement study settles it.

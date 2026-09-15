@@ -144,8 +144,8 @@
       if (m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
       if (m.countries_in_gaps) parts.push(m.countries_in_gaps + " countries are recorded as coverage gaps with a stated reason.");
       var u = m.registry_unevenness;
-      if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling; Per outlet and Per 1,000 published items correct for it.");
-      if (!(m.countries_with_audience_ranks || []).length) parts.push("No outlet carries an audience rank yet, so Per 1,000 published items divides by everything a country's monitored outlets published, not by its largest publications, and it is not shown for countries with fewer than " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets.");
+      if (u && u.max_over_median && u.max_over_median >= 3) parts.push("The registry is uneven: the densest country has " + u.max + " active outlets against a median of " + u.median + ", and " + u.countries_with_one_outlet + " countries have a single outlet. Raw counts mostly display that sampling; Per outlet and Share of monitored output correct for it.");
+      if (!(m.countries_with_audience_ranks || []).length) parts.push("No outlet carries an audience rank yet, so the share of monitored output divides by everything a country's monitored outlets published, not by its largest publications, and it is not shown for countries with fewer than " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets.");
       var rs = m.release_sections;
       if (rs && rs.outlets_active) {
         var searched = rs.outlets_active - (rs.not_searched || 0);
@@ -361,7 +361,7 @@
       steps.push('<li><span class="sw" style="background:' + color + '"></span><span>' + esc(label) + '</span></li>');
     });
     var m = metricDef();
-    var notShown = m.allItems ? "Fewer than " + C.MIN_OUTLETS_FOR_OUTPUT_SHARE + " outlets, or too few items published in this window, for a rate"
+    var notShown = m.allItems ? "Fewer than " + C.MIN_OUTLETS_FOR_OUTPUT_SHARE + " outlets, or too few items published in this window, for a share"
       : m.population ? "No population figure, or under " + C.MIN_POPULATION.toLocaleString("en-US") + " residents"
       : m.format === "pct" ? "Fewer than " + C.MIN_SHARE_DENOMINATOR + " China articles, so no share"
       : null;
@@ -414,6 +414,7 @@
         if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; an estimated ' + k.miss + ' items were missed.</div>';
         if (e.language_support === "none") html += '<div class="muted">No keyword list for ' + esc((e.languages || []).join(", ")) + ': only international and English terms are matched.</div>';
         if (p.cls === "nodata") html += '<div class="muted">No China coverage classified in this window.</div>';
+        if (metricDef().allItems && mv.value !== null) html += '<div class="muted">Per 1,000 published items: ' + C.formatValue(mv.value * 1000, "dec") + '</div>';
         if (metricDef().allItems) html += '<div class="muted">' + mv.allItems + ' items published by ' + (e.top_outlets_ranked ? 'the ' + e.top_outlets + ' largest monitored outlets' : 'all ' + e.top_outlets + ' monitored outlets (no audience ranks are recorded)') + ', ' + mv.allItemsTarget + ' targets and ' + mv.allItemsChina + ' China items among them</div>';
         if (metricDef().population && e.population) html += '<div class="muted">Population ' + e.population.toLocaleString("en-US") + '</div>';
       }
@@ -1061,7 +1062,7 @@
     var rows = [
       ["Outlets monitored", m.outlets_active + " active of " + m.outlets_total + " registered, across " + m.countries_monitored + " countries"],
       ["Population figures", m.population_source || "not recorded"],
-      ["Per 1,000 published items", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
+      ["Share of monitored output", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles, left out of every count and every denominator" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
@@ -1165,7 +1166,7 @@
     el("route").addEventListener("change", function () {
       var v = el("route").value;
       state.route = v ? {kind: v.slice(0, v.indexOf(":")), id: v.slice(v.indexOf(":") + 1)} : null;
-      if (state.route) { state.measure = "a"; el("metric").value = ""; if (state.basis === "per_thousand") state.basis = "count"; }
+      if (state.route) { state.measure = "a"; el("metric").value = ""; if (state.basis === "share_of_output") state.basis = "count"; }
       applyMetric();
     });
     /* The Window toggle is repeated above the map and above the ranked list, like Basis. */

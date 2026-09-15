@@ -151,9 +151,9 @@ quantity with an unmeasured pile whose composition varies by country, and is
 labelled as such.
 
 Raw counts mostly measure how many outlets the registry happens to track in a
-country. Articles per monitored outlet corrects for registry density. Articles
-per thousand published items divides by every item the country's monitored
-outlets put in their feeds in the window, whether or not it concerns China;
+country. Articles per monitored outlet corrects for registry density. The share
+of monitored output divides by every item the country's monitored outlets put
+in their feeds in the window, whether or not it concerns China;
 the largest outlets are the {top_n} best audience ranks recorded in
 sources/outlets.yaml, and {ranked_text} A share of published items is not
 shown for a country with fewer than {min_outlets} outlets behind it, where it
