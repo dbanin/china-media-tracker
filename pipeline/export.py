@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from pipeline import config, registry, store
+from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
@@ -47,7 +48,7 @@ def article_rows(conn) -> List[Dict]:
     """One row per article with its current machine label and its latest human label."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.language, a.title, a.url, a.published_at, a.discovered_at,
-                  a.status, a.gate_relevant, a.dup_group_id, a.fail_reason,
+                  a.status, a.gate_relevant, a.dup_group_id, a.fail_reason, a.themes,
                   c.category AS m_cat, c.method AS m_method, c.confidence AS m_conf, c.evidence_quote,
                   c.reasoning, c.signatures_fired, c.classified_at, c.ruleset_version, c.model_version,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS h_cat
@@ -277,12 +278,32 @@ def build_daily(conn) -> Dict[str, Dict]:
     reviewed = defaultdict(lambda: defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0}))
     for r in conn.execute("SELECT * FROM daily_counts WHERE scope='reviewed'"):
         reviewed[r["date"]][r["country"]][{"A": "A", "B": "B", "C": "C", "not_relevant": "N"}[r["category"]]] += r["n"]
+    # Theme counts per day and country: theme id -> [all China coverage, target articles, state origin].
+    # Only China coverage counts (state origin, relay, independent, and pending candidates). An article
+    # carries every theme it matches, so a country's theme counts can sum to more than its articles.
+    theme_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0, 0, 0])))
+    for r in article_rows(conn):
+        pending = r["status"] in ("awaiting_llm", "llm_submitted")
+        cat = r["m_cat"]
+        if not (pending or cat in ("A", "B", "C")):
+            continue
+        d = _day(r)
+        for t in themes_mod.themes_of(r["themes"]):
+            v = theme_counts[d][r["country"]][t]
+            v[0] += 1
+            if pending or cat in ("A", "B"):
+                v[1] += 1
+            if cat == "A":
+                v[2] += 1
+    for d in theme_counts:
+        months[d[:7]]["days"][d]  # a day that has theme counts always gets an entry, even with no rollup rows
     out = {}
     for month, m in months.items():
         days = {}
         for d, per_country in sorted(m["days"].items()):
             days[d] = {"countries": {c: v for c, v in per_country.items()},
                        "reviewed": {c: v for c, v in reviewed.get(d, {}).items()},
+                       "themes": {c: {t: v for t, v in ts.items()} for c, ts in theme_counts.get(d, {}).items()},
                        "llm_ceiling_hit": d in ceiling_days}
         out[month] = {"month": month, "days": days}
     return out
@@ -371,7 +392,7 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
     Chinese sourcing whose verification judgement is pending, then independent journalism."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.title, a.url, a.published_at, a.discovered_at, a.dup_group_id,
-                  a.status, a.llm_trigger,
+                  a.status, a.llm_trigger, a.themes,
                   c.category, c.method, c.confidence, c.evidence_quote, c.reasoning, c.signatures_fired, c.model_version,
                   c.ruleset_version, c.china_sources_cited,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
@@ -391,6 +412,7 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
             "reasoning": r["reasoning"], "signatures": json.loads(r["signatures_fired"] or "[]"),
             "sources": json.loads(r["china_sources_cited"] or "[]"),
             "model": r["model_version"], "ruleset": r["ruleset_version"], "dup_group": r["dup_group_id"],
+            "themes": themes_mod.themes_of(r["themes"]),
         }
         if pending and r["llm_trigger"]:
             try:
@@ -440,6 +462,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "countries_monitored": len(countries_active),
         "registry_unevenness": registry.registry_summary(outlets)["unevenness"],
         "countries_in_gaps": len(gaps),
+        "themes": themes_mod.catalog(),
+        "themes_version": themes_mod.version(),
         "population_source": registry.population_source(),
         "top_outlets_per_country": registry.TOP_OUTLETS_PER_COUNTRY,
         "countries_with_audience_ranks": registry.top_outlets(outlets)[1],
@@ -483,7 +507,7 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
     audit_dir.mkdir(parents=True, exist_ok=True)
     rows = conn.execute(
         """SELECT a.id, a.url, a.url_hash, a.outlet_id, a.country, a.language, a.title, a.published_at, a.discovered_at,
-                  a.status, a.dup_group_id, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
+                  a.status, a.dup_group_id, a.themes, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
                   c.signatures_fired, c.china_sources_cited, c.model_version, c.ruleset_version, c.classified_at,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
@@ -509,6 +533,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     the same text is copied into the site so the interface can link it."""
     log_id = store.start_stage(conn, run_id, "export")
     pruned = store.prune_gated_out(conn)
+    tagged = themes_mod.ensure(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
@@ -528,7 +553,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
-              "pruned_gated_out": pruned, "audit_files": write_audit_files(conn, audit_dir)}
+              "pruned_gated_out": pruned, "themes_tagged": tagged, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
     store.vacuum(conn)

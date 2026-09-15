@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS articles (
     fetch_attempts INTEGER NOT NULL DEFAULT 0,
     llm_pending INTEGER NOT NULL DEFAULT 0,
     llm_trigger TEXT,
-    page_labels TEXT
+    page_labels TEXT,
+    themes TEXT                       -- JSON {"v": themes version, "t": [theme ids]}
 );
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_country_date ON articles(country, published_at);
@@ -252,6 +253,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
     if "page_labels" not in cols:
         conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
+    if "themes" not in cols:
+        conn.execute("ALTER TABLE articles ADD COLUMN themes TEXT")
     od = {r[1] for r in conn.execute("PRAGMA table_info(daily_outlet_discovery)")}
     if "gate_relevant" not in od:
         conn.execute("ALTER TABLE daily_outlet_discovery ADD COLUMN gate_relevant INTEGER NOT NULL DEFAULT 0")

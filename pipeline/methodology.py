@@ -121,6 +121,17 @@ outlets and no detections is drawn flat. Only detections above zero use the
 color scale. A country whose feeds are mostly failing, or whose articles are
 mostly paywalled, carries a warning and its tooltip says why.
 
+Themes. Every article that concerns China is tagged with each theme whose
+terms appear in its headline, its feed summary or the opening of its body
+(pipeline/themes.yaml, themes version {themes_version}): diplomacy and summits,
+trade and economy, Belt and Road and investment, technology, energy and
+electric vehicles, military and security, Taiwan and Hong Kong, human rights,
+Chinese domestic politics, culture and tourism, and disasters and health. An
+article can carry several themes; one with none is Other. The tags are
+multilingual keyword matches, not a reading of the article, so they describe
+what coverage is about in broad strokes and should be checked by hand before a
+theme count is cited.
+
 Near-duplicate titles within a country are linked as one underlying item.
 They count as multiple placements, which is what the map shows, and the
 number of underlying items is exported alongside.
@@ -180,6 +191,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
+        themes_version=meta.get("themes_version", "not recorded"),
         population_source=meta.get("population_source", "not recorded"),
         top_n=meta.get("top_outlets_per_country", 30),
         ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))

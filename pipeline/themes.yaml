@@ -1,0 +1,3480 @@
+version: 2026.09.3
+note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or the first 800 characters of its body; an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged at the next export.
+language_aliases:
+  ms: id
+substring_languages:
+- ja
+- ko
+- th
+- zh
+- fa
+- hi
+other:
+  id: other
+  label: Other
+  short: Other
+themes:
+- id: diplomacy
+  label: Diplomacy and summits
+  short: Diplomacy
+  terms:
+    all:
+    - BRICS
+    - SCO
+    - G20
+    - G7
+    - ASEAN
+    - APEC
+    - FOCAC
+    - Wang Yi
+    - Boao
+    - United Nations General Assembly
+    - Security Council
+    en:
+    - summit*
+    - diplomat*
+    - diplomacy
+    - bilateral
+    - foreign minister*
+    - foreign ministry
+    - ambassador*
+    - embassy
+    - state visit
+    - envoy*
+    - strategic partnership
+    - memorandum of understanding
+    es:
+    - cumbre*
+    - diplomac*
+    - diplomátic*
+    - bilateral*
+    - canciller*
+    - embajador*
+    - embajada
+    - visita de Estado
+    - asociación estratégica
+    fr:
+    - sommet*
+    - diplomati*
+    - bilatéra*
+    - ministre des Affaires étrangères
+    - ambassadeur*
+    - ambassade
+    - visite d'État
+    - partenariat stratégique
+    pt:
+    - cúpula*
+    - cimeira*
+    - diplomac*
+    - diplomátic*
+    - bilatera*
+    - chanceler*
+    - embaixador*
+    - embaixada
+    - visita de Estado
+    - parceria estratégica
+    it:
+    - vertice
+    - vertici
+    - diplomazi*
+    - diplomatic*
+    - bilateral*
+    - ministro degli Esteri
+    - ambasciator*
+    - ambasciata
+    - visita di Stato
+    - partenariato strategico
+    de:
+    - Gipfel*
+    - Diplomat*
+    - bilateral*
+    - Außenminister*
+    - Botschafter*
+    - Botschaft
+    - Staatsbesuch*
+    - strategische Partnerschaft
+    ru:
+    - саммит*
+    - дипломат*
+    - двусторонн*
+    - министр иностранных дел
+    - глава МИД
+    - посол
+    - посла
+    - послом
+    - посольств*
+    - государственн* визит*
+    - стратегическ* партнерств*
+    ar:
+    - قمة
+    - القمة
+    - دبلوماسي*
+    - الدبلوماسي*
+    - ثنائي*
+    - وزير الخارجية
+    - سفير
+    - السفير
+    - سفارة
+    - السفارة
+    - زيارة دولة
+    - شراكة استراتيجية
+    ko:
+    - 정상회담
+    - 정상회의
+    - 외교
+    - 양자
+    - 외교장관
+    - 외교부
+    - 대사
+    - 대사관
+    - 국빈
+    - 전략적 동반자
+    vi:
+    - hội nghị thượng đỉnh
+    - ngoại giao
+    - song phương
+    - Bộ trưởng Ngoại giao
+    - đại sứ
+    - đại sứ quán
+    - chuyến thăm cấp nhà nước
+    - đối tác chiến lược
+    id:
+    - KTT
+    - diplomasi
+    - diplomat*
+    - bilateral
+    - Menteri Luar Negeri
+    - duta besar
+    - kedutaan
+    - kunjungan kenegaraan
+    - kemitraan strategis
+    - sidang kemuncak
+    tr:
+    - zirve*
+    - diplomas*
+    - ikili
+    - Dışişleri Bakan*
+    - büyükelçi*
+    - devlet ziyaret*
+    - stratejik ortaklık
+    ja:
+    - 首脳会談
+    - 首脳会議
+    - サミット
+    - 外交
+    - 外相
+    - 外務省
+    - 大使
+    - 大使館
+    - 国賓
+    nl:
+    - topontmoeting*
+    - topoverleg
+    - diplomat*
+    - bilateraal
+    - minister van Buitenlandse Zaken
+    - ambassadeur
+    - ambassade
+    - staatsbezoek
+    ro:
+    - summit*
+    - diplomați*
+    - diplomatic*
+    - bilateral*
+    - ministrul de externe
+    - ambasador*
+    - ambasad*
+    - vizită de stat
+    pl:
+    - szczyt*
+    - dyplomac*
+    - dyplomat*
+    - dwustronn*
+    - minister spraw zagranicznych
+    - szef MSZ
+    - ambasador*
+    - ambasad*
+    - wizyt* państwow*
+    fa:
+    - نشست سران
+    - دیپلماسی
+    - دیپلمات
+    - دوجانبه
+    - وزیر خارجه
+    - سفیر
+    - سفارت
+    - سفر رسمی
+    - بریکس
+    - شانگهای
+    hi:
+    - शिखर सम्मेलन
+    - कूटनीति
+    - राजनयिक
+    - द्विपक्षीय
+    - विदेश मंत्री
+    - राजदूत
+    - दूतावास
+    - ब्रिक्स
+    - एससीओ
+    th:
+    - ประชุมสุดยอด
+    - การทูต
+    - ทวิภาคี
+    - รัฐมนตรีต่างประเทศ
+    - เอกอัครราชทูต
+    - สถานทูต
+    - เยือนอย่างเป็นทางการ
+- id: economy
+  label: Trade and economy
+  short: Economy
+  terms:
+    all:
+    - GDP
+    - WTO
+    - IMF
+    - yuan
+    - renminbi
+    - RMB
+    en:
+    - trade
+    - trading
+    - tariff*
+    - export*
+    - import*
+    - econom*
+    - stock market*
+    - shares
+    - investor*
+    - inflation
+    - deflation
+    - manufactur*
+    - supply chain*
+    - consumer*
+    - currency
+    - sanction*
+    - trade deficit
+    - trade surplus
+    - property sector
+    - real estate
+    - bank
+    - banks
+    - banking
+    es:
+    - comercio
+    - comercial*
+    - arancel*
+    - exportaci*
+    - importaci*
+    - econom*
+    - bolsa de valores
+    - inversor*
+    - inflación
+    - manufactur*
+    - cadena* de suministro
+    - consumo
+    - moneda
+    - sancion*
+    - déficit
+    - sector inmobiliario
+    - banco*
+    fr:
+    - commerce
+    - commercia*
+    - droits de douane
+    - tarif*
+    - exportation*
+    - importation*
+    - économi*
+    - bourse
+    - investisseur*
+    - inflation
+    - chaîne* d'approvisionnement
+    - consommat*
+    - monnaie
+    - sanction*
+    - déficit
+    - immobilier
+    - banque*
+    pt:
+    - comércio
+    - comercia*
+    - tarifa*
+    - exportaç*
+    - importaç*
+    - economi*
+    - bolsa de valores
+    - investidor*
+    - inflação
+    - manufatur*
+    - cadeia* de suprimentos
+    - consumo
+    - moeda
+    - sanç*
+    - déficit
+    - imobiliário
+    - banco*
+    it:
+    - commercio
+    - commercial*
+    - dazi
+    - dazio
+    - esportazion*
+    - importazion*
+    - economi*
+    - borsa
+    - investitor*
+    - inflazione
+    - manifattur*
+    - catena di approvvigionamento
+    - consumi
+    - valuta
+    - sanzion*
+    - deficit
+    - immobiliare
+    - banca
+    - banche
+    de:
+    - Handel*
+    - Zoll
+    - Zölle
+    - Export*
+    - Import*
+    - Wirtschaft*
+    - Börse*
+    - Anleger*
+    - Inflation
+    - Lieferkette*
+    - Konsum*
+    - Währung*
+    - Sanktion*
+    - Defizit
+    - Immobilien*
+    - Bank
+    - Banken
+    ru:
+    - торгов*
+    - пошлин*
+    - экспорт*
+    - импорт*
+    - экономик*
+    - экономич*
+    - бирж*
+    - инвестор*
+    - инфляц*
+    - цепочк* поставок
+    - потребител*
+    - валют*
+    - санкци*
+    - дефицит*
+    - недвижимост*
+    - банк
+    - банка
+    - банков
+    - банки
+    ar:
+    - تجارة
+    - التجارة
+    - تجاري*
+    - التجاري*
+    - رسوم جمركية
+    - الرسوم الجمركية
+    - صادرات
+    - الصادرات
+    - واردات
+    - الواردات
+    - اقتصاد*
+    - الاقتصاد*
+    - البورصة
+    - مستثمر*
+    - التضخم
+    - سلاسل الإمداد
+    - العملة
+    - عقوبات
+    - العقوبات
+    - البنوك
+    ko:
+    - 무역
+    - 관세
+    - 수출
+    - 수입
+    - 경제
+    - 증시
+    - 주식
+    - 투자자
+    - 인플레이션
+    - 제조업
+    - 공급망
+    - 소비
+    - 위안화
+    - 제재
+    - 적자
+    - 부동산
+    - 은행
+    vi:
+    - thương mại
+    - thuế quan
+    - xuất khẩu
+    - nhập khẩu
+    - kinh tế
+    - chứng khoán
+    - nhà đầu tư
+    - lạm phát
+    - sản xuất
+    - chuỗi cung ứng
+    - tiêu dùng
+    - nhân dân tệ
+    - trừng phạt
+    - thâm hụt
+    - bất động sản
+    - ngân hàng
+    id:
+    - perdagangan
+    - tarif
+    - ekspor
+    - eksport
+    - impor
+    - ekonomi
+    - saham
+    - investor
+    - inflasi
+    - manufaktur
+    - rantai pasok
+    - konsumen
+    - pengguna
+    - mata uang
+    - sanksi
+    - sekatan
+    - defisit
+    - properti
+    - hartanah
+    - bank
+    tr:
+    - ticaret*
+    - gümrük vergi*
+    - tarife*
+    - ihracat*
+    - ithalat*
+    - ekonomi*
+    - borsa*
+    - yatırımcı*
+    - enflasyon*
+    - imalat*
+    - tedarik zincir*
+    - tüketi*
+    - döviz
+    - yaptırım*
+    - emlak*
+    - banka*
+    ja:
+    - 貿易
+    - 関税
+    - 輸出
+    - 輸入
+    - 経済
+    - 株式
+    - 株価
+    - 投資家
+    - インフレ
+    - 製造業
+    - サプライチェーン
+    - 消費
+    - 人民元
+    - 制裁
+    - 赤字
+    - 不動産
+    - 銀行
+    nl:
+    - handel*
+    - heffing*
+    - invoerheffing*
+    - export*
+    - import*
+    - econom*
+    - beurs
+    - belegger*
+    - inflatie
+    - toeleveringsketen*
+    - consument*
+    - valuta
+    - sanctie*
+    - tekort
+    - vastgoed
+    - bank
+    - banken
+    ro:
+    - comerț*
+    - tarife
+    - taxe vamale
+    - export*
+    - import*
+    - economi*
+    - bursa
+    - investitor*
+    - inflați*
+    - sancțiuni
+    - bănci
+    - banca
+    pl:
+    - handel*
+    - handlow*
+    - cła
+    - cło
+    - ceł
+    - eksport*
+    - import*
+    - gospodar*
+    - ekonomi*
+    - giełd*
+    - inwestor*
+    - inflacj*
+    - sankcj*
+    - bank*
+    fa:
+    - تجارت
+    - تعرفه
+    - صادرات
+    - واردات
+    - اقتصاد
+    - بورس
+    - تورم
+    - تحریم
+    - بانک
+    hi:
+    - व्यापार
+    - टैरिफ
+    - निर्यात
+    - आयात
+    - अर्थव्यवस्था
+    - शेयर बाजार
+    - निवेशक
+    - महंगाई
+    - मुद्रास्फीति
+    - प्रतिबंध
+    - बैंक
+    th:
+    - การค้า
+    - ภาษีนำเข้า
+    - ส่งออก
+    - นำเข้า
+    - เศรษฐกิจ
+    - ตลาดหุ้น
+    - นักลงทุน
+    - เงินเฟ้อ
+    - คว่ำบาตร
+    - ธนาคาร
+- id: investment
+  label: Belt and Road, investment and infrastructure
+  short: Investment
+  terms:
+    all:
+    - Belt and Road
+    - BRI
+    - Silk Road
+    - AIIB
+    - Asian Infrastructure Investment Bank
+    - Exim Bank
+    - China Development Bank
+    en:
+    - infrastructure
+    - railway*
+    - railroad*
+    - high-speed rail
+    - loan*
+    - debt
+    - investment*
+    - invest
+    - investing
+    - industrial park*
+    - economic zone*
+    - contractor*
+    - port project*
+    - deep-sea port
+    - seaport development
+    - hydropower project*
+    - dam project*
+    es:
+    - Franja y la Ruta
+    - Ruta de la Seda
+    - infraestructura*
+    - ferrocarril*
+    - tren de alta velocidad
+    - préstamo*
+    - deuda*
+    - inversi*
+    - parque* industrial*
+    - zona* económica*
+    fr:
+    - Nouvelles routes de la soie
+    - route de la soie
+    - infrastructure*
+    - chemin de fer
+    - ferroviaire*
+    - prêts
+    - dette*
+    - investissement*
+    - investir
+    - zone* économique*
+    pt:
+    - Cinturão e Rota
+    - Nova Rota da Seda
+    - Rota da Seda
+    - infraestrutura*
+    - ferrovia*
+    - ferroviári*
+    - empréstimo*
+    - dívida*
+    - investiment*
+    - zona* econômica*
+    it:
+    - Via della Seta
+    - Nuova Via della Seta
+    - infrastruttur*
+    - ferrovi*
+    - alta velocità
+    - prestit*
+    - debito
+    - debiti
+    - investiment*
+    - zona economica
+    de:
+    - Neue Seidenstraße
+    - Seidenstraße
+    - Infrastruktur*
+    - Eisenbahn*
+    - Bahnstrecke*
+    - Kredit*
+    - Schulden*
+    - Investition*
+    - Sonderwirtschaftszone*
+    ru:
+    - Пояс и путь
+    - Шелков* путь
+    - инфраструктур*
+    - железн* дорог*
+    - высокоскоростн*
+    - кредит*
+    - займ*
+    - долг*
+    - инвестиц*
+    - экономическ* зон*
+    ar:
+    - الحزام والطريق
+    - طريق الحرير
+    - البنية التحتية
+    - السكك الحديدية
+    - سكك الحديد
+    - قرض
+    - قروض
+    - ديون
+    - الديون
+    - استثمار*
+    - الاستثمار*
+    - منطقة اقتصادية
+    ko:
+    - 일대일로
+    - 실크로드
+    - 인프라
+    - 철도
+    - 고속철
+    - 대출
+    - 부채
+    - 투자
+    - 경제특구
+    vi:
+    - Vành đai và Con đường
+    - Con đường tơ lụa
+    - cơ sở hạ tầng
+    - đường sắt
+    - khoản vay
+    - nợ
+    - đầu tư
+    - khu kinh tế
+    id:
+    - Sabuk dan Jalan
+    - Jalur Sutra
+    - infrastruktur
+    - kereta cepat
+    - kereta api
+    - pinjaman
+    - utang
+    - hutang
+    - investasi
+    - pelaburan
+    - kawasan ekonomi
+    tr:
+    - Kuşak ve Yol
+    - İpek Yolu
+    - altyapı*
+    - demiryolu*
+    - hızlı tren
+    - kredi*
+    - borç*
+    - yatırım*
+    - ekonomik bölge*
+    ja:
+    - 一帯一路
+    - シルクロード
+    - インフラ
+    - 鉄道
+    - 高速鉄道
+    - 融資
+    - 債務
+    - 投資
+    - 経済特区
+    nl:
+    - Nieuwe Zijderoute
+    - Zijderoute
+    - infrastructuur
+    - spoorlijn*
+    - spoorweg*
+    - lening*
+    - schuld*
+    - investering*
+    - economische zone
+    ro:
+    - Drumul Mătăsii
+    - Centura și Drumul
+    - infrastructur*
+    - cale ferată
+    - căi ferate
+    - împrumut*
+    - datori*
+    - investiți*
+    pl:
+    - Pas i Szlak
+    - Jedwabny Szlak
+    - Nowy Jedwabny Szlak
+    - infrastruktur*
+    - kolej dużych prędkości
+    - linia kolejowa
+    - kolei
+    - kredyt*
+    - zadłużeni*
+    - dług*
+    - inwestycj*
+    fa:
+    - کمربند و جاده
+    - جاده ابریشم
+    - زیرساخت
+    - راه‌آهن
+    - وام
+    - بدهی
+    - سرمایه‌گذاری
+    hi:
+    - बेल्ट एंड रोड
+    - रेशम मार्ग
+    - बुनियादी ढांचा
+    - इंफ्रास्ट्रक्चर
+    - रेलवे
+    - कर्ज
+    - ऋण
+    - निवेश
+    th:
+    - หนึ่งแถบหนึ่งเส้นทาง
+    - เส้นทางสายไหม
+    - โครงสร้างพื้นฐาน
+    - รถไฟความเร็วสูง
+    - เงินกู้
+    - หนี้
+    - การลงทุน
+- id: technology
+  label: Technology
+  short: Technology
+  terms:
+    all:
+    - Huawei
+    - TikTok
+    - ByteDance
+    - DeepSeek
+    - Alibaba
+    - Tencent
+    - Xiaomi
+    - ZTE
+    - SMIC
+    - Baidu
+    - WeChat
+    - Temu
+    - Shein
+    - 5G
+    - 6G
+    - AI
+    - Nvidia
+    - TSMC
+    - Qwen
+    - Shenzhou
+    - Tiangong
+    - Chang'e
+    en:
+    - technolog*
+    - artificial intelligence
+    - semiconductor*
+    - chip
+    - chips
+    - chipmaker*
+    - smartphone*
+    - satellite*
+    - space station
+    - spacecraft
+    - rocket*
+    - cyber*
+    - hacker*
+    - hacking
+    - data cent*
+    - quantum
+    - robot*
+    - e-commerce
+    - internet
+    - software
+    - app
+    - apps
+    es:
+    - tecnolog*
+    - inteligencia artificial
+    - IA
+    - semiconductor*
+    - chip
+    - chips
+    - smartphone*
+    - satélite*
+    - estación espacial
+    - cohete*
+    - ciber*
+    - hacker*
+    - cuántic*
+    - robot*
+    - comercio electrónico
+    - internet
+    - aplicación
+    fr:
+    - technolog*
+    - intelligence artificielle
+    - IA
+    - semi-conducteur*
+    - puce*
+    - smartphone*
+    - satellite*
+    - station spatiale
+    - fusée*
+    - cyber*
+    - pirates informatiques
+    - quantique*
+    - robot*
+    - commerce en ligne
+    - internet
+    - application*
+    pt:
+    - tecnolog*
+    - inteligência artificial
+    - IA
+    - semicondutor*
+    - chip
+    - chips
+    - smartphone*
+    - celular*
+    - satélite*
+    - estação espacial
+    - foguete*
+    - ciber*
+    - hacker*
+    - quântic*
+    - robô*
+    - comércio eletrônico
+    - internet
+    - aplicativo*
+    it:
+    - tecnologi*
+    - intelligenza artificiale
+    - IA
+    - semiconduttor*
+    - chip
+    - smartphone
+    - satellit*
+    - stazione spaziale
+    - razzo
+    - razzi
+    - cyber*
+    - hacker
+    - quantistic*
+    - robot*
+    - e-commerce
+    - internet
+    - app
+    de:
+    - Technologie*
+    - technologisch*
+    - künstliche Intelligenz
+    - künstlichen Intelligenz
+    - KI
+    - Halbleiter*
+    - Chip
+    - Chips
+    - Smartphone*
+    - Satellit*
+    - Raumstation
+    - Rakete*
+    - Cyber*
+    - Hacker*
+    - Quanten*
+    - Roboter*
+    - Onlinehandel
+    - Internet
+    - App
+    - Apps
+    ru:
+    - технолог*
+    - искусственн* интеллект*
+    - ИИ
+    - полупроводник*
+    - чип*
+    - микросхем*
+    - смартфон*
+    - спутник*
+    - космическ* станц*
+    - ракет*
+    - кибер*
+    - хакер*
+    - квантов*
+    - робот*
+    - интернет*
+    - электронн* коммерц*
+    ar:
+    - تكنولوجيا
+    - التكنولوجيا
+    - تقنية
+    - التقنية
+    - الذكاء الاصطناعي
+    - أشباه الموصلات
+    - رقائق
+    - الرقائق
+    - هواتف ذكية
+    - أقمار صناعية
+    - قمر صناعي
+    - محطة فضائية
+    - صاروخ
+    - السيبراني*
+    - قراصنة
+    - الكمومية
+    - روبوت*
+    - الإنترنت
+    - تطبيق
+    ko:
+    - 기술
+    - 인공지능
+    - 반도체
+    - 칩
+    - 스마트폰
+    - 위성
+    - 우주정거장
+    - 로켓
+    - 사이버
+    - 해커
+    - 양자
+    - 로봇
+    - 전자상거래
+    - 인터넷
+    - 틱톡
+    - 화웨이
+    - 딥시크
+    - 알리바바
+    - 텐센트
+    - 샤오미
+    vi:
+    - công nghệ
+    - trí tuệ nhân tạo
+    - bán dẫn
+    - chip
+    - điện thoại thông minh
+    - vệ tinh
+    - trạm vũ trụ
+    - tên lửa
+    - an ninh mạng
+    - tin tặc
+    - lượng tử
+    - robot
+    - thương mại điện tử
+    - internet
+    - ứng dụng
+    id:
+    - teknologi
+    - kecerdasan buatan
+    - semikonduktor
+    - cip
+    - chip
+    - ponsel
+    - telefon pintar
+    - satelit
+    - stasiun luar angkasa
+    - stesen angkasa
+    - roket
+    - siber
+    - peretas
+    - kuantum
+    - robot
+    - e-commerce
+    - internet
+    - aplikasi
+    tr:
+    - teknoloji*
+    - yapay zeka
+    - yapay zekâ
+    - yarı iletken*
+    - çip*
+    - akıllı telefon*
+    - uydu*
+    - uzay istasyon*
+    - roket*
+    - siber*
+    - hacker*
+    - kuantum*
+    - robot*
+    - e-ticaret
+    - internet*
+    - uygulama*
+    ja:
+    - 技術
+    - テクノロジー
+    - 人工知能
+    - 半導体
+    - チップ
+    - スマートフォン
+    - スマホ
+    - 衛星
+    - 宇宙ステーション
+    - ロケット
+    - サイバー
+    - ハッカー
+    - 量子
+    - ロボット
+    - 電子商取引
+    - インターネット
+    - ファーウェイ
+    - アプリ
+    nl:
+    - technologie*
+    - kunstmatige intelligentie
+    - halfgeleider*
+    - chip*
+    - smartphone*
+    - satelliet*
+    - ruimtestation
+    - raket*
+    - cyber*
+    - hacker*
+    - kwantum*
+    - robot*
+    - internet
+    - app
+    ro:
+    - tehnologi*
+    - inteligență artificială
+    - IA
+    - semiconductor*
+    - cipuri
+    - smartphone*
+    - satelit*
+    - cibernetic*
+    - hacker*
+    - robot*
+    - internet
+    pl:
+    - technolog*
+    - sztuczn* inteligencj*
+    - AI
+    - półprzewodnik*
+    - chip*
+    - smartfon*
+    - satelit*
+    - cyber*
+    - haker*
+    - robot*
+    - internet*
+    fa:
+    - فناوری
+    - هوش مصنوعی
+    - نیمه‌رسانا
+    - تراشه
+    - گوشی هوشمند
+    - ماهواره
+    - سایبری
+    - هکر
+    - ربات
+    - اینترنت
+    - هواوی
+    - تیک‌تاک
+    hi:
+    - प्रौद्योगिकी
+    - तकनीक
+    - आर्टिफिशियल इंटेलिजेंस
+    - एआई
+    - सेमीकंडक्टर
+    - चिप
+    - स्मार्टफोन
+    - उपग्रह
+    - सैटेलाइट
+    - रॉकेट
+    - साइबर
+    - हैकर
+    - रोबोट
+    - इंटरनेट
+    th:
+    - เทคโนโลยี
+    - ปัญญาประดิษฐ์
+    - เซมิคอนดักเตอร์
+    - ชิป
+    - สมาร์ทโฟน
+    - ดาวเทียม
+    - จรวด
+    - ไซเบอร์
+    - แฮกเกอร์
+    - หุ่นยนต์
+    - อินเทอร์เน็ต
+    - หัวเว่ย
+    - ติ๊กต็อก
+- id: energy
+  label: Energy, industry and electric vehicles
+  short: Energy
+  terms:
+    all:
+    - BYD
+    - CATL
+    - Geely
+    - Chery
+    - NIO
+    - XPeng
+    - Great Wall Motor
+    - SAIC
+    - Sinopec
+    - PetroChina
+    - CNOOC
+    - LNG
+    - OPEC
+    en:
+    - electric vehicle*
+    - electric car*
+    - EV
+    - EVs
+    - carmaker*
+    - car maker*
+    - automaker*
+    - battery
+    - batteries
+    - solar
+    - wind power
+    - wind farm*
+    - rare earth*
+    - critical mineral*
+    - lithium
+    - cobalt
+    - nickel
+    - copper
+    - steel
+    - aluminium
+    - aluminum
+    - oil
+    - crude
+    - natural gas
+    - pipeline*
+    - energy
+    - power plant*
+    - nuclear power
+    - coal
+    - mining
+    - minerals
+    - overcapacity
+    es:
+    - vehículo* eléctrico*
+    - coche* eléctrico*
+    - automotriz*
+    - fabricante* de automóviles
+    - batería*
+    - solar*
+    - eólic*
+    - tierras raras
+    - litio
+    - cobalto
+    - cobre
+    - acero
+    - aluminio
+    - petróleo
+    - gas natural
+    - gasoducto*
+    - energ*
+    - central* nuclear*
+    - carbón
+    - minería
+    - minera*
+    - sobrecapacidad
+    fr:
+    - véhicule* électrique*
+    - voiture* électrique*
+    - constructeur* automobile*
+    - batterie*
+    - solaire*
+    - éolien*
+    - terres rares
+    - lithium
+    - cobalt
+    - cuivre
+    - acier
+    - aluminium
+    - pétrole
+    - gaz naturel
+    - gazoduc*
+    - énergi*
+    - centrale* nucléaire*
+    - charbon
+    - minier*
+    - minière*
+    - surcapacité*
+    pt:
+    - veículo* elétrico*
+    - carro* elétrico*
+    - montadora*
+    - bateria*
+    - solar*
+    - eólic*
+    - terras raras
+    - lítio
+    - cobalto
+    - cobre
+    - aço
+    - alumínio
+    - petróleo
+    - gás natural
+    - gasoduto*
+    - energi*
+    - usina* nuclear*
+    - carvão
+    - mineração
+    - minério*
+    - sobrecapacidade
+    it:
+    - auto elettric*
+    - veicol* elettric*
+    - casa automobilistica
+    - case automobilistiche
+    - batteri*
+    - solare
+    - fotovoltaic*
+    - eolic*
+    - terre rare
+    - litio
+    - cobalto
+    - rame
+    - acciaio
+    - alluminio
+    - petrolio
+    - gas naturale
+    - gasdott*
+    - energi*
+    - centrale nucleare
+    - carbone
+    - minier*
+    - sovraccapacità
+    de:
+    - Elektroauto*
+    - E-Auto*
+    - Elektrofahrzeug*
+    - Autobauer*
+    - Autohersteller*
+    - Batterie*
+    - Akku*
+    - Solar*
+    - Windkraft*
+    - Seltene Erden
+    - seltenen Erden
+    - Lithium
+    - Kobalt
+    - Kupfer
+    - Stahl*
+    - Aluminium
+    - Öl
+    - Rohöl
+    - Erdgas
+    - Pipeline*
+    - Energie*
+    - Atomkraftwerk*
+    - Kohle
+    - Bergbau*
+    - Überkapazität*
+    ru:
+    - электромобил*
+    - автопроизводител*
+    - аккумулятор*
+    - батаре*
+    - солнечн* энерг*
+    - солнечн* панел*
+    - ветрян*
+    - редкоземельн*
+    - лити*
+    - кобальт*
+    - медь
+    - меди
+    - алюмини*
+    - нефт*
+    - газ
+    - газа
+    - газопровод*
+    - энерг*
+    - АЭС
+    - уголь
+    - угля
+    - добыч*
+    - горнодобыва*
+    ar:
+    - السيارات الكهربائية
+    - سيارات كهربائية
+    - البطاريات
+    - بطاريات
+    - الطاقة الشمسية
+    - طاقة الرياح
+    - المعادن النادرة
+    - المعادن الأرضية النادرة
+    - الليثيوم
+    - الكوبالت
+    - النحاس
+    - الصلب
+    - الألمنيوم
+    - النفط
+    - الغاز الطبيعي
+    - خط أنابيب
+    - الطاقة
+    - محطة نووية
+    - الفحم
+    - التعدين
+    ko:
+    - 전기차
+    - 자동차
+    - 배터리
+    - 태양광
+    - 풍력
+    - 희토류
+    - 리튬
+    - 코발트
+    - 구리
+    - 철강
+    - 알루미늄
+    - 석유
+    - 원유
+    - 천연가스
+    - 가스관
+    - 에너지
+    - 원전
+    - 석탄
+    - 광산
+    - 과잉생산
+    - 비야디
+    vi:
+    - xe điện
+    - ô tô điện
+    - hãng xe
+    - pin
+    - năng lượng mặt trời
+    - điện gió
+    - đất hiếm
+    - lithium
+    - thép
+    - nhôm
+    - dầu mỏ
+    - dầu thô
+    - khí đốt
+    - đường ống
+    - năng lượng
+    - điện hạt nhân
+    - than
+    - khai thác mỏ
+    - dư thừa công suất
+    id:
+    - kendaraan listrik
+    - mobil listrik
+    - kenderaan elektrik
+    - baterai
+    - bateri
+    - tenaga surya
+    - tenaga angin
+    - logam tanah jarang
+    - nikel
+    - litium
+    - kobalt
+    - tembaga
+    - baja
+    - keluli
+    - aluminium
+    - minyak
+    - gas alam
+    - energi
+    - PLTN
+    - batu bara
+    - arang batu
+    - tambang
+    - pertambangan
+    - perlombongan
+    - smelter
+    - hilirisasi
+    tr:
+    - elektrikli araç*
+    - otomobil üretici*
+    - batarya*
+    - güneş enerji*
+    - rüzgar enerji*
+    - nadir toprak*
+    - lityum
+    - kobalt
+    - bakır
+    - çelik
+    - alüminyum
+    - petrol*
+    - doğalgaz*
+    - doğal gaz
+    - boru hattı
+    - enerji*
+    - nükleer santral*
+    - kömür*
+    - madencilik*
+    ja:
+    - 電気自動車
+    - 自動車
+    - 電池
+    - バッテリー
+    - 太陽光
+    - 風力
+    - レアアース
+    - リチウム
+    - コバルト
+    - 銅
+    - 鉄鋼
+    - アルミ
+    - 石油
+    - 原油
+    - 天然ガス
+    - パイプライン
+    - エネルギー
+    - 原発
+    - 石炭
+    - 鉱山
+    - 過剰生産
+    nl:
+    - elektrische auto*
+    - elektrische voertuig*
+    - autofabrikant*
+    - batterij*
+    - zonne-energie
+    - zonnepanel*
+    - windenergie
+    - zeldzame aardmetalen
+    - lithium
+    - kobalt
+    - koper
+    - staal
+    - aluminium
+    - olie
+    - aardgas
+    - pijpleiding*
+    - energie
+    - kerncentrale*
+    - steenkool
+    - mijnbouw
+    - overcapaciteit
+    ro:
+    - mașini electrice
+    - vehicule electrice
+    - baterii
+    - panouri solare
+    - pământuri rare
+    - litiu
+    - cupru
+    - oțel
+    - aluminiu
+    - petrol
+    - gaze naturale
+    - energi*
+    - cărbune
+    - minerit
+    pl:
+    - samochod* elektryczn*
+    - pojazd* elektryczn*
+    - bateri*
+    - akumulator*
+    - fotowoltai*
+    - metale ziem rzadkich
+    - miedź
+    - stali
+    - stal
+    - aluminium
+    - ropa
+    - gaz ziemny
+    - gazociąg*
+    - energi*
+    - węgl*
+    - górnict*
+    fa:
+    - خودروی برقی
+    - خودروهای برقی
+    - باتری
+    - خورشیدی
+    - خاکی کمیاب
+    - لیتیوم
+    - فولاد
+    - آلومینیوم
+    - نفت
+    - انرژی
+    - زغال سنگ
+    - معدن
+    hi:
+    - इलेक्ट्रिक वाहन
+    - इलेक्ट्रिक कार
+    - बैटरी
+    - सौर ऊर्जा
+    - रेयर अर्थ
+    - लिथियम
+    - तांबा
+    - स्टील
+    - इस्पात
+    - कच्चा तेल
+    - गैस
+    - ऊर्जा
+    - कोयला
+    - खनन
+    th:
+    - รถยนต์ไฟฟ้า
+    - แบตเตอรี่
+    - พลังงานแสงอาทิตย์
+    - แร่หายาก
+    - ลิเธียม
+    - ทองแดง
+    - เหล็กกล้า
+    - อลูมิเนียม
+    - น้ำมัน
+    - ก๊าซธรรมชาติ
+    - พลังงาน
+    - ถ่านหิน
+    - เหมือง
+- id: security
+  label: Military and security
+  short: Military
+  terms:
+    all:
+    - PLA
+    - NATO
+    - AUKUS
+    - South China Sea
+    - East China Sea
+    - Scarborough
+    - Spratly
+    - Paracel
+    - Second Thomas Shoal
+    en:
+    - military
+    - militar*
+    - army
+    - navy
+    - naval
+    - air force
+    - warship*
+    - aircraft carrier*
+    - missile*
+    - nuclear weapon*
+    - nuclear arsenal
+    - drills
+    - war games
+    - troops
+    - soldier*
+    - weapon*
+    - arms
+    - espionage
+    - spy
+    - spies
+    - spying
+    - intelligence agenc*
+    - coast guard
+    - incursion*
+    - drone*
+    - warfare
+    - defence minist*
+    - defense minist*
+    - national defen*
+    - defence spending
+    - defense spending
+    - Pentagon
+    es:
+    - militar*
+    - ejército*
+    - armada
+    - fuerza aérea
+    - buque* de guerra
+    - portaaviones
+    - misil*
+    - arma* nuclear*
+    - maniobra*
+    - ejercicios militares
+    - tropas
+    - soldado*
+    - armas
+    - espionaje
+    - espía*
+    - guardia costera
+    - dron*
+    - mar de China Meridional
+    - Ministerio de Defensa
+    - defensa nacional
+    fr:
+    - militaire*
+    - armée*
+    - marine
+    - armée de l'air
+    - navire* de guerre
+    - porte-avions
+    - missile*
+    - arme* nucléaire*
+    - manœuvre*
+    - exercices militaires
+    - troupes
+    - soldat*
+    - armes
+    - espionnage
+    - espion*
+    - garde-côte*
+    - drone*
+    - mer de Chine méridionale
+    - ministère de la Défense
+    - défense nationale
+    pt:
+    - militar*
+    - exército*
+    - marinha
+    - força aérea
+    - navio* de guerra
+    - porta-aviões
+    - míssil
+    - mísseis
+    - arma* nuclear*
+    - manobra*
+    - exercícios militares
+    - tropas
+    - soldado*
+    - armas
+    - espionagem
+    - espião
+    - espiões
+    - guarda costeira
+    - drone*
+    - Mar do Sul da China
+    - Ministério da Defesa
+    - defesa nacional
+    it:
+    - militar*
+    - esercito
+    - marina militare
+    - aeronautica
+    - nave da guerra
+    - navi da guerra
+    - portaerei
+    - missil*
+    - arm* nuclear*
+    - esercitazion*
+    - truppe
+    - soldat*
+    - armi
+    - spionaggio
+    - spia
+    - spie
+    - guardia costiera
+    - drone
+    - droni
+    - Mar Cinese Meridionale
+    - ministero della Difesa
+    - difesa nazionale
+    de:
+    - Militär*
+    - militärisch*
+    - Armee
+    - Marine
+    - Luftwaffe
+    - Kriegsschiff*
+    - Flugzeugträger*
+    - Rakete*
+    - Atomwaffe*
+    - Manöver*
+    - Militärübung*
+    - Verteidigung*
+    - Truppen
+    - Soldat*
+    - Waffe*
+    - Spionage
+    - Spion*
+    - Küstenwache
+    - Drohne*
+    - Südchinesische* Meer
+    ru:
+    - военн*
+    - армия
+    - армии
+    - ВМС
+    - флот*
+    - ВВС
+    - авианос*
+    - ракет*
+    - ядерн* оружи*
+    - военн* учени*
+    - оборон*
+    - войск*
+    - солдат*
+    - оружи*
+    - шпионаж*
+    - шпион*
+    - береговая охрана
+    - беспилотник*
+    - НОАК
+    - Южно-Китайск* мор*
+    ar:
+    - عسكري*
+    - العسكري*
+    - الجيش
+    - جيش
+    - البحرية
+    - القوات الجوية
+    - سفينة حربية
+    - سفن حربية
+    - حاملة طائرات
+    - صاروخ*
+    - صواريخ
+    - الصواريخ
+    - أسلحة نووية
+    - مناورات
+    - تدريبات عسكرية
+    - الدفاع
+    - جنود
+    - أسلحة
+    - الأسلحة
+    - تجسس
+    - التجسس
+    - جاسوس
+    - خفر السواحل
+    - طائرات مسيرة
+    - بحر الصين الجنوبي
+    ko:
+    - 군사
+    - 군대
+    - 해군
+    - 공군
+    - 인민해방군
+    - 군함
+    - 항공모함
+    - 항모
+    - 미사일
+    - 핵무기
+    - 군사훈련
+    - 합동훈련
+    - 국방
+    - 병력
+    - 군인
+    - 무기
+    - 간첩
+    - 스파이
+    - 해안경비대
+    - 해경
+    - 드론
+    - 남중국해
+    vi:
+    - quân sự
+    - quân đội
+    - hải quân
+    - không quân
+    - Quân Giải phóng
+    - tàu chiến
+    - tàu sân bay
+    - tên lửa
+    - vũ khí hạt nhân
+    - tập trận
+    - quốc phòng
+    - binh sĩ
+    - vũ khí
+    - gián điệp
+    - cảnh sát biển
+    - hải cảnh
+    - máy bay không người lái
+    - Biển Đông
+    id:
+    - militer
+    - tentera
+    - angkatan laut
+    - angkatan udara
+    - kapal perang
+    - kapal induk
+    - rudal
+    - peluru berpandu
+    - senjata nuklir
+    - latihan militer
+    - latihan tentera
+    - pertahanan
+    - pasukan
+    - tentara
+    - senjata
+    - spionase
+    - mata-mata
+    - penjaga pantai
+    - drone
+    - Laut China Selatan
+    - Laut Cina Selatan
+    - Laut Natuna Utara
+    tr:
+    - askeri
+    - ordu*
+    - donanma*
+    - hava kuvvet*
+    - savaş gemi*
+    - uçak gemi*
+    - füze*
+    - nükleer silah*
+    - tatbikat*
+    - savunma*
+    - asker*
+    - silah*
+    - casusluk*
+    - casus
+    - sahil güvenlik
+    - insansız hava
+    - dron*
+    - Güney Çin Deniz*
+    ja:
+    - 軍事
+    - 軍隊
+    - 人民解放軍
+    - 海軍
+    - 空軍
+    - 軍艦
+    - 空母
+    - ミサイル
+    - 核兵器
+    - 演習
+    - 国防
+    - 防衛
+    - 兵士
+    - 武器
+    - スパイ
+    - 海警
+    - 無人機
+    - ドローン
+    - 南シナ海
+    - 東シナ海
+    - 尖閣
+    nl:
+    - militair*
+    - leger
+    - marine
+    - luchtmacht
+    - oorlogsschip*
+    - vliegdekschip*
+    - raket*
+    - kernwapen*
+    - militaire oefening*
+    - defensie
+    - troepen
+    - soldat*
+    - wapen*
+    - spionage
+    - spion*
+    - kustwacht
+    - drone*
+    - Zuid-Chinese Zee
+    ro:
+    - militar*
+    - armata
+    - armatei
+    - marina
+    - rachete
+    - arme nucleare
+    - exerciții militare
+    - apărare
+    - ministrul apărării
+    - trupe
+    - soldați
+    - spionaj
+    - spion*
+    - drone
+    - Marea Chinei de Sud
+    pl:
+    - wojsk*
+    - armi*
+    - marynark*
+    - okręt*
+    - lotniskowc*
+    - rakiet*
+    - broń jądrow*
+    - ćwiczeni* wojskow*
+    - obronn*
+    - żołnierz*
+    - broń
+    - szpieg*
+    - dron*
+    - Morze Południowochińskie
+    fa:
+    - نظامی
+    - ارتش
+    - نیروی دریایی
+    - نیروی هوایی
+    - ناو
+    - موشک
+    - سلاح هسته‌ای
+    - رزمایش
+    - وزارت دفاع
+    - سربازان
+    - سلاح
+    - جاسوسی
+    - جاسوس
+    - پهپاد
+    - دریای چین جنوبی
+    hi:
+    - सैन्य
+    - सेना
+    - नौसेना
+    - वायुसेना
+    - युद्धपोत
+    - मिसाइल
+    - परमाणु हथियार
+    - रक्षा मंत्री
+    - सैनिक
+    - हथियार
+    - जासूसी
+    - ड्रोन
+    - दक्षिण चीन सागर
+    - गलवान
+    - एलएसी
+    - सीमा विवाद
+    th:
+    - ทหาร
+    - กองทัพ
+    - เรือรบ
+    - เรือบรรทุกเครื่องบิน
+    - ขีปนาวุธ
+    - อาวุธนิวเคลียร์
+    - ซ้อมรบ
+    - กลาโหม
+    - อาวุธ
+    - จารกรรม
+    - สายลับ
+    - โดรน
+    - ทะเลจีนใต้
+- id: taiwan_hk
+  label: Taiwan and Hong Kong
+  short: Taiwan, HK
+  terms:
+    all:
+    - Taiwan
+    - Taipei
+    - Lai Ching-te
+    - Kuomintang
+    - KMT
+    - DPP
+    - Hong Kong
+    - Hongkong
+    - John Lee
+    - Jimmy Lai
+    - Macau
+    - Macao
+    - Taiwan Strait
+    es:
+    - Taiwán
+    - Taipéi
+    - estrecho de Taiwán
+    fr:
+    - Taïwan
+    - détroit de Taïwan
+    pt:
+    - Formosa
+    it:
+    - Stretto di Taiwan
+    de:
+    - Taiwanstraße
+    ru:
+    - Тайван*
+    - Тайбэ*
+    - Гонконг*
+    - Сянган*
+    - Макао
+    ar:
+    - تايوان
+    - هونغ كونغ
+    - هونج كونج
+    - ماكاو
+    ko:
+    - 대만
+    - 타이완
+    - 홍콩
+    - 마카오
+    - 양안
+    vi:
+    - Đài Loan
+    - Hồng Kông
+    - Ma Cao
+    - Đài Bắc
+    tr:
+    - Tayvan*
+    ja:
+    - 台湾
+    - 香港
+    - マカオ
+    - 台北
+    - 頼清徳
+    nl:
+    - Straat Taiwan
+    ro:
+    - Taiwan*
+    - Hong Kong
+    pl:
+    - Tajwan*
+    - Hongkong*
+    fa:
+    - تایوان
+    - هنگ کنگ
+    - ماکائو
+    hi:
+    - ताइवान
+    - हांगकांग
+    - हॉन्ग कॉन्ग
+    th:
+    - ไต้หวัน
+    - ฮ่องกง
+    - มาเก๊า
+- id: rights
+  label: Human rights and repression
+  short: Rights
+  terms:
+    all:
+    - Uyghur*
+    - Uighur*
+    - Uigur*
+    - Dalai Lama
+    - Falun Gong
+    - Tiananmen
+    - Liu Xiaobo
+    - Ai Weiwei
+    - Amnesty International
+    - Human Rights Watch
+    en:
+    - human rights
+    - dissident*
+    - activist*
+    - censorship
+    - censor*
+    - crackdown
+    - detention camp*
+    - forced labo*
+    - persecution
+    - repression
+    - political prisoner*
+    - freedom of speech
+    - press freedom
+    - transnational repression
+    - overseas police station*
+    - genocide
+    - Tibetan exile*
+    - Tibetan activist*
+    - Xinjiang camps
+    - Xinjiang police files
+    - Tibetan monks
+    - boarding schools in Tibet
+    es:
+    - derechos humanos
+    - disidente*
+    - activista*
+    - censura
+    - represión
+    - campos de detención
+    - trabajo forzoso
+    - persecución
+    - presos políticos
+    - libertad de expresión
+    - libertad de prensa
+    - genocidio
+    - uigur*
+    fr:
+    - Ouïghour*
+    - droits de l'homme
+    - droits humains
+    - dissident*
+    - censure
+    - répression
+    - camps de détention
+    - travail forcé
+    - persécution
+    - prisonniers politiques
+    - liberté d'expression
+    - liberté de la presse
+    - génocide
+    pt:
+    - direitos humanos
+    - dissidente*
+    - ativista*
+    - censura
+    - repressão
+    - campos de detenção
+    - trabalho forçado
+    - perseguição
+    - presos políticos
+    - liberdade de expressão
+    - liberdade de imprensa
+    - genocídio
+    - uigur*
+    it:
+    - diritti umani
+    - dissident*
+    - attivist*
+    - censura
+    - repressione
+    - campi di detenzione
+    - lavoro forzato
+    - persecuzion*
+    - prigionieri politici
+    - libertà di espressione
+    - libertà di stampa
+    - genocidio
+    - uiguri
+    de:
+    - Menschenrecht*
+    - Dissident*
+    - Aktivist*
+    - Zensur
+    - Unterdrückung
+    - Repression
+    - Umerziehungslager
+    - Internierungslager
+    - Zwangsarbeit
+    - Verfolgung
+    - politische Gefangene
+    - Meinungsfreiheit
+    - Pressefreiheit
+    - Völkermord
+    - Uiguren
+    ru:
+    - прав* человека
+    - диссидент*
+    - активист*
+    - цензур*
+    - репресси*
+    - принудительн* труд*
+    - преследован*
+    - политзаключ*
+    - свобод* слова
+    - свобод* прессы
+    - геноцид*
+    - уйгур*
+    - Далай-лам*
+    ar:
+    - حقوق الإنسان
+    - ناشط*
+    - الرقابة
+    - القمع
+    - معسكرات الاحتجاز
+    - العمل القسري
+    - الاضطهاد
+    - سجناء سياسيين
+    - حرية التعبير
+    - حرية الصحافة
+    - الإبادة
+    - الإيغور
+    - الأويغور
+    - الدالاي لاما
+    ko:
+    - 인권
+    - 반체제
+    - 활동가
+    - 검열
+    - 탄압
+    - 수용소
+    - 강제노동
+    - 박해
+    - 정치범
+    - 표현의 자유
+    - 언론 자유
+    - 집단학살
+    - 위구르
+    - 신장위구르
+    - 달라이 라마
+    - 톈안먼
+    - 천안문
+    vi:
+    - nhân quyền
+    - bất đồng chính kiến
+    - nhà hoạt động
+    - kiểm duyệt
+    - đàn áp
+    - trại cải tạo
+    - lao động cưỡng bức
+    - tù nhân chính trị
+    - tự do ngôn luận
+    - tự do báo chí
+    - diệt chủng
+    - Duy Ngô Nhĩ
+    - Đạt Lai Lạt Ma
+    - Thiên An Môn
+    id:
+    - hak asasi manusia
+    - hak asasi
+    - HAM
+    - pembangkang
+    - aktivis
+    - sensor
+    - penindasan
+    - represi
+    - kamp tahanan
+    - kerja paksa
+    - persekusi
+    - tahanan politik
+    - kebebasan berekspresi
+    - kebebasan pers
+    - genosida
+    tr:
+    - insan hakları*
+    - muhalif*
+    - aktivist*
+    - sansür*
+    - zulüm
+    - toplama kamp*
+    - zorla çalıştırma
+    - siyasi tutuklu*
+    - ifade özgürlüğü
+    - basın özgürlüğü
+    - soykırım*
+    - Uygur*
+    - Doğu Türkistan
+    ja:
+    - 人権
+    - 反体制
+    - 活動家
+    - 検閲
+    - 弾圧
+    - 収容所
+    - 強制労働
+    - 迫害
+    - 政治犯
+    - 言論の自由
+    - 報道の自由
+    - ジェノサイド
+    - ウイグル
+    - ダライ・ラマ
+    - 天安門
+    nl:
+    - mensenrechten
+    - dissident*
+    - activist*
+    - censuur
+    - onderdrukking
+    - repressie
+    - heropvoedingskamp*
+    - dwangarbeid
+    - vervolging
+    - politieke gevangenen
+    - vrijheid van meningsuiting
+    - persvrijheid
+    - genocide
+    - Oeigoer*
+    ro:
+    - drepturile omului
+    - disident*
+    - activist*
+    - cenzur*
+    - represiun*
+    - muncă forțată
+    - persecuți*
+    - uiguri*
+    pl:
+    - praw* człowieka
+    - dysydent*
+    - aktywist*
+    - cenzur*
+    - represj*
+    - praca przymusowa
+    - prześladowa*
+    - Ujgur*
+    fa:
+    - حقوق بشر
+    - سانسور
+    - سرکوب
+    - کار اجباری
+    - اویغور
+    - دالایی لاما
+    hi:
+    - मानवाधिकार
+    - सेंसरशिप
+    - दमन
+    - जबरन मजदूरी
+    - उइगर
+    - दलाई लामा
+    th:
+    - สิทธิมนุษยชน
+    - นักเคลื่อนไหว
+    - เซ็นเซอร์
+    - ปราบปราม
+    - แรงงานบังคับ
+    - อุยกูร์
+    - ดาไลลามะ
+- id: politics
+  label: Chinese domestic politics
+  short: Politics
+  terms:
+    all:
+    - Politburo
+    - National People's Congress
+    - NPC
+    - CPPCC
+    - Zhongnanhai
+    - Li Qiang
+    - Zhao Leji
+    - Wang Huning
+    - Cai Qi
+    - Ding Xuexiang
+    - Han Zheng
+    - Central Military Commission
+    - CCP Central Committee
+    - Party Central Committee
+    - Third Plenum
+    - Fourth Plenum
+    en:
+    - Communist Party
+    - CCP
+    - CPC
+    - party congress
+    - anti-corruption
+    - corruption
+    - purge*
+    - five-year plan
+    - party secretary
+    - common prosperity
+    - birth rate
+    - population decline
+    - youth unemployment
+    - social credit
+    es:
+    - Partido Comunista
+    - anticorrupción
+    - corrupción
+    - purga*
+    - plan quinquenal
+    - secretario del Partido
+    - natalidad
+    - desempleo juvenil
+    fr:
+    - Parti communiste
+    - anticorruption
+    - corruption
+    - purge*
+    - plan quinquennal
+    - secrétaire du Parti
+    - natalité
+    - chômage des jeunes
+    pt:
+    - Partido Comunista
+    - anticorrupção
+    - corrupção
+    - expurgo*
+    - plano quinquenal
+    - secretário do Partido
+    - natalidade
+    - desemprego juvenil
+    it:
+    - Partito Comunista
+    - anticorruzione
+    - corruzione
+    - epurazion*
+    - piano quinquennale
+    - segretario del Partito
+    - natalità
+    - disoccupazione giovanile
+    de:
+    - Kommunistische* Partei
+    - KPCh
+    - Antikorruption*
+    - Korruption*
+    - Säuberung*
+    - Fünfjahresplan*
+    - Parteisekretär*
+    - Geburtenrate
+    - Jugendarbeitslosigkeit
+    - Politbüro
+    ru:
+    - Компарти*
+    - коммунистическ* парти*
+    - КПК
+    - Политбюро
+    - коррупци*
+    - чистк*
+    - пятилетн* план*
+    - рождаемост*
+    - безработиц* молодеж*
+    - ВСНП
+    ar:
+    - الحزب الشيوعي
+    - المكتب السياسي
+    - مكافحة الفساد
+    - الفساد
+    - خطة خمسية
+    - الخطة الخمسية
+    - سكرتير الحزب
+    - معدل المواليد
+    - بطالة الشباب
+    ko:
+    - 공산당
+    - 정치국
+    - 전인대
+    - 전국인민대표대회
+    - 부패
+    - 반부패
+    - 숙청
+    - 5개년 계획
+    - 당서기
+    - 출산율
+    - 청년실업
+    - 공동부유
+    vi:
+    - Đảng Cộng sản
+    - Bộ Chính trị
+    - chống tham nhũng
+    - tham nhũng
+    - thanh trừng
+    - kế hoạch 5 năm
+    - tỷ lệ sinh
+    - thất nghiệp thanh niên
+    id:
+    - Partai Komunis
+    - Parti Komunis
+    - Politbiro
+    - korupsi
+    - rasuah
+    - antikorupsi
+    - rencana lima tahun
+    - sekretaris partai
+    - angka kelahiran
+    - pengangguran muda
+    - Kongres Rakyat Nasional
+    tr:
+    - Komünist Parti*
+    - Politbüro
+    - yolsuzluk*
+    - beş yıllık plan*
+    - parti sekreter*
+    - doğum oranı
+    - genç işsizliğ*
+    - Ulusal Halk Kongresi
+    ja:
+    - 共産党
+    - 政治局
+    - 全人代
+    - 全国人民代表大会
+    - 汚職
+    - 反腐敗
+    - 粛清
+    - 5カ年計画
+    - 五カ年計画
+    - 党書記
+    - 出生率
+    - 若者の失業
+    - 共同富裕
+    nl:
+    - Communistische Partij
+    - Politbureau
+    - corruptie
+    - zuivering*
+    - vijfjarenplan
+    - partijsecretaris
+    - geboortecijfer
+    - jeugdwerkloosheid
+    ro:
+    - Partidul Comunist
+    - corupți*
+    - epurări
+    - plan cincinal
+    pl:
+    - Komunistyczn* Parti*
+    - KPCh
+    - korupcj*
+    - czystk*
+    - plan pięcioletni
+    fa:
+    - حزب کمونیست
+    - فساد
+    - برنامه پنج‌ساله
+    hi:
+    - कम्युनिस्ट पार्टी
+    - भ्रष्टाचार
+    - पंचवर्षीय योजना
+    th:
+    - พรรคคอมมิวนิสต์
+    - คอร์รัปชัน
+    - ทุจริต
+    - แผนห้าปี
+- id: culture
+  label: Culture, education and tourism
+  short: Culture
+  terms:
+    all:
+    - Confucius Institute*
+    - UNESCO
+    - Spring Festival
+    - Lunar New Year
+    - Mid-Autumn
+    - panda*
+    - Luban Workshop*
+    - Biennale
+    en:
+    - cultur*
+    - film
+    - films
+    - cinema
+    - movie*
+    - festival*
+    - tourism
+    - tourist*
+    - visa-free
+    - visa free
+    - student*
+    - universit*
+    - scholarship*
+    - education*
+    - exhibition*
+    - museum*
+    - heritage
+    - artist*
+    - music*
+    - sport*
+    - Olympic*
+    - football
+    - kung fu
+    es:
+    - cultur*
+    - película*
+    - cine
+    - festival*
+    - turismo
+    - turista*
+    - sin visado
+    - estudiante*
+    - universidad*
+    - beca*
+    - educaci*
+    - exposici*
+    - museo*
+    - patrimonio
+    - artista*
+    - música
+    - deport*
+    - olímpic*
+    - fútbol
+    - gastronomía
+    fr:
+    - cultur*
+    - film
+    - films
+    - cinéma
+    - festival*
+    - tourisme
+    - touriste*
+    - sans visa
+    - étudiant*
+    - université*
+    - bourse* d'études
+    - éducati*
+    - exposition*
+    - musée*
+    - patrimoine
+    - artiste*
+    - musique
+    - sport*
+    - olympique*
+    - football
+    - gastronomie
+    pt:
+    - cultur*
+    - filme*
+    - cinema
+    - festival*
+    - turismo
+    - turista*
+    - isenção de visto
+    - estudante*
+    - universidade*
+    - bolsa* de estudo
+    - educaç*
+    - exposiç*
+    - museu*
+    - patrimônio
+    - artista*
+    - música
+    - esport*
+    - olímpic*
+    - futebol
+    - gastronomia
+    it:
+    - cultur*
+    - film
+    - cinema
+    - festival
+    - turismo
+    - turist*
+    - senza visto
+    - student*
+    - universit*
+    - borse di studio
+    - istruzione
+    - educazione
+    - mostra
+    - mostre
+    - muse*
+    - patrimonio
+    - artist*
+    - musica
+    - sport*
+    - olimpi*
+    - calcio
+    - Mostra del Cinema
+    de:
+    - Kultur*
+    - Film*
+    - Kino
+    - Festival*
+    - Tourismus
+    - Tourist*
+    - visumfrei*
+    - Student*
+    - Studierende*
+    - Universität*
+    - Hochschule*
+    - Stipendi*
+    - Bildung*
+    - Ausstellung*
+    - Museum
+    - Museen
+    - Kulturerbe
+    - Künstler*
+    - Musik*
+    - Sport*
+    - Olympi*
+    - Fußball
+    ru:
+    - культур*
+    - фильм*
+    - кино
+    - кинофестивал*
+    - фестивал*
+    - туризм*
+    - турист*
+    - безвиз*
+    - студент*
+    - университет*
+    - вуз*
+    - стипенди*
+    - образован*
+    - выставк*
+    - музе*
+    - наследи*
+    - художник*
+    - музык*
+    - спорт*
+    - олимпи*
+    - футбол*
+    ar:
+    - ثقافة
+    - الثقافة
+    - ثقافي*
+    - الثقافي*
+    - فيلم
+    - أفلام
+    - السينما
+    - مهرجان
+    - السياحة
+    - سياح*
+    - بدون تأشيرة
+    - طلاب
+    - الطلاب
+    - جامعة
+    - الجامعات
+    - منح دراسية
+    - التعليم
+    - معرض
+    - متحف
+    - التراث
+    - فنان*
+    - موسيقى
+    - الرياضة
+    - الأولمبي*
+    - كرة القدم
+    - اللغة الصينية
+    ko:
+    - 문화
+    - 영화
+    - 축제
+    - 관광
+    - 관광객
+    - 무비자
+    - 유학생
+    - 학생
+    - 대학
+    - 장학금
+    - 교육
+    - 전시
+    - 박물관
+    - 유산
+    - 예술
+    - 음악
+    - 스포츠
+    - 올림픽
+    - 축구
+    - 중국어
+    - 판다
+    - 공자학원
+    - 춘제
+    - 한한령
+    vi:
+    - văn hóa
+    - phim
+    - điện ảnh
+    - lễ hội
+    - du lịch
+    - du khách
+    - khách du lịch
+    - miễn thị thực
+    - sinh viên
+    - du học
+    - đại học
+    - học bổng
+    - giáo dục
+    - triển lãm
+    - bảo tàng
+    - di sản
+    - nghệ sĩ
+    - âm nhạc
+    - thể thao
+    - bóng đá
+    - tiếng Trung
+    - gấu trúc
+    - Tết Trung thu
+    id:
+    - budaya
+    - kebudayaan
+    - film
+    - filem
+    - bioskop
+    - festival
+    - pariwisata
+    - pelancongan
+    - wisatawan
+    - pelancong
+    - turis
+    - bebas visa
+    - mahasiswa
+    - pelajar
+    - universitas
+    - universiti
+    - beasiswa
+    - biasiswa
+    - pendidikan
+    - pameran
+    - museum
+    - muzium
+    - warisan
+    - seniman
+    - musik
+    - muzik
+    - olahraga
+    - sukan
+    - Olimpiade
+    - sepak bola
+    - bola sepak
+    - bahasa Mandarin
+    tr:
+    - kültür*
+    - film*
+    - sinema*
+    - festival*
+    - turizm*
+    - turist*
+    - seyahat*
+    - vizesiz
+    - öğrenci*
+    - üniversite*
+    - eğitim*
+    - sergi*
+    - müze*
+    - miras
+    - sanatçı*
+    - müzik*
+    - spor*
+    - olimpiyat*
+    - futbol*
+    - Çince
+    ja:
+    - 文化
+    - 映画
+    - 祭り
+    - 観光
+    - 観光客
+    - 旅行
+    - ビザ免除
+    - 留学生
+    - 学生
+    - 大学
+    - 奨学金
+    - 教育
+    - 展覧会
+    - 博物館
+    - 遺産
+    - 芸術
+    - 音楽
+    - スポーツ
+    - 五輪
+    - オリンピック
+    - サッカー
+    - 中国語
+    - パンダ
+    - 春節
+    - 孔子学院
+    nl:
+    - cultu*
+    - film*
+    - bioscoop
+    - festival*
+    - toerisme
+    - toerist*
+    - visumvrij*
+    - student*
+    - universiteit*
+    - onderwijs
+    - tentoonstelling*
+    - muse*
+    - erfgoed
+    - kunstenaar*
+    - muziek
+    - sport*
+    - Olympisch*
+    - voetbal
+    ro:
+    - cultur*
+    - film*
+    - cinema
+    - festival*
+    - turism
+    - turiști
+    - student*
+    - universit*
+    - educați*
+    - expoziți*
+    - muze*
+    - patrimoniu
+    - muzic*
+    - sport*
+    - olimpic*
+    - fotbal
+    pl:
+    - kultur*
+    - film*
+    - kino
+    - festiwal*
+    - turysty*
+    - student*
+    - uniwersyte*
+    - edukacj*
+    - wystaw*
+    - muze*
+    - dziedzictw*
+    - muzyk*
+    - sport*
+    - olimpi*
+    - piłk* nożn*
+    fa:
+    - فرهنگ
+    - فیلم
+    - سینما
+    - جشنواره
+    - گردشگری
+    - گردشگر
+    - دانشجو
+    - دانشگاه
+    - آموزش
+    - نمایشگاه
+    - موزه
+    - میراث
+    - موسیقی
+    - ورزش
+    - المپیک
+    - فوتبال
+    hi:
+    - संस्कृति
+    - सांस्कृतिक
+    - फिल्म
+    - सिनेमा
+    - महोत्सव
+    - पर्यटन
+    - पर्यटक
+    - छात्र
+    - विश्वविद्यालय
+    - शिक्षा
+    - प्रदर्शनी
+    - संग्रहालय
+    - विरासत
+    - संगीत
+    - ओलंपिक
+    - फुटबॉल
+    - कैलाश मानसरोवर
+    th:
+    - วัฒนธรรม
+    - ภาพยนตร์
+    - เทศกาล
+    - การท่องเที่ยว
+    - นักท่องเที่ยว
+    - นักศึกษา
+    - มหาวิทยาลัย
+    - การศึกษา
+    - นิทรรศการ
+    - พิพิธภัณฑ์
+    - มรดก
+    - ดนตรี
+    - กีฬา
+    - โอลิมปิก
+    - ฟุตบอล
+    - แพนด้า
+- id: disasters
+  label: Disasters, health and environment
+  short: Disasters
+  terms:
+    all:
+    - COVID*
+    - WHO
+    - Gyirong
+    - SARS
+    - H5N1
+    - mpox
+    en:
+    - earthquake*
+    - quake*
+    - flood*
+    - typhoon*
+    - landslide*
+    - disaster*
+    - rescue*
+    - death toll
+    - killed
+    - storm*
+    - heatwave*
+    - drought*
+    - wildfire*
+    - explosion*
+    - accident*
+    - pandemic*
+    - epidemic*
+    - outbreak*
+    - virus*
+    - vaccine*
+    - health*
+    - hospital*
+    - pollution
+    - emission*
+    - climate*
+    - carbon
+    - environment*
+    - glacier*
+    es:
+    - terremoto*
+    - sismo*
+    - inundaci*
+    - tifón*
+    - deslizamiento*
+    - desastre*
+    - catástrofe*
+    - rescate*
+    - víctimas mortales
+    - muertos
+    - tormenta*
+    - ola de calor
+    - sequía*
+    - incendio* forestal*
+    - explosi*
+    - accidente*
+    - pandemia*
+    - epidemia*
+    - brote*
+    - virus
+    - vacuna*
+    - salud
+    - hospital*
+    - contaminación
+    - emisiones
+    - clima*
+    - carbono
+    - medio ambiente
+    - glaciar*
+    fr:
+    - séisme*
+    - tremblement* de terre
+    - inondation*
+    - typhon*
+    - glissement* de terrain
+    - catastrophe*
+    - secours
+    - sauveteurs
+    - morts
+    - tempête*
+    - canicule*
+    - sécheresse*
+    - incendie*
+    - explosion*
+    - accident*
+    - pandémie*
+    - épidémie*
+    - virus
+    - vaccin*
+    - santé
+    - hôpita*
+    - pollution
+    - émissions
+    - climat*
+    - carbone
+    - environnement*
+    - glacier*
+    pt:
+    - terremoto*
+    - sismo*
+    - inundaç*
+    - enchente*
+    - tufão
+    - tufões
+    - deslizamento*
+    - desastre*
+    - tragédia*
+    - resgate*
+    - mortos
+    - tempestade*
+    - onda de calor
+    - seca
+    - incêndio*
+    - explos*
+    - acidente*
+    - pandemia*
+    - epidemia*
+    - surto*
+    - vírus
+    - vacina*
+    - saúde
+    - hospita*
+    - poluição
+    - emissões
+    - clima*
+    - carbono
+    - meio ambiente
+    - geleira*
+    it:
+    - terremot*
+    - sisma
+    - alluvion*
+    - inondazion*
+    - tifon*
+    - frana
+    - frane
+    - disastr*
+    - catastrof*
+    - soccorsi
+    - soccorritori
+    - morti
+    - vittime
+    - tempesta*
+    - ondata di calore
+    - siccità
+    - incendi*
+    - esplosion*
+    - incident*
+    - pandemi*
+    - epidemi*
+    - focolaio
+    - virus
+    - vaccin*
+    - sanità
+    - salute
+    - ospedal*
+    - inquinamento
+    - emissioni
+    - clima*
+    - carbonio
+    - ambiente
+    - ghiacciai*
+    de:
+    - Erdbeben*
+    - Überschwemmung*
+    - Hochwasser
+    - Flutkatastrophe*
+    - Taifun*
+    - Erdrutsch*
+    - Katastrophe*
+    - Rettungskräfte
+    - Todesopfer
+    - Tote
+    - Sturm*
+    - Hitzewelle*
+    - Dürre*
+    - Waldbr*
+    - Explosion*
+    - Unfall*
+    - Unglück*
+    - Pandemie*
+    - Epidemie*
+    - Virus
+    - Impfstoff*
+    - Gesundheit*
+    - Krankenhaus*
+    - Verschmutzung
+    - Emission*
+    - Klima*
+    - CO2
+    - Umwelt*
+    - Gletscher*
+    ru:
+    - землетрясени*
+    - наводнени*
+    - паводк*
+    - тайфун*
+    - оползн*
+    - катастроф*
+    - стихийн* бедстви*
+    - спасател*
+    - погибш*
+    - шторм*
+    - засух*
+    - пожар*
+    - взрыв*
+    - авари*
+    - пандеми*
+    - эпидеми*
+    - вспышк*
+    - вирус*
+    - вакцин*
+    - здравоохранени*
+    - больниц*
+    - загрязнени*
+    - выброс*
+    - климат*
+    - углерод*
+    - экологи*
+    - ледник*
+    ar:
+    - زلزال
+    - الزلزال
+    - فيضان*
+    - الفيضان*
+    - فيضانات
+    - إعصار
+    - الإعصار
+    - انهيار أرضي
+    - انهيارات أرضية
+    - كارثة
+    - الكارثة
+    - الإنقاذ
+    - قتلى
+    - القتلى
+    - عاصفة
+    - موجة حر
+    - الجفاف
+    - حريق
+    - الحرائق
+    - انفجار
+    - حادث
+    - جائحة
+    - الجائحة
+    - وباء
+    - تفشي
+    - فيروس
+    - لقاح
+    - الصحة
+    - مستشفى
+    - التلوث
+    - الانبعاثات
+    - المناخ
+    - الكربون
+    - البيئة
+    ko:
+    - 지진
+    - 홍수
+    - 태풍
+    - 산사태
+    - 재난
+    - 참사
+    - 사망자
+    - 폭풍
+    - 폭염
+    - 가뭄
+    - 산불
+    - 화재
+    - 폭발
+    - 사고
+    - 팬데믹
+    - 전염병
+    - 바이러스
+    - 백신
+    - 보건
+    - 병원
+    - 오염
+    - 배출
+    - 기후
+    - 탄소
+    - 환경
+    - 빙하
+    - 코로나
+    vi:
+    - động đất
+    - lũ
+    - lũ lụt
+    - lũ quét
+    - bão
+    - sạt lở
+    - thảm họa
+    - thiên tai
+    - cứu hộ
+    - người chết
+    - thiệt mạng
+    - nắng nóng
+    - hạn hán
+    - cháy rừng
+    - hỏa hoạn
+    - vụ nổ
+    - tai nạn
+    - đại dịch
+    - dịch bệnh
+    - bùng phát
+    - virus
+    - vắc xin
+    - y tế
+    - bệnh viện
+    - ô nhiễm
+    - khí thải
+    - khí hậu
+    - môi trường
+    - sông băng
+    id:
+    - gempa
+    - banjir
+    - banjir bandang
+    - topan
+    - tanah longsor
+    - tanah runtuh
+    - bencana
+    - penyelamatan
+    - tewas
+    - korban jiwa
+    - badai
+    - gelombang panas
+    - kekeringan
+    - kemarau
+    - kebakaran
+    - ledakan
+    - kecelakaan
+    - pandemi
+    - wabak
+    - wabah
+    - virus
+    - vaksin
+    - kesehatan
+    - kesihatan
+    - rumah sakit
+    - polusi
+    - pencemaran
+    - emisi
+    - iklim
+    - karbon
+    - lingkungan
+    - alam sekitar
+    tr:
+    - deprem*
+    - sel
+    - sele
+    - taşkın*
+    - tayfun*
+    - heyelan*
+    - afet*
+    - felaket*
+    - kurtarma*
+    - hayatını kaybet*
+    - fırtına*
+    - sıcak hava dalga*
+    - kuraklık*
+    - orman yangın*
+    - yangın*
+    - patlama*
+    - kaza*
+    - pandemi*
+    - salgın*
+    - virüs*
+    - aşısı
+    - aşılar
+    - sağlık*
+    - hastane*
+    - kirlilik*
+    - emisyon*
+    - iklim*
+    - karbon*
+    - çevre*
+    - buzul*
+    ja:
+    - 地震
+    - 洪水
+    - 台風
+    - 土砂崩れ
+    - 災害
+    - 救助
+    - 死者
+    - 嵐
+    - 熱波
+    - 干ばつ
+    - 山火事
+    - 火災
+    - 爆発
+    - 事故
+    - パンデミック
+    - 感染症
+    - ウイルス
+    - ワクチン
+    - 保健
+    - 病院
+    - 汚染
+    - 排出
+    - 気候
+    - 炭素
+    - 環境
+    - 氷河
+    - コロナ
+    nl:
+    - aardbeving*
+    - overstroming*
+    - tyfoon*
+    - aardverschuiving*
+    - ramp
+    - rampen
+    - reddingswerk*
+    - doden
+    - storm*
+    - hittegolf*
+    - droogte
+    - bosbrand*
+    - explosie*
+    - ongeluk*
+    - pandemie*
+    - epidemie*
+    - uitbraak
+    - virus
+    - vaccin*
+    - gezondheid*
+    - ziekenhuis*
+    - vervuiling
+    - uitstoot
+    - klimaat*
+    - koolstof
+    - milieu
+    - gletsjer*
+    ro:
+    - cutremur*
+    - inundați*
+    - taifun*
+    - alunecări de teren
+    - dezastr*
+    - salvator*
+    - morți
+    - furtun*
+    - secet*
+    - incendi*
+    - explozi*
+    - accident*
+    - pandemi*
+    - epidemi*
+    - virus
+    - vaccin*
+    - sănătate
+    - spital*
+    - poluare
+    - emisii
+    - clim*
+    - mediu
+    pl:
+    - trzęsieni* ziemi
+    - powódź
+    - powodzi
+    - powodzie
+    - tajfun*
+    - osuwisk*
+    - katastrof*
+    - ratownik*
+    - ratownicy
+    - zginęł*
+    - burz*
+    - susz*
+    - pożar*
+    - wybuch*
+    - wypadek
+    - wypadku
+    - pandemi*
+    - epidemi*
+    - wirus*
+    - szczepion*
+    - zdrowi*
+    - szpital*
+    - zanieczyszcz*
+    - emisj*
+    - klimat*
+    - środowisk*
+    fa:
+    - زلزله
+    - سیل
+    - طوفان
+    - رانش زمین
+    - فاجعه
+    - امدادگران
+    - کشته
+    - خشکسالی
+    - آتش‌سوزی
+    - انفجار
+    - همه‌گیری
+    - ویروس
+    - واکسن
+    - بهداشت
+    - بیمارستان
+    - آلودگی
+    - اقلیم
+    - محیط زیست
+    hi:
+    - भूकंप
+    - बाढ़
+    - तूफान
+    - भूस्खलन
+    - आपदा
+    - बचाव
+    - मौत
+    - मृतक
+    - सूखा
+    - विस्फोट
+    - हादसा
+    - दुर्घटना
+    - महामारी
+    - वायरस
+    - वैक्सीन
+    - स्वास्थ्य
+    - अस्पताल
+    - प्रदूषण
+    - उत्सर्जन
+    - जलवायु
+    - पर्यावरण
+    th:
+    - แผ่นดินไหว
+    - น้ำท่วม
+    - ไต้ฝุ่น
+    - พายุ
+    - ดินถล่ม
+    - ภัยพิบัติ
+    - กู้ภัย
+    - เสียชีวิต
+    - ภัยแล้ง
+    - ไฟไหม้
+    - ระเบิด
+    - อุบัติเหตุ
+    - โรคระบาด
+    - ไวรัส
+    - วัคซีน
+    - สุขภาพ
+    - โรงพยาบาล
+    - มลพิษ
+    - สภาพภูมิอากาศ
+    - สิ่งแวดล้อม

@@ -140,6 +140,30 @@
             allItems: allItems, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, population: population || null};
   }
 
+  /* Theme counts over the same window as aggregateWindow.
+     Returns {iso: {themeId: [all China coverage, target articles, state origin]}}. */
+  function aggregateThemes(months, endDate, windowDays) {
+    var out = {};
+    if (!endDate) return out;
+    var start = windowDays ? shiftDate(endDate, -(windowDays - 1)) : null;
+    listDays(months).forEach(function (d) {
+      if (d > endDate || (start && d < start)) return;
+      var e = dayEntry(months, d);
+      if (!e || !e.themes) return;
+      Object.keys(e.themes).forEach(function (iso) {
+        var src = e.themes[iso];
+        var dst = out[iso] || (out[iso] = {});
+        Object.keys(src).forEach(function (t) {
+          var v = src[t], cur = dst[t] || (dst[t] = [0, 0, 0]);
+          cur[0] += v[0] || 0; cur[1] += v[1] || 0; cur[2] += v[2] || 0;
+        });
+      });
+    });
+    return out;
+  }
+  /* Which slot of a theme count each Measure reads. */
+  var MEASURE_INDEX = {china: 0, target: 1, a: 2};
+
   /* The three by three grid behind the Measure and Basis toggles. */
   var GRID = {
     target: {count: "count_target", per_million: "per_million_target", share_of_all: "share_of_all_target"},
@@ -225,6 +249,6 @@
   }
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_POPULATION: MIN_POPULATION, emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
-          aggregateWindow: aggregateWindow, METRICS: METRICS, GRID: GRID, gridMetric: gridMetric, metricValue: metricValue, fillClass: fillClass,
+          aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, GRID: GRID, gridMetric: gridMetric, metricValue: metricValue, fillClass: fillClass,
           formatValue: formatValue, percentile: percentile, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));

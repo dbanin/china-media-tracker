@@ -154,6 +154,25 @@ are extracted at fetch time and stored with the article. When a body is
 missing anyway, `pipeline/rehydrate.py` and the classifiers re-fetch it,
 up to three attempts, under the usual politeness rules.
 
+## Theme counter
+
+Under the map, the theme counter shows what the coverage is about. Every
+article that concerns China is tagged at export time with each theme whose
+terms appear in its headline, its feed summary or the first 800 characters of
+its body: diplomacy and summits, trade and economy, Belt and Road and
+investment, technology, energy and electric vehicles, military and security,
+Taiwan and Hong Kong, human rights and repression, Chinese domestic politics,
+culture and tourism, and disasters and health. An article can carry several
+themes; one with none is Other. The terms live in `pipeline/themes.yaml`, in
+English plus fifteen other languages, and the tagger in `pipeline/themes.py`.
+Changing a term means bumping `version` in that file; the next export
+re-tags every article. The daily files carry, per day and country, each
+theme's count of all China coverage, target articles and state origin
+articles, so the counter follows the Measure and Window toggles. The tags are
+keyword matches, not a reading of the article; about a quarter of articles
+match no theme, most often in languages with short term lists such as
+Bulgarian and Greek.
+
 ## Changing the ruleset
 
 Edit `pipeline/signatures.yaml`, add fixtures for every new pattern, bump

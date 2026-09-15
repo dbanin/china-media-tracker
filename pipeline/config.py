@@ -66,4 +66,4 @@ FEED_FAILURE_WARNING_SHARE = 0.5
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
 RULESET_VERSION = "2026.09.5"
-SCHEMA_VERSION = 3   # 2: population and top outlet denominators (tdisc, ttarget, tchina); 3: ta, state origin in the top outlet set
+SCHEMA_VERSION = 4   # 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles

@@ -158,6 +158,35 @@ def test_share_of_all_items_uses_top_outlets(tmp_path):
     assert abs(latest["countries"]["ITA"]["all_time"]["share_of_all_target"] - 1 / 60) < 1e-4
 
 
+def test_daily_theme_counts_and_catalog(tmp_path):
+    conn = store.connect(tmp_path / "th.db")
+    specs = [("Cina, vertice BRICS e dazi", "A", "fetched"), ("Cina, vertice a Pechino", "C", "fetched"),
+             ("Un ristorante cinese apre a Roma", None, "awaiting_llm"), ("Cina, dazi sulle auto", "not_relevant", "fetched")]
+    for i, (title, cat, status) in enumerate(specs):
+        aid = store.insert_discovered(conn, {"url": "https://x.test/%d" % i, "outlet_id": "o", "country": "ITA", "language": "it",
+                                             "title": title, "status": status, "gate_relevant": 1,
+                                             "published_at": "2026-09-10T08:00:00+00:00"})
+        conn.execute("UPDATE articles SET discovered_at='2026-09-10T09:00:00+00:00', status=? WHERE id=?", (status, aid))
+        if cat:
+            store.insert_classification(conn, aid, "rules", cat, 1.0)
+            conn.execute("UPDATE articles SET status=? WHERE id=?", ("classified", aid))
+    conn.commit()
+    from pipeline import themes
+    assert themes.ensure(conn) == 4
+    daily = export.build_daily(conn)   # before any rollup rows exist: theme days must still appear
+    assert "ITA" in daily["2026-09"]["days"]["2026-09-10"]["themes"]
+    export.rebuild_rollups(conn, [])
+    day = export.build_daily(conn)["2026-09"]["days"]["2026-09-10"]["themes"]["ITA"]
+    # [all China coverage, target, state origin]; the not_relevant article never counts
+    assert day["diplomacy"] == [2, 1, 1]
+    assert day["economy"] == [1, 1, 1]
+    assert day["other"] == [1, 1, 0]
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], []))
+    assert meta["themes"][0]["id"] == "diplomacy" and meta["themes"][-1]["id"] == "other" and meta["themes_version"]
+    arts = export.build_articles(conn)["ITA"]
+    assert all("themes" in a for a in arts)
+
+
 def test_share_and_flags():
     e = export._derive({**export._empty_country(), "A": 2, "B": 1, "C": 7, "fetched": 5, "paywalled": 5}, 4)
     assert e["china_total"] == 10 and e["share_ab"] == 0.3 and e["per_outlet_ab"] == 0.75 and e["paywall_share"] == 0.5
