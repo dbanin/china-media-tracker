@@ -49,7 +49,10 @@ def article_links(html: str, section_url: str) -> List[Dict]:
         last = path.rsplit("/", 1)[-1]
         # The link must sit under the section: its path, or a first segment that is a close variant of the
         # section's ("/media-release/story" under "/media-releases"). Site-wide navigation does not count.
-        under = path.startswith(section_path + "/") or _stem(path) == _stem(section_path)
+        # Tag, topic and category listings link stories that live elsewhere on the site.
+        listing = bool(re.match(r"^/(tag|tags|topic|topics|category|categories|rubrique|categoria|kategorie|seccion|section)/", section_path + "/", re.I))
+        under = path.startswith(section_path + "/") or _stem(path) == _stem(section_path) or \
+            (listing and (last.count("-") >= 3 or bool(re.search(r"\d{5,}", last))))
         looks_like_story = under and (path.startswith(section_path + "/") or last.count("-") >= 3 or re.search(r"\d{5,}", last))
         title = " ".join((a.text_content() or "").split())
         if not looks_like_story or len(title) < MIN_TITLE_CHARS:
