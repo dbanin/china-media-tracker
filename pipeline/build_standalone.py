@@ -33,7 +33,7 @@ def build(out: Path = DOCS / "standalone.html") -> Path:
                   '<button id="export-view" hidden></button><button id="export-daily" hidden></button>', body, flags=re.S)
     data = {}
     for rel in ("data/meta.json", "data/latest.json", "data/global_series.json", "data/outlets.json",
-                "vendor/countries-110m.json", "vendor/iso3166.json"):
+                "vendor/countries-110m.json", "vendor/iso3166.json", "country-names.json"):
         data[rel] = json.loads(_read(DOCS / rel))
     for f in sorted((DOCS / "data" / "daily").glob("*.json")):
         data["data/daily/" + f.name] = json.loads(_read(f))
