@@ -111,7 +111,8 @@ aside#panel { grid-column: 2; grid-row: 1 / span 3; }
 #map-wrap { position: relative; padding: 1.4rem 1.6rem 0 2.4rem;
   background: radial-gradient(ellipse 60% 70% at 50% 45%, rgba(201, 169, 97, 0.06), transparent 70%); }
 #map { width: 100%; height: auto; display: block; }
-#map path.country { stroke: var(--border-country); stroke-width: 0.5; cursor: pointer; transition: fill 350ms ease; }
+#map path.country { stroke: var(--border-country); stroke-width: 0.5; cursor: pointer; transition: fill 350ms ease, opacity 350ms ease; vector-effect: non-scaling-stroke; }
+#map.focused path.country.dim { opacity: 0.38; }
 #map path.country.selected { stroke: var(--bone); stroke-width: 1.1; }
 #map path.country:hover { stroke: var(--gold); stroke-width: 0.9; }
 #map .sphere { fill: var(--sea); stroke: var(--rule-strong); }
@@ -219,3 +220,11 @@ body.force-list #bars-wrap { display: block; }
 body.force-map #map-wrap { display: block; }
 body.force-map #bars-wrap { display: none; }
 #map-wrap { min-height: 18rem; }
+
+/* Single country view: the pickers above the map and the theme counter, and the day grid. */
+[hidden] { display: none !important; }
+.pick { display: inline-flex; align-items: center; gap: 0.55rem; font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
+.pick select { text-transform: none; letter-spacing: 0; font-size: 0.86rem; max-width: 15rem; }
+.th-grid.days thead th.c-day { cursor: default; min-width: 1.7rem; padding-left: 0.1rem; padding-right: 0.1rem; }
+.th-grid.days td.cell { min-width: 1.7rem; padding: 0.3rem 0.1rem; font-size: 0.74rem; }
+.th-grid.days tbody th { cursor: pointer; }

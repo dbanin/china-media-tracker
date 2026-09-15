@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -203,16 +203,60 @@
         if (!p) return fillFor("nocoverage");
         return fillFor(p.cls, p.mv.value);
       });
+    applyMapFocus();
     gMarkers.selectAll("*").remove();
     gCountries.selectAll("path.country").each(function (f) {
       var p = f.iso && perIso[f.iso];
       if (!p || !(p.entry.warnings || []).length) return;
       var c = path.centroid(f);
       if (isNaN(c[0])) return;
-      gMarkers.append("path").attr("class", "warn-marker").attr("d", d3.symbol(d3.symbolTriangle, 40)()).attr("transform", "translate(" + c[0] + "," + c[1] + ")");
+      gMarkers.append("path").attr("class", "warn-marker").attr("d", d3.symbol(d3.symbolTriangle, 40)()).attr("transform", "translate(" + c[0] + "," + c[1] + ") scale(" + (1 / state.zoomK) + ")");
     });
     renderLegend(max, fmt);
     renderBars(agg);
+  }
+
+  /* Single country view on the map: zoom to the selected country and dim the rest. Shades keep the
+     world scale, so a country reads the same in both views. */
+  function focusFeature() {
+    if (!gCountries || !state.selected) return null;
+    var hit = null;
+    gCountries.selectAll("path.country").each(function (f) {
+      if (!hit && (f.iso || ("name:" + ((f.properties && f.properties.name) || "Unknown"))) === state.selected) hit = f;
+    });
+    return hit;
+  }
+  /* Zoom to the largest polygon, so overseas territories do not shrink the country to a dot. */
+  function mainlandBounds(f) {
+    var g = f.geometry;
+    if (!g || g.type !== "MultiPolygon") return path.bounds(f);
+    var best = null, bestArea = -1;
+    g.coordinates.forEach(function (poly) {
+      var part = {type: "Feature", geometry: {type: "Polygon", coordinates: poly}};
+      var a = path.area(part);
+      if (a > bestArea) { bestArea = a; best = part; }
+    });
+    return path.bounds(best);
+  }
+  function applyMapFocus() {
+    if (!svg || !gCountries) return;
+    var f = focusFeature();
+    svg.classed("focused", !!f);
+    gCountries.selectAll("path.country").classed("dim", function (d) { return !!f && d !== f; });
+    var key = f ? state.selected : null;
+    if (key === state.zoomIso) return;
+    state.zoomIso = key;
+    var k = 1, tx = 0, ty = 0;
+    if (f) {
+      var b = mainlandBounds(f), dx = b[1][0] - b[0][0], dy = b[1][1] - b[0][1];
+      k = Math.max(1, Math.min(12, 0.72 / Math.max(dx / 960, dy / 500, 1e-6)));
+      tx = 480 - k * (b[0][0] + b[1][0]) / 2;
+      ty = 250 - k * (b[0][1] + b[1][1]) / 2;
+    }
+    state.zoomK = k;
+    var t = "translate(" + tx + "," + ty + ") scale(" + k + ")";
+    gCountries.interrupt().transition().duration(650).attr("transform", t);
+    gMarkers.interrupt().transition().duration(650).attr("transform", t);
   }
 
   /* The legend reads top to bottom: what the color measures and over which days, the value range
@@ -249,6 +293,7 @@
           '<li><span class="sw" style="background:' + ZERO_COLOR + '"></span><span>None found</span></li>' +
           steps.join("") +
         '</ul>' +
+        (state.zoomIso ? '<p class="lg-note">Zoomed to ' + esc(countryName(state.zoomIso)) + '. Shades keep the world scale, so they compare directly with every other country.</p>' : '') +
         (state._capped ? '<p class="lg-note">The darkest shade starts at the 95th percentile, so a few extreme countries do not wash out the rest. The highest value is ' + esc(C.formatValue(state._trueMax, fmt)) + '.</p>' : '') +
       '</div>' +
       '<div class="lg-group">' +
@@ -362,12 +407,13 @@
     var model = themeModel(agg);
     var catalog = model.catalog;
     var noun = measureNoun();
-    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme, " + themeWindowLabel() +
+    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
       ". An article can carry more than one theme, so theme counts can add up to more than the number of articles.";
     if (!catalog.length || !model.rows.length) {
       el("theme-focus").innerHTML = '<p class="muted">No ' + esc(noun) + ' with themes in this window. Theme counts are computed at each daily export.</p>';
       el("theme-grid").innerHTML = "";
       el("theme-legend").innerHTML = "";
+      el("theme-grid").classList.remove("days");
       return;
     }
     var label = {};
@@ -393,7 +439,10 @@
           '<span class="tf-label">' + esc(x.c.label) + '</span>' +
           '<span class="tf-track"><span class="tf-bar" style="width:' + (x.v ? Math.max(1.5, 100 * x.v / fmax) : 0) + '%"></span></span>' +
           '<span class="tf-v">' + x.v + '</span><span class="tf-s">' + (x.v ? pctText(share) : "") + '</span></li>';
-      }).join("") + '</ul><p class="tf-hint">Click a theme to rank the countries in the grid by it. Click it again to go back.</p>');
+      }).join("") + '</ul><p class="tf-hint">' + (state.selected ? 'Click a theme to mark its row in the day grid. Switch to Whole world to compare countries.' : 'Click a theme to rank the countries in the grid by it. Click it again to go back.') + '</p>');
+
+    if (state.selected) { renderCountryThemes(state.selected, sel, catalog, label, noun); return; }
+    el("theme-grid").classList.remove("days");
 
     /* Right: countries down, themes across, the number of articles in each cell. */
     var sortKey = state.themeSort;
@@ -428,6 +477,47 @@
       (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
   }
 
+  /* Single country view of the theme counter: themes down, days across, ending on the counter's own day.
+     "That day" and "7 days" show a week so there is a trend to read; "Total" shows the last 31 days. */
+  function countryThemeDays() {
+    var n = state.themeWindow === "all" ? 31 : Math.max(7, Math.min(31, Number(state.themeWindow)));
+    var end = tlDays.indexOf(state.themeEnd);
+    if (end === -1) end = tlDays.length - 1;
+    return tlDays.slice(Math.max(0, end - n + 1), end + 1);
+  }
+  function renderCountryThemes(iso, sel, catalog, label, noun) {
+    var mi = measureIndex(), name = countryName(iso), ds = countryThemeDays();
+    var perDay = ds.map(function (d) {
+      var e = C.dayEntry(state.months, d) || {};
+      var t = (e.themes && e.themes[iso]) || {}, vals = {}, most = 0;
+      catalog.forEach(function (c) { var v = (t[c.id] || [0, 0, 0])[mi]; vals[c.id] = v; most = Math.max(most, v); });
+      return {d: d, n: Math.max(denominator((e.countries || {})[iso], mi), most), t: vals};
+    });
+    var total = function (id) { return (sel && sel.t[id]) || 0; };
+    var order = catalog.filter(function (c) { return c.id !== "other"; }).sort(function (a, b) { return total(b.id) - total(a.id); });
+    if (label.other) order.push(label.other);
+    var grid = el("theme-grid");
+    grid.classList.add("days");
+    grid.innerHTML =
+      '<thead><tr><th class="c-country" scope="col">Theme</th><th class="c-n" scope="col">Window</th>' +
+      perDay.map(function (p) {
+        return '<th scope="col" class="c-day' + (p.d === state.themeEnd ? ' sorted' : '') + '" title="' + p.d + ': ' + p.n + ' ' + esc(noun) + '">' + p.d.slice(8) + '</th>';
+      }).join("") + '</tr></thead><tbody>' +
+      order.map(function (c) {
+        return '<tr data-theme-row="' + c.id + '"' + (state.themeSort === c.id ? ' class="selected"' : '') + '>' +
+          '<th scope="row" class="c-country">' + esc(c.label) + '</th><td class="c-n">' + total(c.id) + '</td>' +
+          perDay.map(function (p) {
+            var v = p.t[c.id] || 0, share = Math.min(1, v / Math.max(p.n, 1)), bg = heat(share);
+            return '<td class="cell" data-theme="' + c.id + '" data-day="' + p.d + '" data-n="' + p.n + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
+          }).join("") + '</tr>';
+      }).join("") + '</tbody>';
+    updateGridScroll();
+    el("theme-legend").innerHTML =
+      '<span class="tl-title">Cell shade: share of ' + esc(name) + '\'s ' + esc(noun) + ' that day in the theme</span>' +
+      THEME_BANDS.map(function (b, i) { return '<span class="tl-i"><span class="sw" style="background:' + THEME_HEAT[i] + '"></span>' + b + '</span>'; }).join("") +
+      '<span class="tl-foot">' + esc(name) + ', the ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
+  }
+
   /* The grid scrolls sideways only when the column is too narrow for every theme; say so when it does. */
   function updateGridScroll() {
     var wrap = el("theme-grid-wrap");
@@ -458,6 +548,8 @@
     el("theme-grid").addEventListener("click", function (ev) {
       var th = ev.target.closest("th[data-theme]");
       if (th) { toggleSort(th.getAttribute("data-theme")); return; }
+      var row = ev.target.closest("tr[data-theme-row]");
+      if (row) { toggleSort(row.getAttribute("data-theme-row")); return; }
       var tr = ev.target.closest("tr[data-iso]");
       if (tr) selectCountry(tr.getAttribute("data-iso"));
     });
@@ -465,12 +557,13 @@
     el("theme-grid").addEventListener("mousemove", function (ev) {
       var td = ev.target.closest("td.cell");
       if (!td) { tip.style.display = "none"; return; }
-      var tr = td.parentNode, iso = tr.getAttribute("data-iso");
+      var tr = td.parentNode, day = td.getAttribute("data-day");
+      var iso = day ? state.selected : tr.getAttribute("data-iso");
       var theme = ((state.meta && state.meta.themes) || []).filter(function (c) { return c.id === td.getAttribute("data-theme"); })[0];
-      var n = tr.querySelector("td.c-n").textContent;
+      var n = day ? td.getAttribute("data-n") : tr.querySelector("td.c-n").textContent;
       var v = Number(td.getAttribute("data-v")), share = Number(td.getAttribute("data-share"));
       tip.innerHTML = '<div><strong>' + v + '</strong> of ' + esc(n) + ' ' + esc(measureNoun()) + (v ? ' (' + pctText(share) + ')' : '') + '</div>' +
-        '<div class="t-name">' + esc(state.names[iso] || iso) + '</div><div class="muted">' + esc(theme ? theme.label : "") + ', ' + esc(themeWindowLabel()) + '</div>';
+        '<div class="t-name">' + esc(countryName(iso || "")) + '</div><div class="muted">' + esc(theme ? theme.label : "") + ', ' + esc(day || themeWindowLabel()) + '</div>';
       tip.style.display = "block";
       var box = el("themes").getBoundingClientRect();
       var x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
@@ -482,10 +575,44 @@
 
   /* ---------------------------------------------------------------- panel */
   function selectCountry(iso) {
-    state.selected = iso;
+    state.selected = iso || null;
+    if (state.selected) state.lastCountry = state.selected;
+    syncCountryPicks();
     renderMap();
     renderThemes();
     renderPanel();
+  }
+  function countryName(iso) { return String(iso).indexOf("name:") === 0 ? String(iso).slice(5) : (state.names[iso] || iso); }
+  /* The Country pickers above the map and above the theme counter open the same single country view. */
+  function setupCountryPicks() {
+    var isos = Object.keys((state.latest && state.latest.countries) || {}).sort(function (a, b) { return String(countryName(a)).localeCompare(String(countryName(b))); });
+    Array.prototype.forEach.call(document.querySelectorAll("select[data-country-pick]"), function (s) {
+      s.innerHTML = '<option value="">Whole world</option>' + isos.map(function (iso) { return '<option value="' + esc(iso) + '">' + esc(countryName(iso)) + '</option>'; }).join("");
+      s.addEventListener("change", function () { selectCountry(s.value || null); });
+    });
+    /* Whole world and One country flip between the two views; One country reopens the last country
+       chosen, or the top country on the map when none has been chosen yet. */
+    Array.prototype.forEach.call(document.querySelectorAll("[data-scope-group] button"), function (b) {
+      b.addEventListener("click", function () {
+        if (b.getAttribute("data-scope") === "world") { selectCountry(null); return; }
+        if (state.selected) return;
+        var top = C.rankCountries(currentAgg(), state.latest, state.metric, state.mode, state.names).filter(function (r) { return r.value > 0; })[0];
+        var first = Object.keys((state.latest && state.latest.countries) || {})[0];
+        selectCountry(state.lastCountry || (top && top.iso) || first || null);
+      });
+    });
+    syncCountryPicks();
+  }
+  function syncCountryPicks() {
+    var v = state.selected || "";
+    Array.prototype.forEach.call(document.querySelectorAll("select[data-country-pick]"), function (s) {
+      var has = Array.prototype.some.call(s.options, function (o) { return o.value === v; });
+      if (!has) { var o = document.createElement("option"); o.value = v; o.textContent = countryName(v); s.appendChild(o); }
+      s.value = v;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-scope-group] button"), function (b) {
+      b.classList.toggle("active", (b.getAttribute("data-scope") === "country") === !!state.selected);
+    });
   }
 
   function renderPanel() {
@@ -532,7 +659,7 @@
     loadArticles(iso);
   }
 
-  function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { state.selected = null; renderMap(); renderThemes(); renderPanel(); }); }
+  function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { selectCountry(null); }); }
 
   function renderMini(iso) {
     var svgm = d3.select("#mini");
@@ -824,6 +951,7 @@
       if (!window.d3) mapFallback("The map library did not load.");
       else if (!state.topo) mapFallback("The world outline data did not load.");
       bindControls();
+      setupCountryPicks();
       setupTimeline();
       setupThemeTimeline();
       renderNotices();
