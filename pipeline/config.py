@@ -85,7 +85,9 @@ RELAY_STALE_HOURS = 6
 FEED_SATURATION_WARNING_SHARE = 0.25
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
-RULESET_VERSION = "2026.09.5"
+# Must match ruleset_version in signatures.yaml: a label records the version the signatures carried,
+# while reclassify() compares against this one, so a mismatch would reclassify the same rows forever.
+RULESET_VERSION = "2026.09.6"
 
 # Current relevance gate version. Separate from the ruleset: the ruleset decides an article's label
 # and is stored on every classification row, while the gate decides what enters the corpus at all.
