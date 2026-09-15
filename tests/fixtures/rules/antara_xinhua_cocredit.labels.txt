@@ -1,0 +1,8 @@
+China dorong kerja sama yang lebih besar dengan mitra BRICS - ANTARA News
+website
+Indonesia
+@type: NewsArticle
+publisher: ANTARA
+@type: WebSite
+@type: Organization
+@type: BreadcrumbList

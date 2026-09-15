@@ -108,3 +108,66 @@
   note: Hard negative, sponsored placement group. A staff bylined war report whose page chrome carries '(Anzeige) Solaranlagen
     Angebote von regionalen Firmen' ad slots. Disclosure phrases that also occur in ordinary prose now count only in the body's
     head and tail, never in page labels.
+- file: antara_xinhua_cocredit.txt
+  author: Antaranews Com; Xinhua
+  labels: antara_xinhua_cocredit.labels.txt
+  source: https://www.antaranews.com/berita/5737384/china-dorong-kerja-sama-yang-lebih-besar-dengan-mitra-brics
+  expect_decision: A
+  expect_ids_include:
+  - xinhua_co_credit_author
+  - xinhua_translator_credit
+  expect_ids_exclude:
+  - sponsored_asia
+  - sponsored_asia_with_state_entity
+  note: 'True positive, credit and dateline group. Antara republishing Xinhua copy in Indonesian translation: the byline co-credits
+    the wire and the body ends with a translator credit naming Xinhua. Before 2026.09.7 this was labelled state origin through
+    a sponsorship pattern that had matched the ordinary phrase kerja sama dengan, so the count was right and the route wrong.'
+- file: sana_cooperation_prose.txt
+  author: Zeina Alsaadi
+  labels: sana_cooperation_prose.labels.txt
+  source: https://sana.sy/economy/2578770/
+  expect_decision: none
+  expect_ids_exclude:
+  - sponsored_ar
+  - sponsored_ar_with_state_entity
+  note: Hard negative, sponsored placement group. A business story about an Emirati fund investing in Luckin Coffee alongside
+    Centurium Capital. The Arabic for in cooperation with is not a paid disclosure.
+- file: aps_cgtn_event_report.txt
+  author: Pierre Dieme
+  labels: aps_cgtn_event_report.labels.txt
+  source: https://aps.sn/brics-le-sud-global-veut-peser-davantage-dans-la-gouvernance-mondiale/
+  expect_decision: none
+  expect_ids_exclude:
+  - sponsored_fr_with_state_entity
+  - sponsored_prose_phrases_head_tail
+  note: Hard negative, sponsored placement group. A short agency report about a panel CGTN organised with a Dakar group. Reporting
+    about a CGTN event is not CGTN text, and the French for in partnership with is not a paid disclosure.
+- file: albilad_embassy_cultural_event.txt
+  author: ''
+  labels: albilad_embassy_cultural_event.labels.txt
+  source: https://www.albiladpress.com/news/2026/6541/spaces/1019166.html
+  expect_decision: none
+  expect_ids_exclude:
+  - sponsored_ar
+  - sponsored_ar_with_state_entity
+  note: Hard negative, sponsored placement group. The outlet's own coverage of a cultural show that Bahrain's culture authority
+    hosted with the Chinese embassy. An event held in cooperation with an embassy is not a paid placement.
+- file: sierraloaded_medical_team.txt
+  author: Sahid Bangura
+  labels: sierraloaded_medical_team.labels.txt
+  source: https://sierraloaded.sl/local/chinese-medical-team-consultations-residents/
+  expect_decision: none
+  expect_ids_exclude:
+  - state_entity_then_sponsored_en
+  - sponsored_prose_phrases_head_tail
+  note: Hard negative, sponsored placement group. A bylined local report on a Chinese medical team, matched on organised in
+    partnership with a health centre, with the embassy named only in a site tag.
+- file: seenews_cites_xinhua_reporter.txt
+  author: Rana Atef
+  labels: seenews_cites_xinhua_reporter.labels.txt
+  source: https://see.news/why-brics-is-known-as-the-golden-bricks-in-china
+  expect_decision: none
+  expect_ids_exclude:
+  - xinhua_writer_byline
+  note: Hard negative, credit and dateline group. The outlet's own explainer, bylined Rana Atef, citing a report by a Xinhua
+    reporter in mid sentence. A wire byline must stand where a byline stands.
