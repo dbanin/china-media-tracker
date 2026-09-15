@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
 
   var state = {
-    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, mode: "all", endDate: null, selected: null, playing: null,
+    metric: "count_target", measure: "target", basis: "count", windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, mode: "all", endDate: null, selected: null, playing: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, numToIso: {}, topo: null,
     articlesCache: {}
   };
@@ -78,11 +78,12 @@
   }
   function bProvisional() { return !(state.meta && state.meta.b_counts_settled); }
   function metricLabel() { return C.METRICS[state.metric] ? C.METRICS[state.metric].label : state.metric; }
-  function windowLabel() {
-    if (!state.endDate) return "no data";
-    if (state.windowDays === "all") return "total to " + state.endDate;
-    if (Number(state.windowDays) === 1) return state.endDate;
-    return Number(state.windowDays) + " days ending " + state.endDate;
+  function windowLabel() { return windowLabelFor(state.endDate); }
+  function windowLabelFor(date) {
+    if (!date) return "no data";
+    if (state.windowDays === "all") return "total to " + date;
+    if (Number(state.windowDays) === 1) return date;
+    return Number(state.windowDays) + " days ending " + date;
   }
 
   /* --------------------------------------------------------------- notices */
@@ -211,7 +212,6 @@
     });
     renderLegend(max, fmt);
     renderBars(agg);
-    renderThemes(agg);
   }
 
   /* The legend reads top to bottom: what the color measures and over which days, the value range
@@ -352,12 +352,14 @@
     return {catalog: catalog, rows: rows, world: world};
   }
 
-  function renderThemes(agg) {
+  function renderThemes() {
     if (!el("themes")) return;
+    var agg = themeAgg();
+    renderThemeSpark();
     var model = themeModel(agg);
     var catalog = model.catalog;
     var noun = measureNoun();
-    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme, " + windowLabel() +
+    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + " by theme, " + themeWindowLabel() +
       ". An article can carry more than one theme, so theme counts can add up to more than the number of articles.";
     if (!catalog.length || !model.rows.length) {
       el("theme-focus").innerHTML = '<p class="muted">No ' + esc(noun) + ' with themes in this window. Theme counts are computed at each daily export.</p>';
@@ -436,7 +438,7 @@
     if (!el("themes")) return;
     el("theme-grid-wrap").addEventListener("scroll", updateGridScroll);
     window.addEventListener("resize", updateGridScroll);
-    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(currentAgg()); }
+    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(); }
     el("theme-focus").addEventListener("click", function (ev) {
       var li = ev.target.closest("li[data-theme]");
       if (li) toggleSort(li.getAttribute("data-theme"));
@@ -456,7 +458,7 @@
       var n = tr.querySelector("td.c-n").textContent;
       var v = Number(td.getAttribute("data-v")), share = Number(td.getAttribute("data-share"));
       tip.innerHTML = '<div><strong>' + v + '</strong> of ' + esc(n) + ' ' + esc(measureNoun()) + (v ? ' (' + pctText(share) + ')' : '') + '</div>' +
-        '<div class="t-name">' + esc(state.names[iso] || iso) + '</div><div class="muted">' + esc(theme ? theme.label : "") + ', ' + esc(windowLabel()) + '</div>';
+        '<div class="t-name">' + esc(state.names[iso] || iso) + '</div><div class="muted">' + esc(theme ? theme.label : "") + ', ' + esc(themeWindowLabel()) + '</div>';
       tip.style.display = "block";
       var box = el("themes").getBoundingClientRect();
       var x = ev.clientX - box.left + 14, y = ev.clientY - box.top + 14;
@@ -470,6 +472,7 @@
   function selectCountry(iso) {
     state.selected = iso;
     renderMap();
+    renderThemes();
     renderPanel();
   }
 
@@ -517,7 +520,7 @@
     loadArticles(iso);
   }
 
-  function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { state.selected = null; renderMap(); renderPanel(); }); }
+  function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { state.selected = null; renderMap(); renderThemes(); renderPanel(); }); }
 
   function renderMini(iso) {
     var svgm = d3.select("#mini");
@@ -601,6 +604,7 @@
   function togglePlay() {
     if (state.playing) { clearInterval(state.playing); state.playing = null; el("play").textContent = "Play"; return; }
     if (!tlDays.length) return;
+    stopThemePlay();
     if (Number(el("scrub").value) >= tlDays.length - 1) setDay(0);
     el("play").textContent = "Pause";
     state.playing = setInterval(function () {
@@ -628,6 +632,71 @@
     pts.filter(function (p) { return p.ceiling; }).forEach(function (p) {
       s.append("rect").attr("class", "ceiling").attr("x", x(p.i) - 2).attr("y", 0).attr("width", 4).attr("height", h);
     });
+  }
+
+  /* ------------------------------------------------------ theme timeline */
+  /* The theme counter has its own day and its own Play, separate from the map's timeline.
+     Starting either animation stops the other, so the two never run at the same time. */
+  function themeWindowLabel() { return windowLabelFor(state.themeEnd); }
+  function themeAgg() {
+    return C.aggregateWindow(state.months, state.themeEnd, state.windowDays === "all" ? null : Number(state.windowDays));
+  }
+  function setupThemeTimeline() {
+    var scrub = el("th-scrub");
+    if (!scrub) return;
+    scrub.max = Math.max(0, tlDays.length - 1);
+    scrub.value = el("scrub").value;
+    state.themeEnd = state.endDate;
+    el("th-date").textContent = state.themeEnd || "no days";
+    scrub.addEventListener("input", function () { stopThemePlay(); setThemeDay(Number(scrub.value)); });
+    el("th-back").addEventListener("click", function () { stopThemePlay(); setThemeDay(Number(scrub.value) - 1); });
+    el("th-fwd").addEventListener("click", function () { stopThemePlay(); setThemeDay(Number(scrub.value) + 1); });
+    el("th-play").addEventListener("click", toggleThemePlay);
+  }
+  function setThemeDay(i) {
+    if (!tlDays.length) return;
+    i = Math.max(0, Math.min(tlDays.length - 1, i));
+    el("th-scrub").value = i;
+    state.themeEnd = tlDays[i];
+    el("th-date").textContent = state.themeEnd;
+    renderThemes();
+  }
+  function stopThemePlay() {
+    if (!state.themePlaying) return;
+    clearInterval(state.themePlaying);
+    state.themePlaying = null;
+    el("th-play").textContent = "Play";
+  }
+  function toggleThemePlay() {
+    if (state.themePlaying) { stopThemePlay(); return; }
+    if (!tlDays.length) return;
+    if (state.playing) togglePlay();
+    if (Number(el("th-scrub").value) >= tlDays.length - 1) setThemeDay(0);
+    el("th-play").textContent = "Pause";
+    state.themePlaying = setInterval(function () {
+      var i = Number(el("th-scrub").value);
+      if (i >= tlDays.length - 1) { stopThemePlay(); return; }
+      setThemeDay(i + 1);
+    }, 700);
+  }
+  /* The theme curve follows the counter's own subject: the selected country, or all of them. */
+  function renderThemeSpark() {
+    var s = d3.select("#th-spark");
+    if (s.empty()) return;
+    s.selectAll("*").remove();
+    var w = 1000, h = 40, mi = measureIndex(), noun = measureNoun();
+    s.attr("viewBox", "0 0 " + w + " " + h);
+    var pts = tlDays.map(function (d, i) {
+      var e = C.dayEntry(state.months, d), v = 0;
+      if (e) Object.keys(e.countries || {}).forEach(function (c) { if (!state.selected || state.selected === c) v += denominator(e.countries[c], mi); });
+      return {i: i, v: v};
+    });
+    var who = state.selected ? (state.names[state.selected] || state.selected) : "all monitored countries";
+    el("th-hint").textContent = "Moves only the theme counter; the map keeps its own day. The curve is the daily number of " + noun + " in " + who + ".";
+    if (!pts.length) return;
+    var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
+    var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
+    s.append("path").attr("d", d3.area().x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX)(pts));
   }
 
   /* ----------------------------------------------------------- methodology */
@@ -698,7 +767,7 @@
       state.metric = other || C.gridMetric(state.measure, state.basis);
       Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-basis") === state.basis); });
       Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-measure") === state.measure); });
-      renderMap(); if (state.selected) renderPanel();
+      renderMap(); renderThemes(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
       b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); el("metric").value = ""; applyMetric(); });
@@ -711,7 +780,7 @@
     function applyWindow(v) {
       state.windowDays = v === "all" ? "all" : Number(v);
       Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) { b.classList.toggle("active", b.getAttribute("data-window") === v); });
-      renderMap(); if (state.selected) renderPanel();
+      renderMap(); renderThemes(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) {
       b.addEventListener("click", function () { applyWindow(b.getAttribute("data-window")); });
@@ -720,7 +789,7 @@
       b.addEventListener("click", function () {
         state.mode = b.getAttribute("data-mode");
         Array.prototype.forEach.call(el("mode").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
-        renderMap(); if (state.selected) renderPanel();
+        renderMap(); renderThemes(); if (state.selected) renderPanel();
       });
     });
     Array.prototype.forEach.call(el("view").querySelectorAll("button"), function (b) {
@@ -744,15 +813,17 @@
       else if (!state.topo) mapFallback("The world outline data did not load.");
       bindControls();
       setupTimeline();
+      setupThemeTimeline();
       renderNotices();
       renderMap();
+      renderThemes();
       renderPanel();
       renderMethod();
     }).catch(function (e) {
       console.error(e);
       el("data-notice").textContent = "Data could not be loaded: " + e.message;
       el("data-notice").classList.remove("hidden");
-      try { setupMap(); bindControls(); setupTimeline(); renderMap(); renderPanel(); renderMethod(); } catch (e2) { console.error(e2); }
+      try { setupMap(); bindControls(); setupTimeline(); setupThemeTimeline(); renderMap(); renderThemes(); renderPanel(); renderMethod(); } catch (e2) { console.error(e2); }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

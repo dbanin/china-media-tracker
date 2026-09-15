@@ -60,11 +60,11 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 1px s
 .segment button:last-child { border-right: none; }
 .segment button.active { background: var(--bone); color: var(--ink); }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr) 27rem; grid-template-rows: auto auto; gap: 0; min-height: 60vh; }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 27rem; grid-template-rows: auto auto auto; gap: 0; min-height: 60vh; }
 #map-wrap, #bars-wrap { grid-column: 1; grid-row: 1; }
-aside#panel { grid-column: 2; grid-row: 1 / span 2; }
+aside#panel { grid-column: 2; grid-row: 1 / span 3; }
 
-#themes { grid-column: 1; grid-row: 2; position: relative; padding: 1.8rem 1.6rem 2.4rem 2.4rem; border-top: 1px solid var(--rule); }
+#themes { grid-column: 1; grid-row: 3; position: relative; padding: 1.8rem 1.6rem 2.4rem 2.4rem; border-top: 1px solid var(--rule); }
 #themes .th-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
 #themes h2 { font-size: 2rem; margin: 0.25rem 0 0.35rem; }
 #themes .th-sub { color: var(--ash); font-size: 0.86rem; max-width: 54rem; margin: 0 0 1.3rem; }
@@ -170,15 +170,19 @@ aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric
 .mini path.p { fill: none; stroke: var(--ash); stroke-width: 1; stroke-dasharray: 1.5 2.5; }
 .mini text { font-size: 0.62rem; fill: var(--ash); font-family: var(--font); }
 
-#timeline { border-top: 1px solid var(--rule); padding: 1.2rem 3rem 1.4rem 3rem; }
-#timeline .tl-row { display: flex; align-items: center; gap: 0.8rem; }
-#timeline .tl-date { min-width: 8rem; font-variant-numeric: tabular-nums; font-family: var(--display); font-size: 1.3rem; }
-#timeline .tl-track { position: relative; flex: 1; height: 3.2rem; }
-#timeline svg.spark { position: absolute; left: 0; top: 0; width: 100%; height: 2.4rem; }
-#timeline svg.spark path { fill: rgba(201, 169, 97, 0.18); stroke: var(--gold); stroke-width: 1; }
-#timeline svg.spark rect.ceiling { fill: var(--warn); opacity: 0.45; }
-#timeline input[type="range"] { position: absolute; left: 0; bottom: 0; width: 100%; margin: 0; accent-color: var(--gold); }
-#timeline .tl-hint { font-size: 0.76rem; color: var(--ash); margin-top: 0.4rem; }
+#timeline { grid-column: 1; grid-row: 2; border-top: 1px solid var(--rule); padding: 1.1rem 1.6rem 1.3rem 2.4rem; }
+.timeline .tl-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.45rem; }
+.th-timeline { margin: 0 0 1.5rem; padding: 0.9rem 0 1rem; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.th-timeline svg.spark path { fill: rgba(191, 42, 49, 0.22) !important; stroke: #c2343b !important; }
+.th-timeline input[type="range"] { accent-color: #c2343b; }
+.timeline .tl-row { display: flex; align-items: center; gap: 0.8rem; }
+.timeline .tl-date { min-width: 8rem; font-variant-numeric: tabular-nums; font-family: var(--display); font-size: 1.3rem; }
+.timeline .tl-track { position: relative; flex: 1; height: 3.2rem; }
+.timeline svg.spark { position: absolute; left: 0; top: 0; width: 100%; height: 2.4rem; }
+.timeline svg.spark path { fill: rgba(201, 169, 97, 0.18); stroke: var(--gold); stroke-width: 1; }
+.timeline svg.spark rect.ceiling { fill: var(--warn); opacity: 0.45; }
+.timeline input[type="range"] { position: absolute; left: 0; bottom: 0; width: 100%; margin: 0; accent-color: var(--gold); }
+.timeline .tl-hint { font-size: 0.76rem; color: var(--ash); margin-top: 0.4rem; }
 
 section.method { padding: 2.4rem 3rem 3rem 3rem; border-top: 1px solid var(--rule); max-width: 76rem; }
 section.method .defs p { max-width: 62rem; color: var(--bone-soft); }
@@ -198,8 +202,9 @@ footer { padding: 1.4rem 3rem 2.4rem 3rem; color: var(--ash-faint); font-size: 0
 @media (max-width: 1100px) {
   main { grid-template-columns: 1fr; }
   #map-wrap, #bars-wrap { grid-row: 1; }
-  aside#panel { grid-column: 1; grid-row: 2; }
-  #themes { grid-row: 3; padding-left: 1.6rem; }
+  #timeline { grid-row: 2; padding-left: 1.6rem; }
+  aside#panel { grid-column: 1; grid-row: 3; }
+  #themes { grid-row: 4; padding-left: 1.6rem; }
   aside#panel { border-left: none; border-top: 1px solid var(--rule); max-height: none; position: static; }
   section.method dl { grid-template-columns: 1fr; }
   h1 { font-size: 2.6rem; }
