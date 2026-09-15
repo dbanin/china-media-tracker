@@ -59,6 +59,10 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS) -> bytes:
         # as the hosted runner sees them.
         for h in conn.execute("SELECT * FROM feed_health"):
             fh.write(json.dumps({"_type": "feed_health", **{k: h[k] for k in h.keys()}}, ensure_ascii=False) + "\n")
+        # The relay database counts every item it discovers at insert time, so its per outlet-day
+        # rows are exact; the hosted side replaces its rows for these outlets with them.
+        for d in conn.execute("SELECT date, outlet_id, country, discovered, gate_relevant FROM daily_outlet_discovery"):
+            fh.write(json.dumps({"_type": "outlet_discovery", **{k: d[k] for k in d.keys()}}) + "\n")
         for r in rows:
             item = {k: r[k] for k in ARTICLE_FIELDS}
             body = store.load_body(r["url_hash"]) if r["status"] in ("fetched", "classified", "awaiting_llm", "paywalled") else None
@@ -122,8 +126,18 @@ def iter_bundle(data: bytes) -> Iterable[Dict]:
 def ingest(conn, data: bytes) -> Dict:
     """Insert every article the main database does not know. Existing rows are left alone."""
     from pipeline.fetch_feeds import link_near_duplicates
-    counts = {"seen": 0, "inserted": 0, "bodies": 0, "relevant": 0}
+    counts = {"seen": 0, "inserted": 0, "bodies": 0, "relevant": 0, "already_delivered": 0}
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=14)).isoformat()
+    conn.execute("DELETE FROM relay_seen WHERE seen_at < ?", (cutoff,))
     for item in iter_bundle(data):
+        if item.get("_type") == "outlet_discovery":
+            conn.execute(
+                """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered, gate_relevant) VALUES (?,?,?,?,?)
+                   ON CONFLICT(date, outlet_id) DO UPDATE SET country=excluded.country, discovered=excluded.discovered,
+                     gate_relevant=excluded.gate_relevant""",
+                (item["date"], item["outlet_id"], item["country"], item["discovered"], item.get("gate_relevant", 0)))
+            counts["outlet_days"] = counts.get("outlet_days", 0) + 1
+            continue
         if item.get("_type") == "feed_health":
             conn.execute(
                 """INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, last_error, last_entries,
@@ -139,22 +153,17 @@ def ingest(conn, data: bytes) -> Dict:
         counts["seen"] += 1
         if conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone():
             continue
+        if conn.execute("SELECT 1 FROM relay_seen WHERE url_hash=?", (item["url_hash"],)).fetchone():
+            counts["already_delivered"] += 1   # delivered earlier and pruned since; not a new item
+            continue
         cols = [k for k in ARTICLE_FIELDS if k in item]
         conn.execute("INSERT INTO articles (%s) VALUES (%s)" % (", ".join(cols), ", ".join("?" * len(cols))),
                      [item[k] for k in cols])
         new_id = conn.execute("SELECT id FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()[0]
+        conn.execute("INSERT OR REPLACE INTO relay_seen(url_hash, seen_at) VALUES (?,?)", (item["url_hash"], store.utcnow()))
         counts["inserted"] += 1
         relevant = bool(item.get("gate_relevant"))
-        # Discovery totals count on the day the relay found the item, not today.
-        day = (item.get("discovered_at") or store.utcnow())[:10]
-        conn.execute(
-            """INSERT INTO daily_discovery(date, country, discovered, gate_relevant) VALUES (?,?,1,?)
-               ON CONFLICT(date, country) DO UPDATE SET discovered=discovered+1, gate_relevant=gate_relevant+excluded.gate_relevant""",
-            (day, item["country"], 1 if relevant else 0))
-        conn.execute(
-            """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered) VALUES (?,?,?,1)
-               ON CONFLICT(date, outlet_id) DO UPDATE SET discovered=discovered+1""",
-            (day, item["outlet_id"], item["country"]))
+        # Discovery counts for relay outlets come from the bundle's own per outlet-day rows above.
         if item.get("body"):
             text = gzip.decompress(base64.b64decode(item["body"])).decode("utf-8")
             store.save_body(item["url_hash"], text)

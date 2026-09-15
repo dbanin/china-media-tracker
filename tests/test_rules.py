@@ -199,3 +199,22 @@ def test_missing_body_is_not_classified(monkeypatch, tmp_path):
     out = cr.classify_article(conn, row)
     assert out["outcome"] == "body_unavailable" and calls == [aid]
     assert store.current_classification(conn, aid) is None
+
+
+def test_failed_refetch_keeps_a_classified_label(tmp_path, monkeypatch):
+    from pipeline import config, fetch_articles, store
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    conn = store.connect(tmp_path / "k.db")
+    aid = store.insert_discovered(conn, {"url": "https://x.test/k", "outlet_id": "zz_unknown", "country": "ITA", "language": "it",
+                                         "title": "Cina", "status": "fetched", "gate_relevant": 1})
+    store.insert_classification(conn, aid, "rules", "C", 0.75)
+    conn.commit()
+    monkeypatch.setattr(fetch_articles, "process_article", lambda factory, row: {"status": "failed", "reason": "http_403"})
+    row = store.get_article(conn, aid)
+    assert cr.ensure_body(conn, row) == ""
+    assert store.get_article(conn, aid)["status"] == "classified"
+    # and an article demoted by the old code is repaired at the start of the next run
+    conn.execute("UPDATE articles SET status='failed' WHERE id=?", (aid,))
+    conn.commit()
+    assert cr.run(conn, "t")["relabelled"] == 1
+    assert store.get_article(conn, aid)["status"] == "classified"

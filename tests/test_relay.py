@@ -31,22 +31,45 @@ def test_bundle_and_ingest_round_trip(tmp_path, monkeypatch):
     src.commit()
     data = relay.build_bundle(src)
     items = list(relay.iter_bundle(data))
-    articles = [it for it in items if it.get("_type") != "feed_health"]
-    assert len(articles) == 3 and len(items) == 4
+    articles = [it for it in items if not it.get("_type")]
+    assert len(articles) == 3 and len(items) == 5   # plus one feed health and one outlet-day record
     assert sum(1 for it in articles if it.get("body")) == 2
     assert gzip.decompress(base64.b64decode(articles[1]["body"])).decode() == "Body 1 about China and trade."
 
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
     dst = store.connect(tmp_path / "main.db")
     counts = relay.ingest(dst, data)
-    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2, "feeds": 1}
+    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2, "already_delivered": 0, "feeds": 1, "outlet_days": 1}
     assert dst.execute("SELECT consecutive_failures FROM feed_health WHERE feed_url='https://blocked.test/feed'").fetchone()[0] == 0
     rows = dst.execute("SELECT status, gate_relevant, page_labels FROM articles ORDER BY id").fetchall()
     assert [tuple(r) for r in rows] == [("gated_out", 0, None), ("fetched", 1, "section: World"), ("fetched", 1, "section: World")]
     assert store.load_body(rows[1]["page_labels"] and store.url_hash("https://blocked.test/1")) == "Body 1 about China and trade."
+    # per outlet-day counts come from the bundle, exactly, and the country table is derived from them
+    assert dst.execute("SELECT discovered, gate_relevant FROM daily_outlet_discovery").fetchone()[:] == (3, 2)
+    store.rebuild_daily_discovery(dst)
     assert dst.execute("SELECT discovered, gate_relevant FROM daily_discovery").fetchone()[:] == (3, 2)
-    assert dst.execute("SELECT discovered FROM daily_outlet_discovery").fetchone()[0] == 3
     # a second ingest of the same bundle changes nothing
     again = relay.ingest(dst, data)
     assert again["inserted"] == 0 and dst.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 3
+    store.rebuild_daily_discovery(dst)
     assert dst.execute("SELECT discovered FROM daily_discovery").fetchone()[0] == 3
+
+
+def test_pruned_items_are_not_delivered_twice(tmp_path, monkeypatch):
+    """The bundle carries seven days; the hosted side prunes gated-out items after three. The
+    same item must not come back, and must not be counted again."""
+    from pipeline import config
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    src = store.connect(tmp_path / "relay.db")
+    _seed(src)
+    data = relay.build_bundle(src)
+    dst = store.connect(tmp_path / "main.db")
+    first = relay.ingest(dst, data)
+    assert first["inserted"] == 3
+    dst.execute("UPDATE articles SET discovered_at='2020-01-01T00:00:00+00:00' WHERE status='gated_out'")
+    dst.commit()
+    assert store.prune_gated_out(dst) == 1
+    second = relay.ingest(dst, data)
+    assert second["inserted"] == 0 and second["already_delivered"] == 1
+    assert dst.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 2
+    assert dst.execute("SELECT discovered FROM daily_outlet_discovery").fetchone()[0] == 3

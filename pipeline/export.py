@@ -58,6 +58,7 @@ def article_rows(conn) -> List[Dict]:
 
 
 def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
+    store.rebuild_daily_discovery(conn)
     rows = article_rows(conn)
     now = store.utcnow()
     top_ids, _ = registry.top_outlets(outlets if outlets is not None else registry.load_outlets())
