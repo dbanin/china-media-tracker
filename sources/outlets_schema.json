@@ -167,6 +167,10 @@
                 },
                 "label": {
                   "type": "string"
+                },
+                "readable": {
+                  "type": "boolean",
+                  "description": "Whether the collector could read the section when last verified. Unreadable sections stay recorded but are not polled."
                 }
               }
             }

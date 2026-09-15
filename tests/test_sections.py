@@ -121,3 +121,20 @@ def test_tag_listing_accepts_stories_elsewhere_on_site():
             '<a href="/abonnement">Abonnez-vous au journal maintenant</a>')
     entries = section_pages.article_links(html, "https://www.la-croix.com/tag/contenus-sponsorises")
     assert [e["link"] for e in entries] == ["https://www.la-croix.com/economie/entreprise-chinoise-signe-un-accord-avec-le-port"]
+
+
+def test_check_section_feed_drops_comment_and_duplicate_feeds(monkeypatch):
+    from pipeline import fetch_articles, feeds_util
+    monkeypatch.setattr(fetch_articles, "_rate_wait", lambda d: None)
+    feeds = {
+        "https://x.com/press-releases/feed": [{"link": "https://x.com/pr/one", "title": "Company announces"}],
+        "https://x.com/sponsored/feed": [{"link": "https://x.com/a", "title": "Story A"}, {"link": "https://x.com/b", "title": "Story B"}],
+        "https://x.com/category/communique/feed": [{"link": "https://x.com/c", "title": "Comentario en Story C"},
+                                                  {"link": "https://x.com/d", "title": "Comentario en Story D"}],
+    }
+    monkeypatch.setattr(feeds_util, "fetch_feed", lambda u, timeout=20: {"ok": True, "entries": feeds[u], "error": None})
+    editorial = {"https://x.com/a", "https://x.com/b"}
+    assert ds.check_section_feed({}, {"url": "https://x.com/press-releases/feed", "type": "rss"}, editorial)[0]
+    assert ds.check_section_feed({}, {"url": "https://x.com/sponsored/feed", "type": "rss"}, editorial) == (False, "mostly the same items as the editorial feeds")
+    assert ds.check_section_feed({}, {"url": "https://x.com/category/communique/feed", "type": "rss"}, editorial) == (False, "comments feed")
+    assert ds.check_section_feed({}, {"url": "https://x.com/comments/feed", "type": "rss"}, editorial) == (False, "comments feed")
