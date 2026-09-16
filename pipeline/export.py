@@ -53,6 +53,7 @@ RELEASE_STATUSES = ["found", "none_found", "blocked", "unreachable"]
 RELAY_QUALIFIER = {
     "human_coding": "Checked against hand coding of a random sample.",
     "model_vs_model": "Consistent between two models, never checked against human coding: this measures whether two raters apply the codebook the same way, not whether they apply it correctly.",
+    "same_model_rerun": "Consistent with itself: the same model judged the same articles twice, never checked against human coding or another model. This detects randomness in its own judgement and nothing about a bias it holds every time.",
 }
 CHANGELOG_RULESET = re.compile(r"^## Ruleset (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
 CHANGELOG_GATE = re.compile(r"^## Gate (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
@@ -695,7 +696,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "threshold": config.KAPPA_WARNING_THRESHOLD,
     } if model_study else None
     # Which study, if any, is holding the gate open. Never "validated": no human has coded anything.
-    relay_basis = "human_coding" if settled else ("model_vs_model" if reliable else None)
+    relay_basis = "human_coding" if settled else ((model_study["method"] or "model_vs_model") if reliable else None)
     by_language = (details.get("bc_by_language") if settled else model_details.get("bc_by_language")) or {}
     withheld_languages = sorted(
         lang for lang, v in by_language.items()
