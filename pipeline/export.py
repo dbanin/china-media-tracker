@@ -651,6 +651,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     cls_total = conn.execute("SELECT COUNT(*) FROM classifications WHERE is_current=1").fetchone()[0]
     reviewed_total = conn.execute("SELECT COUNT(DISTINCT article_id) FROM human_reviews").fetchone()[0]
     llm = conn.execute("SELECT SUM(calls) calls, SUM(ceiling_hit) ceilings FROM llm_usage").fetchone()
+    # Labels the model actually produced. Not the same as calls: a batch submission records its
+    # requests immediately but returns nothing until a later run collects it, and a call that errored
+    # or was refused produces no label either. Relay is measured when judgements exist, not when
+    # requests were sent.
+    llm_labels = conn.execute("SELECT COUNT(*) FROM classifications WHERE method='llm' AND is_current=1").fetchone()[0]
     ceiling_days = [r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1 ORDER BY date")]
     active = [o for o in outlets if o["active"]]
     countries_active = sorted({o["country"] for o in active})
@@ -706,10 +711,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "b_counts_settled": settled,
         # The interface publishes unverified relay counts only when this is true. Until the verification
         # stage has run, relay is not measured at all and is shown as such, never as zero.
-        "relay_measured": bool(llm["calls"]),
-        "relay_publishable": settled and bool(llm["calls"]),
+        "relay_measured": bool(llm_labels),
+        "relay_publishable": settled and bool(llm_labels),
         "relay_withheld_languages": withheld_languages,
         "llm_calls_total": llm["calls"] or 0,
+        "llm_labels_total": llm_labels,
         "llm_ceiling_days": ceiling_days,
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,
         "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],

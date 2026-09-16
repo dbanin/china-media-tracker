@@ -141,7 +141,16 @@ def test_relay_is_withheld_until_measured_and_settled(tmp_path):
     conn = store.connect(tmp_path / "m.db")
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_measured"] is False and meta["relay_publishable"] is False and meta["paywalled_in_denominator"] is False
-    store.record_llm_usage(conn, 5, 0, 0)
+    # Requests sent are not judgements made: a batch submission records its calls at once and returns
+    # nothing until a later run collects it, so calls alone must not flip the interface to "withheld".
+    store.record_llm_usage(conn, 600, 0, 0)
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["llm_calls_total"] == 600 and meta["llm_labels_total"] == 0
+    assert meta["relay_measured"] is False, "a submission is not a measurement"
+    aid = store.insert_discovered(conn, {"url": "https://x.test/j", "outlet_id": "o", "country": "ITA",
+                                         "language": "it", "title": "t", "status": "fetched", "gate_relevant": 1})
+    store.insert_classification(conn, aid, "llm", "C", 0.9, model_version="claude-sonnet-5")
+    conn.commit()
     conn.execute("INSERT INTO agreement_studies(computed_at, sample_size, kappa_all, kappa_bc, n_bc, details) VALUES (?,?,?,?,?,?)",
                  ("2026-09-15T00:00:00+00:00", 100, 0.8, 0.7, 40,
                   json.dumps({"bc_by_language": {"it": {"kappa": 0.3, "n": 25}, "fr": {"kappa": 0.2, "n": 5}}})))
