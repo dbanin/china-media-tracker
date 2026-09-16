@@ -663,7 +663,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     # or was refused produces no label either. Relay is measured when judgements exist, not when
     # requests were sent.
     llm_labels = conn.execute("SELECT COUNT(*) FROM classifications WHERE method='llm' AND is_current=1").fetchone()[0]
+    # A capped day is one where more articles were waiting than the daily cap allowed, so the draw was
+    # bound. It does not mean the cap was spent: a run can stop at its time budget first, as on
+    # 2026-09-16, when the draw was capped at 600 against 3,710 waiting and only 279 calls were made.
     ceiling_days = [r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1 ORDER BY date")]
+    calls_by_day = {r["date"]: r["calls"] for r in conn.execute("SELECT date, calls FROM llm_usage ORDER BY date")}
     active = [o for o in outlets if o["active"]]
     countries_active = sorted({o["country"] for o in active})
     tot = latest["totals"]["all_time"]
@@ -751,6 +755,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "llm_calls_total": llm["calls"] or 0,
         "llm_labels_total": llm_labels,
         "llm_ceiling_days": ceiling_days,
+        "llm_calls_by_day": calls_by_day,
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,
         "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],
         "paywall_flag_share": config.PAYWALL_FLAG_SHARE,

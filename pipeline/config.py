@@ -45,7 +45,10 @@ MAX_RETRIES = 2
 
 # Classification
 LLM_MODEL = _env("TRACKER_LLM_MODEL", "claude-sonnet-5")
-LLM_MAX_TOKENS = 700
+# Enough for the JSON plus a long evidence quote. Output tokens are billed as used, so headroom is
+# nearly free, while a reply cut off mid-JSON wastes the whole call: 47 of 279 calls on 2026-09-16
+# failed to parse and truncation is the likeliest cause.
+LLM_MAX_TOKENS = 1200
 LLM_DAILY_CALL_CEILING = int(_env("TRACKER_LLM_DAILY_CEILING", "600"))
 LLM_BODY_CHAR_LIMIT = 12000
 REVIEW_CONFIDENCE_THRESHOLD = 0.85

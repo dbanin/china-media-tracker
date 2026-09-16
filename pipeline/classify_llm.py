@@ -106,8 +106,13 @@ def request_params(title: str, body: str) -> Dict:
 
 def parse_response(message) -> Optional[Dict]:
     """Return the parsed dict, or None with the failure reason in ['_error']."""
-    if getattr(message, "stop_reason", None) == "refusal":
+    stop = getattr(message, "stop_reason", None)
+    if stop == "refusal":
         return {"_error": "refusal"}
+    # A reply cut off at max_tokens cannot be valid JSON, and would otherwise be counted as malformed
+    # output rather than as a budget that was too small for a long evidence quote.
+    if stop == "max_tokens":
+        return {"_error": "truncated", "_raw": getattr(getattr(message, "content", [None])[0], "text", None)}
     text = None
     for block in getattr(message, "content", []) or []:
         if getattr(block, "type", None) == "text":
@@ -359,9 +364,17 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         usage = data.get("_usage") if data else None
         store.record_llm_usage(conn, 1, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
         if not data or data.get("_error"):
+            kind = (data or {}).get("_error") or "no_response"
             counts["errors"] += 1
+            # Which kind, so a failure rate can be diagnosed without re-running: a refusal, a reply cut
+            # off at max_tokens, and malformed JSON need different answers, and counting them together
+            # told us only that one call in six failed.
+            kinds = counts.setdefault("error_kinds", {})
+            kinds[kind] = kinds.get(kind, 0) + 1
+            if kind in ("invalid_json", "truncated") and "error_sample" not in counts:
+                counts["error_sample"] = (data.get("_raw") or "")[-300:]
             consecutive_errors += 1
-            if data and data.get("_error") == "refusal":
+            if kind == "refusal":
                 store.update_article(conn, r["id"], status="failed", fail_reason="llm_refusal")
             conn.commit()
             continue
