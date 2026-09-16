@@ -101,7 +101,13 @@
     if (publishable && entry && (entry.languages || []).some(function (l) { return langs.indexOf(l) !== -1; })) publishable = false;
     return {measured: measured, publishable: publishable};
   }
-  function relayText(relay, b) { return relay.publishable ? String(b) : (relay.measured ? "withheld" : "not yet measured"); }
+  function relayBasis() { return (state.meta && state.meta.relay_basis) || null; }
+  /* A published relay count says what it rests on. "model agreement" is not a synonym for correct:
+     it means a second model applied the codebook the same way, with no human having read anything. */
+  function relayText(relay, b) {
+    if (!relay.publishable) return relay.measured ? "withheld" : "not yet measured";
+    return String(b) + (relayBasis() === "model_vs_model" ? " (model agreement)" : "");
+  }
 
   function routeList() { return ((state.meta && state.meta.routes) || []).map(function (r) { return {kind: "route", id: r.id, label: r.label}; }); }
   function arrivalList() { return ((state.meta && state.meta.arrivals) || []).map(function (r) { return {kind: "arrival", id: r.id, label: r.label}; }); }
@@ -129,6 +135,10 @@
       else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
         ? "Unverified relay counts are withheld. Cohen's kappa on the relay versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
         : "Unverified relay counts are withheld until an agreement study checks the relay versus independent journalism judgement against hand coding.");
+      else if (relayBasis() === "model_vs_model") {
+        var rr = m.relay_reliability || {};
+        kparts.push("Unverified relay counts are published on the strength of a second model, " + (rr.model_b || "another model") + ", re-judging a sample of " + (rr.n || 0) + " articles and agreeing with " + (rr.model_a || "the first") + " at kappa " + (rr.kappa_bc === null || rr.kappa_bc === undefined ? "n/a" : rr.kappa_bc.toFixed(2)) + " on the relay versus independent judgement. That measures whether two models apply the codebook the same way, not whether they apply it correctly: no article has been read by a person, and two models of one family can share a bias neither of them reveals.");
+      }
       var wl = m.relay_withheld_languages || [];
       if (wl.length) kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold.");
       if (m.official_sourcing_pending) kparts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and wait for that judgement. The Target articles measure counts them, so it mixes a measured quantity with an unmeasured pile.");
@@ -1075,7 +1085,11 @@
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles: missing from every count, but still counted in the share of monitored output denominator, so that share is a lower bound" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
-      ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run" : (relay.publishable ? "published" : "withheld until the agreement study settles it") + ((m.relay_withheld_languages || []).length ? "; withheld for " + m.relay_withheld_languages.join(", ") : "")],
+      ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run"
+        : (relay.publishable ? "published, " + (m.relay_qualifier || "basis not recorded") : "withheld until a study settles it")
+          + ((m.relay_withheld_languages || []).length ? " Withheld for " + m.relay_withheld_languages.join(", ") + "." : "")],
+      ["Relay reliability study", m.relay_reliability ? (m.relay_reliability.method === "model_vs_model" ? "second model " + m.relay_reliability.model_b + " against " + m.relay_reliability.model_a : m.relay_reliability.method) + ", " + m.relay_reliability.n + " articles, kappa " + (m.relay_reliability.kappa_bc === null || m.relay_reliability.kappa_bc === undefined ? "n/a" : m.relay_reliability.kappa_bc.toFixed(2)) + " on relay versus independent" : "none run"],
+      ["Human coding", m.relay_human_coded ? "some articles have been read by a person" : "none: no article has been read by a person, so nothing here is validated against human judgement"],
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return r.label.toLowerCase() + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
       ["Release sections searched", rs && rs.outlets_active ? (rs.outlets_active - (rs.not_searched || 0)) + " of " + rs.outlets_active + " active outlets; " + (rs.found || 0) + " found, " + (rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
@@ -1104,12 +1118,12 @@
     var agg = currentAgg();
     var cite = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
     var rows = C.rankCountries(agg, state.latest, state.metric, state.mode, state.names, ctxFor).map(function (r) {
-      r.metric = state.metric; r.route = routeActive() ? state.route.kind + ":" + state.route.id : ""; r.window = windowLabel(); r.mode = state.mode;
+      r.metric = state.metric; r.route = routeActive() ? state.route.kind + ":" + state.route.id : ""; r.window = windowLabel(); r.mode = state.mode; r.relay_basis = relayBasis() || "";
       r.warnings = countryWarnings(state.latest.countries[r.iso] || {}, agg).join("; ");
       r.citation = cite;
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "unverified_relay", "relay_status", "official_sourcing_pending", "target", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "target_in_published_items", "china_in_published_items", "language_support", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "unverified_relay", "relay_status", "relay_basis", "official_sourcing_pending", "target", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "target_in_published_items", "china_in_published_items", "language_support", "warnings", "citation"]));
   }
   function exportDaily() {
     var rows = [];

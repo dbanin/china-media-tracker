@@ -198,6 +198,40 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     ceiling_hit INTEGER NOT NULL DEFAULT 0
 );
 
+-- Human coding studies live in agreement_studies. A study where a second MODEL re-judges the same
+-- articles is a different thing and is kept apart deliberately: it measures whether two raters apply
+-- the codebook consistently, not whether they apply it correctly, and two models of one family can
+-- share a bias that no amount of agreement between them reveals. Mixing the two in one table would
+-- leave a later reader unable to tell which kind of study produced a published number.
+CREATE TABLE IF NOT EXISTS model_agreement_studies (
+    id INTEGER PRIMARY KEY,
+    computed_at TEXT NOT NULL,
+    method TEXT NOT NULL,             -- model_vs_model
+    model_a TEXT NOT NULL,            -- the model whose labels the site publishes
+    model_b TEXT NOT NULL,            -- the second rater
+    sample_size INTEGER NOT NULL,
+    kappa_all REAL,
+    kappa_bc REAL,
+    n_bc INTEGER,
+    details TEXT                      -- JSON: per category, per language, confusion
+);
+
+-- Both raters' labels for every sampled article, so a disagreement can be read rather than inferred
+-- from a coefficient. The disagreeing pairs are the closest thing to validation available without a
+-- human, and they are worth keeping even when the kappa is comfortable.
+CREATE TABLE IF NOT EXISTS model_agreement_labels (
+    study_id INTEGER NOT NULL,
+    article_id INTEGER NOT NULL,
+    category_a TEXT NOT NULL,
+    confidence_a REAL,
+    evidence_a TEXT,
+    category_b TEXT NOT NULL,
+    confidence_b REAL,
+    evidence_b TEXT,
+    PRIMARY KEY(study_id, article_id),
+    FOREIGN KEY(study_id) REFERENCES model_agreement_studies(id)
+);
+
 CREATE TABLE IF NOT EXISTS agreement_studies (
     id INTEGER PRIMARY KEY,
     computed_at TEXT NOT NULL,
@@ -602,6 +636,34 @@ def record_llm_usage(conn: sqlite3.Connection, calls: int, input_tokens: int, ou
              ceiling_hit=MAX(ceiling_hit, excluded.ceiling_hit)""",
         (today, calls, input_tokens, output_tokens, 1 if ceiling_hit else 0),
     )
+
+
+def record_model_agreement(conn: sqlite3.Connection, study: Dict, pairs: Iterable[Dict]) -> int:
+    """Store a second rater study and every pair of labels behind it.
+
+    study carries method, model_a, model_b, sample_size, kappa_all, kappa_bc, n_bc and a details
+    dict. Each pair carries article_id and both raters' category, confidence and evidence quote."""
+    cur = conn.execute(
+        """INSERT INTO model_agreement_studies(computed_at, method, model_a, model_b, sample_size,
+           kappa_all, kappa_bc, n_bc, details) VALUES (?,?,?,?,?,?,?,?,?)""",
+        (utcnow(), study.get("method", "model_vs_model"), study["model_a"], study["model_b"],
+         study["sample_size"], study.get("kappa_all"), study.get("kappa_bc"), study.get("n_bc"),
+         json.dumps(study.get("details") or {})),
+    )
+    study_id = cur.lastrowid
+    for p in pairs:
+        conn.execute(
+            """INSERT OR REPLACE INTO model_agreement_labels(study_id, article_id, category_a, confidence_a,
+               evidence_a, category_b, confidence_b, evidence_b) VALUES (?,?,?,?,?,?,?,?)""",
+            (study_id, p["article_id"], p["category_a"], p.get("confidence_a"), p.get("evidence_a"),
+             p["category_b"], p.get("confidence_b"), p.get("evidence_b")),
+        )
+    conn.commit()
+    return study_id
+
+
+def latest_model_agreement(conn: sqlite3.Connection) -> Optional[sqlite3.Row]:
+    return conn.execute("SELECT * FROM model_agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
 
 
 def prune_gated_out(conn: sqlite3.Connection, days: int = config.GATED_OUT_RETENTION_DAYS) -> int:

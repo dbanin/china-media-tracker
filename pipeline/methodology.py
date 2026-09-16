@@ -279,8 +279,24 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until an "
                       "agreement study gives kappa on the unverified relay versus independent journalism distinction of at least "
                       "%.1f. That boundary is where classification error concentrates." % threshold)
+    elif meta.get("relay_basis") == "model_vs_model":
+        rr = meta.get("relay_reliability") or {}
+        relay_text = (
+            "Unverified relay counts are published, on the strength of a reliability study rather than a "
+            "validation one. A second model (%s) re-judged a sample of %s articles already judged by %s, "
+            "seeing the same prompt, headline and body and no outlet or country, and the two agreed at "
+            "kappa %s on the relay versus independent journalism judgement, at or above the %.1f threshold. "
+            "What that licenses is narrow: the two models apply the codebook consistently. It is not "
+            "evidence that they apply it correctly. No article in this project has been read by a person, "
+            "and two models of one family can share a bias that no amount of agreement between them "
+            "reveals, so a relay count here should be read as consistent rather than verified. Both raters' "
+            "labels are stored for every sampled article, so the disagreements can be read rather than "
+            "inferred from a coefficient." % (
+                rr.get("model_b", "a second model"), rr.get("n", 0), rr.get("model_a", "the first"),
+                _fmt_kappa(rr.get("kappa_bc")), threshold))
     else:
-        relay_text = "Unverified relay counts are published, because kappa on the unverified relay versus independent journalism distinction is at least %.1f." % threshold
+        relay_text = ("Unverified relay counts are published, because kappa on the unverified relay versus "
+                      "independent journalism distinction, from hand coding of a random sample, is at least %.1f." % threshold)
     withheld = meta.get("relay_withheld_languages") or []
     if withheld:
         relay_text += (" They are withheld for outlets publishing in %s, where the per language kappa on at least %d items is below the threshold."

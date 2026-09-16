@@ -47,6 +47,13 @@ ARRIVAL_LABELS = {
     "partner_section": "Outlet's partner content section",
 }
 RELEASE_STATUSES = ["found", "none_found", "blocked", "unreachable"]
+# What a published relay count rests on, in the words the interface uses. A model versus model study
+# licenses "the two models agree", never "the labels are right", and the qualifier travels with the
+# number wherever it is shown.
+RELAY_QUALIFIER = {
+    "human_coding": "Checked against hand coding of a random sample.",
+    "model_vs_model": "Consistent between two models, never checked against human coding: this measures whether two raters apply the codebook the same way, not whether they apply it correctly.",
+}
 CHANGELOG_RULESET = re.compile(r"^## Ruleset (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
 CHANGELOG_GATE = re.compile(r"^## Gate (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTILINE)
 
@@ -664,8 +671,30 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     paywall_countries = [c for c, v in latest["countries"].items()
                          if any(w["type"] == "paywalled" for w in v.get("warnings", []))]
     settled = bool(kappa and kappa["kappa_bc"] is not None and kappa["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD)
+    # A second model re-judging the same articles is a reliability study, not a validation one: it
+    # shows two raters applying the codebook the same way, and two models of one family can share a
+    # bias neither reveals. It can unlock publication, but what unlocked it is recorded and shown.
+    model_study = store.latest_model_agreement(conn)
+    model_details = {}
+    if model_study and model_study["details"]:
+        try:
+            model_details = json.loads(model_study["details"]) or {}
+        except ValueError:
+            model_details = {}
+    reliable = bool(model_study and model_study["kappa_bc"] is not None
+                    and model_study["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD)
+    relay_reliability = {
+        "method": model_study["method"], "model_a": model_study["model_a"], "model_b": model_study["model_b"],
+        "n": model_study["sample_size"], "kappa_all": model_study["kappa_all"], "kappa_bc": model_study["kappa_bc"],
+        "n_bc": model_study["n_bc"], "computed_at": model_study["computed_at"],
+        "by_category": model_details.get("kappa_by_category"), "bc_by_language": model_details.get("bc_by_language"),
+        "threshold": config.KAPPA_WARNING_THRESHOLD,
+    } if model_study else None
+    # Which study, if any, is holding the gate open. Never "validated": no human has coded anything.
+    relay_basis = "human_coding" if settled else ("model_vs_model" if reliable else None)
+    by_language = (details.get("bc_by_language") if settled else model_details.get("bc_by_language")) or {}
     withheld_languages = sorted(
-        lang for lang, v in (details.get("bc_by_language") or {}).items()
+        lang for lang, v in by_language.items()
         if (v.get("n") or 0) >= config.KAPPA_MIN_LANGUAGE_ITEMS and v.get("kappa") is not None
         and v["kappa"] < config.KAPPA_WARNING_THRESHOLD)
     mix = {r[0]: r[1] for r in conn.execute("SELECT ruleset_version, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY ruleset_version")}
@@ -712,7 +741,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         # The interface publishes unverified relay counts only when this is true. Until the verification
         # stage has run, relay is not measured at all and is shown as such, never as zero.
         "relay_measured": bool(llm_labels),
-        "relay_publishable": settled and bool(llm_labels),
+        "relay_publishable": bool(llm_labels) and (settled or reliable),
+        "relay_basis": relay_basis,
+        "relay_reliability": relay_reliability,
+        # No article has been read by a person. Said plainly here so nothing downstream has to infer it.
+        "relay_human_coded": bool(reviewed_total),
+        "relay_qualifier": RELAY_QUALIFIER.get(relay_basis),
         "relay_withheld_languages": withheld_languages,
         "llm_calls_total": llm["calls"] or 0,
         "llm_labels_total": llm_labels,
