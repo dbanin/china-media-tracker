@@ -71,8 +71,8 @@ signature and no trigger are labelled independent journalism by rules when
 the body substantively concerns China (at least three distinct China terms,
 or five occurrences, or a term in the headline with two occurrences),
 otherwise not relevant. That threshold applies only to articles no signature
-has claimed. Those residual labels carry confidence below 1.0 and are sampled
-by the agreement study like every other label.
+has claimed. Those residual labels carry confidence below 1.0 and are eligible
+for the reliability study like every other label.
 
 The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
@@ -150,7 +150,7 @@ rather than by the country alone.
 | Current labels by ruleset version | {ruleset_mix_text} |
 | Last successful run | {last_successful_run} |
 
-## Agreement and what may be published
+## Reliability and what may be published
 
 {kappa_text}
 
@@ -270,14 +270,18 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
             kappa_text += " Unverified relay versus independent journalism by language: " + "; ".join(
                 "%s %s (n = %d)" % (lang, _fmt_kappa(v.get("kappa")), v.get("n") or 0) for lang, v in sorted(by_lang.items())) + "."
     else:
-        kappa_text = ("No agreement study has been completed yet. Run pipeline/agreement.py to draw a sample, hand code it, "
-                      "and compute kappa.")
+        kappa_text = ("No article has been hand coded, and none is planned: the owner's decision is that this "
+                      "instrument runs without a human in the loop, so nothing here is validated against human "
+                      "judgement. What is measured instead is reliability, whether a second model applies the same "
+                      "codebook to the same articles and reaches the same labels, which is a weaker claim and is "
+                      "described next. pipeline/agreement.py remains the hand coding path if that decision is ever "
+                      "revisited.")
     if not meta.get("relay_measured"):
         relay_text = ("The verification stage has not run, so unverified relay is not measured. The interface shows it as not yet "
                       "measured, never as zero, and the default measure is state origin only.")
     elif not meta.get("relay_publishable"):
-        relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until an "
-                      "agreement study gives kappa on the unverified relay versus independent journalism distinction of at least "
+        relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until a "
+                      "study gives kappa on the unverified relay versus independent journalism distinction of at least "
                       "%.1f. That boundary is where classification error concentrates." % threshold)
     elif meta.get("relay_basis") == "model_vs_model":
         rr = meta.get("relay_reliability") or {}
