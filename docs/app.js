@@ -90,7 +90,7 @@
   }
   function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
 
-  /* Unverified relay is published only when the verification stage has run and an agreement study has
+  /* Unverified relay is published only when the verification stage has run and a reliability study has
      settled it, and never for a country whose outlets publish in a language withheld on its own kappa.
      Data files from before those fields existed fall back to the older flags. */
   function relayFor(entry) {
@@ -134,7 +134,7 @@
       if (!relay.measured) kparts.push("Unverified relay has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
       else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
         ? "Unverified relay counts are withheld. Cohen's kappa on the relay versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
-        : "Unverified relay counts are withheld until an agreement study checks the relay versus independent journalism judgement against hand coding.");
+        : "Unverified relay counts are withheld until a reliability study checks the relay versus independent journalism judgement. No article is read by a person: this project runs without a human in the loop by the owner\u2019s decision, so the study is a second model re-judging a sample of the same articles, which measures whether two raters apply the codebook the same way rather than whether they apply it correctly.");
       else if (relayBasis() === "model_vs_model") {
         var rr = m.relay_reliability || {};
         kparts.push("Unverified relay counts are published on the strength of a second model, " + (rr.model_b || "another model") + ", re-judging a sample of " + (rr.n || 0) + " articles and agreeing with " + (rr.model_a || "the first") + " at kappa " + (rr.kappa_bc === null || rr.kappa_bc === undefined ? "n/a" : rr.kappa_bc.toFixed(2)) + " on the relay versus independent judgement. That measures whether two models apply the codebook the same way, not whether they apply it correctly: no article has been read by a person, and two models of one family can share a bias neither of them reveals.");
