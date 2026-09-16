@@ -701,6 +701,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         lang for lang, v in by_language.items()
         if (v.get("n") or 0) >= config.KAPPA_MIN_LANGUAGE_ITEMS and v.get("kappa") is not None
         and v["kappa"] < config.KAPPA_WARNING_THRESHOLD)
+    from pipeline.classify_rules import REFETCH_ATTEMPT_LIMIT
+    unreclassifiable = conn.execute(
+        """SELECT COUNT(*) FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+           WHERE c.ruleset_version <> ? AND a.fetch_attempts >= ?""",
+        (config.RULESET_VERSION, REFETCH_ATTEMPT_LIMIT),
+    ).fetchone()[0]
     mix = {r[0]: r[1] for r in conn.execute("SELECT ruleset_version, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY ruleset_version")}
     route_totals = {r[0] or "unattributed": r[1] for r in conn.execute(
         "SELECT route, COUNT(*) FROM classifications WHERE is_current=1 AND category='A' GROUP BY route")}
@@ -764,7 +770,13 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "gate_changes": gate_changes(),
         "gate_applies_forward_only": True,
         "ruleset_mix": mix,
-        "reclassification_complete": set(mix) <= {config.RULESET_VERSION},
+        # A label whose article can no longer be retrieved cannot be reclassified: the body is gone
+        # and the fetch attempts are spent, so reclassify selects it forever and never changes it.
+        # Completion therefore means everything retrievable is done, and the stuck count is published
+        # rather than left to look like a backlog that is still moving.
+        "labels_unreclassifiable": unreclassifiable,
+        "reclassification_complete": set(mix) <= {config.RULESET_VERSION} or (
+            sum(n for v, n in mix.items() if v != config.RULESET_VERSION) <= unreclassifiable),
         "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r)} for r in classify_rules.ROUTE_IDS],
         "route_totals": route_totals,
         "arrivals": [{"id": r, "label": ARRIVAL_LABELS.get(r, r)} for r in classify_rules.ARRIVAL_IDS],

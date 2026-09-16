@@ -78,3 +78,15 @@ def test_cost_estimate_refuses_to_guess_without_measured_usage(tmp_path, monkeyp
     assert est["measured"] is True
     assert est["per_call_input_tokens"] == 3000 and est["per_call_output_tokens"] == 200
     assert est["estimated_input_tokens"] == 600000
+
+
+def test_study_row_is_flat_and_keeps_what_it_measures():
+    s = sr.summarise([{"article_id": 1, "country": "ITA", "language": "it", "agree": False,
+                       "first": {"category": "B"}, "second": {"category": "C"}}],
+                     "claude-sonnet-5", "claude-opus-5")
+    row = sr.study_row(s)
+    assert row["method"] == "model_vs_model"
+    assert row["model_a"] == "claude-sonnet-5" and row["model_b"] == "claude-opus-5"
+    assert row["sample_size"] == 1 and row["n_bc"] == 1
+    assert "not correctness" in row["details"]["measures"]
+    assert row["details"]["disagreements"] == 1
