@@ -144,7 +144,7 @@ rather than by the country alone.
 | Unverified relay, all time | {b_total} |
 | Independent journalism, all time | {c_total} |
 | Language model calls, all time | {llm_calls_total} |
-| Days on which the model call ceiling ({llm_daily_ceiling}) was hit | {llm_ceiling_days} |
+| Days on which more articles waited than the daily cap ({llm_daily_ceiling}) allowed | {capped_days_text} |
 | Feed polls that returned a full window with nothing seen before | {saturation_text} |
 | Relay collector on the owner's machine | {relay_collector_text} |
 | Current labels by ruleset version | {ruleset_mix_text} |
@@ -346,7 +346,8 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
         a_total=tot["A"], b_total=tot["B"] if meta.get("relay_publishable") else "withheld", c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
-        llm_ceiling_days=", ".join(meta["llm_ceiling_days"]) or "none",
+        capped_days_text=", ".join("%s (%d calls made)" % (d, (meta.get("llm_calls_by_day") or {}).get(d, 0))
+                                   for d in meta["llm_ceiling_days"]) or "none",
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
