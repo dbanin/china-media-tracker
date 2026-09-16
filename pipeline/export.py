@@ -768,7 +768,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         # share of the monthly budget pays for at the batch price the scheduled runs use.
         "llm_budget": dict(llm_cost.month_to_date(conn),
                            budget_usd=config.LLM_MONTHLY_BUDGET_USD,
-                           daily_cap_today=llm_cost.daily_cap(conn, batched=True)["cap"],
+                           daily_cap_today=(cap := llm_cost.daily_cap(conn, batched=True)["cap"]),
+                           # The cap is set from days before today, so the calls made today come off it.
+                           calls_left_today=None if cap is None else max(0, min(cap, config.LLM_DAILY_CALL_CEILING) - store.llm_calls_today(conn)),
                            total_usd=round(llm_cost.spent(conn, "0000", "9999"), 2)),
         "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],
         "paywall_flag_share": config.PAYWALL_FLAG_SHARE,
