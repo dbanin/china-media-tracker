@@ -26,6 +26,10 @@ on:
         default: export
         type: choice
         options: [collect, export, validate]
+      batch:
+        description: "Send the model stage through the Message Batches API: half price, submitted now and collected by later runs"
+        default: false
+        type: boolean
 
 concurrency:
   group: tracker-database
@@ -48,6 +52,7 @@ jobs:
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
       GH_TOKEN: ${{ github.token }}
+      BATCH_LLM: ${{ github.event.inputs.batch }}
       STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
     steps:
       - uses: actions/checkout@v5
@@ -97,7 +102,11 @@ jobs:
       - name: Discover, fetch, classify
         run: |
           set -o pipefail
-          python -X faulthandler -m pipeline.run all --budget-minutes 35 2>&1 | tee run.log
+          # The Message Batches API costs half and returns later, so a batch run submits and exits;
+          # any later run collects whatever has finished.
+          EXTRA=""
+          [ "$BATCH_LLM" = "true" ] && EXTRA="--batch"
+          python -X faulthandler -m pipeline.run all --budget-minutes 35 $EXTRA 2>&1 | tee run.log
           python - <<'PY'
           import json, sqlite3
           c = sqlite3.connect("data/tracker.db")

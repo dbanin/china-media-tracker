@@ -286,6 +286,11 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             counts["error"] = "client_init_failed"
             return counts
 
+    # Results of an earlier batch are collected on any run, not only on another batch run. A
+    # submission would otherwise sit uncollected while the hourly synchronous runs ignored it.
+    if not dry_run and conn.execute("SELECT COUNT(*) FROM llm_batches WHERE status='submitted'").fetchone()[0]:
+        counts.update(_collect_batches(conn, client))
+
     # Near-duplicate copies cost nothing and do not count against the ceiling.
     rows = pending_articles(conn, 100000)
     counts["pending"] = len(rows)
@@ -307,7 +312,6 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         counts["draw"] = {"eligible": len(todo), "drawn": len(chosen), "countries": len(allocation)}
 
     if batch and not dry_run:
-        counts.update(_collect_batches(conn, client))
         n = _submit_batch(conn, client, chosen)
         counts["batch_submitted"] = n
         store.record_llm_usage(conn, n, 0, 0, ceiling_hit=binding)
