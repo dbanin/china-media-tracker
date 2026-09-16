@@ -50,6 +50,20 @@ LLM_MODEL = _env("TRACKER_LLM_MODEL", "claude-sonnet-5")
 # failed to parse and truncation is the likeliest cause.
 LLM_MAX_TOKENS = 1200
 LLM_DAILY_CALL_CEILING = int(_env("TRACKER_LLM_DAILY_CEILING", "600"))
+# Dollars the model stage may spend in a calendar month, matched to the spend limit on the API
+# account so the tracker stops itself before the account does. pipeline.llm_cost spreads what is
+# left over the days remaining in the month and turns it into a second daily call cap; the lower of
+# the two caps binds. 0 stops model calls. Set it very high to rely on the call ceiling alone.
+LLM_MONTHLY_BUDGET_USD = float(_env("TRACKER_LLM_MONTHLY_BUDGET_USD", "30"))
+# Published per million token prices for the classifier model, and the Batches API discount.
+LLM_PRICES_PER_MTOK = {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30}
+LLM_BATCH_DISCOUNT = 0.5
+# One synchronous call, from the first month's bill: 36 dollars for 3,733 calls of which about nine
+# in ten went through the Batches API at half price, so 0.0096 a call on average and about 0.0175
+# for a call at full price. The budget cap uses this before a month has recorded costs of its own;
+# usage rows written before cost tracking existed are priced at the average.
+LLM_COST_PER_CALL_UNBATCHED = 0.0175
+LLM_MEASURED_COST_PER_CALL = 0.0096
 LLM_BODY_CHAR_LIMIT = 12000
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6

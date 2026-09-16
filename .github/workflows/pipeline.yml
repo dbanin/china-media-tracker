@@ -31,8 +31,8 @@ on:
         type: boolean
         default: false
       batch:
-        description: "Send the model stage through the Message Batches API: half price, submitted now and collected by later runs"
-        default: false
+        description: "Send the model stage through the Message Batches API: half price, submitted now and collected by later runs (scheduled runs always do)"
+        default: true
         type: boolean
 
 concurrency:
@@ -55,8 +55,11 @@ jobs:
       TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
+      TRACKER_LLM_MONTHLY_BUDGET_USD: ${{ vars.TRACKER_LLM_MONTHLY_BUDGET_USD }}
       GH_TOKEN: ${{ github.token }}
-      BATCH_LLM: ${{ github.event.inputs.batch }}
+      # Scheduled runs send the model stage through the Batches API at half price; the results come
+      # back on the next hourly run. A run started by hand is synchronous unless its box is ticked.
+      BATCH_LLM: ${{ github.event.inputs.batch || (github.event_name == 'schedule' && 'true') || 'false' }}
       RELIABILITY: ${{ github.event.inputs.reliability }}
       STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
     steps:
