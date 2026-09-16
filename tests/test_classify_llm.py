@@ -94,6 +94,32 @@ def test_dup_group_copies_without_call(monkeypatch, tmp_path):
     assert counts["calls"] == 1 and counts["copied"] == 2 and counts["classified"] == 1
 
 
+def test_submitted_batches_are_collected_by_any_later_run(monkeypatch, tmp_path):
+    """A batch submitted by one run has to be collected by the next run, which is synchronous.
+    Collecting only inside the batch path left submissions sitting unclaimed."""
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
+    conn = _db()
+    conn.execute("""INSERT INTO llm_batches(batch_id, submitted_at, status, article_ids, model_version)
+                    VALUES ('b1', '2026-09-16T00:00:00+00:00', 'submitted', '[1]', 'claude-sonnet-5')""")
+    conn.commit()
+    seen = {}
+
+    def fake_collect(conn, client):
+        seen["called"] = True
+        return {"batch_collected": 1}
+
+    monkeypatch.setattr(cl, "_collect_batches", fake_collect)
+    counts = cl.run(conn, "t", client=cl.DryRunClient())
+    assert seen.get("called") and counts["batch_collected"] == 1
+
+
+def test_no_collection_attempt_when_nothing_is_outstanding(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
+    conn = _db()
+    monkeypatch.setattr(cl, "_collect_batches", lambda conn, client: (_ for _ in ()).throw(AssertionError("should not collect")))
+    cl.run(conn, "t", client=cl.DryRunClient())
+
+
 def test_parse_response_rejects_bad_category():
     class B: type = "text"; text = '{"category": "D"}'
     class M: stop_reason = "end_turn"; content = [B()]; usage = None
