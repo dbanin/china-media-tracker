@@ -23,7 +23,7 @@ import time
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
-from pipeline import config, store
+from pipeline import config, llm_cost, store
 
 CATEGORY_DEFINITIONS = """Category A, state origin. The text was written by an entity of the Chinese state and published essentially unaltered. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements paid for by Chinese state entities, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that nobody at the receiving publication formed an editorial view about the content.
 
@@ -158,6 +158,8 @@ class DryRunClient:
             class Usage:
                 input_tokens = 100
                 output_tokens = 50
+                cache_creation_input_tokens = 0
+                cache_read_input_tokens = 0
 
             class Msg:
                 stop_reason = "end_turn"
@@ -275,7 +277,15 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     log_id = store.start_stage(conn, run_id, "classify_llm")
     counts = {"pending": 0, "classified": 0, "copied": 0, "errors": 0, "ceiling_hit": False,
               "calls": 0, "batch_submitted": 0, "batch_collected": 0, "skipped_deadline": 0}
+    # Two caps, the lower binds: the daily call ceiling, and the calls today's share of the monthly
+    # budget pays for. The budget cap depends only on days before today, so every run in a day sees
+    # the same figure and the hourly runs cannot each spend a day's allowance.
+    budget = llm_cost.daily_cap(conn, batched=batch)
+    counts["budget"] = budget
     ceiling = config.LLM_DAILY_CALL_CEILING
+    if budget["cap"] is not None and budget["cap"] < ceiling:
+        ceiling = budget["cap"]
+        counts["budget_bound"] = True
     used = store.llm_calls_today(conn)
     remaining = max(0, ceiling - used)
     if client is None:
@@ -324,7 +334,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             store.record_llm_sampling(conn, today, allocation)
         conn.commit()
         store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
-                           notes="ceiling %d reached; %d left pending after a stratified draw" % (ceiling, len(todo) - n) if binding else "")
+                           notes="%s %d reached; %d left pending after a stratified draw"
+                                 % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling, len(todo) - n) if binding else "")
         return counts
 
     sent = defaultdict(int)
@@ -362,7 +373,10 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         sent[r["country"]] += 1
         data = parse_response(message)
         usage = data.get("_usage") if data else None
-        store.record_llm_usage(conn, 1, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
+        tokens = llm_cost.usage_tokens(usage)
+        store.record_llm_usage(conn, 1, tokens["input_tokens"], tokens["output_tokens"],
+                               cache_creation_tokens=tokens["cache_creation_tokens"], cache_read_tokens=tokens["cache_read_tokens"],
+                               cost_usd=llm_cost.usage_cost(usage))
         if not data or data.get("_error"):
             kind = (data or {}).get("_error") or "no_response"
             counts["errors"] += 1
@@ -385,7 +399,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     _record_draw(conn, today, binding, allocation, sent)
     left = conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0]
     store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
-                       notes=("daily ceiling of %d calls reached; a stratified draw left %d articles pending" % (ceiling, left)) if binding else "")
+                       notes=("daily %s of %d calls reached; a stratified draw left %d articles pending"
+                              % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling, left)) if binding else "")
     return counts
 
 
@@ -433,13 +448,18 @@ def _collect_batches(conn, client) -> Dict:
         info = client.messages.batches.retrieve(b["batch_id"])
         if info.processing_status != "ended":
             continue
+        submitted_day = (b["submitted_at"] or "")[:10] or None
         for result in client.messages.batches.results(b["batch_id"]):
             aid = int(result.custom_id)
             rtype = result.result.type
             if rtype == "succeeded":
                 data = parse_response(result.result.message)
                 usage = data.get("_usage") if data else None
-                store.record_llm_usage(conn, 0, getattr(usage, "input_tokens", 0) or 0, getattr(usage, "output_tokens", 0) or 0)
+                tokens = llm_cost.usage_tokens(usage)
+                # Booked on the submission day, beside the calls it recorded, at the batch price.
+                store.record_llm_usage(conn, 0, tokens["input_tokens"], tokens["output_tokens"],
+                                       cache_creation_tokens=tokens["cache_creation_tokens"], cache_read_tokens=tokens["cache_read_tokens"],
+                                       cost_usd=llm_cost.usage_cost(usage, batched=True), date=submitted_day)
                 if data and not data.get("_error"):
                     store_result(conn, aid, data, getattr(result.result.message, "model", None) or b["model_version"])
                     out["batch_collected"] += 1

@@ -22,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pipeline import classify_rules, config, extract, gate, registry, store
+from pipeline import classify_rules, config, extract, gate, llm_cost, registry, store
 from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
@@ -764,6 +764,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "llm_ceiling_days": ceiling_days,
         "llm_calls_by_day": calls_by_day,
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,
+        # Spending, estimated from recorded token usage at published prices, and the calls today's
+        # share of the monthly budget pays for at the batch price the scheduled runs use.
+        "llm_budget": dict(llm_cost.month_to_date(conn),
+                           budget_usd=config.LLM_MONTHLY_BUDGET_USD,
+                           daily_cap_today=llm_cost.daily_cap(conn, batched=True)["cap"],
+                           total_usd=round(llm_cost.spent(conn, "0000", "9999"), 2)),
         "llm_sampling_days": [r[0] for r in conn.execute("SELECT DISTINCT date FROM llm_sampling ORDER BY date")],
         "paywall_flag_share": config.PAYWALL_FLAG_SHARE,
         "ruleset_changes": ruleset_changes(),

@@ -79,7 +79,12 @@ outlet name or the country, so it cannot learn that outlets in particular
 countries tend to relay official sourcing. Its prompt contains the category
 definitions verbatim and instructs it to answer independent journalism when
 genuinely uncertain, because under-counting unverified relay is the safer error.
-At most {llm_daily_ceiling} model calls are made a day. When more articles are
+At most {llm_daily_ceiling} model calls are made a day, and the stage also
+keeps to a budget of {llm_budget_usd} dollars a calendar month: what is left of
+the budget at the start of a day is spread over the days remaining in the month
+and turned into a second cap on calls, and the lower cap binds. Spending is
+estimated from recorded token usage at published prices; the estimate for
+{llm_budget_month} so far is {llm_spent_month_usd} dollars. When more articles are
 waiting than the ceiling allows, the articles sent are a stratified random
 draw: every country gets the same sampling fraction of its waiting articles, so
 the countries whose articles arrive late in the UTC day are not the ones the
@@ -349,6 +354,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
         a_total=tot["A"], b_total=tot["B"] if meta.get("relay_publishable") else "withheld", c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
+        llm_budget_usd=("%g" % (meta.get("llm_budget") or {}).get("budget_usd", config.LLM_MONTHLY_BUDGET_USD)),
+        llm_budget_month=(meta.get("llm_budget") or {}).get("month", "this month"),
+        llm_spent_month_usd=("%.2f" % (meta.get("llm_budget") or {}).get("estimated_usd", 0.0)),
         capped_days_text=", ".join("%s (%d calls made)" % (d, (meta.get("llm_calls_by_day") or {}).get(d, 0))
                                    for d in meta["llm_ceiling_days"]) or "none",
         last_successful_run=meta["last_successful_run"] or "none",

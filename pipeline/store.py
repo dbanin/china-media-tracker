@@ -195,7 +195,10 @@ CREATE TABLE IF NOT EXISTS llm_usage (
     calls INTEGER NOT NULL DEFAULT 0,
     input_tokens INTEGER NOT NULL DEFAULT 0,
     output_tokens INTEGER NOT NULL DEFAULT 0,
-    ceiling_hit INTEGER NOT NULL DEFAULT 0
+    ceiling_hit INTEGER NOT NULL DEFAULT 0,
+    cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL NOT NULL DEFAULT 0     -- estimated at published prices; see pipeline.llm_cost
 );
 
 -- Human coding studies live in agreement_studies. A study where a second MODEL re-judges the same
@@ -339,6 +342,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
     for col in ("top_discovered", "top_target", "top_china", "top_a"):
         if col not in cov:
             conn.execute("ALTER TABLE daily_coverage ADD COLUMN %s INTEGER NOT NULL DEFAULT 0" % col)
+    usage = {r[1] for r in conn.execute("PRAGMA table_info(llm_usage)")}
+    if "cost_usd" not in usage:
+        conn.execute("ALTER TABLE llm_usage ADD COLUMN cache_creation_tokens INTEGER NOT NULL DEFAULT 0")
+        conn.execute("ALTER TABLE llm_usage ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0")
+        conn.execute("ALTER TABLE llm_usage ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0")
+        # Days recorded before cost tracking are priced at the measured average per call. Batch
+        # requests still outstanding on those days are left out: their cost lands when they are
+        # collected, on the day they were submitted.
+        outstanding = {}
+        for b in conn.execute("SELECT submitted_at, article_ids FROM llm_batches WHERE status='submitted'"):
+            day = (b["submitted_at"] or "")[:10]
+            outstanding[day] = outstanding.get(day, 0) + len(json.loads(b["article_ids"] or "[]"))
+        for r in conn.execute("SELECT date, calls FROM llm_usage").fetchall():
+            priced = max(0, r["calls"] - outstanding.get(r["date"], 0))
+            conn.execute("UPDATE llm_usage SET cost_usd=? WHERE date=?", (priced * config.LLM_MEASURED_COST_PER_CALL, r["date"]))
+        conn.commit()
     if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
             conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
         # Seed from whatever rows survive. Days already pruned are undercounted and stay so.
@@ -626,15 +645,23 @@ def llm_calls_today(conn: sqlite3.Connection) -> int:
 
 
 def record_llm_usage(conn: sqlite3.Connection, calls: int, input_tokens: int, output_tokens: int,
-                     ceiling_hit: bool = False) -> None:
-    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+                     ceiling_hit: bool = False, cache_creation_tokens: int = 0, cache_read_tokens: int = 0,
+                     cost_usd: float = 0.0, date: Optional[str] = None) -> None:
+    """Add to a day's usage row. date defaults to today; a batch result collected later is booked
+    on the day its request was submitted, so a day's calls and their cost sit on the same row."""
+    day = date or dt.datetime.now(dt.timezone.utc).date().isoformat()
     conn.execute(
-        """INSERT INTO llm_usage(date, calls, input_tokens, output_tokens, ceiling_hit) VALUES (?,?,?,?,?)
+        """INSERT INTO llm_usage(date, calls, input_tokens, output_tokens, ceiling_hit,
+                                 cache_creation_tokens, cache_read_tokens, cost_usd) VALUES (?,?,?,?,?,?,?,?)
            ON CONFLICT(date) DO UPDATE SET calls=calls+excluded.calls,
              input_tokens=input_tokens+excluded.input_tokens,
              output_tokens=output_tokens+excluded.output_tokens,
-             ceiling_hit=MAX(ceiling_hit, excluded.ceiling_hit)""",
-        (today, calls, input_tokens, output_tokens, 1 if ceiling_hit else 0),
+             ceiling_hit=MAX(ceiling_hit, excluded.ceiling_hit),
+             cache_creation_tokens=cache_creation_tokens+excluded.cache_creation_tokens,
+             cache_read_tokens=cache_read_tokens+excluded.cache_read_tokens,
+             cost_usd=cost_usd+excluded.cost_usd""",
+        (day, calls, input_tokens, output_tokens, 1 if ceiling_hit else 0,
+         cache_creation_tokens, cache_read_tokens, cost_usd),
     )
 
 
