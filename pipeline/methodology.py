@@ -84,7 +84,10 @@ waiting than the ceiling allows, the articles sent are a stratified random
 draw: every country gets the same sampling fraction of its waiting articles, so
 the countries whose articles arrive late in the UTC day are not the ones the
 ceiling truncates. The eligible and drawn counts are recorded per country per
-day, so counts can be reweighted. Articles not drawn stay waiting for a later day.
+day, so counts can be reweighted. Articles not drawn stay waiting for a later
+day. Drawn records the calls actually made, so a country's figure can be zero on
+a run that stopped at its time budget before working through its allocation;
+that is a run ending early, not a country left out by design.
 
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
