@@ -157,6 +157,42 @@ def test_relay_is_withheld_until_measured_and_settled(tmp_path):
     conn.commit()
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_publishable"] is True and meta["relay_withheld_languages"] == ["it"]
+    assert meta["relay_basis"] == "human_coding" and "hand coding" in meta["relay_qualifier"]
+
+
+def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_path):
+    """Daniel ruled out hand coding, so a second model judges a sample instead. That measures whether
+    two raters apply the codebook the same way, not whether they apply it correctly, and everything
+    published has to say which kind of study it rests on."""
+    conn = store.connect(tmp_path / "r.db")
+    aid = store.insert_discovered(conn, {"url": "https://x.test/1", "outlet_id": "o", "country": "ITA",
+                                         "language": "it", "title": "t", "status": "fetched", "gate_relevant": 1})
+    store.insert_classification(conn, aid, "llm", "B", 0.8, model_version="claude-sonnet-5")
+    conn.commit()
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["relay_measured"] is True and meta["relay_publishable"] is False and meta["relay_basis"] is None
+
+    weak = {"method": "model_vs_model", "model_a": "claude-sonnet-5", "model_b": "claude-opus-5",
+            "sample_size": 300, "kappa_all": 0.7, "kappa_bc": 0.41, "n_bc": 120, "details": {}}
+    store.record_model_agreement(conn, weak, [{"article_id": aid, "category_a": "B", "category_b": "C"}])
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["relay_publishable"] is False, "below the threshold the gate stays shut"
+
+    strong = dict(weak, kappa_bc=0.74,
+                  details={"bc_by_language": {"it": {"kappa": 0.3, "n": 40}, "fr": {"kappa": 0.9, "n": 30}}})
+    sid = store.record_model_agreement(conn, strong, [
+        {"article_id": aid, "category_a": "B", "confidence_a": 0.8, "evidence_a": "quote a",
+         "category_b": "C", "confidence_b": 0.6, "evidence_b": "quote b"}])
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["relay_publishable"] is True and meta["relay_basis"] == "model_vs_model"
+    assert meta["relay_human_coded"] is False and meta["b_counts_settled"] is False
+    assert "never checked against human coding" in meta["relay_qualifier"]
+    assert meta["relay_reliability"]["model_b"] == "claude-opus-5" and meta["relay_reliability"]["n"] == 300
+    # A language the two models read differently is withheld even when the overall figure passes.
+    assert meta["relay_withheld_languages"] == ["it"]
+    # Both raters' labels are kept, so a disagreement can be read rather than inferred.
+    pair = conn.execute("SELECT category_a, category_b, evidence_b FROM model_agreement_labels WHERE study_id=?", (sid,)).fetchone()
+    assert (pair["category_a"], pair["category_b"], pair["evidence_b"]) == ("B", "C", "quote b")
 
 
 def test_language_support_and_ruleset_history():
