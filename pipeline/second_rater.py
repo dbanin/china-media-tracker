@@ -12,7 +12,7 @@ The second rater sees exactly what the first saw: the same prompt, the same head
 body, no outlet, no country, no first label.
 
 Usage:
-  python -m pipeline.second_rater sample --n 200 --model claude-opus-5 --out review/second_rater.json
+  python -m pipeline.second_rater sample --n 200 --model claude-sonnet-5 --out review/second_rater.json
   python -m pipeline.second_rater estimate --n 200        # cost only, no calls
 """
 import argparse
@@ -26,7 +26,7 @@ from pipeline import config, store
 from pipeline.agreement import cohens_kappa
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
-DEFAULT_SECOND_MODEL = "claude-opus-5"
+DEFAULT_SECOND_MODEL = "claude-sonnet-5"
 
 
 def judged_rows(conn) -> List[Dict]:
@@ -104,9 +104,13 @@ def summarise(pairs: List[Dict], first_model: str, second_model: str) -> Dict:
     for lang, ps in by_lang.items():
         binary = [("B" if a == "B" else "notB", "B" if b == "B" else "notB") for a, b in ps]
         per_language[lang] = {"n": len(binary), "kappa": cohens_kappa(binary)}
+    same = first_model == second_model
     return {
-        "method": "model_vs_model",
-        "measures": "consistency between two models, not correctness; no human coding has been done",
+        "method": "same_model_rerun" if same else "model_vs_model",
+        "measures": ("the same model judging the same articles twice, not correctness; it detects randomness in "
+                     "that model's own judgement and cannot detect a bias it holds consistently; no human coding has been done"
+                     if same else
+                     "consistency between two models, not correctness; no human coding has been done"),
         "first_model": first_model, "second_model": second_model,
         "n": len(pairs), "n_bc": len(bc),
         "kappa_all": cohens_kappa(both), "kappa_bc": cohens_kappa(bc_binary),

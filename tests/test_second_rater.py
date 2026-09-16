@@ -90,3 +90,18 @@ def test_study_row_is_flat_and_keeps_what_it_measures():
     assert row["sample_size"] == 1 and row["n_bc"] == 1
     assert "not correctness" in row["details"]["measures"]
     assert row["details"]["disagreements"] == 1
+
+
+def test_default_second_rater_is_sonnet_and_a_rerun_says_so():
+    assert sr.DEFAULT_SECOND_MODEL == "claude-sonnet-5"
+    pairs = [{"article_id": 1, "country": "ITA", "language": "it", "agree": True,
+              "first": {"category": "B"}, "second": {"category": "B"}}]
+    same = sr.summarise(pairs, "claude-sonnet-5", "claude-sonnet-5")
+    assert same["method"] == "same_model_rerun"
+    assert "same model" in same["measures"] and "randomness" in same["measures"]
+    assert "cannot detect a bias" in same["measures"]
+    diff = sr.summarise(pairs, "claude-sonnet-5", "claude-opus-5")
+    assert diff["method"] == "model_vs_model"
+    from pipeline import export
+    assert "same_model_rerun" in export.RELAY_QUALIFIER
+    assert "another model" in export.RELAY_QUALIFIER["same_model_rerun"]
