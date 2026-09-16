@@ -26,6 +26,10 @@ on:
         default: export
         type: choice
         options: [collect, export, validate]
+      reliability:
+        description: "run the second rater reliability study after the export (costs model calls)"
+        type: boolean
+        default: false
       batch:
         description: "Send the model stage through the Message Batches API: half price, submitted now and collected by later runs"
         default: false
@@ -53,6 +57,7 @@ jobs:
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
       GH_TOKEN: ${{ github.token }}
       BATCH_LLM: ${{ github.event.inputs.batch }}
+      RELIABILITY: ${{ github.event.inputs.reliability }}
       STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
     steps:
       - uses: actions/checkout@v5
@@ -117,6 +122,12 @@ jobs:
               disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
               cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else ""))
           PY
+      - name: Second rater reliability study, when asked for
+        if: env.STAGE == 'export' && env.RELIABILITY == 'true'
+        run: |
+          python -m pipeline.second_rater estimate --n 250
+          python -m pipeline.second_rater sample --n 250 --record --out review/second_rater.json
+
       - name: Export, rollups, site data and METHODOLOGY.md
         if: env.STAGE == 'export'
         run: python -m pipeline.export

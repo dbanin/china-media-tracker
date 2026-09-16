@@ -170,7 +170,10 @@
       if (m.reclassification_complete === false) {
         var older = 0;
         Object.keys(m.ruleset_mix || {}).forEach(function (v) { if (v !== m.ruleset_version) older += m.ruleset_mix[v]; });
-        parts.push("Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset. The days affected are marked on the timeline, so a jump there is not a trend.");
+        var stuck = m.labels_unreclassifiable || 0;
+        parts.push(older > stuck
+          ? "Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset" + (stuck ? ", of which " + stuck + " can never be redone because the article can no longer be retrieved" : "") + ". The days affected are marked on the timeline, so a jump there is not a trend."
+          : older + " labels carry an older ruleset and can never be redone, because the article can no longer be retrieved and its fetch attempts are spent. Reclassification of everything retrievable is complete. The days affected are marked on the timeline.");
       }
       var gc = (m.gate_changes || []).slice(-1)[0];
       if (gc) parts.push("The relevance gate changed on " + gc.date + " (version " + gc.version + "). The gate decides what enters the corpus, not how an article is labelled, and it applies only to items discovered after that date; items rejected earlier are not re-examined.");
@@ -1088,6 +1091,7 @@
       ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run"
         : (relay.publishable ? "published, " + (m.relay_qualifier || "basis not recorded") : "withheld until a study settles it")
           + ((m.relay_withheld_languages || []).length ? " Withheld for " + m.relay_withheld_languages.join(", ") + "." : "")],
+      ["Labels that cannot be reclassified", (m.labels_unreclassifiable || 0) + " of " + (m.articles_classified || 0) + ", because the article can no longer be retrieved"],
       ["Relay reliability study", m.relay_reliability ? (m.relay_reliability.method === "model_vs_model" ? "second model " + m.relay_reliability.model_b + " against " + m.relay_reliability.model_a : m.relay_reliability.method) + ", " + m.relay_reliability.n + " articles, kappa " + (m.relay_reliability.kappa_bc === null || m.relay_reliability.kappa_bc === undefined ? "n/a" : m.relay_reliability.kappa_bc.toFixed(2)) + " on relay versus independent" : "none run"],
       ["Human coding", m.relay_human_coded ? "some articles have been read by a person" : "none: no article has been read by a person, so nothing here is validated against human judgement"],
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],

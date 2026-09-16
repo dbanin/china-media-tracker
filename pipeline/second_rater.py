@@ -131,6 +131,19 @@ def estimate_cost(conn, n: int) -> Dict:
             "note": "multiply by the second model's published per token prices; the first rater's own usage is the basis"}
 
 
+def study_row(summary: Dict) -> Dict:
+    """The summary in the shape store.record_model_agreement expects. Flat, and carrying the
+    sentence about what it measures, so a row read years later cannot be mistaken for human coding."""
+    return {"method": summary["method"], "model_a": summary["first_model"], "model_b": summary["second_model"],
+            "sample_size": summary["n"], "kappa_all": summary["kappa_all"], "kappa_bc": summary["kappa_bc"],
+            "n_bc": summary["n_bc"],
+            "details": {"measures": summary["measures"], "raw_agreement": summary["raw_agreement"],
+                        "per_language_bc": summary["per_language_bc"],
+                        "first_distribution": summary["first_distribution"],
+                        "second_distribution": summary["second_distribution"],
+                        "disagreements": len(summary["disagreements"])}}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["sample", "estimate"])
@@ -138,6 +151,7 @@ def main(argv=None):
     ap.add_argument("--model", default=DEFAULT_SECOND_MODEL)
     ap.add_argument("--out", default="review/second_rater.json")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--record", action="store_true", help="store the study and its pairs in the database")
     args = ap.parse_args(argv)
     conn = store.connect()
     if args.cmd == "estimate":
@@ -147,6 +161,9 @@ def main(argv=None):
     pairs, usage = rejudge(conn, rows, args.model, dry_run=args.dry_run)
     out = summarise(pairs, config.LLM_MODEL, args.model)
     out["usage"] = usage
+    if args.record:
+        store.record_model_agreement(conn, study_row(out), out["pairs"])
+        conn.commit()
     path = Path(args.out)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
