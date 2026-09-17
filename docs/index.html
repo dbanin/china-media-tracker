@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=55">
+<link rel="stylesheet" href="style.css?v=56">
 </head>
 <body>
 <header class="top">
@@ -28,15 +28,6 @@
     </div>
   </div>
   <div class="control">
-    <label>Basis</label>
-    <div class="segment basis" data-basis-group>
-      <button data-basis="count" class="active">Amount</button>
-      <button data-basis="per_outlet">Per outlet</button>
-      <button data-basis="share_of_output" title="Share of every item the monitored outlets published">Share of monitored output</button>
-      <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
-    </div>
-  </div>
-  <div class="control">
     <label for="route">Route of state origin</label>
     <select id="route">
       <option value="" selected>Every route</option>
@@ -52,15 +43,6 @@
       <option value="share_ab">Confirmed share of China coverage</option>
       <option value="per_outlet_ab">Confirmed per monitored outlet</option>
     </select>
-  </div>
-  <div class="control">
-    <label>Window, ending on the selected day</label>
-    <div class="segment window" data-window-group>
-      <button data-window="1">That day</button>
-      <button data-window="7">7 days</button>
-      <button data-window="30" class="active">30 days</button>
-      <button data-window="all">Total</button>
-    </div>
   </div>
   <div class="control hidden" id="mode-control">
     <label>Classifications</label>
@@ -80,8 +62,7 @@
       <button data-view="list">Ranked list</button>
     </div>
   </div>
-  <div class="control">
-    <label>&nbsp;</label>
+  <div class="control method">
     <a href="#method">Methodology</a>
   </div>
 </div>
@@ -89,20 +70,20 @@
 <main>
   <div id="map-wrap">
     <div class="map-head">
-      <div class="segment basis" data-basis-group>
+      <div class="control"><label>Basis</label><div class="segment basis" data-basis-group>
         <button data-basis="count" class="active">Amount</button>
         <button data-basis="per_outlet">Per outlet</button>
         <button data-basis="share_of_output" title="Share of every item the monitored outlets published">Share of monitored output</button>
         <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
-      </div>
-      <div class="segment window" data-window-group>
+      </div></div>
+      <div class="control"><label>Window, ending on the selected day</label><div class="segment window" data-window-group>
         <button data-window="1">That day</button>
         <button data-window="7">7 days</button>
         <button data-window="30" class="active">30 days</button>
         <button data-window="all">Total</button>
-      </div>
-      <div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div>
-      <div class="pick"><label for="map-country">Country</label><div class="csearch" data-country-pick><input type="search" id="map-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="map-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the map"><ul class="csearch-list" id="map-country-list" role="listbox" hidden></ul></div></div>
+      </div></div>
+      <div class="control"><label>Scope</label><div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div></div>
+      <div class="control pick"><label for="map-country">Country</label><div class="csearch" data-country-pick><input type="search" id="map-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="map-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the map"><ul class="csearch-list" id="map-country-list" role="listbox" hidden></ul></div></div>
     </div>
     <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric"></svg>
     <div id="legend"></div>
@@ -111,18 +92,18 @@
   <div id="bars-wrap">
     <div class="bars-head">
       <h2 id="bars-title">Ranked countries</h2>
-      <div class="segment basis" data-basis-group>
+      <div class="control"><label>Basis</label><div class="segment basis" data-basis-group>
         <button data-basis="count" class="active">Amount</button>
         <button data-basis="per_outlet">Per outlet</button>
         <button data-basis="share_of_output" title="Share of every item the monitored outlets published">Share of monitored output</button>
         <button data-basis="per_million" title="Population measures people, not media saturation: the least defensible denominator">Per capita</button>
-      </div>
-      <div class="segment window" data-window-group>
+      </div></div>
+      <div class="control"><label>Window, ending on the selected day</label><div class="segment window" data-window-group>
         <button data-window="1">That day</button>
         <button data-window="7">7 days</button>
         <button data-window="30" class="active">30 days</button>
         <button data-window="all">Total</button>
-      </div>
+      </div></div>
     </div>
     <div id="bars"></div>
   </div>
@@ -145,14 +126,14 @@
     <h2 id="themes-title">What the coverage is about</h2>
     <p class="th-sub" id="themes-sub"></p>
     <div class="th-head">
-      <div class="segment window" data-theme-window-group>
+      <div class="control"><label>Window, ending on the selected day</label><div class="segment window" data-theme-window-group>
         <button data-theme-window="1">That day</button>
         <button data-theme-window="7">7 days</button>
         <button data-theme-window="30" class="active">30 days</button>
         <button data-theme-window="all">Total</button>
-      </div>
-      <div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div>
-      <div class="pick"><label for="theme-country">Country</label><div class="csearch" data-country-pick><input type="search" id="theme-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="theme-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the theme counter"><ul class="csearch-list" id="theme-country-list" role="listbox" hidden></ul></div></div>
+      </div></div>
+      <div class="control"><label>Scope</label><div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div></div>
+      <div class="control pick"><label for="theme-country">Country</label><div class="csearch" data-country-pick><input type="search" id="theme-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="theme-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the theme counter"><ul class="csearch-list" id="theme-country-list" role="listbox" hidden></ul></div></div>
     </div>
     <div class="th-body">
       <div class="th-focus" id="theme-focus"></div>
@@ -222,6 +203,6 @@
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
 <script src="compute.js?v=55"></script>
-<script src="app.js?v=55"></script>
+<script src="app.js?v=56"></script>
 </body>
 </html>
