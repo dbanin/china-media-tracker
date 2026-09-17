@@ -46,6 +46,12 @@ header.top { padding: 3.2rem 3rem 2.2rem 3rem; border-bottom: 1px solid var(--ru
 header.top .sub { color: var(--ash); max-width: 46rem; font-size: 1.02rem; margin-top: 1rem; }
 .notice { margin: 1rem 3rem 0 3rem; padding: 0.8rem 1.1rem; border: 1px solid var(--rule-strong); color: var(--bone-soft); background: transparent; max-width: 70rem; font-size: 0.9rem; border-left: 2px solid var(--gold); }
 .notice.hidden, .control.hidden { display: none; }
+/* The reading notes are one muted line; the full text sits under the methodology heading. */
+.notes-strip { margin: 0.9rem 3rem 0 3rem; max-width: 70rem; font-size: 0.82rem; line-height: 1.55; color: var(--ash); }
+.notes-strip .nk { color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.64rem; margin-right: 0.6rem; }
+.notes-strip a { color: var(--gold); white-space: nowrap; }
+#method-notes { list-style: none; padding: 0; margin: 0 0 1.8rem; max-width: 70rem; }
+#method-notes li { border-left: 2px solid var(--gold); padding: 0.25rem 0 0.25rem 0.9rem; margin: 0.55rem 0; color: var(--bone-soft); font-size: 0.9rem; line-height: 1.55; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 1.1rem 2.6rem; padding: 1.2rem 3rem; border-bottom: 1px solid var(--rule); align-items: flex-end; }
 /* Every group of controls, above the map, the list and the theme counter as well as in the top bar, is a
@@ -218,7 +224,7 @@ footer { padding: 1.4rem 3rem 2.4rem 3rem; color: var(--ash-faint); font-size: 0
   h1 { font-size: 2.6rem; }
 }
 @media (max-width: 640px) {
-  header.top, .controls, #timeline, section.method, .notice, footer { padding-left: 1.2rem; padding-right: 1.2rem; margin-left: 0; margin-right: 0; }
+  header.top, .controls, #timeline, section.method, .notice, .notes-strip, footer { padding-left: 1.2rem; padding-right: 1.2rem; margin-left: 0; margin-right: 0; }
   h1 { font-size: 2.2rem; }
 }
 body.force-list #map-wrap { display: none; }

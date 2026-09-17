@@ -88,7 +88,7 @@
     if (Number(days) === 1) return date;
     return Number(days) + " days ending " + date;
   }
-  function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+  function plural(n, word, words) { return n + " " + (n === 1 ? word : (words || word + "s")); }
 
   /* Unverified relay is published only when the verification stage has run and a reliability study has
      settled it, and never for a country whose outlets publish in a language withheld on its own kappa.
@@ -125,12 +125,15 @@
 
   /* --------------------------------------------------------------- notices */
   function renderNotices() {
-    var kn = el("kappa-notice");
     var m = state.meta;
-    var kparts = [];
-    if (!m) kparts.push("No data has been exported yet. The interface is rendering an empty dataset.");
+    var kparts = [], short = [];
+    if (!m) { kparts.push("No data has been exported yet. The interface is rendering an empty dataset."); short.push("no data exported yet"); }
     else {
       var relay = relayFor(null), k = m.kappa;
+      if (!relay.measured) short.push("unverified relay not yet measured");
+      else if (!relay.publishable) short.push(k && k.bc !== null && k.bc !== undefined ? "unverified relay withheld, kappa " + k.bc.toFixed(2) + " below " + m.kappa_warning_threshold : "unverified relay withheld pending a reliability study");
+      else if (relayBasis() === "same_model_rerun") short.push("relay counts rest on a same-model rerun, not a second opinion");
+      else if (relayBasis() === "model_vs_model") short.push("relay counts rest on two models agreeing, never on a person reading");
       if (!relay.measured) kparts.push("Unverified relay has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
       else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
         ? "Unverified relay counts are withheld. Cohen's kappa on the relay versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
@@ -144,17 +147,16 @@
         kparts.push("Unverified relay counts are published on the strength of a second model, " + (rr.model_b || "another model") + ", re-judging a sample of " + (rr.n || 0) + " articles and agreeing with " + (rr.model_a || "the first") + " at kappa " + (rr.kappa_bc === null || rr.kappa_bc === undefined ? "n/a" : rr.kappa_bc.toFixed(2)) + " on the relay versus independent judgement. That measures whether two models apply the codebook the same way, not whether they apply it correctly: no article has been read by a person, and two models of one family can share a bias neither of them reveals.");
       }
       var wl = m.relay_withheld_languages || [];
-      if (wl.length) kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold.");
+      if (wl.length) { kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold."); short.push("relay withheld for " + wl.join(", ")); }
+      if (m.official_sourcing_pending) short.push(m.official_sourcing_pending + " articles await the model");
       if (m.official_sourcing_pending) kparts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and wait for that judgement. The Target articles measure counts them, so it mixes a measured quantity with an unmeasured pile.");
     }
-    kn.textContent = kparts.join(" ");
-    kn.classList.toggle("hidden", !kparts.length);
-
-    var dn = el("data-notice");
     var parts = [];
     if (m) {
       var flagged = m.paywall_flagged_countries || [];
+      if (flagged.length) short.push("paywalls limit " + plural(flagged.length, "country", "countries"));
       if (flagged.length) parts.push("Paywalls removed more than " + Math.round((m.paywall_flag_share || 0.33) * 100) + " percent of retrieved articles in " + flagged.map(function (c) { return state.names[c] || c; }).join(", ") + ". Paywalled articles cannot be read, so they are missing from every count. They stay in the share of monitored output denominator, which counts every item the outlets published, so that share is a lower bound in those countries, and their counts are not comparable to the rest.");
+      if (m.countries_monitored && m.countries_monitored < 30) short.push("only " + m.countries_monitored + " countries monitored");
       if (m.countries_monitored && m.countries_monitored < 30) parts.push("Only " + m.countries_monitored + " countries are monitored so far. The map mostly displays the registry, not the world.");
       if (m.countries_in_gaps) parts.push(m.countries_in_gaps + " countries are recorded as coverage gaps with a stated reason.");
       var u = m.registry_unevenness;
@@ -167,6 +169,8 @@
       }
       var rc = m.relay_collector;
       if (rc && rc.outlets) {
+        if (!rc.last_run) short.push("the owner's collector has not reported yet");
+        else if (rc.stale) short.push("the owner's collector has been silent " + plural(Math.round(rc.hours_since_last_run), "hour"));
         if (!rc.last_run) parts.push("The collector on the owner's machine, which fetches " + rc.outlets + " outlets the hosted runner cannot reach, has not reported a heartbeat yet, so gaps in those outlets cannot yet be told from quiet days.");
         else if (rc.stale) parts.push("The collector on the owner's machine has not collected for " + Math.round(rc.hours_since_last_run) + " hours, so recent counts for its " + rc.outlets + " outlets in " + (rc.countries || []).length + " countries are incomplete.");
         if ((rc.incomplete_days || []).length) parts.push("It ran in too few hours on " + plural(rc.incomplete_days.length, "day") + ", marked in red along the timeline.");
@@ -175,6 +179,7 @@
         var older = 0;
         Object.keys(m.ruleset_mix || {}).forEach(function (v) { if (v !== m.ruleset_version) older += m.ruleset_mix[v]; });
         var stuck = m.labels_unreclassifiable || 0;
+        if (older > stuck) short.push((older - stuck) + " labels await reclassification");
         parts.push(older > stuck
           ? "Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset" + (stuck ? ", of which " + stuck + " can never be redone because the article can no longer be retrieved" : "") + ". The days affected are marked on the timeline, so a jump there is not a trend."
           : older + " labels carry an older ruleset and can never be redone, because the article can no longer be retrieved and its fetch attempts are spent. Reclassification of everything retrievable is complete. The days affected are marked on the timeline.");
@@ -185,8 +190,23 @@
       if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: an estimated " + fs.missed_estimate + " in all. Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
     }
-    dn.textContent = parts.join(" ");
-    dn.classList.toggle("hidden", !parts.length);
+    /* Every note in full under the methodology heading; one muted line up here with only the notes that
+       change how today's map should be read, and a link down to the rest. */
+    var full = kparts.concat(parts);
+    var list = el("method-notes");
+    list.innerHTML = "";
+    full.forEach(function (t) { var li = document.createElement("li"); li.textContent = t; list.appendChild(li); });
+    el("method-notes-wrap").hidden = !full.length;
+    var strip = el("notes-strip");
+    strip.innerHTML = "";
+    if (short.length) {
+      var nk = document.createElement("span"); nk.className = "nk"; nk.textContent = "Notes"; strip.appendChild(nk);
+      strip.appendChild(document.createTextNode(short.join("; ") + ". "));
+      var link = document.createElement("a"); link.href = "#method-notes-title";
+      link.textContent = full.length > short.length ? "All " + full.length + " notes" : "Read in full";
+      strip.appendChild(link);
+    }
+    strip.hidden = !short.length;
     /* The human-reviewed switch is hidden until a review has actually been recorded; an empty
        reviewed mode would only blank the map. */
     var reviewed = !!(m && m.articles_reviewed);
