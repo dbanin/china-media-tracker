@@ -105,3 +105,130 @@ def test_default_second_rater_is_sonnet_and_a_rerun_says_so():
     from pipeline import export
     assert "same_model_rerun" in export.RELAY_QUALIFIER
     assert "another model" in export.RELAY_QUALIFIER["same_model_rerun"]
+
+
+# ---------------------------------------------------------------------------
+# Recording, and the study that runs by itself
+# ---------------------------------------------------------------------------
+import datetime as dt
+
+from pipeline import llm_cost
+
+
+def test_main_record_stores_both_raters_labels(tmp_path, monkeypatch):
+    """The pairs rejudge returns are nested; the table is flat. Recording used to raise after the calls were paid for."""
+    conn = _db(tmp_path, monkeypatch)
+    _judged(conn, n=3)
+    pairs, _ = sr.rejudge(conn, sr.judged_rows(conn, with_body=True), "claude-sonnet-5",
+                          client=classify_llm.DryRunClient(answer=lambda body: "C"), dry_run=True)
+    out = sr.summarise(pairs, "claude-sonnet-5", "claude-sonnet-5")
+    sid = store.record_model_agreement(conn, sr.study_row(out), sr.pair_rows(out["pairs"]))
+    rows = conn.execute("SELECT category_a, category_b FROM model_agreement_labels WHERE study_id=?", (sid,)).fetchall()
+    assert len(rows) == 3 and all((r["category_a"], r["category_b"]) == ("B", "C") for r in rows)
+    details = json.loads(conn.execute("SELECT details FROM model_agreement_studies WHERE id=?", (sid,)).fetchone()[0])
+    assert "bc_by_language" in details, "the key export reads for the per language veto"
+
+
+def test_rejudge_books_its_calls_against_the_budget(tmp_path, monkeypatch):
+    conn = _db(tmp_path, monkeypatch)
+    _judged(conn, n=2)
+    sr.rejudge(conn, sr.judged_rows(conn), "claude-sonnet-5", client=classify_llm.DryRunClient())
+    row = conn.execute("SELECT calls, cost_usd FROM llm_usage").fetchone()
+    assert row["calls"] == 2 and row["cost_usd"] > 0
+
+
+class _FakeBatches:
+    def __init__(self, answer="B", succeed=True):
+        self.created, self.answer, self.succeed = [], answer, succeed
+
+    def create(self, requests):
+        self.created.append(requests)
+        return type("B", (), {"id": "batch_study_1"})()
+
+    def retrieve(self, batch_id):
+        return type("I", (), {"processing_status": "ended"})()
+
+    def results(self, batch_id):
+        for req in self.created[-1]:
+            payload = {"category": self.answer, "confidence": 0.8, "evidence_quote": "q", "reasoning": "r",
+                       "china_sources_cited": [], "independent_confirmation_present": False, "confirmation_evidence": None}
+            msg = type("M", (), {"stop_reason": "end_turn", "model": "claude-sonnet-5",
+                                 "content": [type("T", (), {"type": "text", "text": json.dumps(payload)})()],
+                                 "usage": type("U", (), {"input_tokens": 1000, "output_tokens": 100,
+                                                         "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0})()})()
+            kind = "succeeded" if self.succeed else "errored"
+            yield type("R", (), {"custom_id": req["custom_id"], "result": type("X", (), {"type": kind, "message": msg})()})()
+
+
+class _FakeClient:
+    def __init__(self, **kw):
+        self.messages = type("Msgs", (), {"batches": _FakeBatches(**kw)})()
+
+
+def _auto_setup(tmp_path, monkeypatch, n=12):
+    conn = _db(tmp_path, monkeypatch)
+    _judged(conn, n=n)
+    monkeypatch.setattr(config, "RELIABILITY_MIN_POOL", 10)
+    monkeypatch.setattr(config, "RELIABILITY_MIN_PAIRS", 8)
+    monkeypatch.setattr(config, "RELIABILITY_SAMPLE", 10)
+    monkeypatch.setattr(config, "EXPORT_DIR_AUDIT", tmp_path / "export")
+    monkeypatch.setattr(config, "LLM_MONTHLY_BUDGET_USD", 30.0)
+    return conn
+
+
+def test_auto_waits_while_the_month_is_over_budget(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+    store.record_llm_usage(conn, 3000, 0, 0, cost_usd=38.0, date="2026-09-16")
+    client = _FakeClient()
+    out = sr.auto(conn, submit=True, today=dt.date(2026, 9, 20), client=client)
+    assert out["submitted"] == 0 and "budget" in out["skipped"] and not client.messages.batches.created
+    state = sr.study_state(conn, dt.date(2026, 9, 20))
+    assert state["state"] == "waiting_for_budget" and state["earliest"] == "2026-10-01"
+
+
+def test_auto_submits_once_the_budget_reopens_then_records_the_study(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+    store.record_llm_usage(conn, 3000, 0, 0, cost_usd=38.0, date="2026-09-16")
+    client = _FakeClient(answer="B")
+    today = dt.date(2026, 10, 1)
+    out = sr.auto(conn, submit=True, today=today, client=client)
+    assert out["submitted"] == 10 and out["reason"] == "no study yet"
+    batch = conn.execute("SELECT kind, status, article_ids FROM llm_batches").fetchone()
+    assert batch["kind"] == "study" and batch["status"] == "submitted"
+    assert client.messages.batches.created[0][0]["custom_id"].startswith("study-")
+    assert llm_cost.outstanding(conn, "2026-01-01", "2099-01-01") == 10, "the study counts against the budget until collected"
+    # Classification must never try to collect a study batch: its ids are not article ids.
+    assert classify_llm._collect_batches(conn, client) == {"batch_collected": 0, "batch_errors": 0}
+    out2 = sr.auto(conn, submit=True, today=today, client=client)
+    assert out2["collected"]["state"] == "recorded" and out2["collected"]["method"] == "same_model_rerun"
+    assert out2["submitted"] == 0, "one study a month"
+    study = store.latest_model_agreement(conn)
+    assert study["sample_size"] == 10 and study["method"] == "same_model_rerun"
+    assert conn.execute("SELECT COUNT(*) FROM model_agreement_labels").fetchone()[0] == 10
+    assert conn.execute("SELECT status FROM llm_batches").fetchone()[0] == "collected"
+    assert list((tmp_path / "export" / "reliability").glob("*.json")), "the study is kept as an audit file"
+    assert conn.execute("SELECT SUM(cost_usd) FROM llm_usage WHERE date >= '2026-10-01' OR date = ?", (store.utcnow()[:10],)).fetchone()[0] > 0
+    assert sr.study_state(conn, today)["state"] == "done"
+
+
+def test_too_few_results_record_no_study(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+    client = _FakeClient(succeed=False)
+    assert sr.auto(conn, submit=True, today=dt.date(2026, 10, 1), client=client)["submitted"] == 10
+    out = sr.auto(conn, submit=False, today=dt.date(2026, 10, 1), client=client)
+    assert out["collected"]["state"] == "too_few_results"
+    assert store.latest_model_agreement(conn) is None
+    assert conn.execute("SELECT status FROM llm_batches").fetchone()[0] == "failed"
+
+
+def test_auto_never_raises(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+
+    class Broken:
+        class messages:
+            class batches:
+                @staticmethod
+                def create(requests):
+                    raise RuntimeError("api down")
+    out = sr.auto(conn, submit=True, today=dt.date(2026, 10, 1), client=Broken())
+    assert "api down" in out["error"] and out["submitted"] == 0

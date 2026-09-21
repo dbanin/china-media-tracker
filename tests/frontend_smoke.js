@@ -78,4 +78,26 @@ var th = C.aggregateThemes(themeMonths, "2026-09-02", 2);
 assert(th.ITA.diplomacy[0] === 3 && th.ITA.diplomacy[1] === 2 && th.ITA.diplomacy[2] === 1 && th.ITA.culture[0] === 3, "theme window sum");
 assert(C.aggregateThemes(themeMonths, "2026-09-02", 1).ITA.diplomacy[0] === 1, "theme single day");
 assert(Object.keys(C.aggregateThemes({}, null, 30)).length === 0 && C.MEASURE_INDEX.target === 1, "themes on empty");
+/* Unverified relay as a measure of its own, and the provisional state before any reliability study. */
+assert(C.gridMetric("b", "count") === "count_b" && C.gridMetric("b", "per_million") === "per_million_b" && C.MEASURE_INDEX.b === 3, "relay grid");
+var relayCounts = Object.assign(C.emptyCounts(), {A: 1, B: 4, C: 5, uniqA: 1, uniqAB: 4, tdisc: 100, tb: 4});
+var PROV = {measured: true, publishable: false, provisional: true};
+var prov = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: PROV});
+assert(prov.value === 4 && prov.provisional === true && !prov.withheld && prov.underlyingB === 3 && prov.note === C.RELAY_PROVISIONAL, "provisional relay is shown and marked");
+assert(C.fillClass({coverage: "monitored", outlets_active: 5}, prov) === "value", "provisional relay colours the map");
+assert(C.metricValue(relayCounts, "count_ab", 5, "all", undefined, {relay: PROV}).value === 5, "combined metrics are visible while provisional");
+var failed = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: false}});
+assert(failed.value === null && failed.withheld && failed.note === C.RELAY_WITHHELD, "measured but neither publishable nor provisional stays withheld");
+assert(C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: true}}).provisional === false, "published relay is not provisional");
+assert(Math.abs(C.metricValue(relayCounts, "share_b", 5, "all").value - 0.4) < 1e-9, "relay share of China coverage");
+assert(Math.abs(C.metricValue(relayCounts, "share_of_output_b", 5, "all", undefined, {topOutlets: 6}).value - 0.04) < 1e-9, "relay share of monitored output");
+assert(C.metricValue(relayCounts, "share_of_output_b", 5, "all", undefined, {topOutlets: 6, noRelayOutput: true}).value === null, "no false zero from data that predates tb");
+assert(C.metricValue(relayCounts, "count_b", 5, "all", undefined, {routeCount: 1}).value === null, "route filter does not apply to relay");
+var provRows = C.rankCountries({countries: {ITA: relayCounts}, reviewed: {}}, {countries: {ITA: {coverage: "monitored", outlets_active: 5}}}, "count_b", "all", {}, function () { return {relay: PROV}; });
+assert(provRows[0].relay_status === "provisional" && provRows[0].unverified_relay === 4 && provRows[0].unverified_relay_underlying_items === 3, "csv carries provisional relay and says so");
+assert(C.relayStatus({measured: true, publishable: false}) === "withheld" && C.relayStatus({measured: false, publishable: false}) === "not measured", "relay status");
+var fourSlot = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [2, 1, 1]}}},
+                                   "2026-09-02": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [3, 2, 0, 2]}}}}}};
+var th4 = C.aggregateThemes(fourSlot, "2026-09-02", 2).ITA.diplomacy;
+assert(th4[0] === 5 && th4[3] === 2 && th4.length === 4, "fourth theme slot, and three slot files still read");
 console.log("frontend smoke ok");

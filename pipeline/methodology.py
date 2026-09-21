@@ -287,6 +287,17 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     if not meta.get("relay_measured"):
         relay_text = ("The verification stage has not run, so unverified relay is not measured. The interface shows it as not yet "
                       "measured, never as zero, and the default measure is state origin only.")
+    elif meta.get("relay_provisional"):
+        study = meta.get("relay_study") or {}
+        when = {"submitted": "A reliability study has been submitted and its result is awaited.",
+                "waiting_for_budget": "A reliability study is queued and runs by itself once the monthly model budget allows, not before %s." % (study.get("earliest") or "next month"),
+                "due": "A reliability study is due and runs at the next export."}.get(study.get("state"), "No reliability study has run yet.")
+        relay_text = ("Unverified relay counts are shown as provisional: they are one model's judgement and nothing has "
+                      "checked them yet. Every figure that contains them is marked provisional in the interface and carries "
+                      "relay_status provisional in the CSV export. %s Provisional means not checked yet, never checked and "
+                      "failed: once a study reports, the counts are published if kappa on the unverified relay versus "
+                      "independent journalism distinction is at least %.1f and withheld if it is not. Before a study there "
+                      "is no per language result, so no language is withheld." % (when, threshold))
     elif not meta.get("relay_publishable"):
         relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until a "
                       "study gives kappa on the unverified relay versus independent journalism distinction of at least "
@@ -352,7 +363,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         review_coverage_pct=round(meta["review_coverage"] * 100, 1),
         paywall_share_pct=("%.1f percent" % (meta["paywall_share"] * 100)) if meta["paywall_share"] is not None else "not yet measured",
         paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
-        a_total=tot["A"], b_total=tot["B"] if meta.get("relay_publishable") else "withheld", c_total=tot["C"],
+        a_total=tot["A"], b_total=(tot["B"] if meta.get("relay_publishable") else ("%d (provisional)" % tot["B"]) if meta.get("relay_provisional") else "withheld"), c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
         llm_budget_usd=("%g" % (meta.get("llm_budget") or {}).get("budget_usd", config.LLM_MONTHLY_BUDGET_USD)),
         llm_budget_month=(meta.get("llm_budget") or {}).get("month", "this month"),

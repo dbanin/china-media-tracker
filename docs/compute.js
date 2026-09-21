@@ -8,7 +8,7 @@
 
   var EMPTY = {A: 0, B: 0, C: 0, N: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
                fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
-               tdisc: 0, ttarget: 0, tchina: 0, ta: 0, polls: 0, sat: 0, miss: 0};
+               tdisc: 0, ttarget: 0, tchina: 0, ta: 0, tb: 0, polls: 0, sat: 0, miss: 0};
 
   function emptyCounts() { var o = {}; for (var k in EMPTY) o[k] = 0; return o; }
 
@@ -85,13 +85,18 @@
   /* Per capita values from a few thousand residents are noise and would set the whole color scale. */
   var MIN_POPULATION = 100000;
 
-  /* measure: which count the metric reads (a, target, china). relay: the metric contains confirmed
-     unverified relay and is withheld until relay is publishable. */
+  /* measure: which count the metric reads (a, b, target, china). relay: the metric contains unverified
+     relay, which is shown once a reliability study has cleared it, shown marked provisional before any
+     study has run, and withheld otherwise. */
   var METRICS = {
     count_a: {label: "State origin articles", format: "int", measure: "a"},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", measure: "a"},
     share_of_output_a: {label: "Share of monitored output: state origin articles as a share of every item the monitored outlets published", format: "pct", measure: "a", allItems: true},
     per_million_a: {label: "State origin articles per million people", format: "dec", measure: "a", population: true},
+    count_b: {label: "Unverified relay articles", format: "int", measure: "b", relay: true},
+    per_outlet_b: {label: "Unverified relay articles per monitored outlet", format: "dec", measure: "b", relay: true},
+    share_of_output_b: {label: "Share of monitored output: unverified relay articles as a share of every item the monitored outlets published", format: "pct", measure: "b", allItems: true, relay: true},
+    per_million_b: {label: "Unverified relay articles per million people", format: "dec", measure: "b", population: true, relay: true},
     count_target: {label: "Target articles: state origin, confirmed unverified relay and sourcing candidates not yet verified", format: "int", measure: "target"},
     per_outlet_target: {label: "Target articles per monitored outlet", format: "dec", measure: "target"},
     share_of_output_target: {label: "Share of monitored output: target articles as a share of every item the monitored outlets published", format: "pct", measure: "target", allItems: true},
@@ -101,6 +106,7 @@
     share_of_output_china: {label: "Share of monitored output: all China coverage as a share of every item the monitored outlets published", format: "pct", measure: "china", allItems: true},
     per_million_china: {label: "All China coverage per million people", format: "dec", measure: "china", population: true},
     share_a: {label: "Share of China coverage that is state origin", format: "pct", measure: "a"},
+    share_b: {label: "Share of China coverage that is unverified relay", format: "pct", measure: "b", relay: true},
     share_target: {label: "Share of China coverage that is state origin, confirmed relay or a sourcing candidate", format: "pct", measure: "target"},
     count_ab: {label: "State origin plus confirmed unverified relay", format: "int", measure: "target", relay: true},
     share_ab: {label: "Share of China coverage that is state origin or confirmed unverified relay", format: "pct", measure: "target", relay: true},
@@ -108,13 +114,15 @@
   };
 
   var RELAY_NOT_MEASURED = "Unverified relay has not been measured: the verification stage has not run. It is not zero.";
+  var RELAY_PROVISIONAL = "Provisional: unverified relay is one model's judgement and has not been reliability checked yet.";
   var RELAY_WITHHELD = "Unverified relay counts are withheld until the agreement study shows the relay versus independent journalism judgement is reliable.";
 
   /* Returns {value, chinaTotal, ab, a, b, pending, target, sparse, withheld, note} for one country under a metric and mode.
      ctx carries what the counts do not:
        population    residents, for the per million metrics
        topOutlets    outlets behind the published-items denominator
-       relay         {measured, publishable} for this country; absent means publishable
+       relay         {measured, publishable, provisional} for this country; absent means publishable
+       noRelayOutput the data predates the relay count among published items (schema 5), so that share is unknown
        routeCount    state origin in the selected route or arrival, replacing the state origin count */
   function metricValue(counts, metric, outletsActive, mode, reviewedCounts, ctx) {
     ctx = ctx || {};
@@ -137,28 +145,30 @@
     var china = a + b + c + p;
     var target = a + b + p;
     var value = null, sparse = false, note = null, withheld = false;
-    var num = def.measure === "a" ? aSel : def.measure === "china" ? china : target;
-    if (def.relay && !relay.publishable) {
+    var num = def.measure === "a" ? aSel : def.measure === "b" ? b : def.measure === "china" ? china : target;
+    var provisional = !!(def.relay && relay.provisional && !relay.publishable);
+    if (def.relay && !(relay.publishable || relay.provisional)) {
       withheld = true;
       note = relay.measured ? RELAY_WITHHELD : RELAY_NOT_MEASURED;
     } else if (byRoute && def.measure !== "a") {
       note = "The route filter applies to state origin only.";
     } else {
       switch (metric) {
-        case "count_a": case "count_target": case "count_china": value = num; break;
+        case "count_a": case "count_b": case "count_target": case "count_china": value = num; break;
         case "count_ab": value = a + b; break;
-        case "share_a": case "share_target":
+        case "share_a": case "share_b": case "share_target":
           sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? num / china : null; break;
         case "share_ab": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? (a + b) / china : null; break;
-        case "per_outlet_a": case "per_outlet_target": case "per_outlet_china": value = outletsActive ? num / outletsActive : null; break;
+        case "per_outlet_a": case "per_outlet_b": case "per_outlet_target": case "per_outlet_china": value = outletsActive ? num / outletsActive : null; break;
         case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
-        case "per_million_a": case "per_million_target": case "per_million_china":
+        case "per_million_a": case "per_million_b": case "per_million_target": case "per_million_china":
           if (!population) { sparse = china > 0; note = "No resident population is recorded for this territory, so a per capita value is not shown."; }
           else if (population < MIN_POPULATION) { sparse = china > 0; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; }
           else value = num / population * 1e6;
           break;
-        case "share_of_output_a": case "share_of_output_target": case "share_of_output_china":
-          if (mode === "reviewed") note = "The share of monitored output is not available for human-reviewed labels only.";
+        case "share_of_output_a": case "share_of_output_b": case "share_of_output_target": case "share_of_output_china":
+          if (metric === "share_of_output_b" && ctx.noRelayOutput) note = "This share needs data from a newer export, which counts unverified relay among the published items.";
+          else if (mode === "reviewed") note = "The share of monitored output is not available for human-reviewed labels only.";
           else if (byRoute) note = "The share of monitored output is not available by route, because the published items are not split by route.";
           else if (ctx.topOutlets !== undefined && ctx.topOutlets !== null && ctx.topOutlets < MIN_OUTLETS_FOR_OUTPUT_SHARE) {
             sparse = allItems > 0 || china > 0;
@@ -166,13 +176,16 @@
           } else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) {
             sparse = allItems > 0 || china > 0;
             note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the monitored outlets in this window, so a share is not shown.";
-          } else value = (metric === "share_of_output_china" ? (k.tchina || 0) : metric === "share_of_output_a" ? (k.ta || 0) : (k.ttarget || 0)) / allItems;
+          } else value = (metric === "share_of_output_china" ? (k.tchina || 0) : metric === "share_of_output_a" ? (k.ta || 0) : metric === "share_of_output_b" ? (k.tb || 0) : (k.ttarget || 0)) / allItems;
           break;
         default: value = null;
       }
     }
     if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
-    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, withheld: withheld, note: note,
+    if (provisional && !note) note = RELAY_PROVISIONAL;
+    /* Underlying items are counted per label, so relay alone is the combined figure less state origin. */
+    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
+            underlyingB: Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
             allItems: allItems, allItemsA: k.ta || 0, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0, population: population || null};
   }
 
@@ -184,7 +197,8 @@
   }
 
   /* Theme counts over the same window as aggregateWindow.
-     Returns {iso: {themeId: [all China coverage, target articles, state origin]}}. */
+     Returns {iso: {themeId: [all China coverage, target articles, state origin, unverified relay]}}.
+     Files written before the fourth slot existed carry three; the relay slot then reads zero. */
   function aggregateThemes(months, endDate, windowDays) {
     var out = {};
     if (!endDate) return out;
@@ -197,21 +211,22 @@
         var src = e.themes[iso];
         var dst = out[iso] || (out[iso] = {});
         Object.keys(src).forEach(function (t) {
-          var v = src[t], cur = dst[t] || (dst[t] = [0, 0, 0]);
-          cur[0] += v[0] || 0; cur[1] += v[1] || 0; cur[2] += v[2] || 0;
+          var v = src[t], cur = dst[t] || (dst[t] = [0, 0, 0, 0]);
+          cur[0] += v[0] || 0; cur[1] += v[1] || 0; cur[2] += v[2] || 0; cur[3] += v[3] || 0;
         });
       });
     });
     return out;
   }
   /* Which slot of a theme count each Measure reads. */
-  var MEASURE_INDEX = {china: 0, target: 1, a: 2};
+  var MEASURE_INDEX = {china: 0, target: 1, a: 2, b: 3};
 
   /* The grid behind the Measure and Basis toggles. Per capita comes last: population measures people,
      not media saturation, so it is the least defensible of the denominators. */
   var BASES = ["count", "per_outlet", "share_of_output", "per_million"];
   var GRID = {
     a: {count: "count_a", per_outlet: "per_outlet_a", share_of_output: "share_of_output_a", per_million: "per_million_a"},
+    b: {count: "count_b", per_outlet: "per_outlet_b", share_of_output: "share_of_output_b", per_million: "per_million_b"},
     target: {count: "count_target", per_outlet: "per_outlet_target", share_of_output: "share_of_output_target", per_million: "per_million_target"},
     china: {count: "count_china", per_outlet: "per_outlet_china", share_of_output: "share_of_output_china", per_million: "per_million_china"}
   };
@@ -221,7 +236,7 @@
        nocoverage  no monitored outlets and not in the gaps file
        gap         no working feed could be found; reason recorded
        inactive    outlets registered but all inactive
-       withheld    the metric contains unverified relay, which is not measured or not yet publishable
+       withheld    the metric contains unverified relay, which is not measured, or failed its reliability check
        unreadable  monitored, but no active outlet's language has a keyword list, and nothing was found
        nodata      monitored, but no China coverage in the window (share metrics undefined)
        sparse      monitored, denominator too small, value not shown
@@ -292,11 +307,13 @@
 
   function relayStatus(relay) {
     if (!relay || relay.publishable) return "published";
-    return relay.measured ? "withheld" : "not measured";
+    if (!relay.measured) return "not measured";
+    return relay.provisional ? "provisional" : "withheld";
   }
 
   /* Ranked country rows for the current view, used by the bar chart, the CSV export and the table.
-     Unverified relay is left blank wherever it is not publishable, so a CSV never carries it as zero. */
+     Unverified relay is left blank wherever it is withheld or unmeasured, so a CSV never carries it as
+     zero; provisional counts are written, and relay_status says that is what they are. */
   function rankCountries(agg, latest, metric, mode, names, ctxFor) {
     var rows = [];
     var countries = (latest && latest.countries) || {};
@@ -305,9 +322,9 @@
       var ctx = ctxFor ? ctxFor(iso, entry, agg) : {population: entry.population};
       var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
       var cls = fillClass(entry, mv);
-      var published = relayStatus(ctx.relay) === "published";
+      var status = relayStatus(ctx.relay), published = status === "published" || status === "provisional";
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: mv.a, state_origin_underlying_items: mv.underlying,
-                 unverified_relay: published ? mv.b : "", relay_status: relayStatus(ctx.relay), official_sourcing_pending: mv.pending, target: mv.target, independent: mv.c,
+                 unverified_relay: published ? mv.b : "", unverified_relay_underlying_items: published ? mv.underlyingB : "", relay_status: status, official_sourcing_pending: mv.pending, target: mv.target, independent: mv.c,
                  china_total: mv.chinaTotal, outlets_active: entry.outlets_active, population: entry.population || "",
                  items_published_monitored_outlets: mv.allItems, target_in_published_items: mv.allItemsTarget, china_in_published_items: mv.allItemsChina,
                  language_support: entry.language_support || "", note: mv.note || "",
@@ -331,7 +348,7 @@
   }
 
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
-          MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD,
+          MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric,
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
