@@ -4,6 +4,31 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Data schema 6 (2026-09-20)
+
+No label changes. Unverified relay can now be mapped on its own, beside state
+origin, and the way its counts are released changed, which anyone reading the
+CSV exports needs to know.
+
+- Before any reliability study has run, relay counts are shown as provisional
+  instead of withheld: one model's judgement, marked as unchecked everywhere it
+  appears. In the CSV exports the unverified_relay columns are filled where they
+  used to be blank, and relay_status reads provisional. A new column,
+  unverified_relay_underlying_items, counts distinct items behind the placements.
+- Provisional means not checked yet, never checked and failed. Once a study
+  reports, the counts are published if kappa on the relay versus independent
+  journalism judgement is at least 0.6 and withheld if it is not.
+- The study runs by itself: the same model re-judges a stratified sample of 250
+  labelled articles through the Batches API, at most once a calendar month, when
+  the monthly model budget can pay for it. Its pairs are kept in
+  data/export/reliability/.
+- Daily files carry tb (relay among the items the top outlets published), so
+  relay has a share of monitored output, and theme counts carry a fourth value
+  for relay. meta.json gains relay_provisional and relay_study.
+- Fixed on the way: recording a second rater study raised after its calls had
+  been paid for, and the per language result of a model study was stored under
+  a key the export never read, so a language could not be withheld on it.
+
 ## Ruleset 2026.09.7 (2026-09-15)
 
 Every one of the 229 published state origin labels was read, not sampled. Six

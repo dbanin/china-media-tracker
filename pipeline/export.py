@@ -22,7 +22,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pipeline import classify_rules, config, extract, gate, llm_cost, registry, store
+from pipeline import classify_rules, config, extract, gate, llm_cost, registry, second_rater, store
 from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
@@ -103,7 +103,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     counts = defaultdict(lambda: {"n": 0, "n_rules": 0, "n_llm": 0, "n_reviewed": 0, "groups": set()})
     coverage = defaultdict(lambda: {"discovered": 0, "gate_relevant": 0, "fetched": 0, "paywalled": 0,
                                     "failed": 0, "blocked_robots": 0, "classified": 0, "llm_pending": 0,
-                                    "top_discovered": 0, "top_target": 0, "top_china": 0, "top_a": 0})
+                                    "top_discovered": 0, "top_target": 0, "top_china": 0, "top_a": 0, "top_b": 0})
     for r in rows:
         d = _day(r)
         cov = coverage[(d, r["country"])]
@@ -117,6 +117,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
                 cov["top_china"] += 1
             if r["m_cat"] == "A":
                 cov["top_a"] += 1
+            if r["m_cat"] == "B":
+                cov["top_b"] += 1
         if st in ("fetched", "classified", "awaiting_llm", "llm_submitted"):
             cov["fetched"] += 1
         if st == "paywalled":
@@ -160,11 +162,11 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     for (d, country), cov in coverage.items():
         conn.execute(
             """INSERT INTO daily_coverage(date, country, discovered, gate_relevant, fetched, paywalled, failed,
-               blocked_robots, classified, llm_pending, computed_at, top_discovered, top_target, top_china, top_a)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               blocked_robots, classified, llm_pending, computed_at, top_discovered, top_target, top_china, top_a, top_b)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d, country, cov["discovered"], cov["gate_relevant"], cov["fetched"], cov["paywalled"], cov["failed"],
              cov["blocked_robots"], cov["classified"], cov["llm_pending"], now,
-             cov["top_discovered"], cov["top_target"], cov["top_china"], cov["top_a"]),
+             cov["top_discovered"], cov["top_target"], cov["top_china"], cov["top_a"], cov["top_b"]),
         )
     conn.commit()
     return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows)}
@@ -173,7 +175,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
 def _empty_country() -> Dict:
     return {"A": 0, "B": 0, "C": 0, "N": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
-            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0,
+            "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0, "tb": 0,
             "polls": 0, "sat": 0, "miss": 0}
 
 
@@ -357,7 +359,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
             t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
             t["pending"] += r["llm_pending"]
-            t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
+            t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]; t["tb"] += r["top_b"]
     for r in _feed_poll_days(conn):
         for target, ok in ((all_time, True), (last30, r["date"] >= since30)):
             if ok:
@@ -449,7 +451,7 @@ def build_daily(conn) -> Dict[str, Dict]:
         t["disc"] += r["discovered"]; t["rel"] += r["gate_relevant"]; t["fetched"] += r["fetched"]
         t["paywalled"] += r["paywalled"]; t["failed"] += r["failed"]; t["blocked"] += r["blocked_robots"]
         t["pending"] += r["llm_pending"]
-        t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]
+        t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]; t["tb"] += r["top_b"]
     for r in _feed_poll_days(conn):
         t = months[r["date"][:7]]["days"][r["date"]][r["country"]]
         t["polls"] += r["polls"] or 0; t["sat"] += r["sat"] or 0; t["miss"] += int(round(r["miss"] or 0))
@@ -462,10 +464,11 @@ def build_daily(conn) -> Dict[str, Dict]:
         sampling[r["date"]][r["country"]] = [r["eligible"], r["drawn"]]
     relay_hours = relay_hours_by_day(conn)
     relay_incomplete = set(relay_incomplete_days(conn))
-    # Theme counts per day and country: theme id -> [all China coverage, target articles, state origin].
+    # Theme counts per day and country: theme id -> [all China coverage, target articles, state origin,
+    # unverified relay].
     # Only China coverage counts (state origin, relay, independent, and pending candidates). An article
     # carries every theme it matches, so a country's theme counts can sum to more than its articles.
-    theme_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0, 0, 0])))
+    theme_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0, 0, 0, 0])))
     # State origin per day and country by the route it arrived by, and labels still carrying an older ruleset.
     routes = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     arrivals = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
@@ -488,6 +491,8 @@ def build_daily(conn) -> Dict[str, Dict]:
                 v[1] += 1
             if cat == "A":
                 v[2] += 1
+            if cat == "B":
+                v[3] += 1
     for d in list(theme_counts) + list(routes):
         months[d[:7]]["days"][d]  # a day that has theme or route counts always gets an entry, even with no rollup rows
     out = {}
@@ -695,6 +700,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "by_category": model_details.get("kappa_by_category"), "bc_by_language": model_details.get("bc_by_language"),
         "threshold": config.KAPPA_WARNING_THRESHOLD,
     } if model_study else None
+    # Provisional is the state before any study: the model has labelled articles and nothing has checked
+    # them yet. Once a study of either kind has produced a kappa the counts are published or withheld.
+    any_study = bool((kappa and kappa["kappa_bc"] is not None) or (model_study and model_study["kappa_bc"] is not None))
     # Which study, if any, is holding the gate open. Never "validated": no human has coded anything.
     relay_basis = "human_coding" if settled else ((model_study["method"] or "model_vs_model") if reliable else None)
     by_language = (details.get("bc_by_language") if settled else model_details.get("bc_by_language")) or {}
@@ -753,6 +761,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         # stage has run, relay is not measured at all and is shown as such, never as zero.
         "relay_measured": bool(llm_labels),
         "relay_publishable": bool(llm_labels) and (settled or reliable),
+        # Real counts, marked as one model's unchecked judgement, until the first study reports.
+        "relay_provisional": bool(config.RELAY_PROVISIONAL_DISPLAY and llm_labels and not (settled or reliable) and not any_study),
+        "relay_study": second_rater.study_state(conn),
         "relay_basis": relay_basis,
         "relay_reliability": relay_reliability,
         # No article has been read by a person. Said plainly here so nothing downstream has to infer it.

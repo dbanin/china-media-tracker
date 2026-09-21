@@ -127,6 +127,7 @@ CREATE TABLE IF NOT EXISTS daily_coverage (
     top_target INTEGER NOT NULL DEFAULT 0,       -- state origin, unverified relay and pending among them
     top_china INTEGER NOT NULL DEFAULT 0,        -- all China coverage among them
     top_a INTEGER NOT NULL DEFAULT 0,            -- state origin among them
+    top_b INTEGER NOT NULL DEFAULT 0,            -- unverified relay among them
     PRIMARY KEY(date, country)
 );
 
@@ -187,7 +188,8 @@ CREATE TABLE IF NOT EXISTS llm_batches (
     status TEXT NOT NULL,
     article_ids TEXT NOT NULL,
     model_version TEXT NOT NULL,
-    collected_at TEXT
+    collected_at TEXT,
+    kind TEXT NOT NULL DEFAULT 'classify'   -- classify: first labels; study: the second rater's re-judgements
 );
 
 CREATE TABLE IF NOT EXISTS llm_usage (
@@ -339,7 +341,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "route" not in cls:
         conn.execute("ALTER TABLE classifications ADD COLUMN route TEXT")   # filled by classify_rules.ensure_routes
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
-    for col in ("top_discovered", "top_target", "top_china", "top_a"):
+    batches = {r[1] for r in conn.execute("PRAGMA table_info(llm_batches)")}
+    if "kind" not in batches:
+        conn.execute("ALTER TABLE llm_batches ADD COLUMN kind TEXT NOT NULL DEFAULT 'classify'")
+    for col in ("top_discovered", "top_target", "top_china", "top_a", "top_b"):
         if col not in cov:
             conn.execute("ALTER TABLE daily_coverage ADD COLUMN %s INTEGER NOT NULL DEFAULT 0" % col)
     usage = {r[1] for r in conn.execute("PRAGMA table_info(llm_usage)")}

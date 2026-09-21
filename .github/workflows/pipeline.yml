@@ -27,7 +27,7 @@ on:
         type: choice
         options: [collect, export, validate]
       reliability:
-        description: "run the second rater reliability study after the export (costs model calls)"
+        description: "force a reliability study now, even if none is due (costs about 2 dollars of model calls)"
         type: boolean
         default: false
       batch:
@@ -125,11 +125,18 @@ jobs:
               disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
               cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else ""))
           PY
-      - name: Second rater reliability study, when asked for
-        if: env.STAGE == 'export' && env.RELIABILITY == 'true'
+      - name: Reliability study, by itself when it is due and the budget allows
+        # Every run collects a finished study batch. An export run also submits one through the Batches
+        # API when a study is needed (none yet, the judging model changed, the last is old, or the label
+        # pool has doubled), at most once a month and only for a small share of the budget left. The
+        # box on Run workflow forces a submission. It never fails the run: the daily update must not
+        # depend on it.
+        continue-on-error: true
         run: |
-          python -m pipeline.second_rater estimate --n 250
-          python -m pipeline.second_rater sample --n 250 --record --out review/second_rater.json
+          ARGS=""
+          [ "$STAGE" = "export" ] && ARGS="--submit"
+          [ "$RELIABILITY" = "true" ] && ARGS="--submit --force"
+          python -m pipeline.second_rater auto $ARGS
 
       - name: Export, rollups, site data and METHODOLOGY.md
         if: env.STAGE == 'export'

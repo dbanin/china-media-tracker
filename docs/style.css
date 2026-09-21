@@ -129,6 +129,7 @@ aside#panel { grid-column: 2; grid-row: 1 / span 3; }
 #map .sphere { fill: var(--sea); stroke: var(--rule-strong); }
 #map .warn-marker { fill: var(--ink); stroke: var(--warn); stroke-width: 1.1; pointer-events: none; }
 #legend { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.2rem 2.6rem; padding: 1.1rem 0 1.4rem 0; font-size: 0.8rem; color: var(--bone-soft); }
+#legend .lg-prov { color: var(--gold); font-size: 0.78rem; margin: 0.15rem 0 0.35rem; }
 #legend .lg-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.35rem; }
 #legend .lg-head { color: var(--bone); font-size: 0.86rem; line-height: 1.35; }
 #legend .lg-when { color: var(--ash); font-size: 0.74rem; margin: 0.1rem 0 0.6rem; }

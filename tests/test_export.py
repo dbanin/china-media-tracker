@@ -9,7 +9,7 @@ import pytest
 from pipeline import config, export, store
 
 COUNTS_KEYS = ["A", "B", "C", "N", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
-               "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina", "ta"]
+               "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina", "ta", "tb"]
 COUNTS_SCHEMA = {"type": "object", "required": COUNTS_KEYS, "properties": {k: {"type": "integer"} for k in COUNTS_KEYS}}
 DERIVED_SCHEMA = {"type": "object", "required": COUNTS_KEYS + ["china_total", "share_ab", "share_a", "per_outlet_ab", "paywall_share", "reviewed_share", "share_of_all_target", "share_of_all_china"]}
 
@@ -37,8 +37,9 @@ META_SCHEMA = {
     "required": ["schema_version", "ruleset_version", "llm_model", "generated_at", "outlets_total", "outlets_active",
                  "countries_monitored", "countries_in_gaps", "gaps", "articles_classified", "articles_reviewed",
                  "review_coverage", "paywall_share", "paywall_flagged_countries", "kappa", "b_counts_settled",
-                 "llm_ceiling_days", "categories", "first_discovered"],
-    "properties": {"b_counts_settled": {"type": "boolean"}, "review_coverage": {"type": "number"},
+                 "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study"],
+    "properties": {"b_counts_settled": {"type": "boolean"}, "relay_provisional": {"type": "boolean"},
+                   "relay_study": {"type": "object", "required": ["auto", "state", "sample"]}, "review_coverage": {"type": "number"},
                    "categories": {"type": "object", "required": ["A", "B", "C", "not_relevant"]}},
 }
 OUTLETS_SCHEMA = {
@@ -177,10 +178,10 @@ def test_daily_theme_counts_and_catalog(tmp_path):
     assert "ITA" in daily["2026-09"]["days"]["2026-09-10"]["themes"]
     export.rebuild_rollups(conn, [])
     day = export.build_daily(conn)["2026-09"]["days"]["2026-09-10"]["themes"]["ITA"]
-    # [all China coverage, target, state origin]; the not_relevant article never counts
-    assert day["diplomacy"] == [2, 1, 1]
-    assert day["economy"] == [1, 1, 1]
-    assert day["other"] == [1, 1, 0]
+    # [all China coverage, target, state origin, unverified relay]; the not_relevant article never counts
+    assert day["diplomacy"] == [2, 1, 1, 0]
+    assert day["economy"] == [1, 1, 1, 0]
+    assert day["other"] == [1, 1, 0, 0]
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], []))
     assert meta["themes"][0]["id"] == "diplomacy" and meta["themes"][-1]["id"] == "other" and meta["themes_version"]
     arts = export.build_articles(conn)["ITA"]

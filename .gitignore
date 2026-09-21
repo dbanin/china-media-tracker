@@ -17,3 +17,6 @@ data/tracker.db.local-*.bak
 data/relay.db
 data/bundle.jsonl.gz
 logs/relay-*.log
+
+# Local knowledge graph of the repo (graphify)
+graphify-out/

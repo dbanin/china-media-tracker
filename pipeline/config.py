@@ -85,6 +85,21 @@ FEED_FAILURE_WARNING_SHARE = 0.5
 # behind its denominator. Below it the share describes a handful of feeds and is not shown.
 MIN_OUTLETS_FOR_OUTPUT_SHARE = 5
 
+# Until a reliability study has run, unverified relay is shown as provisional: real counts, marked
+# everywhere as one model's judgement that has not been checked. Provisional means not checked yet, never
+# checked and failed: once any study has produced a kappa, the counts are either published or withheld.
+RELAY_PROVISIONAL_DISPLAY = _env("TRACKER_RELAY_PROVISIONAL", "1") == "1"
+
+# The reliability study runs by itself (pipeline.second_rater auto) when it is needed and the monthly
+# budget can pay for it: through the Batches API, at most once a calendar month, for at most this share
+# of the budget left in the month.
+RELIABILITY_AUTO = _env("TRACKER_RELIABILITY_AUTO", "1") == "1"
+RELIABILITY_SAMPLE = 250
+RELIABILITY_MIN_POOL = 200        # model-labelled articles with a body on disk before a study is worth running
+RELIABILITY_MIN_PAIRS = 150       # usable results below this record no study
+RELIABILITY_REFRESH_DAYS = 90
+RELIABILITY_MAX_BUDGET_SHARE = 0.15
+
 # Unverified relay counts are withheld, not merely annotated, until an agreement study settles them.
 # A language with at least this many items in the unverified relay versus independent journalism
 # comparison and a kappa below the threshold has its relay counts withheld even when the overall
@@ -113,4 +128,4 @@ RULESET_VERSION = "2026.09.7"
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
 GATE_VERSION = "2026.09.6"
-SCHEMA_VERSION = 5   # 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+SCHEMA_VERSION = 6   # 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

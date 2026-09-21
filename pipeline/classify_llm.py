@@ -303,7 +303,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
 
     # Results of an earlier batch are collected on any run, not only on another batch run. A
     # submission would otherwise sit uncollected while the hourly synchronous runs ignored it.
-    if not dry_run and conn.execute("SELECT COUNT(*) FROM llm_batches WHERE status='submitted'").fetchone()[0]:
+    if not dry_run and conn.execute("SELECT COUNT(*) FROM llm_batches WHERE status='submitted' AND kind='classify'").fetchone()[0]:
         counts.update(_collect_batches(conn, client))
 
     # Near-duplicate copies cost nothing and do not count against the ceiling.
@@ -444,7 +444,8 @@ def _submit_batch(conn, client, rows) -> int:
 
 def _collect_batches(conn, client) -> Dict:
     out = {"batch_collected": 0, "batch_errors": 0}
-    for b in conn.execute("SELECT * FROM llm_batches WHERE status='submitted'").fetchall():
+    # The second rater's study batches carry other ids and are collected by pipeline.second_rater.
+    for b in conn.execute("SELECT * FROM llm_batches WHERE status='submitted' AND kind='classify'").fetchall():
         info = client.messages.batches.retrieve(b["batch_id"])
         if info.processing_status != "ended":
             continue

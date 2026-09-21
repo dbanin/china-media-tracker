@@ -141,6 +141,7 @@ def test_relay_is_withheld_until_measured_and_settled(tmp_path):
     conn = store.connect(tmp_path / "m.db")
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_measured"] is False and meta["relay_publishable"] is False and meta["paywalled_in_denominator"] is False
+    assert meta["relay_provisional"] is False, "nothing measured, so nothing to show even provisionally"
     # Requests sent are not judgements made: a batch submission records its calls at once and returns
     # nothing until a later run collects it, so calls alone must not flip the interface to "withheld".
     store.record_llm_usage(conn, 600, 0, 0)
@@ -171,12 +172,15 @@ def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_pat
     conn.commit()
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_measured"] is True and meta["relay_publishable"] is False and meta["relay_basis"] is None
+    # Before any study the counts are shown, marked provisional, and the site can say when the study runs.
+    assert meta["relay_provisional"] is True and meta["relay_study"]["state"] in ("waiting_for_budget", "due")
 
     weak = {"method": "model_vs_model", "model_a": "claude-sonnet-5", "model_b": "claude-opus-5",
             "sample_size": 300, "kappa_all": 0.7, "kappa_bc": 0.41, "n_bc": 120, "details": {}}
     store.record_model_agreement(conn, weak, [{"article_id": aid, "category_a": "B", "category_b": "C"}])
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_publishable"] is False, "below the threshold the gate stays shut"
+    assert meta["relay_provisional"] is False, "provisional means not checked yet, never checked and failed"
 
     strong = dict(weak, kappa_bc=0.74,
                   details={"bc_by_language": {"it": {"kappa": 0.3, "n": 40}, "fr": {"kappa": 0.9, "n": 30}}})
@@ -185,6 +189,7 @@ def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_pat
          "category_b": "C", "confidence_b": 0.6, "evidence_b": "quote b"}])
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_publishable"] is True and meta["relay_basis"] == "model_vs_model"
+    assert meta["relay_provisional"] is False
     assert meta["relay_human_coded"] is False and meta["b_counts_settled"] is False
     assert "never checked against human coding" in meta["relay_qualifier"]
     assert meta["relay_reliability"]["model_b"] == "claude-opus-5" and meta["relay_reliability"]["n"] == 300
