@@ -47,7 +47,7 @@ ARRIVAL_LABELS = {
     "partner_section": "Outlet's partner content section",
 }
 RELEASE_STATUSES = ["found", "none_found", "blocked", "unreachable"]
-# What a published relay count rests on, in the words the interface uses. A model versus model study
+# What a published unchecked state sourcing count rests on, in the words the interface uses. A model versus model study
 # licenses "the two models agree", never "the labels are right", and the qualifier travels with the
 # number wherever it is shown.
 RELAY_QUALIFIER = {
@@ -464,8 +464,8 @@ def build_daily(conn) -> Dict[str, Dict]:
         sampling[r["date"]][r["country"]] = [r["eligible"], r["drawn"]]
     relay_hours = relay_hours_by_day(conn)
     relay_incomplete = set(relay_incomplete_days(conn))
-    # Theme counts per day and country: theme id -> [all China coverage, target articles, state origin,
-    # unverified relay].
+    # Theme counts per day and country: theme id -> [all China coverage, state-linked articles, state origin,
+    # unchecked state sourcing].
     # Only China coverage counts (state origin, relay, independent, and pending candidates). An article
     # carries every theme it matches, so a country's theme counts can sum to more than its articles.
     theme_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: [0, 0, 0, 0])))
@@ -600,7 +600,7 @@ ORDER = {"A": 0, "B": 1, "pending": 2, "C": 3}
 
 
 def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
-    """Per country: state origin first, then unverified relay, then articles carrying official
+    """Per country: state origin first, then unchecked state sourcing, then articles carrying official
     Chinese sourcing whose verification judgement is pending, then independent journalism."""
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.title, a.url, a.published_at, a.discovered_at, a.dup_group_id,
@@ -757,7 +757,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "kappa_warning_threshold": config.KAPPA_WARNING_THRESHOLD,
         "kappa_min_language_items": config.KAPPA_MIN_LANGUAGE_ITEMS,
         "b_counts_settled": settled,
-        # The interface publishes unverified relay counts only when this is true. Until the verification
+        # The interface publishes unchecked state sourcing counts only when this is true. Until the verification
         # stage has run, relay is not measured at all and is shown as such, never as zero.
         "relay_measured": bool(llm_labels),
         "relay_publishable": bool(llm_labels) and (settled or reliable),
@@ -807,7 +807,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "release_sections": release_summary(outlets),
         "categories": {
             "A": "State origin. Text written by an entity of the Chinese state and published essentially unaltered.",
-            "B": "Unverified relay. Written by the local outlet but passes on official Chinese sourcing without independent confirmation.",
+            "B": "Unchecked state sourcing. Written by the local outlet but passes on official Chinese sourcing without independent confirmation.",
             "C": "Independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.",
             "not_relevant": "Does not concern China.",
         },
