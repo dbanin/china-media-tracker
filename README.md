@@ -47,7 +47,7 @@ file is generated from live values and is the authoritative description.
    every classification, an always-visible methodology section, and CSV
    export with a citation string. Below 900 pixels it becomes a ranked bar
    chart. METHODOLOGY.md is generated from live values at export time.
-6. Unverified relay adjudication by the model, the review queue and the agreement study.
+6. Unchecked state sourcing adjudication by the model, the review queue and the agreement study.
    pipeline/classify_llm.py sends headline and body only, never outlet or
    country, with the category definitions verbatim in the prompt, structured
    JSON output, a daily call ceiling that is recorded when hit, synchronous
@@ -167,7 +167,7 @@ themes; one with none is Other. The terms live in `pipeline/themes.yaml`, in
 English plus fifteen other languages, and the tagger in `pipeline/themes.py`.
 Changing a term means bumping `version` in that file; the next export
 re-tags every article. The daily files carry, per day and country, each
-theme's count of all China coverage, target articles and state origin
+theme's count of all China coverage, state-linked articles and state origin
 articles, so the counter follows the Measure and Window toggles. The tags are
 keyword matches, not a reading of the article; about a quarter of articles
 match no theme, most often in languages with short term lists such as
@@ -226,7 +226,7 @@ densest country has three or more times the median, the interface says so
 and reminds the reader that raw counts display the sampling. The default
 measure is state origin only, the one label decided without the model;
 per outlet and the share of monitored output are the corrected views, and per
-capita is offered last as the least defensible denominator. Unverified relay
+capita is offered last as the least defensible denominator. Unchecked state sourcing
 is shown as not yet measured until the model stage has run, and withheld until
 an agreement study settles it.
 

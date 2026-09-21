@@ -65,7 +65,7 @@ official sourcing trigger (a citation of Xinhua, CGTN, Global Times, China
 Daily, CCTV or People's Daily; a quoted Ministry of Foreign Affairs
 spokesperson, Chinese embassy or named official spokesperson; or a
 "state media reported" construction in any registry language), routes the
-article to a language model for the unverified relay versus independent
+article to a language model for the unchecked state sourcing versus independent
 journalism judgement. Articles with no
 signature and no trigger are labelled independent journalism by rules when
 the body substantively concerns China (at least three distinct China terms,
@@ -78,7 +78,7 @@ The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
 countries tend to relay official sourcing. Its prompt contains the category
 definitions verbatim and instructs it to answer independent journalism when
-genuinely uncertain, because under-counting unverified relay is the safer error.
+genuinely uncertain, because under-counting unchecked state sourcing is the safer error.
 At most {llm_daily_ceiling} model calls are made a day, and the stage also
 keeps to a budget of {llm_budget_usd} dollars a calendar month: what is left of
 the budget at the start of a day is spread over the days remaining in the month
@@ -112,13 +112,16 @@ countries.
 
 Not relevant. {cat_n}
 
-The critical distinction is between unverified relay and independent
+The critical distinction is between unchecked state sourcing and independent
 journalism, and it is a judgement about verification, not about topic or tone.
 An article highly critical of China that repeats an unverified Xinhua claim is
-still unverified relay. An article sympathetic to China that independently
+still unchecked state sourcing. An article sympathetic to China that independently
 confirms every claim is independent journalism. In the database and the data
 files these four labels are stored as the codes A, B, C and not_relevant, in
-that order, for compactness; the interface never shows the codes.
+that order, for compactness; the interface never shows the codes. Unchecked
+state sourcing is the interface's name for what the codebook and the model
+prompt call unverified relay; the prompt is left as it was written so labels
+stay comparable, and the data files keep the column name unverified_relay.
 
 ## How state origin arrived
 
@@ -149,7 +152,7 @@ rather than by the country alone.
 | Share of gated articles that were paywalled | {paywall_share_pct} |
 | Countries flagged as not comparable because of paywalls | {paywall_flagged} |
 | State origin, all time | {a_total} |
-| Unverified relay, all time | {b_total} |
+| Unchecked state sourcing, all time | {b_total} |
 | Independent journalism, all time | {c_total} |
 | Language model calls, all time | {llm_calls_total} |
 | Days on which more articles waited than the daily cap ({llm_daily_ceiling}) allowed | {capped_days_text} |
@@ -167,7 +170,7 @@ rather than by the country alone.
 ## What the numbers mean
 
 The default measure is state origin only, because it is the one label decided
-without the model. Target articles add unverified relay and the candidates
+without the model. State-linked articles add unchecked state sourcing and the candidates
 still waiting for the verification judgement; that measure mixes a measured
 quantity with an unmeasured pile whose composition varies by country, and is
 labelled as such.
@@ -265,17 +268,17 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     threshold = meta["kappa_warning_threshold"]
     if k and k.get("bc") is not None:
         kappa_text = ("The most recent agreement study (%s) hand coded %d machine labelled articles. Cohen's kappa "
-                      "across all four categories is %s. Kappa on the unverified relay versus independent journalism distinction alone, computed over "
+                      "across all four categories is %s. Kappa on the unchecked state sourcing versus independent journalism distinction alone, computed over "
                       "the %d articles that either coder placed in one of those two, is %.2f.") % (
             k["computed_at"][:10], k["n"], _fmt_kappa(k["all"]), k["n_bc"] or 0, k["bc"])
         by_cat = k.get("by_category") or {}
         if by_cat:
             kappa_text += " One category against the rest: " + "; ".join(
-                "%s %s" % ({"A": "state origin", "B": "unverified relay", "C": "independent journalism", "not_relevant": "not relevant"}.get(c, c),
+                "%s %s" % ({"A": "state origin", "B": "unchecked state sourcing", "C": "independent journalism", "not_relevant": "not relevant"}.get(c, c),
                            _fmt_kappa(v.get("kappa"))) for c, v in sorted(by_cat.items())) + "."
         by_lang = k.get("bc_by_language") or {}
         if by_lang:
-            kappa_text += " Unverified relay versus independent journalism by language: " + "; ".join(
+            kappa_text += " Unchecked state sourcing versus independent journalism by language: " + "; ".join(
                 "%s %s (n = %d)" % (lang, _fmt_kappa(v.get("kappa")), v.get("n") or 0) for lang, v in sorted(by_lang.items())) + "."
     else:
         kappa_text = ("No article has been hand coded, and none is planned: the owner's decision is that this "
@@ -285,40 +288,40 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
                       "described next. pipeline/agreement.py remains the hand coding path if that decision is ever "
                       "revisited.")
     if not meta.get("relay_measured"):
-        relay_text = ("The verification stage has not run, so unverified relay is not measured. The interface shows it as not yet "
+        relay_text = ("The verification stage has not run, so unchecked state sourcing is not measured. The interface shows it as not yet "
                       "measured, never as zero, and the default measure is state origin only.")
     elif meta.get("relay_provisional"):
         study = meta.get("relay_study") or {}
         when = {"submitted": "A reliability study has been submitted and its result is awaited.",
                 "waiting_for_budget": "A reliability study is queued and runs by itself once the monthly model budget allows, not before %s." % (study.get("earliest") or "next month"),
                 "due": "A reliability study is due and runs at the next export."}.get(study.get("state"), "No reliability study has run yet.")
-        relay_text = ("Unverified relay counts are shown as provisional: they are one model's judgement and nothing has "
+        relay_text = ("Unchecked state sourcing counts are shown as provisional: they are one model's judgement and nothing has "
                       "checked them yet. Every figure that contains them is marked provisional in the interface and carries "
                       "relay_status provisional in the CSV export. %s Provisional means not checked yet, never checked and "
-                      "failed: once a study reports, the counts are published if kappa on the unverified relay versus "
+                      "failed: once a study reports, the counts are published if kappa on the unchecked state sourcing versus "
                       "independent journalism distinction is at least %.1f and withheld if it is not. Before a study there "
                       "is no per language result, so no language is withheld." % (when, threshold))
     elif not meta.get("relay_publishable"):
-        relay_text = ("Unverified relay counts are withheld from the interface and the CSV export, not merely annotated, until a "
-                      "study gives kappa on the unverified relay versus independent journalism distinction of at least "
+        relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely annotated, until a "
+                      "study gives kappa on the unchecked state sourcing versus independent journalism distinction of at least "
                       "%.1f. That boundary is where classification error concentrates." % threshold)
     elif meta.get("relay_basis") == "model_vs_model":
         rr = meta.get("relay_reliability") or {}
         relay_text = (
-            "Unverified relay counts are published, on the strength of a reliability study rather than a "
+            "Unchecked state sourcing counts are published, on the strength of a reliability study rather than a "
             "validation one. A second model (%s) re-judged a sample of %s articles already judged by %s, "
             "seeing the same prompt, headline and body and no outlet or country, and the two agreed at "
-            "kappa %s on the relay versus independent journalism judgement, at or above the %.1f threshold. "
+            "kappa %s on the unchecked sourcing versus independent journalism judgement, at or above the %.1f threshold. "
             "What that licenses is narrow: the two models apply the codebook consistently. It is not "
             "evidence that they apply it correctly. No article in this project has been read by a person, "
             "and two models of one family can share a bias that no amount of agreement between them "
-            "reveals, so a relay count here should be read as consistent rather than verified. Both raters' "
+            "reveals, so an unchecked state sourcing count here should be read as consistent rather than verified. Both raters' "
             "labels are stored for every sampled article, so the disagreements can be read rather than "
             "inferred from a coefficient." % (
                 rr.get("model_b", "a second model"), rr.get("n", 0), rr.get("model_a", "the first"),
                 _fmt_kappa(rr.get("kappa_bc")), threshold))
     else:
-        relay_text = ("Unverified relay counts are published, because kappa on the unverified relay versus "
+        relay_text = ("Unchecked state sourcing counts are published, because kappa on the unchecked state sourcing versus "
                       "independent journalism distinction, from hand coding of a random sample, is at least %.1f." % threshold)
     withheld = meta.get("relay_withheld_languages") or []
     if withheld:

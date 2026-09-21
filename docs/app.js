@@ -90,7 +90,7 @@
   }
   function plural(n, word, words) { return n + " " + (n === 1 ? word : (words || word + "s")); }
 
-  /* Unverified relay is published only when the verification stage has run and a reliability study has
+  /* Unchecked state sourcing is published only when the verification stage has run and a reliability study has
      settled it, and never for a country whose outlets publish in a language withheld on its own kappa.
      Data files from before those fields existed fall back to the older flags. */
   function relayFor(entry) {
@@ -144,28 +144,28 @@
     if (!m) { kparts.push("No data has been exported yet. The interface is rendering an empty dataset."); short.push("no data exported yet"); }
     else {
       var relay = relayFor(null), k = m.kappa;
-      if (!relay.measured) short.push("unverified relay not yet measured");
-      else if (relay.provisional) short.push("unverified relay is provisional, " + relayStudyText());
-      else if (!relay.publishable) short.push(k && k.bc !== null && k.bc !== undefined ? "unverified relay withheld, kappa " + k.bc.toFixed(2) + " below " + m.kappa_warning_threshold : "unverified relay withheld pending a reliability study");
-      else if (relayBasis() === "same_model_rerun") short.push("relay counts rest on a same-model rerun, not a second opinion");
-      else if (relayBasis() === "model_vs_model") short.push("relay counts rest on two models agreeing, never on a person reading");
-      if (!relay.measured) kparts.push("Unverified relay has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
-      else if (relay.provisional) kparts.push("Unverified relay counts are provisional. They are one model\u2019s judgement of whether an article passes on official Chinese sourcing unchecked, and nothing has checked that judgement yet: " + relayStudyText() + ". Every figure that contains them is marked provisional here and in the CSV export. If the study puts agreement on the relay versus independent journalism judgement at or above " + m.kappa_warning_threshold + " the marking is replaced by what the study measured; if it does not, the counts are withheld. No article is read by a person: this project runs without a human in the loop by the owner\u2019s decision.");
+      if (!relay.measured) short.push("unchecked state sourcing not yet measured");
+      else if (relay.provisional) short.push("unchecked state sourcing is provisional, " + relayStudyText());
+      else if (!relay.publishable) short.push(k && k.bc !== null && k.bc !== undefined ? "unchecked state sourcing withheld, kappa " + k.bc.toFixed(2) + " below " + m.kappa_warning_threshold : "unchecked state sourcing withheld pending a reliability study");
+      else if (relayBasis() === "same_model_rerun") short.push("unchecked sourcing counts rest on a same-model rerun, not a second opinion");
+      else if (relayBasis() === "model_vs_model") short.push("unchecked sourcing counts rest on two models agreeing, never on a person reading");
+      if (!relay.measured) kparts.push("Unchecked state sourcing has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
+      else if (relay.provisional) kparts.push("Unchecked state sourcing counts are provisional. They are one model\u2019s judgement of whether an article passes on official Chinese sourcing unchecked, and nothing has checked that judgement yet: " + relayStudyText() + ". Every figure that contains them is marked provisional here and in the CSV export. If the study puts agreement on the unchecked sourcing versus independent journalism judgement at or above " + m.kappa_warning_threshold + " the marking is replaced by what the study measured; if it does not, the counts are withheld. No article is read by a person: this project runs without a human in the loop by the owner\u2019s decision.");
       else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
-        ? "Unverified relay counts are withheld. Cohen's kappa on the relay versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
-        : "Unverified relay counts are withheld until a reliability study checks the relay versus independent journalism judgement. No article is read by a person: this project runs without a human in the loop by the owner\u2019s decision, so the study is a second model re-judging a sample of the same articles, which measures whether two raters apply the codebook the same way rather than whether they apply it correctly.");
+        ? "Unchecked state sourcing counts are withheld. Cohen's kappa on the unchecked sourcing versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
+        : "Unchecked state sourcing counts are withheld until a reliability study checks the unchecked sourcing versus independent journalism judgement. No article is read by a person: this project runs without a human in the loop by the owner\u2019s decision, so the study is a second model re-judging a sample of the same articles, which measures whether two raters apply the codebook the same way rather than whether they apply it correctly.");
       else if (relayBasis() === "same_model_rerun") {
         var rs = m.relay_reliability || {};
-        kparts.push("Unverified relay counts are published on the strength of the same model, " + (rs.model_a || "the model") + ", re-judging a sample of " + (rs.n || 0) + " articles and agreeing with its own earlier labels at Cohen's kappa " + (rs.kappa_bc === null || rs.kappa_bc === undefined ? "n/a" : rs.kappa_bc.toFixed(2)) + " on relay versus independent. That is a rerun, not a second opinion: it shows the judgement is stable, and can say nothing about a mistake the model makes every time. No article is read by a person.");
+        kparts.push("Unchecked state sourcing counts are published on the strength of the same model, " + (rs.model_a || "the model") + ", re-judging a sample of " + (rs.n || 0) + " articles and agreeing with its own earlier labels at Cohen's kappa " + (rs.kappa_bc === null || rs.kappa_bc === undefined ? "n/a" : rs.kappa_bc.toFixed(2)) + " on unchecked sourcing versus independent. That is a rerun, not a second opinion: it shows the judgement is stable, and can say nothing about a mistake the model makes every time. No article is read by a person.");
       }
       else if (relayBasis() === "model_vs_model") {
         var rr = m.relay_reliability || {};
-        kparts.push("Unverified relay counts are published on the strength of a second model, " + (rr.model_b || "another model") + ", re-judging a sample of " + (rr.n || 0) + " articles and agreeing with " + (rr.model_a || "the first") + " at kappa " + (rr.kappa_bc === null || rr.kappa_bc === undefined ? "n/a" : rr.kappa_bc.toFixed(2)) + " on the relay versus independent judgement. That measures whether two models apply the codebook the same way, not whether they apply it correctly: no article has been read by a person, and two models of one family can share a bias neither of them reveals.");
+        kparts.push("Unchecked state sourcing counts are published on the strength of a second model, " + (rr.model_b || "another model") + ", re-judging a sample of " + (rr.n || 0) + " articles and agreeing with " + (rr.model_a || "the first") + " at kappa " + (rr.kappa_bc === null || rr.kappa_bc === undefined ? "n/a" : rr.kappa_bc.toFixed(2)) + " on the unchecked sourcing versus independent judgement. That measures whether two models apply the codebook the same way, not whether they apply it correctly: no article has been read by a person, and two models of one family can share a bias neither of them reveals.");
       }
       var wl = m.relay_withheld_languages || [];
-      if (wl.length) { kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold."); short.push("relay withheld for " + wl.join(", ")); }
+      if (wl.length) { kparts.push("They are also withheld for outlets publishing in " + wl.join(", ") + ", where agreement in that language is below the threshold."); short.push("unchecked sourcing withheld for " + wl.join(", ")); }
       if (m.official_sourcing_pending) short.push(m.official_sourcing_pending + " articles await the model");
-      if (m.official_sourcing_pending) kparts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and wait for that judgement. The Target articles measure counts them, so it mixes a measured quantity with an unmeasured pile.");
+      if (m.official_sourcing_pending) kparts.push(m.official_sourcing_pending + " articles in " + m.official_sourcing_pending_countries + " countries carry official Chinese sourcing and wait for that judgement. The State-linked articles measure counts them, so it mixes a measured quantity with an unmeasured pile.");
     }
     var parts = [];
     if (m) {
@@ -253,7 +253,7 @@
     var pat3 = defs.append("pattern").attr("id", "sparse").attr("patternUnits", "userSpaceOnUse").attr("width", 5).attr("height", 5);
     pat3.append("rect").attr("width", 5).attr("height", 5).attr("fill", "#23262a");
     pat3.append("rect").attr("x", 2).attr("y", 2).attr("width", 1.2).attr("height", 1.2).attr("fill", "#8a7443");
-    /* Withheld: unverified relay not measured or not publishable. A cross hatch in dark amber. */
+    /* Withheld: unchecked state sourcing not measured or not publishable. A cross hatch in dark amber. */
     var pat4 = defs.append("pattern").attr("id", "withheld").attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6);
     pat4.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#141618");
     pat4.append("path").attr("d", "M0,0 L6,6 M6,0 L0,6").attr("stroke", "#5a4520").attr("stroke-width", 1);
@@ -440,7 +440,7 @@
         '<ul class="lg-keys">' +
           '<li><span class="sw" style="background:repeating-linear-gradient(45deg,#141618,#141618 3px,#2b2e33 3px,#2b2e33 4px)"></span><span>Not monitored: no outlets registered</span></li>' +
           '<li><span class="sw" style="background:radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px"></span><span>Coverage gap, or every outlet inactive</span></li>' +
-          (m.relay && !relay.visible ? '<li><span class="sw" style="background:repeating-linear-gradient(45deg,transparent,transparent 3px,#5a4520 3px,#5a4520 4px),repeating-linear-gradient(-45deg,#141618,#141618 3px,#5a4520 3px,#5a4520 4px)"></span><span>' + esc(relay.measured ? "Unverified relay withheld until agreement is settled" : "Unverified relay not yet measured") + '</span></li>' : '') +
+          (m.relay && !relay.visible ? '<li><span class="sw" style="background:repeating-linear-gradient(45deg,transparent,transparent 3px,#5a4520 3px,#5a4520 4px),repeating-linear-gradient(-45deg,#141618,#141618 3px,#5a4520 3px,#5a4520 4px)"></span><span>' + esc(relay.measured ? "Unchecked state sourcing withheld until agreement is settled" : "Unchecked state sourcing not yet measured") + '</span></li>' : '') +
           '<li><span class="sw" style="background:repeating-linear-gradient(0deg,#141618,#141618 3px,#3a4450 3px,#3a4450 4px)"></span><span>Monitored, but no keyword list for the outlets\' language, and nothing found</span></li>' +
           '<li><span class="sw" style="background:#1a1c1f"></span><span>Monitored, but no China coverage in this window</span></li>' +
           (notShown ? '<li><span class="sw" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span><span>' + esc(notShown) + '</span></li>' : '') +
@@ -464,7 +464,7 @@
       else {
         html += '<div>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + ': <strong>' + (p.cls === "withheld" ? esc(relayText(relayFor(e), 0)) : C.formatValue(mv.value, metricDef().format) + (mv.provisional ? " (provisional)" : "")) + '</strong></div>';
         if (mv.note && mv.value === null) html += '<div class="muted">' + esc(mv.note) + '</div>';
-        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + '; unverified relay ' + esc(relayText(relayFor(e), mv.b)) + '; official sourcing pending verification ' + mv.pending + '; independent ' + mv.c + '; ' + esc(windowLabel()) + '</div>';
+        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + '; unchecked state sourcing ' + esc(relayText(relayFor(e), mv.b)) + '; official sourcing pending verification ' + mv.pending + '; independent ' + mv.c + '; ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' unread: missing from every count, still counted in the monitored output denominator.</div>';
         if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; an estimated ' + k.miss + ' items were missed.</div>';
@@ -522,7 +522,7 @@
     while (i < THEME_EDGES.length && share >= THEME_EDGES[i]) i++;
     return THEME_HEAT[i];
   }
-  function measureNoun() { return {target: "target articles", a: "state origin articles", b: "unverified relay articles", china: "China articles"}[state.measure] || "articles"; }
+  function measureNoun() { return {target: "state-linked articles", a: "state origin articles", b: "unchecked state sourcing articles", china: "China articles"}[state.measure] || "articles"; }
   function measureIndex() { var i = C.MEASURE_INDEX[state.measure]; return i === undefined ? 2 : i; }
   function denominator(k, mi) {
     k = k || C.emptyCounts();
@@ -844,7 +844,7 @@
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
       body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, or a row in the ranked list on small screens, to see its time series, category breakdown, routes, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unverified relay</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, unread and uncounted</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unchecked state sourcing</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, unread and uncounted</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
       return;
     }
     var iso = state.selected;
@@ -868,7 +868,7 @@
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
       '<tr><td>State origin</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
       '<tr><td class="muted">Underlying items among them</td><td class="num">' + k.uniqA + '</td><td></td><td></td><td></td></tr>' +
-      '<tr><td>Unverified relay</td>' + relayCells + '</tr>' +
+      '<tr><td>Unchecked state sourcing</td>' + relayCells + '</tr>' +
       '<tr><td>Official Chinese sourcing, verification pending</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
       '<tr><td>Independent journalism</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
       '<tr><td>Not relevant</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
@@ -889,7 +889,7 @@
       html += '<p class="panel-note">Press release, sponsored and partner sections searched at ' + searched + ' of ' + rs.outlets_active + ' active outlets' + (searched ? ', found at ' + (rs.found || 0) : '') + '. Where no section was searched, state origin placed there cannot be found.</p>';
     }
     if (entry.language_support && entry.language_support !== "full") html += '<p class="panel-note">Keyword lists cover ' + (entry.language_support === "none" ? 'none' : 'only some') + ' of this country\'s outlet languages (' + esc((entry.languages || []).join(", ")) + '); the rest are matched on international and English terms only.</p>';
-    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Relay</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th><th>Release section</th></tr>';
+    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Unchecked</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th><th>Release section</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
       /* Health counts editorial feeds; release section feeds are listed in the title but never make an outlet look failing. */
       var editorial = o.feeds.filter(function (f) { return !f.kind || f.kind === "editorial"; });
@@ -898,7 +898,7 @@
       html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (o.collector === "self_hosted" ? ' <span class="badge" title="Collected from the owner\'s machine">relayed</span>' : '') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.publishable ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
     });
     html += '</table>';
-    html += '<h3>Target articles first, then the rest</h3><p class="muted">State placements, unverified relay, and pieces carrying official Chinese sourcing that still await the verification judgement, each with the sentence that triggered it. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
+    html += '<h3>State-linked articles first, then the rest</h3><p class="muted">State placements, unchecked state sourcing, and pieces carrying official Chinese sourcing that still await the verification judgement, each with the sentence that triggered it. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
     body.innerHTML = html;
     bindClose();
     renderMini(iso, relay);
@@ -928,7 +928,7 @@
     if (relay.visible) svgm.append("path").attr("class", "b").attr("d", lineB(pts));
     svgm.append("text").attr("x", 4).attr("y", h - 4).text(pts[0].date.toISOString().slice(0, 10));
     svgm.append("text").attr("x", w - 4).attr("y", h - 4).attr("text-anchor", "end").text(pts[pts.length - 1].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, " + (relay.visible ? "dashed unverified relay" + (relay.provisional ? " (provisional), " : ", ") : "") + "dotted pending, max " + y.domain()[1] + " per day");
+    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, " + (relay.visible ? "dashed unchecked state sourcing" + (relay.provisional ? " (provisional), " : ", ") : "") + "dotted pending, max " + y.domain()[1] + " per day");
   }
 
   function loadArticles(iso) {
@@ -943,7 +943,7 @@
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
         var srcs = (a.sources && a.sources.length) ? '<div class="a-meta">Chinese sources carried: ' + esc(a.sources.join(", ")) + '</div>' : '';
-        var catLabel = cat === "B" && relay.provisional ? "Unverified relay (provisional)" : cat === "B" && !relay.publishable ? "Relay judgement, " + (relay.measured ? "withheld" : "not settled") : C.nameOf(cat);
+        var catLabel = cat === "B" && relay.provisional ? "Unchecked state sourcing (provisional)" : cat === "B" && !relay.publishable ? "Sourcing judgement, " + (relay.measured ? "withheld" : "not settled") : C.nameOf(cat);
         var route = cat === "A" && a.route ? '<div class="a-meta">Route: ' + esc(routeLabel({kind: "route", id: a.route})) + (a.arrival && a.arrival !== "editorial_feed" ? '; collected from ' + esc(routeLabel({kind: "arrival", id: a.arrival}).toLowerCase()) : '') + '</div>' : '';
         return '<div class="article"><a class="a-title" href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.title || a.url) + '</a>' +
           '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(catLabel) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
@@ -1131,13 +1131,13 @@
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified"],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles: missing from every count, but still counted in the share of monitored output denominator, so that share is a lower bound" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
-      ["Unverified relay", !relay.measured ? "not yet measured: the verification stage has not run"
+      ["Unchecked state sourcing", !relay.measured ? "not yet measured: the verification stage has not run"
         : (relay.publishable ? "published, " + (m.relay_qualifier || "basis not recorded") : relay.provisional ? "provisional: shown and marked, " + relayStudyText() : "withheld until a study settles it")
           + ((m.relay_withheld_languages || []).length ? " Withheld for " + m.relay_withheld_languages.join(", ") + "." : "")],
       ["Labels that cannot be reclassified", (m.labels_unreclassifiable || 0) + " of " + (m.articles_classified || 0) + ", because the article can no longer be retrieved"],
-      ["Relay reliability study", m.relay_reliability ? (m.relay_reliability.method === "model_vs_model" ? "second model " + m.relay_reliability.model_b + " against " + m.relay_reliability.model_a : m.relay_reliability.method) + ", " + m.relay_reliability.n + " articles, kappa " + (m.relay_reliability.kappa_bc === null || m.relay_reliability.kappa_bc === undefined ? "n/a" : m.relay_reliability.kappa_bc.toFixed(2)) + " on relay versus independent" : "none run"],
+      ["Relay reliability study", m.relay_reliability ? (m.relay_reliability.method === "model_vs_model" ? "second model " + m.relay_reliability.model_b + " against " + m.relay_reliability.model_a : m.relay_reliability.method) + ", " + m.relay_reliability.n + " articles, kappa " + (m.relay_reliability.kappa_bc === null || m.relay_reliability.kappa_bc === undefined ? "n/a" : m.relay_reliability.kappa_bc.toFixed(2)) + " on unchecked sourcing versus independent" : "none run"],
       ["Human coding", m.relay_human_coded ? "some articles have been read by a person" : "none: no article has been read by a person, so nothing here is validated against human judgement"],
-      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unverified relay versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
+      ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unchecked state sourcing versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return r.label.toLowerCase() + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
       ["Release sections searched", rs && rs.outlets_active ? (rs.outlets_active - (rs.not_searched || 0)) + " of " + rs.outlets_active + " active outlets; " + (rs.found || 0) + " found, " + (rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
       ["Feed polls with nothing seen before", fs && fs.polls ? fs.saturated + " of " + fs.polls + ", an estimated " + fs.missed_estimate + " items missed" : "not yet measured"],
@@ -1219,14 +1219,19 @@
       var other = el("metric").value;
       state.metric = other || C.gridMetric(state.measure, state.basis);
       Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-basis") === state.basis); });
-      Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-measure") === state.measure); });
+      /* The same four categories sit above the map and above the theme chart, and move together. The top
+         row goes quiet while another denominator is chosen; the theme chart always reads the category. */
+      Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
+        var top = b.parentNode.id === "measure";
+        b.classList.toggle("active", !(top && other) && b.getAttribute("data-measure") === state.measure);
+      });
       el("route").value = state.route ? state.route.kind + ":" + state.route.id : "";
       renderMap(); renderSpark(); renderThemes(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
       b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); el("metric").value = ""; applyMetric(); });
     });
-    Array.prototype.forEach.call(el("measure").querySelectorAll("button"), function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
       b.addEventListener("click", function () {
         state.measure = b.getAttribute("data-measure");
         if (state.measure !== "a") state.route = null;
