@@ -6,7 +6,7 @@ assert(Object.keys(agg.countries).length === 0, "empty aggregate");
 assert(C.listDays({}).length === 0, "no days");
 var mv = C.metricValue(undefined, "count_target", 0, "all", undefined);
 assert(mv.value === 0 && mv.pending === 0, "target count on empty");
-mv = C.metricValue(undefined, "share_ab", 0, "all", undefined);
+mv = C.metricValue(undefined, "share_b", 0, "all", undefined);
 assert(mv.value === null && mv.chinaTotal === 0, "share undefined on empty");
 assert(C.fillClass(undefined, mv) === "nocoverage", "no entry is nocoverage");
 assert(C.fillClass({coverage: "monitored", outlets_active: 3}, mv) === "nodata", "monitored without coverage is nodata");
@@ -22,12 +22,12 @@ assert(a2.countries.ITA.A === 3 && a2.countries.ITA.B === 1 && a2.ceilingDays.le
 assert(a2.routes.ITA.wire_credit === 2 && a2.routes.ITA.diplomatic_byline === 1 && C.routeCount(a2, "ITA", {kind: "arrival", id: "press_release_section"}) === 1, "routes and arrivals");
 var a1 = C.aggregateWindow(months, "2026-09-02", 1);
 assert(a1.countries.ITA.A === 1, "single day");
-assert(Math.abs(C.metricValue(a2.countries.ITA, "share_ab", 5, "all").value - 4 / 8) < 1e-9, "share");
+assert(Math.abs(C.metricValue(a2.countries.ITA, "share_target", 5, "all").value - 4 / 8) < 1e-9, "share");
 /* Unverified relay is never shown as zero when it has not been measured, and is withheld until publishable. */
-var unmeasured = C.metricValue(a2.countries.ITA, "count_ab", 5, "all", undefined, {relay: {measured: false, publishable: false}});
+var unmeasured = C.metricValue(a2.countries.ITA, "count_b", 5, "all", undefined, {relay: {measured: false, publishable: false}});
 assert(unmeasured.value === null && unmeasured.withheld && unmeasured.note === C.RELAY_NOT_MEASURED, "relay not measured");
 assert(C.fillClass({coverage: "monitored", outlets_active: 5}, unmeasured) === "withheld", "withheld fill");
-var withheld = C.metricValue(a2.countries.ITA, "share_ab", 5, "all", undefined, {relay: {measured: true, publishable: false}});
+var withheld = C.metricValue(a2.countries.ITA, "share_b", 5, "all", undefined, {relay: {measured: true, publishable: false}});
 assert(withheld.value === null && withheld.note === C.RELAY_WITHHELD, "relay withheld");
 assert(C.metricValue(a2.countries.ITA, "count_a", 5, "all", undefined, {relay: {measured: false, publishable: false}}).value === 3, "state origin unaffected by the relay gate");
 var rows = C.rankCountries(a2, {countries: {ITA: {coverage: "monitored", outlets_active: 5}}}, "count_a", "all", {}, function () { return {relay: {measured: false, publishable: false}}; });
@@ -39,7 +39,7 @@ var withPending = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 3});
 var tv = C.metricValue(withPending, "count_target", 2, "all");
 assert(tv.value === 4 && tv.chinaTotal === 6 && tv.target === 4, "pending counts as target and as coverage");
 assert(Math.abs(C.metricValue(withPending, "share_target", 2, "all").value - 4 / 6) < 1e-9, "target share");
-var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_ab", 1, "all");
+var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_target", 1, "all");
 assert(tiny.value === null && tiny.sparse === true, "tiny denominator gives no share");
 assert(C.fillClass({coverage: "monitored", outlets_active: 1}, tiny) === "sparse", "sparse fill");
 assert(C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "count_a", 1, "all").value === 2, "count still shown");
@@ -61,6 +61,12 @@ assert(tinyPop.value === null && tinyPop.sparse === true, "tiny population gives
 assert(Math.abs(C.percentile([1, 2, 3, 4, 100], 0.95) - 80.8) < 1e-9 && C.percentile([], 0.95) === null && C.percentile([5], 0.95) === 5, "percentile");
 assert(C.gridMetric("a", "share_of_output") === "share_of_output_a" && C.gridMetric("china", "count") === "count_china" && C.gridMetric("nope", "nope") === "count_a", "grid");
 assert(C.BASES[C.BASES.length - 1] === "per_million", "per capita is offered last");
+/* Share of China coverage is a denominator like the others, and is meaningless for All China coverage. */
+assert(C.gridMetric("a", "share_of_china") === "share_a" && C.gridMetric("b", "share_of_china") === "share_b" &&
+       C.gridMetric("target", "share_of_china") === "share_target", "share of China coverage is a basis");
+assert(C.basisAvailable("a", "share_of_china") && !C.basisAvailable("china", "share_of_china"), "not offered for All China coverage");
+assert(C.gridMetric("china", "share_of_china") === "count_china", "an unavailable pair falls back inside its own measure");
+assert(C.METRICS.count_ab === undefined && C.METRICS.share_ab === undefined, "the combined metrics are gone");
 var allA = Object.assign(C.emptyCounts(), {A: 2, C: 8, tdisc: 400, ttarget: 3, tchina: 10, ta: 2});
 assert(Math.abs(C.metricValue(allA, "share_of_output_a", 1, "all").value - 0.005) < 1e-9, "state origin share of monitored output");
 assert(C.metricValue(allA, "count_china", 1, "all").value === 10, "china count");
@@ -85,7 +91,7 @@ var PROV = {measured: true, publishable: false, provisional: true};
 var prov = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: PROV});
 assert(prov.value === 4 && prov.provisional === true && !prov.withheld && prov.underlyingB === 3 && prov.note === C.RELAY_PROVISIONAL, "provisional relay is shown and marked");
 assert(C.fillClass({coverage: "monitored", outlets_active: 5}, prov) === "value", "provisional relay colours the map");
-assert(C.metricValue(relayCounts, "count_ab", 5, "all", undefined, {relay: PROV}).value === 5, "combined metrics are visible while provisional");
+assert(C.metricValue(relayCounts, "count_target", 5, "all", undefined, {relay: PROV}).value === 5, "state-linked stays readable while provisional");
 var failed = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: false}});
 assert(failed.value === null && failed.withheld && failed.note === C.RELAY_WITHHELD, "measured but neither publishable nor provisional stays withheld");
 assert(C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: true}}).provisional === false, "published relay is not provisional");

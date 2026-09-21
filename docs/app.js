@@ -491,7 +491,7 @@
     var fmt = metricDef().format || "int";
     var max = d3.max(rows, function (r) { return r.value || 0; }) || 1;
     var itemsMeasure = metricDef().measure;
-    var showItems = (itemsMeasure === "a" || itemsMeasure === "b") && state.basis === "count" && !el("metric").value && !routeActive();
+    var showItems = (itemsMeasure === "a" || itemsMeasure === "b") && state.basis === "count" && !routeActive();
     el("bars-title").textContent = metricLabel() + (routeActive() ? ", " + routeLabel(state.route).toLowerCase() : "") + ", " + windowLabel();
     el("bars").innerHTML = rows.map(function (r) {
       var w = r.value ? Math.max(2, 100 * r.value / max) : 0;
@@ -1212,37 +1212,42 @@
   function bindControls() {
     bindThemes();
     setupRouteSelect();
-    /* Measure and Basis toggles form a grid; the same Basis toggle is repeated above the map and above
-       the ranked list and every copy stays in step. The select holds the other denominators. A route
-       applies to state origin only, so choosing one switches the measure to state origin. */
+    /* Every figure on the map is one category read against one denominator, so the interface is those
+       two rows and nothing else. Both rows are repeated above the map, the ranked list and the theme
+       chart, and every copy stays in step. A route applies to state origin only, so choosing one
+       switches the category to state origin. */
     function applyMetric() {
-      var other = el("metric").value;
-      state.metric = other || C.gridMetric(state.measure, state.basis);
-      Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) { b.classList.toggle("active", !other && b.getAttribute("data-basis") === state.basis); });
-      /* The same four categories sit above the map and above the theme chart, and move together. The top
-         row goes quiet while another denominator is chosen; the theme chart always reads the category. */
+      if (!C.basisAvailable(state.measure, state.basis)) state.basis = "count";
+      state.metric = C.gridMetric(state.measure, state.basis);
+      Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
+        var basis = b.getAttribute("data-basis"), ok = C.basisAvailable(state.measure, basis);
+        b.classList.toggle("active", basis === state.basis);
+        /* All China coverage is its own denominator, so its share of itself is always 100 percent. */
+        b.disabled = !ok;
+        b.title = ok ? (b.getAttribute("data-title") || b.title)
+                     : "Every article that concerns China is all of a country's China coverage, so this share is always 100 percent.";
+      });
       Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
-        var top = b.parentNode.id === "measure";
-        b.classList.toggle("active", !(top && other) && b.getAttribute("data-measure") === state.measure);
+        b.classList.toggle("active", b.getAttribute("data-measure") === state.measure);
       });
       el("route").value = state.route ? state.route.kind + ":" + state.route.id : "";
       renderMap(); renderSpark(); renderThemes(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
-      b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); el("metric").value = ""; applyMetric(); });
+      b.setAttribute("data-title", b.title || "");
+      b.addEventListener("click", function () { state.basis = b.getAttribute("data-basis"); applyMetric(); });
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
       b.addEventListener("click", function () {
         state.measure = b.getAttribute("data-measure");
         if (state.measure !== "a") state.route = null;
-        el("metric").value = ""; applyMetric();
+        applyMetric();
       });
     });
-    el("metric").addEventListener("change", function () { if (el("metric").value) state.route = null; applyMetric(); });
     el("route").addEventListener("change", function () {
       var v = el("route").value;
       state.route = v ? {kind: v.slice(0, v.indexOf(":")), id: v.slice(v.indexOf(":") + 1)} : null;
-      if (state.route) { state.measure = "a"; el("metric").value = ""; if (state.basis === "share_of_output") state.basis = "count"; }
+      if (state.route) { state.measure = "a"; if (state.basis === "share_of_output") state.basis = "count"; }
       applyMetric();
     });
     /* The Window toggle is repeated above the map and above the ranked list, like Basis. */

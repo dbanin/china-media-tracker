@@ -107,10 +107,7 @@
     per_million_china: {label: "All China coverage per million people", format: "dec", measure: "china", population: true},
     share_a: {label: "Share of China coverage that is state origin", format: "pct", measure: "a"},
     share_b: {label: "Share of China coverage that is unchecked state sourcing", format: "pct", measure: "b", relay: true},
-    share_target: {label: "Share of China coverage that is state origin, confirmed unchecked sourcing or a sourcing candidate", format: "pct", measure: "target"},
-    count_ab: {label: "State origin plus confirmed unchecked state sourcing", format: "int", measure: "target", relay: true},
-    share_ab: {label: "Share of China coverage that is state origin or confirmed unchecked state sourcing", format: "pct", measure: "target", relay: true},
-    per_outlet_ab: {label: "State origin plus confirmed unchecked state sourcing per monitored outlet", format: "dec", measure: "target", relay: true}
+    share_target: {label: "Share of China coverage that is state origin, unchecked state sourcing or a sourcing candidate", format: "pct", measure: "target"}
   };
 
   var RELAY_NOT_MEASURED = "Unchecked state sourcing has not been measured: the verification stage has not run. It is not zero.";
@@ -155,12 +152,9 @@
     } else {
       switch (metric) {
         case "count_a": case "count_b": case "count_target": case "count_china": value = num; break;
-        case "count_ab": value = a + b; break;
         case "share_a": case "share_b": case "share_target":
           sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? num / china : null; break;
-        case "share_ab": sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? (a + b) / china : null; break;
         case "per_outlet_a": case "per_outlet_b": case "per_outlet_target": case "per_outlet_china": value = outletsActive ? num / outletsActive : null; break;
-        case "per_outlet_ab": value = outletsActive ? (a + b) / outletsActive : null; break;
         case "per_million_a": case "per_million_b": case "per_million_target": case "per_million_china":
           if (!population) { sparse = china > 0; note = "No resident population is recorded for this territory, so a per capita value is not shown."; }
           else if (population < MIN_POPULATION) { sparse = china > 0; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; }
@@ -223,14 +217,19 @@
 
   /* The grid behind the Measure and Basis toggles. Per capita comes last: population measures people,
      not media saturation, so it is the least defensible of the denominators. */
-  var BASES = ["count", "per_outlet", "share_of_output", "per_million"];
+  /* The denominators, widening from the country's own China coverage to its whole output to its people.
+     Share of China coverage is meaningless for the All China coverage measure, which is its own
+     denominator, so GRID leaves that pair out and the interface disables the button. */
+  var BASES = ["count", "per_outlet", "share_of_china", "share_of_output", "per_million"];
   var GRID = {
-    a: {count: "count_a", per_outlet: "per_outlet_a", share_of_output: "share_of_output_a", per_million: "per_million_a"},
-    b: {count: "count_b", per_outlet: "per_outlet_b", share_of_output: "share_of_output_b", per_million: "per_million_b"},
-    target: {count: "count_target", per_outlet: "per_outlet_target", share_of_output: "share_of_output_target", per_million: "per_million_target"},
+    a: {count: "count_a", per_outlet: "per_outlet_a", share_of_china: "share_a", share_of_output: "share_of_output_a", per_million: "per_million_a"},
+    b: {count: "count_b", per_outlet: "per_outlet_b", share_of_china: "share_b", share_of_output: "share_of_output_b", per_million: "per_million_b"},
+    target: {count: "count_target", per_outlet: "per_outlet_target", share_of_china: "share_target", share_of_output: "share_of_output_target", per_million: "per_million_target"},
     china: {count: "count_china", per_outlet: "per_outlet_china", share_of_output: "share_of_output_china", per_million: "per_million_china"}
   };
-  function gridMetric(measure, basis) { return (GRID[measure] || GRID.a)[basis] || GRID.a.count; }
+  /* An unavailable pair falls back within the same measure, never to another measure's number. */
+  function gridMetric(measure, basis) { var g = GRID[measure] || GRID.a; return g[basis] || g.count || GRID.a.count; }
+  function basisAvailable(measure, basis) { return !!(GRID[measure] || GRID.a)[basis]; }
 
   /* Coverage class for the fill. Distinguishes absence of data from absence of content.
        nocoverage  no monitored outlets and not in the gaps file
@@ -350,7 +349,7 @@
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
-          aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric,
+          aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
           formatValue: formatValue, percentile: percentile, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));
