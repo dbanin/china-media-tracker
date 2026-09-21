@@ -10056,7 +10056,9 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto)
+  inactive_since: '2026-09-21'
 - id: ir_iranwire
   name: IranWire
   country: IRN
@@ -11087,7 +11089,9 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-07 (auto)
+  inactive_since: '2026-09-21'
 - id: kz_kursiv
   name: Kursiv
   country: KAZ
@@ -12374,7 +12378,9 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-08 (auto)
+  inactive_since: '2026-09-21'
 - id: lk_ceylontoday
   name: Ceylon Today
   country: LKA
@@ -18866,7 +18872,9 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-10 (auto)
+  inactive_since: '2026-09-21'
 - id: ss_radiotamazuj
   name: Radio Tamazuj
   country: SSD
@@ -22552,7 +22560,9 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto)
+  inactive_since: '2026-09-21'
 - id: vn_dantri
   name: Dân Trí
   country: VNM
