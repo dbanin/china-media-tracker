@@ -1,0 +1,4 @@
+# Keep the knowledge graph about this project: vendored libraries and generated data drown it.
+docs/vendor/
+docs/data/
+data/
