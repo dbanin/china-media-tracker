@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from pipeline import config, llm_cost, store
-from pipeline.agreement import cohens_kappa
+from pipeline.agreement import MIN_POSITIVE_FOR_KAPPA, cohens_kappa, kappa_shortfall
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 DEFAULT_SECOND_MODEL = "claude-sonnet-5"
@@ -90,17 +90,15 @@ def rejudge(conn, rows: List[Dict], model: str, client=None, dry_run: bool = Fal
                 break       # the API is refusing; stop paying for nothing
             continue
         calls += 1
-        data = classify_llm.parse_response(message)
-        usage = getattr(message, "usage", None)
-        tokens = llm_cost.usage_tokens(usage)
+        tokens = llm_cost.usage_tokens(getattr(message, "usage", None))
         tokens_in += tokens["input_tokens"]
         tokens_out += tokens["output_tokens"]
         if not dry_run:
-            # A study spends the same budget as classification, so it is booked in the same place.
-            store.record_llm_usage(conn, 1, tokens["input_tokens"], tokens["output_tokens"],
-                                   cache_creation_tokens=tokens["cache_creation_tokens"],
-                                   cache_read_tokens=tokens["cache_read_tokens"], cost_usd=llm_cost.usage_cost(usage))
+            # A study spends the same budget as classification, so it is booked in the same place,
+            # and booked before the reply is inspected: an answer that does not parse is billed too.
+            classify_llm.book_usage(conn, message, calls=1)
             conn.commit()
+        data = classify_llm.parse_response(message)
         if not data or data.get("_error"):
             continue
         pairs.append(_pair(r, data, getattr(message, "model", None) or model))
@@ -139,8 +137,14 @@ def summarise(pairs: List[Dict], first_model: str, second_model: str) -> Dict:
             by_lang[p["language"]].append((p["first"]["category"], p["second"]["category"]))
     for lang, ps in by_lang.items():
         binary = [("B" if a == "B" else "notB", "B" if b == "B" else "notB") for a, b in ps]
-        per_language[lang] = {"n": len(binary), "kappa": cohens_kappa(binary)}
+        per_language[lang] = {"n": len(binary), "n_b": sum(1 for x, _ in binary if x == "B"),
+                              "kappa": cohens_kappa(binary, min_positive=MIN_POSITIVE_FOR_KAPPA, positive="B")}
     same = first_model == second_model
+    # A kappa on the relay versus independent distinction needs enough B on both sides. Without it
+    # the study is inconclusive and says so, rather than publishing the 1.0 that a sample of all
+    # notB used to produce.
+    kappa_bc = cohens_kappa(bc_binary, min_positive=MIN_POSITIVE_FOR_KAPPA, positive="B")
+    inconclusive = kappa_shortfall(bc_binary) if kappa_bc is None else None
     return {
         "method": "same_model_rerun" if same else "model_vs_model",
         "measures": ("the same model judging the same articles twice, not correctness; it detects randomness in "
@@ -148,8 +152,10 @@ def summarise(pairs: List[Dict], first_model: str, second_model: str) -> Dict:
                      if same else
                      "consistency between two models, not correctness; no human coding has been done"),
         "first_model": first_model, "second_model": second_model,
-        "n": len(pairs), "n_bc": len(bc),
-        "kappa_all": cohens_kappa(both), "kappa_bc": cohens_kappa(bc_binary),
+        "n": len(pairs), "n_bc": len(bc), "n_b_first": sum(1 for a, _ in bc if a == "B"),
+        "n_b_second": sum(1 for _, b in bc if b == "B"),
+        "kappa_all": cohens_kappa(both), "kappa_bc": kappa_bc,
+        "kappa_min_positive": MIN_POSITIVE_FOR_KAPPA, "kappa_bc_inconclusive": inconclusive,
         "raw_agreement": round(sum(1 for p in pairs if p["agree"]) / len(pairs), 4) if pairs else None,
         "per_language_bc": per_language,
         "first_distribution": dict(Counter(a for a, _ in both)),
@@ -180,6 +186,10 @@ def study_row(summary: Dict) -> Dict:
             # bc_by_language is the key export.build_meta reads for the per language veto.
             "details": {"measures": summary["measures"], "raw_agreement": summary["raw_agreement"],
                         "bc_by_language": summary["per_language_bc"], "pool_size": summary.get("pool_size"),
+                        # Why a study reports no kappa, so a stored row cannot be read as a failed study.
+                        "kappa_bc_inconclusive": summary.get("kappa_bc_inconclusive"),
+                        "kappa_min_positive": summary.get("kappa_min_positive"),
+                        "n_b_first": summary.get("n_b_first"), "n_b_second": summary.get("n_b_second"),
                         "first_distribution": summary["first_distribution"],
                         "second_distribution": summary["second_distribution"],
                         "disagreements": len(summary["disagreements"])}}
@@ -229,22 +239,94 @@ def study_state(conn, today: Optional[dt.date] = None) -> Dict:
     if not why:
         return dict(out, state="done" if store.latest_model_agreement(conn) else "not_needed")
     out["reason"] = why
-    ok, _ = _budget_allows(conn, today, config.RELIABILITY_SAMPLE)
-    if not ok:
-        first_next = (today.replace(day=1) + dt.timedelta(days=calendar.monthrange(today.year, today.month)[1]))
-        out["earliest"] = first_next.isoformat()
-    else:
+    plan = study_plan(conn, today, config.RELIABILITY_SAMPLE)
+    ok = plan["n"] > 0
+    out["blocked"] = plan["reason"]
+    if ok:
         out["earliest"] = today.isoformat()
+    else:
+        # A day later this month may carry the study even when today cannot: the daily cap is what
+        # is left spread over the days remaining, so it opens up as the month ends. Failing that,
+        # the first of next month, when the budget starts again.
+        out["earliest"] = _earliest_study_day(conn, today) or \
+            (today.replace(day=1) + dt.timedelta(days=calendar.monthrange(today.year, today.month)[1])).isoformat()
     return dict(out, state="waiting_for_budget" if not ok else "due")
 
 
-def _budget_allows(conn, today: dt.date, n: int):
+def _earliest_study_day(conn, today: dt.date) -> Optional[str]:
+    """The first day left in this month whose allowance could carry a study, assuming no further
+    spending. None when no day in the month can."""
+    last = calendar.monthrange(today.year, today.month)[1]
+    for day in range(today.day, last + 1):
+        when = today.replace(day=day)
+        if study_plan(conn, when, config.RELIABILITY_SAMPLE)["n"] > 0:
+            return when.isoformat()
+    return None
+
+
+# A study never takes more than this share of the calls a day allows. The rule: the study competes
+# with classification for one shared allowance, so it may reserve half of a day and no more. It used
+# to check only the month's remaining dollars, so on 1 October, where the batched daily cap was 110
+# calls, it submitted all 250 of RELIABILITY_SAMPLE, booked them into that day's usage and left the
+# classification stage nothing at all.
+RELIABILITY_DAY_SHARE = 0.5
+# ... and it is not submitted at all below this many re-judgements, because collect_study discards a
+# study with fewer than config.RELIABILITY_MIN_PAIRS usable results: a shorter sample would be paid
+# for and thrown away. The headroom covers results that come back unusable. Below the floor the
+# study waits for a day whose allowance can carry it, which is what the end of a month with budget
+# left over looks like: days_left falls to one and the daily cap opens up.
+RELIABILITY_SAMPLE_HEADROOM = 1.2
+
+
+def _min_sample() -> int:
+    return int(round(config.RELIABILITY_MIN_PAIRS * RELIABILITY_SAMPLE_HEADROOM))
+
+
+def _calls_used_on(conn, day: dt.date) -> int:
+    row = conn.execute("SELECT calls FROM llm_usage WHERE date=?", (day.isoformat(),)).fetchone()
+    return (row["calls"] if row else 0) or 0
+
+
+def _day_allowance(conn, today: dt.date):
+    """Calls left today under the two controls classification obeys, lower binds: the daily call
+    ceiling and the monthly budget's daily cap. Returns (allowance, cap)."""
     cap = llm_cost.daily_cap(conn, today, batched=True)
-    if cap["cap"] is None:
-        return True, cap
-    cost = n * llm_cost.per_call_estimate(True)
-    ok = cap["cap"] > 0 and cost <= config.RELIABILITY_MAX_BUDGET_SHARE * max(0.0, cap.get("left_usd", 0.0))
-    return ok, cap
+    ceiling = config.LLM_DAILY_CALL_CEILING
+    if cap["cap"] is not None:
+        ceiling = min(ceiling, cap["cap"])
+    return max(0, ceiling - _calls_used_on(conn, today)), cap
+
+
+def study_plan(conn, today: dt.date, wanted: int) -> Dict:
+    """How many re-judgements a study may submit today, and why not when it may not.
+
+    Three bounds, the lowest binds: the sample asked for, RELIABILITY_DAY_SHARE of the calls today
+    still allows, and RELIABILITY_MAX_BUDGET_SHARE of the dollars left in the month. A figure below
+    _min_sample() submits nothing."""
+    allowance, cap = _day_allowance(conn, today)
+    day_share = int(allowance * RELIABILITY_DAY_SHARE)
+    n = min(wanted, day_share)
+    per_call = llm_cost.per_call_estimate(True)
+    if cap["cap"] is not None:
+        affordable = int(config.RELIABILITY_MAX_BUDGET_SHARE * max(0.0, cap.get("left_usd", 0.0)) / per_call) if per_call else n
+        n = min(n, affordable)
+    floor = _min_sample()
+    out = {"n": n if n >= floor else 0, "cap": cap, "day_allowance": allowance, "day_share": day_share,
+           "min_sample": floor, "reason": None}
+    if out["n"] == 0:
+        if day_share < floor:
+            out["reason"] = ("today allows %d model calls under the daily ceiling and the monthly budget cap, of which a "
+                             "study may take %d; that is below the %d re-judgements a study needs, so it waits for a day "
+                             "whose allowance can carry it" % (allowance, day_share, floor))
+        else:
+            out["reason"] = "the monthly budget cannot pay for a study of %d re-judgements yet" % floor
+    return out
+
+
+def _budget_allows(conn, today: dt.date, n: int):
+    """Kept for callers that only want the yes or no. study_plan carries the size and the reason."""
+    plan = study_plan(conn, today, n)
+    return plan["n"] > 0, plan["cap"]
 
 
 def _submitted_this_month(conn, today: dt.date) -> bool:
@@ -252,7 +334,7 @@ def _submitted_this_month(conn, today: dt.date) -> bool:
     return bool(conn.execute("SELECT COUNT(*) FROM llm_batches WHERE kind='study' AND substr(submitted_at,1,7)=?", (month,)).fetchone()[0])
 
 
-def submit_study(conn, client, rows: List[Dict], model: str) -> int:
+def submit_study(conn, client, rows: List[Dict], model: str, date: Optional[dt.date] = None) -> int:
     """Send the re-judgements through the Batches API. The second rater sees what the first saw."""
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
     from anthropic.types.messages.batch_create_params import Request
@@ -271,8 +353,9 @@ def submit_study(conn, client, rows: List[Dict], model: str) -> int:
     batch = client.messages.batches.create(requests=requests)
     conn.execute("INSERT INTO llm_batches(batch_id, submitted_at, status, article_ids, model_version, kind) VALUES (?,?,?,?,?,?)",
                  (batch.id, store.utcnow(), "submitted", json.dumps(ids), model, "study"))
-    # The study takes today's share of the budget, so it is counted where the daily cap looks.
-    store.record_llm_usage(conn, len(ids), 0, 0)
+    # The study takes today's share of the budget, so it is counted where the daily cap looks, and
+    # on the same day study_plan read when it sized the sample.
+    store.record_llm_usage(conn, len(ids), 0, 0, date=date.isoformat() if date else None)
     conn.commit()
     return len(ids)
 
@@ -294,11 +377,7 @@ def collect_study(conn, client) -> Optional[Dict]:
         if result.result.type != "succeeded":
             continue
         message = result.result.message
-        usage = getattr(message, "usage", None)
-        tokens = llm_cost.usage_tokens(usage)
-        store.record_llm_usage(conn, 0, tokens["input_tokens"], tokens["output_tokens"],
-                               cache_creation_tokens=tokens["cache_creation_tokens"], cache_read_tokens=tokens["cache_read_tokens"],
-                               cost_usd=llm_cost.usage_cost(usage, batched=True), date=day)
+        classify_llm.book_usage(conn, message, batched=True, date=day)
         data = classify_llm.parse_response(message)
         row = by_id.get(int(str(result.custom_id)[len(STUDY_PREFIX):]))
         if row and data and not data.get("_error"):
@@ -349,19 +428,21 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
         else:
             pool = judged_rows(conn, with_body=True)
             why = "forced" if force else study_needed(conn, len(pool))
-            ok, cap = _budget_allows(conn, today, config.RELIABILITY_SAMPLE)
-            out["budget"] = cap
+            plan = study_plan(conn, today, config.RELIABILITY_SAMPLE)
+            out["budget"] = plan["cap"]
+            out["plan"] = {k: plan[k] for k in ("n", "day_allowance", "day_share", "min_sample", "reason")}
             if not why:
                 out["skipped"] = "no study needed"
             elif len(pool) < config.RELIABILITY_MIN_POOL:
                 out["skipped"] = "only %d labelled articles with a body on disk" % len(pool)
             elif _submitted_this_month(conn, today) and not force:
                 out["skipped"] = "a study was already submitted this month"
-            elif not ok:
-                out["skipped"] = "the monthly budget cannot pay for a study yet"
+            elif plan["n"] <= 0:
+                out["skipped"] = plan["reason"]
             else:
                 out["reason"] = why
-                out["submitted"] = submit_study(conn, client, draw(pool, config.RELIABILITY_SAMPLE), model)
+                # Never more than the day's share, so the classification stage still has calls today.
+                out["submitted"] = submit_study(conn, client, draw(pool, plan["n"]), model, date=today)
         store.finish_stage(conn, log_id, True, out)
     except Exception as exc:       # the daily update must never depend on the study
         out["error"] = "%s: %s" % (type(exc).__name__, str(exc)[:300])

@@ -139,18 +139,70 @@ def ensure_routes(conn) -> int:
 # Two weak signals (an ad label plus a "not reviewed by the publisher" note, say) only add up to
 # state origin when the piece names a Chinese state entity. Without this, a Chery or Huawei
 # advertorial counted as state origin.
+#
+# Only named organisations belong here. Ruleset 2026.09.8 removed the topic phrases that used to
+# sit in this list, because the two weak signature path needs the entity test to be satisfied
+# anywhere in the author field, title, body or page chrome: a travel advertorial that mentioned
+# the Silk Road, plus two weak sponsorship signals, was asserted as state origin at confidence 1.0
+# with no model check. "Belt and Road", "Silk Road", "Chinese government" and its translations,
+# bare "State Council", bare "Information Office" and bare "Publicity Department" are gone; the
+# last three survive in their full organisational forms.
 STATE_ENTITY_RE = re.compile(
-    r"(?i)\b(Xinhua|Nuova Cina|CGTN|China Daily|Global Times|People'?s Daily|Quotidiano del Popolo|CCTV|China Central Television|"
-    r"China Media Group|CMG|CICG|China International Publishing|China News Service|ECNS|China Radio International|CRI Online|"
+    r"(?i)\b(Xinhua|Xinhuanet|Nuova Cina|CGTN|China Daily|Global Times|People'?s Daily|Quotidiano del Popolo|CCTV|China Central Television|"
+    r"China Media Group|CICG|China International Publishing|China International Communication Group|China News Service|ECNS|China Radio International|CRI Online|"
     r"Chinese Embassy|Embassy of (the People'?s Republic of )?China|Chinese Consulate|Consulate[- ]General of (the People'?s Republic of )?China|"
     r"ambasciata (cinese|della Cina|della Repubblica Popolare Cinese)|ambassade de Chine|embajada de China|embaixada da China|chinesische Botschaft|"
     r"Ministry of (Foreign Affairs|Commerce|Culture and Tourism|Education) of (the People'?s Republic of )?China|Chinese (Foreign|Commerce|Culture) Ministry|"
-    r"State Council|Publicity Department|Information Office|Chinese government|governo cinese|gouvernement chinois|gobierno chino|governo chinês|"
+    r"(State Council|Chinese State Council) Information Office|Information Office of the (State Council|[A-Z][a-z]+ (Municipal|Provincial))|"
+    r"Publicity Department of the (Central Committee|Communist Party)|Central Publicity Department|"
     r"People'?s Government|Municipal (People'?s )?Government|Provincial (People'?s )?Government|Government of [A-Z][a-z]+ (Province|Municipality|Autonomous Region)|"
-    r"Communist Party of China|Chinese Communist Party|Belt and Road|Silk Road|Confucius Institute|China Cultural Cent(er|re)|"
+    r"Communist Party of China|Chinese Communist Party|Confucius Institute|China Cultural Cent(er|re)|"
     r"China (National )?Tourism (Administration|Office)|Hong Kong (SAR )?Government|Macao (SAR )?Government|Hong Kong Trade Development Council|Invest Hong Kong|"
-    r"Chinese People'?s Association|China Public Diplomacy|Taiwan Affairs Office|Overseas Chinese Affairs)\b"
+    r"Chinese People'?s Association|China Public Diplomacy|Taiwan Affairs Office|Overseas Chinese Affairs (Office|Department))\b"
 )
+
+# "CMG" on its own is a stock ticker before it is a broadcaster: Computer Modelling Group Ltd
+# trades as CMG in Toronto, and its GlobeNewswire releases were reaching the state entity test.
+# The acronym counts only next to a word that places it in China, which is how the real China
+# Media Group items are written ("Kineska medijska grupa (CMG)", "중국중앙방송총국(CMG)",
+# "Медиакорпорация Китая ... CMG"). The name spelled out needs no such help and is in
+# STATE_ENTITY_RE above.
+_CHINA_CONTEXT = (
+    r"Chin[aeoêé]\w*|Cin[ae]\w*|Kina|Kine|kinesk\w*|Kitajsk\w*|"
+    r"Кита[йяею]\w*|китайск\w*|Кина|кинеск\w*|"
+    r"Çin|Tiongkok|Trung Quốc|中国|中國|中央|중국|"
+    r"الصين|סין|چین|Κίν\w*"
+)
+CMG_WITH_CHINA_RE = re.compile(
+    r"(?i)(?:%s)[^\n]{0,40}?\bCMG\b|\bCMG\b[^\n]{0,40}?(?:%s)" % (_CHINA_CONTEXT, _CHINA_CONTEXT),
+    re.UNICODE,
+)
+
+
+# The same organisations written in their own scripts. Without these the two weak signature path
+# could only ever fire on an outlet that spelled a Chinese outlet's name in Latin letters, which
+# is one of the ways the instrument used to be blind outside Latin script. Only unambiguous
+# organisation names are listed: the Greek "Nea Kina", which is also the ordinary phrase for a
+# new China, and the Vietnamese name of the People's Daily, which is also the name of Vietnam's
+# own party paper, are deliberately absent.
+STATE_ENTITY_NATIVE_RE = re.compile(
+    r"(?i)(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|"
+    r"שינחואה|סינחואה|شین[‌ ]?هوا|Şinhua|Tân Hoa X[ãa]|"
+    r"Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|"
+    r"وكالة أنباء الصين الجديدة|شينخوا|شينهوا|"
+    r"신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|"
+    r"新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|"
+    r"新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|"
+    r"中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社)",
+    re.UNICODE,
+)
+
+
+def has_state_entity(text: str) -> bool:
+    """True when the text names a Chinese state organisation, as opposed to a China topic."""
+    text = text or ""
+    return bool(STATE_ENTITY_RE.search(text) or STATE_ENTITY_NATIVE_RE.search(text)
+                or CMG_WITH_CHINA_RE.search(text))
 
 _TITLE_RE = re.compile(
     r"(?i)\b(ambassador|ambassadeur|ambasciatore|ambasciatrice|embajador|embajadora|embaixador|botschafter|"
@@ -219,7 +271,7 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
 
     strong = [m for m in matches if m["strength"] == "strong"]
     weak_groups = {m["group"] for m in matches if m["strength"] == "weak"}  # hints never count
-    state_entity = bool(STATE_ENTITY_RE.search(scopes["any_with_labels"]))
+    state_entity = has_state_entity(scopes["any_with_labels"])
     if strong or (len(weak_groups) >= 2 and state_entity):
         decision = "A"
     elif matches:

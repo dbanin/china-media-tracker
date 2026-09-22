@@ -50,7 +50,8 @@
           "broadcaster",
           "business",
           "regional",
-          "aggregator"
+          "aggregator",
+          "distribution_wire"
         ]
       },
       "notes": {

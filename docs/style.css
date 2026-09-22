@@ -268,3 +268,25 @@ body.force-map #bars-wrap { display: none; }
 .timeline svg.spark rect.older-ruleset { fill: var(--ash); opacity: 0.55; }
 aside#panel .relay-state { color: var(--ash); font-style: italic; }
 aside#panel .panel-note { color: var(--ash); font-size: 0.8rem; margin: -0.4rem 0 1rem; }
+
+/* A value that could not be computed gets the map's own "not shown" pattern in the list too, and the
+   states that have no bar of their own stop borrowing the positive one. */
+#bars .bar-row .bar.sparse { background: radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px; }
+#bars .bar-row .bar.nodata { background: #1a1c1f; border: 1px solid var(--rule-strong); box-sizing: border-box; }
+#bars .bar-row .bar.gap, #bars .bar-row .bar.inactive { background: radial-gradient(#3a3d43 0.9px, #141618 1px) 0 0/6px 6px; }
+
+/* The ranked list is a keyboard path to every country, so it shows focus. */
+#bars .bar-row:focus-visible { outline: 1px solid var(--gold); outline-offset: -2px; }
+
+/* A map that could not be drawn says so where the map would have been. force-list hides #map-wrap, so
+   the wrap stays while its contents go. */
+body.map-failed #map, body.map-failed #legend, body.map-failed #tooltip, body.map-failed .map-head { display: none; }
+body.map-failed.force-list #map-wrap { display: block; }
+
+/* On a small screen the ranked list is the default view, because it is the one the interface promises as
+   the fallback and the only one that is reachable with a keyboard. The View toggle still overrides it. */
+@media (max-width: 720px) {
+  #map-wrap { display: none; }
+  #bars-wrap { display: block; }
+  #bars .bar-row { grid-template-columns: 7.5rem 1fr 6rem 1.2rem; }
+}

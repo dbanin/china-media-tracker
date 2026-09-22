@@ -89,7 +89,10 @@ waiting than the ceiling allows, the articles sent are a stratified random
 draw: every country gets the same sampling fraction of its waiting articles, so
 the countries whose articles arrive late in the UTC day are not the ones the
 ceiling truncates. The eligible and drawn counts are recorded per country per
-day, so counts can be reweighted. Articles not drawn stay waiting for a later
+day, as a diagnostic. They are not a reweighting basis and no count here is
+reweighted by them: the two numbers are recorded at different moments in a day,
+and a draw that takes the same fraction from every country cannot repair a
+comparison between countries anyway. Articles not drawn stay waiting for a later
 day. Drawn records the calls actually made, so a country's figure can be zero on
 a run that stopped at its time budget before working through its allocation;
 that is a run ending early, not a country left out by design.
@@ -155,7 +158,7 @@ rather than by the country alone.
 | Unchecked state sourcing, all time | {b_total} |
 | Independent journalism, all time | {c_total} |
 | Language model calls, all time | {llm_calls_total} |
-| Days on which more articles waited than the daily cap ({llm_daily_ceiling}) allowed | {capped_days_text} |
+| Days on which more articles waited than that day's cap allowed | {capped_days_text} |
 | Feed polls that returned a full window with nothing seen before | {saturation_text} |
 | Relay collector on the owner's machine | {relay_collector_text} |
 | Current labels by ruleset version | {ruleset_mix_text} |
@@ -320,9 +323,28 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
             "inferred from a coefficient." % (
                 rr.get("model_b", "a second model"), rr.get("n", 0), rr.get("model_a", "the first"),
                 _fmt_kappa(rr.get("kappa_bc")), threshold))
-    else:
+    elif meta.get("relay_basis") == "same_model_rerun":
+        rr = meta.get("relay_reliability") or {}
+        relay_text = (
+            "Unchecked state sourcing counts are published on the strength of a rerun, which is weaker than "
+            "either a validation study or a two model one. The same model (%s) judged a sample of %s articles "
+            "a second time, seeing the same prompt, headline and body and no outlet, country or earlier label, "
+            "and agreed with itself at kappa %s on the unchecked sourcing versus independent journalism "
+            "judgement, at or above the %.1f threshold. What that licenses is narrower still: the judgement is "
+            "stable. A rerun detects randomness in a model's own reading and can say nothing about a mistake it "
+            "makes every time, which is the failure this instrument most needs to catch. No article in this "
+            "project has been read by a person. Both passes are stored for every sampled article." % (
+                rr.get("model_a", "the model"), rr.get("n", 0), _fmt_kappa(rr.get("kappa_bc")), threshold))
+    elif meta.get("relay_basis") == "human_coding":
         relay_text = ("Unchecked state sourcing counts are published, because kappa on the unchecked state sourcing versus "
                       "independent journalism distinction, from hand coding of a random sample, is at least %.1f." % threshold)
+    else:
+        relay_text = ("Unchecked state sourcing counts are published, but the study behind them was not recorded with a "
+                      "method, so this file cannot say what they rest on. Treat them as unverified until it can.")
+    if meta.get("relay_study_inconclusive"):
+        relay_text += (" A study has run and could not produce a figure: the sample held too few items on the "
+                       "unchecked sourcing side of the distinction for a coefficient to mean anything. The counts "
+                       "stay withheld until a study that can test the distinction reports.")
     withheld = meta.get("relay_withheld_languages") or []
     if withheld:
         relay_text += (" They are withheld for outlets publishing in %s, where the per language kappa on at least %d items is below the threshold."
@@ -371,8 +393,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         llm_budget_usd=("%g" % (meta.get("llm_budget") or {}).get("budget_usd", config.LLM_MONTHLY_BUDGET_USD)),
         llm_budget_month=(meta.get("llm_budget") or {}).get("month", "this month"),
         llm_spent_month_usd=("%.2f" % (meta.get("llm_budget") or {}).get("estimated_usd", 0.0)),
-        capped_days_text=", ".join("%s (%d calls made)" % (d, (meta.get("llm_calls_by_day") or {}).get(d, 0))
-                                   for d in meta["llm_ceiling_days"]) or "none",
+        capped_days_text=", ".join(
+            "%s (%s)" % (d, ("%d calls made" % n) if n else "no calls attempted; the monthly budget was spent")
+            for d, n in ((d, (meta.get("llm_calls_by_day") or {}).get(d, 0)) for d in meta["llm_ceiling_days"])) or "none",
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,

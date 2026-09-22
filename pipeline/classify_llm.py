@@ -105,34 +105,57 @@ def request_params(title: str, body: str) -> Dict:
 
 
 def parse_response(message) -> Optional[Dict]:
-    """Return the parsed dict, or None with the failure reason in ['_error']."""
+    """Return the parsed dict, or None with the failure reason in ['_error'].
+
+    Every return carries ['_usage'], whether or not the content parsed. The API bills a refusal, a
+    reply cut off at max_tokens and malformed JSON exactly like a usable answer, and a truncated
+    reply is the most expensive kind of all because it burns the whole output budget. Attaching
+    usage only on the success path recorded those calls at zero tokens and zero dollars, so the
+    monthly budget was spent partly out of sight."""
+    usage = getattr(message, "usage", None)
+
+    def out(data: Dict) -> Dict:
+        data["_usage"] = usage
+        return data
+
     stop = getattr(message, "stop_reason", None)
     if stop == "refusal":
-        return {"_error": "refusal"}
+        return out({"_error": "refusal"})
     # A reply cut off at max_tokens cannot be valid JSON, and would otherwise be counted as malformed
     # output rather than as a budget that was too small for a long evidence quote.
     if stop == "max_tokens":
-        return {"_error": "truncated", "_raw": getattr(getattr(message, "content", [None])[0], "text", None)}
+        return out({"_error": "truncated", "_raw": getattr(getattr(message, "content", [None])[0], "text", None)})
     text = None
     for block in getattr(message, "content", []) or []:
         if getattr(block, "type", None) == "text":
             text = block.text
             break
     if not text:
-        return {"_error": "no_text"}
+        return out({"_error": "no_text"})
     try:
         data = json.loads(text)
     except ValueError:
-        return {"_error": "invalid_json", "_raw": text}
+        return out({"_error": "invalid_json", "_raw": text})
     if data.get("category") not in ("A", "B", "C", "not_relevant"):
-        return {"_error": "bad_category", "_raw": text}
+        return out({"_error": "bad_category", "_raw": text})
     try:
         data["confidence"] = max(0.0, min(1.0, float(data.get("confidence", 0.0))))
     except (TypeError, ValueError):
         data["confidence"] = 0.0
     data["_raw"] = text
-    data["_usage"] = getattr(message, "usage", None)
-    return data
+    return out(data)
+
+
+def book_usage(conn, message, calls: int = 0, batched: bool = False, date: Optional[str] = None) -> Dict[str, int]:
+    """Record what one reply cost, parsed or not. The single place both the synchronous path and
+    the batch collector book tokens, so the two cannot drift apart again."""
+    usage = getattr(message, "usage", None)
+    tokens = llm_cost.usage_tokens(usage)
+    store.record_llm_usage(conn, calls, tokens["input_tokens"], tokens["output_tokens"],
+                           cache_creation_tokens=tokens["cache_creation_tokens"],
+                           cache_read_tokens=tokens["cache_read_tokens"],
+                           cost_usd=llm_cost.usage_cost(usage, batched=batched), date=date)
+    return tokens
 
 
 class DryRunClient:
@@ -304,7 +327,18 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     # Results of an earlier batch are collected on any run, not only on another batch run. A
     # submission would otherwise sit uncollected while the hourly synchronous runs ignored it.
     if not dry_run and conn.execute("SELECT COUNT(*) FROM llm_batches WHERE status='submitted' AND kind='classify'").fetchone()[0]:
-        counts.update(_collect_batches(conn, client))
+        try:
+            counts.update(_collect_batches(conn, client))
+        except Exception as exc:
+            # A failure of the Batches API is recorded and the run goes on. Letting it out of here
+            # failed the whole workflow step, which skipped export, the commit, the snapshot and
+            # the Pages deploy: the site stopped updating because one batch could not be read.
+            counts["collect_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+    # Articles stranded by a batch that will never be collected come back here, before the pending
+    # list is read, so they are classified rather than waiting forever while counting as pending.
+    expired = expire_stale_batches(conn)
+    if expired["batches_expired"] or expired["articles_returned"] or expired["orphans_returned"]:
+        counts["expired_batches"] = expired
 
     # Near-duplicate copies cost nothing and do not count against the ceiling.
     rows = pending_articles(conn, 100000)
@@ -371,12 +405,9 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         remaining -= 1
         counts["calls"] += 1
         sent[r["country"]] += 1
+        # Booked before the reply is inspected: the call is billed whether or not it parsed.
+        book_usage(conn, message, calls=1)
         data = parse_response(message)
-        usage = data.get("_usage") if data else None
-        tokens = llm_cost.usage_tokens(usage)
-        store.record_llm_usage(conn, 1, tokens["input_tokens"], tokens["output_tokens"],
-                               cache_creation_tokens=tokens["cache_creation_tokens"], cache_read_tokens=tokens["cache_read_tokens"],
-                               cost_usd=llm_cost.usage_cost(usage))
         if not data or data.get("_error"):
             kind = (data or {}).get("_error") or "no_response"
             counts["errors"] += 1
@@ -446,31 +477,90 @@ def _collect_batches(conn, client) -> Dict:
     out = {"batch_collected": 0, "batch_errors": 0}
     # The second rater's study batches carry other ids and are collected by pipeline.second_rater.
     for b in conn.execute("SELECT * FROM llm_batches WHERE status='submitted' AND kind='classify'").fetchall():
-        info = client.messages.batches.retrieve(b["batch_id"])
-        if info.processing_status != "ended":
-            continue
-        submitted_day = (b["submitted_at"] or "")[:10] or None
-        for result in client.messages.batches.results(b["batch_id"]):
-            aid = int(result.custom_id)
-            rtype = result.result.type
-            if rtype == "succeeded":
-                data = parse_response(result.result.message)
-                usage = data.get("_usage") if data else None
-                tokens = llm_cost.usage_tokens(usage)
-                # Booked on the submission day, beside the calls it recorded, at the batch price.
-                store.record_llm_usage(conn, 0, tokens["input_tokens"], tokens["output_tokens"],
-                                       cache_creation_tokens=tokens["cache_creation_tokens"], cache_read_tokens=tokens["cache_read_tokens"],
-                                       cost_usd=llm_cost.usage_cost(usage, batched=True), date=submitted_day)
-                if data and not data.get("_error"):
-                    store_result(conn, aid, data, getattr(result.result.message, "model", None) or b["model_version"])
-                    out["batch_collected"] += 1
+        # One batch that cannot be read must not stop the others, and must not stop the run: the
+        # workflow step runs under pipefail, so an exception here would skip export, the commit,
+        # the snapshot and the Pages deploy, and the site would stop updating because a batch
+        # could not be collected. A batch that fails part way stays 'submitted' and is retried on
+        # a later run, or expired by expire_stale_batches.
+        try:
+            info = client.messages.batches.retrieve(b["batch_id"])
+            if info.processing_status != "ended":
+                continue
+            submitted_day = (b["submitted_at"] or "")[:10] or None
+            for result in client.messages.batches.results(b["batch_id"]):
+                aid = int(result.custom_id)
+                rtype = result.result.type
+                message = getattr(result.result, "message", None)
+                if message is not None:
+                    # Booked on the submission day, beside the calls it recorded, at the batch
+                    # price. Booked for every reply the API returned, including one that did not
+                    # parse and an errored result that still carries a message.
+                    book_usage(conn, message, batched=True, date=submitted_day)
+                if rtype == "succeeded":
+                    data = parse_response(message)
+                    if data and not data.get("_error"):
+                        store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"])
+                        out["batch_collected"] += 1
+                        continue
+                    kind = (data or {}).get("_error") or "no_response"
+                elif rtype in ("errored", "expired", "canceled"):
+                    kind = rtype
+                else:
                     continue
+                # The kind, so a batch failure rate can be diagnosed without re-running it.
+                kinds = out.setdefault("batch_error_kinds", {})
+                kinds[kind] = kinds.get(kind, 0) + 1
                 store.update_article(conn, aid, status="awaiting_llm")
                 out["batch_errors"] += 1
-            elif rtype in ("errored", "expired", "canceled"):
-                store.update_article(conn, aid, status="awaiting_llm")
-                out["batch_errors"] += 1
-        conn.execute("UPDATE llm_batches SET status='collected', collected_at=? WHERE batch_id=?", (store.utcnow(), b["batch_id"]))
+            conn.execute("UPDATE llm_batches SET status='collected', collected_at=? WHERE batch_id=?", (store.utcnow(), b["batch_id"]))
+            conn.commit()
+        except Exception as exc:
+            conn.commit()      # keep the results already stored and the usage already booked
+            out.setdefault("collect_errors", []).append(
+                "%s: %s: %s" % (b["batch_id"], type(exc).__name__, str(exc)[:200]))
+    return out
+
+
+# The Batches API finishes or expires a batch within 24 hours and keeps its results for 29 days.
+# A batch still 'submitted' this many days later is not going to be collected, and its articles sit
+# at 'llm_submitted', where neither pending_articles nor the collector can see them while they are
+# still counted as pending. Well inside the 29 day window, so a batch reclaimed here could still
+# have been collected had the API come back.
+BATCH_EXPIRY_DAYS = 7
+
+
+def expire_stale_batches(conn, days: int = BATCH_EXPIRY_DAYS, now: Optional[dt.datetime] = None) -> Dict:
+    """Return the articles of batches too old to be collected to 'awaiting_llm', and mark those
+    batches failed. Also frees articles left at 'llm_submitted' by a batch row that is gone, which
+    nothing else would ever look at again."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    cutoff = (now - dt.timedelta(days=days)).isoformat()
+    out = {"batches_expired": 0, "articles_returned": 0, "orphans_returned": 0}
+    stale = conn.execute(
+        "SELECT batch_id, article_ids FROM llm_batches WHERE status='submitted' AND kind='classify' AND submitted_at < ?",
+        (cutoff,)).fetchall()
+    for b in stale:
+        try:
+            ids = json.loads(b["article_ids"] or "[]")
+        except ValueError:
+            ids = []
+        for aid in ids:
+            cur = conn.execute("UPDATE articles SET status='awaiting_llm' WHERE id=? AND status='llm_submitted'", (aid,))
+            out["articles_returned"] += cur.rowcount
+        conn.execute("UPDATE llm_batches SET status='failed', collected_at=? WHERE batch_id=?",
+                     (store.utcnow(), b["batch_id"]))
+        out["batches_expired"] += 1
+    live = set()
+    for row in conn.execute("SELECT article_ids FROM llm_batches WHERE status='submitted'"):
+        try:
+            live.update(json.loads(row["article_ids"] or "[]"))
+        except ValueError:
+            pass
+    orphans = [r["id"] for r in conn.execute("SELECT id FROM articles WHERE status='llm_submitted'") if r["id"] not in live]
+    for aid in orphans:
+        conn.execute("UPDATE articles SET status='awaiting_llm' WHERE id=?", (aid,))
+        out["orphans_returned"] += 1
+    if out["batches_expired"] or out["orphans_returned"]:
         conn.commit()
     return out
 

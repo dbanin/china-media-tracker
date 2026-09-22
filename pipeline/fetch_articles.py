@@ -81,11 +81,18 @@ def can_fetch(url: str):
 
 
 def _rate_wait(domain: str) -> None:
+    """Take this domain's next slot and sleep until it comes round.
+
+    The reservation is the slot itself, not now plus the wait. The old line added the wait to the
+    last slot, but the wait already contained the backlog (last - now), so every caller queueing on
+    a busy domain counted the backlog a second time and the waits doubled per caller: six arrivals
+    on one host slept 3, 6, 12, 24, 48 and 96 seconds instead of 3, 6, 9, 12, 15 and 18."""
     with _rate_lock:
-        last = _last_request.get(domain, 0.0)
-        wait = config.MIN_SECONDS_PER_DOMAIN + random.uniform(0, config.JITTER_SECONDS) - (time.time() - last)
-        # reserve the slot before sleeping so other threads on the same domain queue behind it
-        _last_request[domain] = max(time.time(), last) + max(wait, 0) if wait > 0 else time.time()
+        now = time.time()
+        gap = config.MIN_SECONDS_PER_DOMAIN + random.uniform(0, config.JITTER_SECONDS)
+        slot = max(now, _last_request.get(domain, 0.0) + gap)
+        _last_request[domain] = slot
+        wait = slot - now
     if wait > 0:
         time.sleep(wait)
 

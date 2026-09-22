@@ -4,6 +4,110 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.8 (2026-09-22)
+
+An audit of the whole instrument found that most state origin labels rested on
+patterns that could not carry them, and that the labels were concentrated in a
+handful of outlets because of how those patterns were written rather than
+because of anything in the world. Relabelling changes historical numbers.
+
+- The three distribution stamp patterns paired the carrier's own name with any
+  state media mention within 3,000 characters, across paragraphs. A carrier
+  names itself in every one of its own datelines, so the test collapsed to
+  "does this outlet mention Chinese state media at all". An agency report about
+  Chinese disinformation was labelled state origin. The state entity must now
+  stand where a credit stands: in the release's own issuer line within 150
+  characters of the wire dash, in a source trailer anchored to the start of a
+  line, or in a slash credit inside the stamp. A new pattern keeps the genuine
+  case where the release headline names the issuer above the wire dateline.
+  Measured before the change: 231 of Italy's 242 labels and 118 of the United
+  States' 122 came through these patterns from one carrier each.
+- china_media_group_credit no longer accepts the bare acronym. CMG is the
+  Toronto ticker of Computer Modelling Group Ltd, whose buyback releases carry
+  "news release" within a few words of it, and three Canadian articles about
+  that company were labelled Chinese state origin, 19 percent of the country's
+  count.
+- The state entity test that lets two weak signals become a label no longer
+  accepts topic words. Silk Road, Belt and Road, Chinese government, State
+  Council and Information Office are subjects, not issuers, and a travel
+  advertorial naming the Silk Road plus two sponsorship phrases produced a
+  confidence 1.0 label with no model call.
+- Native script credit lines added for Greek, Hebrew, Persian, Turkish,
+  Vietnamese, Russian, Arabic, Korean, Japanese and Chinese. The ruleset carried
+  58 Latin spellings of Xinhua and none in the first five, against 12 active
+  Greek outlets, 11 Persian and 10 Hebrew, so state origin was structurally
+  undetectable outside Latin script and every comparison between countries was
+  confounded with script. Each name counts only where a credit stands: after a
+  source marker, alone in the author field, alone on a closing line, or in a
+  wire dateline. A bare mention in the body is a citation and goes to the model,
+  as the Latin spellings already did.
+- A native script photo credit exclusion, so a picture credit is not read as a
+  text credit in those scripts.
+
+## Gate 2026.09.7 (2026-09-22)
+
+The gate decides what enters the corpus, not how an article is labelled, and
+gate decisions are recorded per item and never revisited, so this applies only
+to items discovered after today.
+
+- Korean is now matched as a substring, like the other languages that attach
+  grammar to the noun. Korean particles join the noun with no space, so a word
+  boundary missed every inflected mention: the bare form matched while "of
+  China", "China and Taiwan" and "in Beijing" did not. Korean is the third
+  largest source of unchecked state sourcing labels, so those counts were a
+  floor. Two Korean terms are now corroborating rather than admitting, because
+  they are homographs: Xinjiang is also the word for a kidney, and the term for
+  the Communist Party sits inside the word for heavy industry.
+- Latin script terms keep their word boundary and their case rule in every
+  language, including the ones matched as substrings. They did not before, so
+  "Xi" matched inside "Taxi", "BRI" inside "British" and "PLA" inside "display"
+  in Thai, Japanese, Lao, Khmer and Burmese items.
+- Croatian, Serbian and Bosnian "Kina", "Kine" and "Kini" now require a capital
+  first letter. They are China and also the genitive and plural of the word for
+  a cinema, so lowercase forms admitted film listings: 86 percent of the
+  Croatian corpus turned out not relevant. An all capitals headline still
+  matches, and the country is a proper noun, so real uses are unaffected.
+- The residual relevance rule counts one stretch of text once. The term list
+  overlaps itself, so "Xi Jinping" counted as both "Xi" and "Xi Jinping" and a
+  headline naming one Chinese person cleared the "a term in the headline and at
+  least two occurrences" branch on its own, and was published as independent
+  journalism.
+
+## Data schema 7 (2026-09-22)
+
+Changes to what is counted and where, from the same audit. Anyone comparing
+figures across this date needs all of these.
+
+- Every figure is now attributed to the UTC day the item was discovered.
+  Numerators used the published date where a feed gave one while every
+  denominator used discovery, so shares were computed against a denominator
+  that did not contain the same articles: on 1,033 of 2,857 country days the
+  numerator exceeded its own denominator. It also manufactured 14 days of
+  history before collection began, a published timeline starting 2026-08-20
+  with real article counts and no discovery at all, which read as a ramp up
+  that never happened. Published dates are kept on every article record.
+- Global press release distribution services are a new registry tier and are
+  counted as their own stratum, never inside a country. A worldwide release
+  service is not a national newsroom and its releases are not placements in the
+  market it is registered in. This moves 122 state origin labels out of the
+  United States, whose count goes from 122 to 0, and the world total from 658
+  to 536. The releases are still collected, classified and reported, under
+  distribution_wires in meta.json.
+- State origin with no signature at all is reported as its own stratum rather
+  than as a row in the route table. It is the model asserting state origin
+  where the deterministic layer found nothing, which is a different kind of
+  evidence. It was 37 percent of the total.
+- Figures containing unchecked state sourcing are omitted from latest.json when
+  that label may not be shown, because a share published beside the state origin
+  count and the China total gives the withheld number back by subtraction.
+- A country whose unjudged backlog rivals its judged articles carries a warning
+  that it is not comparable with countries whose backlog is smaller.
+- The audit trail is one file per day instead of one per month. A month in one
+  file meant a fresh 39.5 MB blob in every export commit, twice a day.
+- METHODOLOGY.md no longer claims the counts rest on hand coding when the study
+  behind them is a model rerun, and no longer claims the recorded sampling
+  fractions can be used to reweight counts. They cannot.
+
 ## Data schema 6 (2026-09-20)
 
 No label changes. Unverified relay can now be mapped on its own, beside state

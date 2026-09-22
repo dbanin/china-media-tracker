@@ -218,3 +218,80 @@ def test_failed_refetch_keeps_a_classified_label(tmp_path, monkeypatch):
     conn.commit()
     assert cr.run(conn, "t")["relabelled"] == 1
     assert store.get_article(conn, aid)["status"] == "classified"
+
+
+# Regressions for ruleset 2026.09.8. Each of these was a measured wrong label on the live corpus.
+
+def test_company_ticker_is_not_china_media_group():
+    """CMG is the Toronto ticker of Computer Modelling Group Ltd. Three Canadian articles about its
+    buyback carried a state origin label, 19 percent of Canada's count."""
+    body = ("Computer Modelling Group Ltd. Announces Exemptive Relief Obtained in Connection with its "
+            "Substantial Issuer Bid. In the event the SIB is extended, CMG will provide a further news "
+            "release disclosing the details. CMG is a computer software technology company serving the "
+            "oil and gas industry.")
+    res = cr.match_signatures("Computer Modelling Group Ltd. announces relief", body, "Computer Modelling Group Ltd.")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+    assert "china_media_group_credit" not in [m["id"] for m in res["matches"]]
+
+
+def test_carrier_reporting_on_xinhua_is_not_state_origin():
+    """The distribution stamp patterns used to pair the carrier's own name with any state media
+    mention within 3000 characters. The carrier names itself in every one of its own datelines, so
+    an agency report about Xinhua qualified. Italy's count was 231 of 242 from one such agency."""
+    body = ("ROMA (ITALPRESS) - Un rapporto pubblicato oggi denuncia la disinformazione diffusa dai media "
+            "statali cinesi. Secondo quanto riportato dall'agenzia Xinhua, il governo ha respinto le "
+            "accuse, ma i ricercatori contestano quella ricostruzione con documenti indipendenti.")
+    res = cr.match_signatures("Rapporto sulla disinformazione cinese", body, "Agenzia di Stampa Italpress")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+
+
+def test_private_company_release_citing_a_china_statistic_is_not_state_origin():
+    body = ("NEW YORK, Sept. 3, 2026 /PRNewswire/ -- Acme Robotics announced record quarterly sales today. "
+            "The company said demand rose across Asia. " + ("Filler sentence about the product line. " * 12) +
+            "Xinhua reported last week that industrial output grew 5 percent.")
+    res = cr.match_signatures("Acme Robotics announces record sales", body, "Acme Robotics")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+
+
+def test_state_issued_release_on_the_wire_is_still_state_origin():
+    """The narrowing must not lose the real thing: the issuer stands in the release's own trailer."""
+    body = ("BEIJING, Sept. 3, 2026 /PRNewswire/ -- A report from China Daily describes the province's "
+            "new industrial park and the investment behind it.\n\nSOURCE China Daily")
+    res = cr.match_signatures("Report describes new industrial park", body, "China Daily")
+    assert res["decision"] == "A", [m["id"] for m in res["matches"]]
+
+
+def test_topic_words_cannot_satisfy_the_state_entity_test():
+    """Two weak signals plus any "state entity" gave a confidence 1.0 label with no model call, and the
+    entity list held topics: Silk Road, Belt and Road, Chinese government. A travel advertorial qualified."""
+    body = ("Sponsored content. The publisher has not reviewed this material. A Silk Road travel package "
+            "from Samarkand to Bukhara takes in the old caravan cities over fourteen days.")
+    res = cr.match_signatures("A fortnight along the Silk Road", body, "Travel Desk")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+
+
+def test_native_script_credit_lines_are_state_origin():
+    """Before 2026.09.8 the ruleset had 58 Latin spellings of Xinhua and none in Greek, Hebrew, Persian,
+    Turkish or Vietnamese, so state origin was undetectable outside Latin script."""
+    cases = [
+        ("Η Κίνα ανακοίνωσε νέα μέτρα για την οικονομία.\nΠηγή: Σινχούα", "el"),
+        ("중국 정부가 새로운 경제 정책을 발표했다.\n출처: 신화통신", "ko"),
+        ("新华社北京9月12日电 中国国家统计局今天公布了最新数据。", "zh"),
+    ]
+    for body, tag in cases:
+        res = cr.match_signatures("", body, "")
+        assert res["decision"] == "A", (tag, [m["id"] for m in res["matches"]])
+
+
+def test_a_native_script_photo_credit_is_not_a_text_credit():
+    body = "중국 정부가 정책을 발표했다. 기자가 직접 취재한 내용이다.\n사진: 신화통신"
+    res = cr.match_signatures("", body, "")
+    assert res["decision"] != "A", [m["id"] for m in res["matches"]]
+
+
+def test_overlapping_terms_count_once():
+    """"Xi Jinping" used to count as both "Xi" and "Xi Jinping", so one name in a headline cleared the
+    residual relevance rule and the article was published as independent journalism."""
+    relevant, why = cr.body_relevance("Sastanak s Xi Jinpingom", "Predsjednik je odrzao sastanak.", "hr")
+    assert relevant is False, why
+

@@ -619,8 +619,14 @@ def record_feed_poll(conn: sqlite3.Connection, outlet_id: str, country: str, fee
 
 
 def record_llm_sampling(conn: sqlite3.Connection, date: str, allocation: Dict[str, List[int]]) -> None:
-    """allocation: {country: [eligible, drawn]}. Eligible keeps the day's largest pool, drawn accumulates
-    over the day's runs, so drawn / eligible is the day's sampling fraction for the country."""
+    """allocation: {country: [eligible, drawn]}. Eligible keeps the day's largest pool and drawn
+    accumulates over the day's runs.
+
+    The two are NOT a sampling fraction and nothing reweights by them. Eligible is a high water mark
+    of a backlog that grows during the day while drawn is a running total, the synchronous and batch
+    paths record different things in the drawn column (calls made versus the planned quota), and the
+    row is keyed by the run day while the counts it would correct are keyed by the discovery day.
+    Treat the pair as a diagnostic of how bound a day's draw was, which is what METHODOLOGY.md says."""
     for country, (eligible, drawn) in allocation.items():
         conn.execute(
             """INSERT INTO llm_sampling(date, country, eligible, drawn) VALUES (?,?,?,?)

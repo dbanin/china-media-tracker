@@ -221,6 +221,78 @@ def test_too_few_results_record_no_study(tmp_path, monkeypatch):
     assert conn.execute("SELECT status FROM llm_batches").fetchone()[0] == "failed"
 
 
+def test_a_study_without_enough_b_is_inconclusive_not_perfect(tmp_path, monkeypatch):
+    """Both raters answering notB on every pair is the expected case, not a freak one: the prompt
+    says answer C when uncertain. It used to produce a kappa of 1.0 and publish every relay count."""
+    pairs = [{"article_id": i, "country": "ITA", "language": "it", "agree": True,
+              "first": {"category": "C"}, "second": {"category": "C"}} for i in range(300)]
+    s = sr.summarise(pairs, "claude-sonnet-5", "claude-opus-5")
+    assert s["kappa_bc"] is None and s["n_bc"] == 300
+    assert "at least %d" % sr.MIN_POSITIVE_FOR_KAPPA in s["kappa_bc_inconclusive"]
+    assert sr.study_row(s)["details"]["kappa_bc_inconclusive"] == s["kappa_bc_inconclusive"]
+    # one disagreement in 300 is no better a basis, and must not withhold counts by scoring zero
+    pairs[0] = dict(pairs[0], first={"category": "B"}, agree=False)
+    assert sr.summarise(pairs, "claude-sonnet-5", "claude-opus-5")["kappa_bc"] is None
+    # with enough B on both sides there is something to measure again
+    m = sr.MIN_POSITIVE_FOR_KAPPA
+    for i in range(m):
+        pairs[i] = dict(pairs[i], first={"category": "B"}, second={"category": "B"}, agree=True)
+    s2 = sr.summarise(pairs, "claude-sonnet-5", "claude-opus-5")
+    assert s2["kappa_bc"] is not None and s2["kappa_bc_inconclusive"] is None
+    assert s2["n_b_first"] == m and s2["n_b_second"] == m
+
+
+# ---------------------------------------------------------------------------
+# A study never spends more of a day than the day allows
+# ---------------------------------------------------------------------------
+
+def test_a_study_never_takes_more_calls_than_the_day_allows(tmp_path, monkeypatch):
+    """On 1 October the batched daily cap is 110 calls and the sample is 250: the study used to
+    submit all 250, book them into the day and leave classification nothing."""
+    conn = _db(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "LLM_MONTHLY_BUDGET_USD", 30.0)
+    monkeypatch.setattr(config, "LLM_COST_PER_CALL_UNBATCHED", 0.0175)
+    monkeypatch.setattr(config, "RELIABILITY_SAMPLE", 250)
+    monkeypatch.setattr(config, "RELIABILITY_MIN_PAIRS", 150)
+    today = dt.date(2026, 10, 1)
+    plan = sr.study_plan(conn, today, config.RELIABILITY_SAMPLE)
+    assert plan["day_allowance"] == 110 and plan["day_share"] == 55
+    assert plan["n"] == 0 and "waits for a day" in plan["reason"]
+    # The end of a month with budget left over is such a day: what is left is spread over one day.
+    late = dt.date(2026, 10, 31)
+    plan_late = sr.study_plan(conn, late, config.RELIABILITY_SAMPLE)
+    assert plan_late["n"] == 250 and plan_late["day_allowance"] >= 500
+    # and a study submitted earlier in the day counts against it, so the two stages share one cap
+    store.record_llm_usage(conn, 520, 0, 0, date=late.isoformat())
+    assert sr.study_plan(conn, late, config.RELIABILITY_SAMPLE)["n"] == 0
+
+
+def test_auto_submits_only_what_the_day_can_carry(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)       # sample 10, min pairs 8, so the floor is 10
+    monkeypatch.setattr(config, "LLM_DAILY_CALL_CEILING", 30)
+    client = _FakeClient(answer="B")
+    today = dt.date(2026, 10, 1)
+    out = sr.auto(conn, submit=True, today=today, client=client)
+    assert out["submitted"] == 10 and out["plan"]["day_share"] == 15
+    used = conn.execute("SELECT calls FROM llm_usage WHERE date=?", (today.isoformat(),)).fetchone()[0]
+    assert used == 10, "the study books its calls where the daily cap looks"
+    assert conn.execute("SELECT COUNT(*) FROM llm_batches").fetchone()[0] == 1
+    # classification still has the rest of the day
+    assert config.LLM_DAILY_CALL_CEILING - used == 20
+
+
+def test_a_day_too_small_for_a_study_waits_for_a_better_one(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+    monkeypatch.setattr(config, "LLM_DAILY_CALL_CEILING", 12)   # a study may take 6, its floor is 10
+    client = _FakeClient()
+    out = sr.auto(conn, submit=True, today=dt.date(2026, 10, 1), client=client)
+    assert out["submitted"] == 0 and not client.messages.batches.created
+    assert "waits for a day" in out["skipped"]
+    state = sr.study_state(conn, dt.date(2026, 10, 1))
+    assert state["state"] == "waiting_for_budget"
+    assert state["earliest"] == "2026-10-01" or state["earliest"] > "2026-10-01"
+
+
 def test_auto_never_raises(tmp_path, monkeypatch):
     conn = _auto_setup(tmp_path, monkeypatch)
 

@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.7"
+ruleset_version: "2026.09.8"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -31,6 +31,9 @@ exclusions:
     regex: '(?i)\b(photo|foto|image|immagine|picture|pic|fotografía|photographie|bild|credit|crédit|crediti)\s*(credit|by|di|de|par|:)?\s*[:/]?\s*(Xinhua|CGTN|China Daily|Global Times|VCG|Imaginechina)[^\n.]{0,40}'
   - id: photo_paren
     regex: '\((?:Photo|Foto|Image|Immagine|Pic)[^)]{0,40}(?:Xinhua|CGTN|VCG)[^)]{0,40}\)'
+  - id: photo_credit_native
+    regex: '(?i)(사진|寫真|写真|图片|圖片|照片|Φωτογραφία|Φωτο|צילום|תצלום|عکس|تصویر|صورة|الصورة|Ảnh|Fotoğraf)\s*[=:：／/]?\s*[（(]?\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|شينخوا|شينهوا|신화통신|신화사|新華社|新华社|中新社|中国日报|中國日報)\s*[)）]?'
+    note: The native script counterpart of photo_credit. A picture credit is not a text credit, and it has to be removed before the native credit patterns read a name standing alone on a line.
   - id: xinhua_via_ap_photo
     regex: '(?i)Xinhua via (AP|Getty|Reuters)[^\n.]{0,40}'
   - id: syndication_disclaimer
@@ -108,8 +111,9 @@ groups:
         strength: strong
         scope: author
       - id: china_media_group_credit
-        regex: '(?im)\b(China Media Group|CMG)\b.{0,40}\b(release|press release|comunicato|communiqué)|^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
+        regex: '(?im)\bChina Media Group\b.{0,40}\b(release|press release|comunicato|communiqué)|^\s*(source|fonte)\s*:?\s*China Media Group\s*$'
         strength: strong
+        note: 'The name must be spelled out. Ruleset 2026.09.8 dropped the bare acronym: CMG is the Toronto ticker of Computer Modelling Group Ltd, whose annual meeting releases carry "press release" within a few words of it, and the Canadian count was 19 percent company filings.'
       - id: peoples_daily_credit
         regex: "(?im)^\\s*(source|fonte|credit|crediti|by|di|par)\\s*:?\\s*(the\\s+)?People'?s\\s+Daily(\\s+Online)?\\s*(\\.|$)|^[^\\n]{0,60}\\(People'?s Daily\\)\\s*(--|—|-|–)"
         strength: strong
@@ -137,19 +141,57 @@ groups:
         scope: byline_head
         note: 'Must stand where a byline stands. Matched anywhere, it fired on prose citing a Xinhua report inside an outlet piece written by its own reporter.'
 
+      # Native script names of the state outlets, added in ruleset 2026.09.8. Before it the
+      # ruleset carried 58 Latin spellings of Xinhua and none in Greek, Hebrew, Persian, Turkish
+      # or Vietnamese, against 12 active Greek outlets, 11 Persian and 10 Hebrew, so state origin
+      # was structurally undetectable outside Latin script and every comparison between countries
+      # was confounded with script. Each name is read only where a credit stands: after a source
+      # marker, in the author field, alone on a line at the end of the body, or in a wire
+      # dateline. A bare mention in the body is a citation and goes to the model through the
+      # llm_triggers below, exactly as the Latin spellings do.
+      - id: state_outlet_credit_line_native
+        regex: '(?im)^\s*\(?\s*(Πηγή|מקור|منبع|المصدر|Kaynak|Nguồn|Источник|출처|기사출처|出典|提供|配信|来源|來源|稿源)\s*[:：]\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|Πρακτορείο Νέα Κίνα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua Haber Ajansı|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|وكالة أنباء الصين الجديدة|شينخوا|شينهوا|신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社)\s*\)?\s*[.。]?\s*$'
+        strength: strong
+        note: A source marker in the outlet's own language naming a Chinese state outlet as the source of the text.
+      - id: state_outlet_author_field_native
+        regex: '(?i)^\s*\(?\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|Πρακτορείο Νέα Κίνα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua Haber Ajansı|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|وكالة أنباء الصين الجديدة|شينخوا|شينهوا|신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社)\s*\)?\s*$'
+        strength: strong
+        scope: author
+        note: The author field holds the state outlet's name and nothing else, the native script form of xinhua_author_field.
+      - id: state_outlet_wire_end_native
+        regex: '(?m)^\s*[（(]?\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|Πρακτορείο Νέα Κίνα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua Haber Ajansı|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|وكالة أنباء الصين الجديدة|شينخوا|شينهوا|신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社)\s*[)）]?\s*$'
+        strength: strong
+        scope: tail
+        note: The state outlet's name alone on a line at the end of the body, where a credit sits. The native script form of xinhua_wire_end. Photo and picture credits are removed first by photo_credit_native.
+      - id: state_outlet_dateline_native
+        regex: '(?m)^[^\n]{0,60}[（(]\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|شينخوا|شينهوا|신화통신|新華社|新华社|中新社)\s*[)）]\s*(--|—|–)|^\s*(新华社|新華社|中新社|中新網|中新网)[^\n]{0,24}(电|電)\b|^\s*【\s*(新華社|新华社)[^\n]{0,24}】|[（(][^\n]{0,20}=\s*(신화통신|신화사)\s*[)）]'
+        strength: strong
+        note: 'The wire dateline in its native form: "(Синьхуа) --", the Chinese "新华社北京9月12日电", the Japanese "【新華社北京9月12日】" and the Korean "(베이징=신화통신)". The parenthetical form needs the wire dash, not a colon, because prose that gives the acronym after the full name, "وكالة أنباء الصين الجديدة (شينخوا):", is a citation and not a credit.'
+
   distribution_stamp:
     description: Press release wire stamps whose issuing entity is Chinese state linked, and disclosures that the publisher has not reviewed the content.
     patterns:
       - id: wire_stamp_with_state_entity
-        regex: '(?is)\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire|Cision)\b.{0,3000}?\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|People.s Daily|China International Communication Group|CICG|Xinhua Silk Road|China Economic Net|Publicity Department|Information Office of|Chinese Embassy|Embassy of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute Headquarters|Center for Language Education and Cooperation)\b'
+        regex: '(?i)\b(Globe ?Newswire|PR ?Newswire|Business ?Wire|ACN Newswire|Cision)\b[^\n]{0,30}?(--|—|–|-)[^\n]{0,150}?\b(Xinhua|Xinhuanet|CGTN|CCTV\+|CCTV\.com|CCTV|China Daily|chinadaily\w*|Global Times|China Media Group|People.s Daily|China International Communication Group|CICG|Xinhua Silk Road|China Economic Net|Publicity Department|Information Office of|Chinese Embassy|Embassy of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute Headquarters|Center for Language Education and Cooperation)\b'
         strength: strong
-        note: Wire stamp plus a Chinese state issuing entity anywhere in the release.
+        note: 'The state entity must stand in the release''s own issuer line, on the same line as the wire dateline and inside 150 characters of its dash: "/PRNewswire/ -- A news report from China Daily:". Until ruleset 2026.09.8 the entity could sit anywhere within 3000 characters and across paragraphs, which collapsed the test to "does this outlet mention Chinese state media at all" and carried most of the United States count.'
       - id: state_entity_then_wire_stamp
-        regex: '(?is)\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|People.s Daily|CICG|Xinhua Silk Road|China Economic Net|Publicity Department|Information Office of|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,3000}?\b(GlobeNewswire|PR Newswire|PRNewswire|Business Wire|BusinessWire|ACN Newswire)\b'
+        regex: '(?im)^\s*\(?\s*(SOURCE|Source|Fonte|Fuente|Quelle|Origine|Источник|المصدر)\s*:?\s+(the\s+)?(Xinhua( Silk Road| News Agency)?|Xinhuanet|CGTN|CCTV\+?|China Daily|Global Times|China Media Group|People.s Daily|CICG|China International Communication Group|China Economic Net|Chinese Embassy|Embassy of (the People.s Republic of )?China|Information Office of [^\n]{0,60})\s*\)?\s*[.]?\s*$'
         strength: strong
+        note: 'The release trailer that names its issuer, anchored to a source marker at the start of a line: "SOURCE Global Times", "Fonte: CGTN". Before ruleset 2026.09.8 this pattern only required a state entity somewhere within 3000 characters before a wire stamp, so an outlet''s own story that cited state media qualified.'
+      - id: wire_release_headline_issuer
+        regex: '(?ims)\A[^\n]{0,12}\b(Xinhua( Silk Road)?|Xinhuanet|CGTN|CCTV\+?|China Daily|Global Times|People.s Daily|China Media Group|CICG|China Economic Net)\b\s*[:：].{0,320}\b(Globe ?Newswire|PR ?Newswire|Business ?Wire|ACN Newswire|Cision)\b'
+        strength: strong
+        scope: head
+        note: 'The release''s own headline names the issuer and the wire dateline follows in the opening, for example "Xinhua Silk Road: Culture ignites vitality" above "BEIJING, Aug. 11, 2026 /PRNewswire/ --". Added in ruleset 2026.09.8 to keep the genuine state issued releases that the narrowed wire_stamp_with_state_entity no longer reaches.'
       - id: immediapress_with_state_entity
-        regex: '(?is)\b(Immediapress|Adnkronos Immediapress|Italpress)\b.{0,3000}?\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Xinhua Silk Road|China Economic Net|Ambasciata (della Repubblica Popolare )?Cinese|Consolato (Generale )?Cinese|Istituto Confucio)\b'
+        regex: '(?i)[（(]\s*(XINHUA|CGTN|CCTV|China Daily|Global Times)\s*/\s*(ITALPRESS|IMMEDIAPRESS|ADNKRONOS)\s*[)）]|[（(]\s*(ITALPRESS|IMMEDIAPRESS|ADNKRONOS)\s*/\s*(XINHUA|CGTN|CCTV|China Daily|Global Times)\s*[)）]|^\s*\(?\s*(Fonte|Fonte video|Fonte testo)\s*:\s*(Xinhua|CGTN|CCTV|China Daily|Global Times|China Media Group)\b'
         strength: strong
+        note: 'The Italian carriers put the originating wire in a slash credit inside the stamp, "(XINHUA/ITALPRESS)", or in a "Fonte:" line. Until ruleset 2026.09.8 the pattern paired the carrier''s own dateline with any state media mention within 3000 characters, so an Italpress report on Xinhua disinformation was labelled state origin, and 231 of Italy''s 242 labels rested on it.'
+      - id: wire_stamp_near_state_entity
+        regex: '(?is)\b(Globe ?Newswire|PR ?Newswire|Business ?Wire|ACN Newswire|Cision|Immediapress|Adnkronos Immediapress|Italpress)\b.{0,3000}?\b(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|People.s Daily|CICG|China Economic Net|Ambasciata (della Repubblica Popolare )?Cinese|Consolato (Generale )?Cinese|Istituto Confucio)\b'
+        strength: hint
+        note: 'The old non positional evidence, kept as a hint so these items reach the model instead of being asserted at confidence 1.0. A hint never contributes to a state origin decision by rules; it only routes the article for a judgement.'
       - id: publisher_not_reviewed_disclosure
         regex: '(?i)(has not (reviewed|edited|verified)|is not responsible for|non (è|e) responsabile (del|per il) contenuto|n.est pas responsable du contenu|no es responsable del contenido|não é responsável pelo conteúdo|nicht verantwortlich für den Inhalt|not been edited by|was not involved in the creation)'
         strength: weak
@@ -303,20 +345,21 @@ groups:
 # but matches any of these is routed to the LLM for the B versus C judgement.
 llm_triggers:
   - id: cites_xinhua
-    regex: '(?i)\bXinhua\b|\bXinhuanet\b|\bNuova Cina\b|\bSinhua\b|Синьхуа|شينخوا|新華社|新华社|신화통신|Tân Hoa Xã|ซินหัว|शिन्हुआ'
+    regex: '(?i)\bXinhua\b|\bXinhuanet\b|\bNuova Cina\b|\bSinhua\b|\bŞinhua\b|Синьхуа|شينخوا|شينهوا|شین[\u200c ]?هوا|وكالة أنباء الصين الجديدة|新華社|新华社|新华网|新華網|신화통신|신화사|Tân Hoa Xã|Tân Hoa xã|ซินหัว|शिन्हुआ|Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|שינחואה|סינחואה|中新社|中国新闻社'
+    note: Native script spellings were added in ruleset 2026.09.8. A citation routes the article to the model; it never decides state origin by itself.
   - id: cites_cgtn
-    regex: '(?i)\bCGTN\b|China Global Television Network'
+    regex: '(?i)\bCGTN\b|China Global Television Network|中国国际电视台'
   - id: cites_global_times
-    regex: '(?i)\bGlobal Times\b|Хуаньцю|环球时报'
+    regex: '(?i)\bGlobal Times\b|Хуаньцю|环球时报|環球時報|환구시보'
   - id: cites_china_daily
-    regex: '(?i)\bChina Daily\b|中国日报'
+    regex: '(?i)\bChina Daily\b|中国日报|中國日報|차이나데일리|チャイナ・デイリー|チャイナデイリー'
   - id: cites_cctv
-    regex: '(?i)\b(state|state-run|state-owned|official|Chinese|China.s|Beijing.s|broadcaster|television|televisi[oó]n|televis[aã]o|t[eé]l[eé]vision|cha[îi]ne|cadena|canal|emissora|emittente|tv|Fernsehsender|staatlich\w*|estatal|statale|chin[oa]|chinesa|chinês|cinese|chinois[e]?|d.[ÉE]tat|телеканал|телевидение|государственн\w*|китайск\w*)\b[^.\n]{0,60}\bCCTV\b|\bCCTV\b[^.\n]{0,60}\b(reported|reports|said|says|quoted|cited|announced|broadcast|aired|showed|state|broadcaster|television|inform[oó]u?|señal[oó]|report[oó]|disse|berichtete|meldete|a (indiqué|rapporté|annoncé)|ha (riferito|riportato)|сообщ\w*)\b|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Televisión Central de China|Центральное телевидение Китая|中央电视台'
+    regex: '(?i)\b(state|state-run|state-owned|official|Chinese|China.s|Beijing.s|broadcaster|television|televisi[oó]n|televis[aã]o|t[eé]l[eé]vision|cha[îi]ne|cadena|canal|emissora|emittente|tv|Fernsehsender|staatlich\w*|estatal|statale|chin[oa]|chinesa|chinês|cinese|chinois[e]?|d.[ÉE]tat|телеканал|телевидение|государственн\w*|китайск\w*)\b[^.\n]{0,60}\bCCTV\b|\bCCTV\b[^.\n]{0,60}\b(reported|reports|said|says|quoted|cited|announced|broadcast|aired|showed|state|broadcaster|television|inform[oó]u?|señal[oó]|report[oó]|disse|berichtete|meldete|a (indiqué|rapporté|annoncé)|ha (riferito|riportato)|сообщ\w*)\b|China Central Television|Televisione Centrale Cinese|télévision centrale chinoise|Televisión Central de China|Центральное телевидение Китая|中央电视台|中国中央电视台|中国中央テレビ|중국중앙방송'
     note: CCTV also means closed-circuit television. The acronym counts only with broadcaster or China context in the same sentence on either side; "Detectives have reviewed CCTV and identified" does not fire.
   - id: cites_peoples_daily
-    regex: "(?i)\\bPeople'?s Daily\\b|Quotidiano del Popolo|Quotidien du Peuple|Diario del Pueblo|Diário do Povo|Volkszeitung|Жэньминь жибао|人民日报|人民日報"
+    regex: "(?i)\\bPeople'?s Daily\\b|Quotidiano del Popolo|Quotidien du Peuple|Diario del Pueblo|Diário do Povo|Volkszeitung|Жэньминь жибао|人民日报|人民日報|인민일보"
   - id: cites_china_media_group
-    regex: '(?i)\bChina Media Group\b|\bChina News Service\b|\bECNS\b|China Radio International'
+    regex: '(?i)\bChina Media Group\b|\bChina News Service\b|\bECNS\b|China Radio International|中央广播电视总台|中央廣播電視總台|Медиакорпорация Китая|중국중앙방송총국|中国新闻社|中新社'
   - id: mofa_spokesperson
     regex: "(?i)\\b(Chinese|China.s|Beijing.s|PRC)\\s+(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b.{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(foreign ministry|foreign affairs ministry|ministry of foreign affairs|MOFA|MFA)\\b[^.\\n]{0,80}\\b(spokesperson|spokesman|spokeswoman)\\b[^.\\n]{0,80}\\b(China|Chinese|Beijing)\\b|\\b(China|Chinese|Beijing)\\b[^.\\n]{0,80}\\b(foreign ministry|ministry of foreign affairs|MOFA|MFA)\\b[^.\\n]{0,40}\\b(spokesperson|spokesman|spokeswoman)\\b|\\b(spokesperson|spokesman|spokeswoman)\\b.{0,60}\\b(Chinese|China.s) (foreign|foreign affairs) ministry\\b|\\b(Lin Jian|Mao Ning|Guo Jiakun|Wang Wenbin|Hua Chunying|Zhao Lijian|Geng Shuang|Lu Kang|Hong Lei|Zhu Fenglian|Chen Binhua|Ma Xiaoguang|Wu Qian|Zhang Xiaogang|Tan Kefei|Zhu Fenglian)\\b|\\b(portavoce|porte-parole|portavoz|porta-voz|Sprecher(in)?)\\b.{0,80}\\b(Ministero degli Esteri cinese|Esteri cines|ministère (chinois )?des Affaires étrangères|diplomatie chinoise|Cancillería china|Ministerio de (Asuntos |Relaciones )?Exteriores (de )?China|Ministério das Relações Exteriores (da )?China|chinesische(n|s)? Außenministerium)|МИД КНР|МИД Китая|представитель МИД|الخارجية الصينية|中国外交部|外交部发言人|외교부 대변인"
   - id: chinese_embassy_quoted

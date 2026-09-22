@@ -24,21 +24,40 @@ from pipeline.feeds_util import fetch_feed
 
 DEAD_AFTER_DAYS = 7
 MIN_FAILED_CHECKS = 3
+# A feed that has never succeeded has no last_ok to measure DEAD_AFTER_DAYS against, so elapsed time
+# is read from how many checks are on record instead. The hourly collect job writes feed health for
+# every feed it polls, so a feed that has been in the registry for DEAD_AFTER_DAYS carries roughly
+# this many recorded checks. Without it, a newly added outlet with three or more feeds was
+# deactivated on its first weekly validation if its host happened to be unreachable that morning,
+# with a reason claiming a silence of more than seven days that had never happened.
+MIN_CHECKS_WITHOUT_SUCCESS = 24 * DEAD_AFTER_DAYS
 
 
 def is_dead(results, history, today):
     """results: this run's per feed results for one outlet. history: feed_url -> row with
-    last_ok, total_failures. today: ISO date. Returns (dead, last_ok_date or None)."""
+    last_ok, total_failures, total_checks. today: ISO date (UTC). Returns (dead, last_ok_date or
+    None).
+
+    Only recorded history counts toward MIN_FAILED_CHECKS. Counting this run's own failures too
+    meant three feeds failing once was already three failures, so a single bad morning could
+    deactivate an outlet that had never been seen to fail before."""
     if not results or not all(not r["ok"] for r in results):
         return False, None
     last_ok = max((history.get(r["feed_url"], {}).get("last_ok") or "" for r in results), default="")
-    failures = sum(history.get(r["feed_url"], {}).get("total_failures", 0) for r in results) + len(results)
+    failures = sum(history.get(r["feed_url"], {}).get("total_failures", 0) or 0 for r in results)
+    checks = sum(history.get(r["feed_url"], {}).get("total_checks", 0) or 0 for r in results)
     cutoff = (dt.date.fromisoformat(today) - dt.timedelta(days=DEAD_AFTER_DAYS)).isoformat()
     if failures < MIN_FAILED_CHECKS:
         return False, last_ok[:10] or None
-    if last_ok and last_ok[:10] >= cutoff:
-        return False, last_ok[:10]
-    return True, last_ok[:10] or None
+    if last_ok:
+        if last_ok[:10] >= cutoff:
+            return False, last_ok[:10]
+        return True, last_ok[:10]
+    # Never a success on record: dead only once the feeds have been checked long enough that the
+    # silence really has lasted DEAD_AFTER_DAYS.
+    if checks < MIN_CHECKS_WITHOUT_SUCCESS:
+        return False, None
+    return True, None
 
 
 def check_outlet(outlet):
@@ -59,7 +78,9 @@ def check_outlet(outlet):
 
 def run(apply=False, json_out=None, workers=12):
     outlets = registry.load_outlets()
-    today = dt.date.today().isoformat()
+    # UTC, like every other date this project records. last_ok is written in UTC, so comparing it
+    # against the runner's local date moved the seven day boundary by up to a day either way.
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     to_check = registry.collectable(outlets)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         nested = list(pool.map(check_outlet, to_check))
@@ -72,9 +93,9 @@ def run(apply=False, json_out=None, workers=12):
         from pipeline import store
         conn = store.connect()
         for row in conn.execute(
-            "SELECT feed_url, last_ok, total_failures FROM feed_health"
+            "SELECT feed_url, last_ok, total_failures, total_checks FROM feed_health"
         ):
-            history[row[0]] = {"last_ok": row[1], "total_failures": row[2]}
+            history[row[0]] = {"last_ok": row[1], "total_failures": row[2], "total_checks": row[3]}
         for r in results:
             store.record_feed_health(conn, r["outlet_id"], r["feed_url"], r["ok"], r["error"], r["entries"])
         conn.commit()
@@ -104,8 +125,12 @@ def run(apply=False, json_out=None, workers=12):
         for o in outlets:
             if o["id"] in dead_outlets and o["active"]:
                 o["active"] = False
-                o["inactive_reason"] = ("every feed failed on every check from the GitHub Actions runner for more than %d days; last success %s (auto)"
-                                        % (DEAD_AFTER_DAYS, last_success.get(o["id"]) or "none on record"))
+                last = last_success.get(o["id"])
+                o["inactive_reason"] = (
+                    ("every feed failed on every check from the GitHub Actions runner for more than %d days; last success %s (auto)"
+                     % (DEAD_AFTER_DAYS, last)) if last else
+                    ("every feed failed on every check from the GitHub Actions runner and no feed has ever succeeded in at "
+                     "least %d recorded checks (auto)" % MIN_CHECKS_WITHOUT_SUCCESS))
                 o["inactive_since"] = today
                 changed.append(o["id"])
         if changed:
