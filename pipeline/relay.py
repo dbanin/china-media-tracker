@@ -41,6 +41,25 @@ ARTICLE_FIELDS = ["url", "url_hash", "outlet_id", "country", "language", "feed_u
                   "published_at", "discovered_at", "fetched_at", "status", "fail_reason", "http_status", "body_hash",
                   "body_chars", "gate_relevant", "gate_terms", "fetch_attempts", "page_labels"]
 
+# How far an article has got. An existing hosted row takes the relay's status only when the relay's
+# is strictly further along this ladder, so a status never regresses; a hosted row that carries a
+# classification is never touched at all. Discovery is not counted again on either path: for relay
+# outlets the per outlet-day counts come from the bundle's own rows.
+STATUS_RANK = {
+    "gated_out": 0,
+    "blocked_robots": 1, "failed": 1,
+    "discovered": 2, "queued": 2,
+    "paywalled": 3,
+    "fetched": 4,
+    "awaiting_llm": 5,
+    "llm_submitted": 6,
+    "classified": 7,
+}
+# Fields worth carrying over when the relay's copy is further along. The hosted row's own
+# discovery fields (url, outlet, country, discovered_at) are never rewritten.
+ADVANCE_FIELDS = ["status", "fail_reason", "http_status", "body_hash", "body_chars", "fetched_at",
+                  "fetch_attempts", "page_labels", "author", "published_at", "title", "summary"]
+
 
 def _git(*args, check=True, input_bytes=None):
     return subprocess.run(["git", *args], cwd=str(config.ROOT), check=check, capture_output=True, input=input_bytes)
@@ -127,10 +146,61 @@ def iter_bundle(data: bytes) -> Iterable[Dict]:
                 yield json.loads(line)
 
 
+def _save_body(item: Dict) -> bool:
+    if not item.get("body"):
+        return False
+    store.save_body(item["url_hash"], gzip.decompress(base64.b64decode(item["body"])).decode("utf-8"))
+    return True
+
+
+def update_existing(conn, row, item: Dict) -> Optional[str]:
+    """Bring a hosted row forward when the relay's copy of the same article is strictly more
+    advanced. Returns what changed, or None when nothing did.
+
+    The relay machine runs the gate and the fetcher on outlets the hosted runner cannot reach, so
+    its copy is often further along: an item the hosted side has as gated_out can be gate-relevant
+    on the relay because it arrived there on a press release section feed, and an item the hosted
+    side failed to fetch can be fetched there. Skipping every url_hash it already had left those
+    decisions stranded on the relay machine forever.
+
+    Two things are never done: a hosted classification is never overwritten, and a status never
+    goes backwards. Nothing here counts discovery: the row was counted when it was first seen."""
+    if row["status"] == "classified" or conn.execute(
+            "SELECT 1 FROM classifications WHERE article_id=? AND is_current=1", (row["id"],)).fetchone():
+        return None
+    if row["status"] == "gated_out" and not item.get("gate_relevant"):
+        return None      # still outside the corpus on both sides; a status alone would not make it in
+    fields = {}
+    changed = []
+    if item.get("gate_relevant") and not row["gate_relevant"]:
+        # The gate decision the relay made wins: it saw the item on a feed the hosted side does not poll.
+        fields["gate_relevant"] = 1
+        fields["gate_terms"] = item.get("gate_terms") or "[]"
+        if item.get("feed_url"):
+            fields["feed_url"] = item["feed_url"]
+        changed.append("gate_relevant")
+    relay_rank = STATUS_RANK.get(item.get("status"), -1)
+    hosted_rank = STATUS_RANK.get(row["status"], -1)
+    if relay_rank > hosted_rank:
+        for k in ADVANCE_FIELDS:
+            if k in item and item[k] is not None:
+                fields[k] = item[k]
+        # A row promoted out of gated_out goes to the relay's status, which is at least queued.
+        changed.append("status")
+    elif "gate_relevant" in changed and row["status"] == "gated_out":
+        fields["status"] = "queued"
+        changed.append("status")
+    if not fields:
+        return None
+    store.update_article(conn, row["id"], **fields)
+    return ",".join(changed)
+
+
 def ingest(conn, data: bytes) -> Dict:
-    """Insert every article the main database does not know. Existing rows are left alone."""
+    """Insert every article the main database does not know, and bring forward the ones whose relay
+    copy is further along. Discovery is never counted twice."""
     from pipeline.fetch_feeds import link_near_duplicates
-    counts = {"seen": 0, "inserted": 0, "bodies": 0, "relevant": 0, "already_delivered": 0}
+    counts = {"seen": 0, "inserted": 0, "bodies": 0, "relevant": 0, "already_delivered": 0, "updated": 0}
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=14)).isoformat()
     conn.execute("DELETE FROM relay_seen WHERE seen_at < ?", (cutoff,))
     for item in iter_bundle(data):
@@ -167,7 +237,19 @@ def ingest(conn, data: bytes) -> Dict:
             counts["skipped_unknown"] = counts.get("skipped_unknown", 0) + 1
             continue
         counts["seen"] += 1
-        if conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone():
+        existing = conn.execute(
+            "SELECT id, status, gate_relevant, country, title FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()
+        if existing:
+            changed = update_existing(conn, existing, item)
+            if changed:
+                counts["updated"] += 1
+                if "gate_relevant" in changed:
+                    counts["promoted_relevant"] = counts.get("promoted_relevant", 0) + 1
+                    link_near_duplicates(conn, existing["id"], item.get("title") or existing["title"] or "",
+                                         item.get("country") or existing["country"])
+                if _save_body(item):
+                    counts["bodies"] += 1
+                conn.commit()
             continue
         if conn.execute("SELECT 1 FROM relay_seen WHERE url_hash=?", (item["url_hash"],)).fetchone():
             counts["already_delivered"] += 1   # delivered earlier and pruned since; not a new item
@@ -180,9 +262,7 @@ def ingest(conn, data: bytes) -> Dict:
         counts["inserted"] += 1
         relevant = bool(item.get("gate_relevant"))
         # Discovery counts for relay outlets come from the bundle's own per outlet-day rows above.
-        if item.get("body"):
-            text = gzip.decompress(base64.b64decode(item["body"])).decode("utf-8")
-            store.save_body(item["url_hash"], text)
+        if _save_body(item):
             counts["bodies"] += 1
         if relevant:
             counts["relevant"] += 1

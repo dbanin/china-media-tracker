@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=60">
+<link rel="stylesheet" href="style.css?v=61">
 </head>
 <body>
 <header class="top">
@@ -77,7 +77,7 @@
       <div class="control"><label>Scope</label><div class="segment scope" data-scope-group><button data-scope="world" class="active">Whole world</button><button data-scope="country">One country</button></div></div>
       <div class="control pick"><label for="map-country">Country</label><div class="csearch" data-country-pick><input type="search" id="map-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="map-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the map"><ul class="csearch-list" id="map-country-list" role="listbox" hidden></ul></div></div>
     </div>
-    <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric"></svg>
+    <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric. The same figures for every monitored country, including those too small to be drawn here, are in the ranked list below, which is reachable with the keyboard."></svg>
     <div id="legend"></div>
     <div id="tooltip" class="tooltip"></div>
   </div>
@@ -206,7 +206,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=60"></script>
-<script src="app.js?v=60"></script>
+<script src="compute.js?v=61"></script>
+<script src="app.js?v=61"></script>
 </body>
 </html>

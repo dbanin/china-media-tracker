@@ -117,7 +117,30 @@ def feed_entries(outlet: Dict) -> List[Dict]:
     return out
 
 
+# A global press release distribution service is not a national newsroom. Its releases are written
+# by their issuers and pushed worldwide, so counting them against the country the service is
+# registered in says nothing about that country's media: 118 of the United States' 122 state origin
+# labels came from one such service, in several languages, none of them placed in a US newsroom.
+# They are still collected and still classified, but they are counted as their own stratum.
+DISTRIBUTION_WIRE = "distribution_wire"
+
+
+def is_distribution_wire(outlet: Dict) -> bool:
+    return outlet.get("tier") == DISTRIBUTION_WIRE
+
+
+def distribution_wire_ids(outlets: List[Dict]) -> set:
+    return {o["id"] for o in outlets if is_distribution_wire(o)}
+
+
 def active_outlets(outlets: List[Dict]) -> List[Dict]:
+    """Active outlets that stand for a country. Distribution wires are excluded: they are counted
+    on their own, never inside a country's numerator or denominator."""
+    return [o for o in outlets if o.get("active") and not is_distribution_wire(o)]
+
+
+def active_including_wires(outlets: List[Dict]) -> List[Dict]:
+    """Everything that is polled, wires included. Used by collection, never by a country figure."""
     return [o for o in outlets if o.get("active")]
 
 

@@ -8,9 +8,10 @@ from those sections skip the relevance gate, because that is where paid state pl
 sit and they often name no China term in the headline; classification decides.
 """
 import datetime as dt
+import json
 import re
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 
 from pipeline import extract, gate, registry, store
@@ -118,6 +119,33 @@ def saturation(prev, linked: int, new_here: int, times: List[str],
     return True, round(min(MAX_MISSED_ESTIMATE, (len(stamps) - 1) / span * gap), 2)
 
 
+def readmit_gated_out(conn, item: Dict) -> Optional[int]:
+    """Re-admit an item the gate rejected when it turns up again on a gate-exempt section feed.
+
+    The same URL is often on an editorial feed, where the gate rejects a headline naming no China
+    term, and on the press release or sponsored section feed where paid state placements actually
+    sit. insert_discovered is INSERT OR IGNORE and the caller moves on, so the exemption never
+    applied to an item seen editorially first and the item was pruned three days later.
+
+    Returns the article id when it was re-admitted. Discovery is not counted again: the item was
+    counted on the day it was first seen, and only the gate-relevant side of that day's counters is
+    corrected, so the denominator does not move."""
+    row = conn.execute(
+        "SELECT id, status, gate_relevant, discovered_at, country, outlet_id FROM articles WHERE url_hash=?",
+        (store.url_hash(item["url"]),)).fetchone()
+    if row is None or row["gate_relevant"] or row["status"] != "gated_out":
+        return None
+    conn.execute("UPDATE articles SET status='queued', gate_relevant=1, gate_terms=?, feed_url=? WHERE id=?",
+                 (json.dumps(item.get("gate_terms") or []), item.get("feed_url"), row["id"]))
+    day = (row["discovered_at"] or "")[:10]
+    if day:
+        conn.execute("UPDATE daily_discovery SET gate_relevant=gate_relevant+1 WHERE date=? AND country=?",
+                     (day, row["country"]))
+        conn.execute("UPDATE daily_outlet_discovery SET gate_relevant=gate_relevant+1 WHERE date=? AND outlet_id=?",
+                     (day, row["outlet_id"]))
+    return row["id"]
+
+
 def poll_outlet(outlet: Dict) -> List[Dict]:
     out = []
     for fe in registry.feed_entries(outlet):
@@ -137,9 +165,24 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
         outlets = registry.collectable(registry.load_outlets())
     store.sync_outlets(conn, registry.load_outlets())
     counts = {"feeds": 0, "feeds_ok": 0, "items_seen": 0, "items_new": 0,
-              "gate_relevant": 0, "near_duplicates": 0, "feeds_saturated": 0, "section_items": 0}
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        for group in pool.map(poll_outlet, outlets):
+              "gate_relevant": 0, "near_duplicates": 0, "feeds_saturated": 0, "section_items": 0,
+              "outlets": len(outlets), "outlets_polled": 0, "readmitted_section": 0}
+    # ThreadPoolExecutor.map submits every outlet up front and the with block joins on exit, so
+    # breaking out of the consumer loop at the deadline stopped the database writes but not the
+    # polling: a run given 35 minutes could overshoot into the job's 55 minute timeout and be
+    # killed, losing the fetch and classify stages with it. shutdown(cancel_futures=True) drops
+    # the outlets not started yet, and wait=False leaves only the polls already in flight.
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futures = [pool.submit(poll_outlet, o) for o in outlets]
+    try:
+        for fut in as_completed(futures):
+            try:
+                group = fut.result()
+            except Exception as exc:       # one outlet must not take the discovery stage down
+                counts["outlet_errors"] = counts.get("outlet_errors", 0) + 1
+                counts["last_outlet_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+                continue
+            counts["outlets_polled"] += 1
             for g in group:
                 outlet, feed_url, kind, r = g["outlet"], g["feed_url"], g["kind"], g["result"]
                 counts["feeds"] += 1
@@ -174,6 +217,14 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         times.append(item["published_at"])
                     new_id = store.insert_discovered(conn, item)
                     if new_id is None:
+                        # Known URL. On a gate-exempt section feed it may be one the gate rejected
+                        # when it arrived on an editorial feed; re-admit it there and then.
+                        readmitted = readmit_gated_out(conn, item) if section else None
+                        if readmitted:
+                            counts["readmitted_section"] += 1
+                            counts["section_items"] += 1
+                            if link_near_duplicates(conn, readmitted, title, outlet["country"]):
+                                counts["near_duplicates"] += 1
                         continue
                     new_here += 1
                     counts["items_new"] += 1
@@ -189,6 +240,10 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                 store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked, new_here, saturated, missed)
                 conn.commit()
             if deadline and time.time() > deadline:
+                counts["stopped_at_deadline"] = True
                 break
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+    counts["outlets_skipped"] = counts["outlets"] - counts["outlets_polled"]
     store.finish_stage(conn, log_id, True, counts)
     return counts

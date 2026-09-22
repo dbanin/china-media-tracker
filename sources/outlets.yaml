@@ -21527,7 +21527,7 @@
   language: en
   feeds:
   - https://feed.businesswire.com/rss/home/?rss=G1QFDERJXkJeEFpRWw==
-  tier: aggregator
+  tier: distribution_wire
   notes: Verified 2026-09-02.
   active: false
   inactive_reason: every feed failed on every check since 2026-09-04 from the runner and again from a second network on 2026-09-07; deactivated 2026-09-07 (auto, reason corrected)
@@ -21688,7 +21688,7 @@
     searched_on: '2026-09-15'
     status: none_found
     sections: []
-  tier: aggregator
+  tier: distribution_wire
   notes: Verified 2026-09-02.
   active: true
 - id: us_honolulu
@@ -21975,7 +21975,7 @@
       feed: null
       label: português
       readable: false
-  tier: aggregator
+  tier: distribution_wire
   notes: Verified 2026-09-02.
   active: true
 - id: us_propublica

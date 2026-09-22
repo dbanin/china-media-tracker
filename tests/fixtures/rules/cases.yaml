@@ -2,8 +2,11 @@
   expect_decision: A
   expect_ids_include:
   - source_xinhua
-  - wire_stamp_with_state_entity
-  note: True positive, distribution stamp and credit line. Release wire trailer SOURCE Xinhua Silk Road.
+  - state_entity_then_wire_stamp
+  - wire_release_headline_issuer
+  note: True positive, distribution stamp and credit line. Release wire trailer SOURCE Xinhua Silk Road, and a headline
+    that names the issuer above the PR Newswire dateline. From ruleset 2026.09.8 it is those two positions that carry the
+    label; wire_stamp_with_state_entity no longer fires here because the entity is not in the dateline's own line.
   file: prnewswire_xinhua_silk_road.txt
   author: Xinhua Silk Road
   labels: prnewswire_xinhua_silk_road.labels.txt

@@ -28,6 +28,7 @@ from pipeline import themes as themes_mod
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
 
+# Kept for the audit files, which still report how far a feed's published date lagged discovery.
 STALE_PUBLISHED_DAYS = 14
 
 ROUTE_LABELS = {
@@ -60,21 +61,23 @@ CHANGELOG_GATE = re.compile(r"^## Gate (\S+) \((\d{4}-\d{2}-\d{2})\)", re.MULTIL
 
 
 def _day(row) -> str:
-    """Date attribution. The published date when the feed gave one and it is within
-    STALE_PUBLISHED_DAYS before discovery, otherwise the discovery date. Feeds sometimes
-    resurface items published years earlier; counting those on their old date would
-    rewrite history that was never observed."""
-    disc = (row["discovered_at"] or "")[:10]
-    pub = (row["published_at"] or "")[:10]
-    if pub and disc and len(pub) == 10:
-        try:
-            pd = dt.date.fromisoformat(pub)
-            dd = dt.date.fromisoformat(disc)
-            if dd - dt.timedelta(days=STALE_PUBLISHED_DAYS) <= pd <= dd + dt.timedelta(days=1):
-                return pub
-        except ValueError:
-            pass
-    return disc
+    """The day of record is the UTC day the item was discovered, for every figure.
+
+    It used to be the published date where the feed gave one within STALE_PUBLISHED_DAYS,
+    falling back to discovery. That put the numerator of every share on the publication
+    axis while its denominator stayed on the discovery axis, because discovery totals are
+    written at insert time and are the only per day totals that include gated out items.
+    Measured on 2026-09-21, 12.9 percent of relevant articles were attributed to a day other
+    than their discovery, and on 1,033 of 2,857 country days the numerator exceeded its own
+    denominator. It also manufactured 14 days of history before collection began: the
+    published timeline started 2026-08-20 with real article counts and no discovery at all,
+    which read as a ramp up that never happened.
+
+    Discovery is also the only date the instrument observes. A publication date is whatever
+    the feed asserts, it is missing or wrong often enough to matter, and an item published
+    before the tracker existed was still not observed then. Articles keep their published_at
+    in the article records and in the audit files, so publication lag stays analysable."""
+    return (row["discovered_at"] or "")[:10]
 
 
 def _today() -> str:
@@ -99,13 +102,25 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     store.rebuild_daily_discovery(conn)
     rows = article_rows(conn)
     now = store.utcnow()
-    top_ids, _ = registry.top_outlets(outlets if outlets is not None else registry.load_outlets())
+    outlets = outlets if outlets is not None else registry.load_outlets()
+    top_ids, _ = registry.top_outlets(outlets)
+    wire_ids = registry.distribution_wire_ids(outlets)
+    wires = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0}
     counts = defaultdict(lambda: {"n": 0, "n_rules": 0, "n_llm": 0, "n_reviewed": 0, "groups": set()})
     coverage = defaultdict(lambda: {"discovered": 0, "gate_relevant": 0, "fetched": 0, "paywalled": 0,
                                     "failed": 0, "blocked_robots": 0, "classified": 0, "llm_pending": 0,
                                     "top_discovered": 0, "top_target": 0, "top_china": 0, "top_a": 0, "top_b": 0})
     for r in rows:
         d = _day(r)
+        # A global release service is not a national newsroom, so its items are counted on their own
+        # and never inside a country's numerator or denominator.
+        if r["outlet_id"] in wire_ids:
+            wires["articles"] += 1
+            if r["status"] in ("awaiting_llm", "llm_submitted"):
+                wires["pending"] += 1
+            elif r["m_cat"]:
+                wires[r["m_cat"]] += 1
+            continue
         cov = coverage[(d, r["country"])]
         cov["gate_relevant"] += 1
         st = r["status"]
@@ -169,7 +184,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
              cov["top_discovered"], cov["top_target"], cov["top_china"], cov["top_a"], cov["top_b"]),
         )
     conn.commit()
-    return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows)}
+    return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows),
+            "distribution_wire_articles": wires["articles"], "distribution_wires": wires}
 
 
 def _empty_country() -> Dict:
@@ -217,13 +233,51 @@ def _reviewed_block(conn, country: Optional[str], since: Optional[str]) -> Dict:
     return out
 
 
-def _derive(c: Dict, outlets_active: int) -> Dict:
+def _wire_counts(conn, outlets: List[Dict]) -> Dict:
+    ids = registry.distribution_wire_ids(outlets)
+    out = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0}
+    if not ids:
+        return out
+    marks = ",".join("?" * len(ids))
+    for r in conn.execute(
+            """SELECT a.status, c.category cat, COUNT(*) n FROM articles a
+               LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+               WHERE a.gate_relevant=1 AND a.outlet_id IN (%s) GROUP BY a.status, c.category""" % marks,
+            tuple(sorted(ids))):
+        out["articles"] += r["n"]
+        if r["status"] in ("awaiting_llm", "llm_submitted"):
+            out["pending"] += r["n"]
+        elif r["cat"]:
+            out[r["cat"]] += r["n"]
+    return out
+
+
+def relay_visible(conn) -> bool:
+    """Whether unchecked state sourcing may appear in a published figure at all: either a study has
+    cleared it, or no study has run yet and it is shown marked provisional. The interface and the
+    files it reads must make this decision the same way, in one place."""
+    labels = conn.execute("SELECT COUNT(*) FROM classifications WHERE method='llm' AND is_current=1").fetchone()[0]
+    if not labels:
+        return False
+    human = conn.execute("SELECT kappa_bc FROM agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
+    model = store.latest_model_agreement(conn)
+    passed = ((human and human["kappa_bc"] is not None and human["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD)
+              or (model and model["kappa_bc"] is not None and model["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD))
+    if passed:
+        return True
+    return bool(config.RELAY_PROVISIONAL_DISPLAY and not (human or model))
+
+
+def _derive(c: Dict, outlets_active: int, relay_visible: bool = True) -> Dict:
+    """Per country derived figures. Anything containing unchecked state sourcing is omitted when that
+    label may not be shown, because a share published beside the state origin count and the China
+    total gives the withheld number back by subtraction."""
     china = c["A"] + c["B"] + c["C"]
     c["china_total"] = china
-    c["share_ab"] = round((c["A"] + c["B"]) / china, 4) if china else None
     c["share_a"] = round(c["A"] / china, 4) if china else None
-    c["per_outlet_ab"] = round((c["A"] + c["B"]) / outlets_active, 3) if outlets_active else None
     c["per_outlet_a"] = round(c["A"] / outlets_active, 3) if outlets_active else None
+    c["share_ab"] = (round((c["A"] + c["B"]) / china, 4) if china else None) if relay_visible else None
+    c["per_outlet_ab"] = (round((c["A"] + c["B"]) / outlets_active, 3) if outlets_active else None) if relay_visible else None
     attempted = c["fetched"] + c["paywalled"] + c["failed"] + c["blocked"]
     # Paywalled articles are never classified, so they sit in no count and no denominator.
     c["paywall_share"] = round(c["paywalled"] / attempted, 4) if attempted else None
@@ -290,7 +344,7 @@ def language_support(languages, supported) -> str:
 
 def release_summary(outlets: List[Dict]) -> Dict:
     """Active outlets by the status of the search for press release, sponsored and partner sections."""
-    active = [o for o in outlets if o.get("active")]
+    active = registry.active_outlets(outlets)
     out = {s: 0 for s in RELEASE_STATUSES}
     out["not_searched"] = 0
     for o in active:
@@ -332,6 +386,7 @@ def gate_changes(path: Path = None) -> List[Dict]:
 
 
 def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Optional[Dict] = None) -> Dict:
+    visible = relay_visible(conn)
     population = population if population is not None else registry.load_population()
     top_ids, ranked = registry.top_outlets(outlets)
     today = dt.datetime.now(dt.timezone.utc).date()
@@ -368,7 +423,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
 
     countries = {}
     for country, os_ in by_country_outlets.items():
-        active = [o for o in os_ if o["active"]]
+        active = registry.active_outlets(os_)
         # Feed health counts editorial feeds only. A quiet or unreadable sponsored section is not a failing feed,
         # so section feeds are reported beside them and never trip the failing feeds warning.
         entries = [f for o in active for f in registry.feed_entries(o)]
@@ -390,8 +445,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             "theme_language_support": language_support(languages, theme_langs),
             "relay_outlets": relayed,
             "release_sections": release_summary(os_),
-            "all_time": _derive(dict(all_time[country]), len(active)),
-            "last_30d": _derive(dict(last30[country]), len(active)),
+            "all_time": _derive(dict(all_time[country]), len(active), visible),
+            "last_30d": _derive(dict(last30[country]), len(active), visible),
             "reviewed_all_time": _reviewed_block(conn, country, None),
             "reviewed_last_30d": _reviewed_block(conn, country, since30),
             "warnings": [],
@@ -406,8 +461,14 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         if attempted >= 10 and (at["failed"] + at["blocked"]) / float(attempted) >= config.PAYWALL_FLAG_SHARE:
             entry["warnings"].append({"type": "fetch_failing", "text": "%d percent of article fetches failed or were blocked by robots.txt; counts understate this country" % round(100.0 * (at["failed"] + at["blocked"]) / attempted)})
         pending = at["pending"]
+        judged_china = at["A"] + at["B"] + at["C"]
         if pending >= 5 and pending >= 0.25 * max(at["rel"], 1):
-            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles carrying official Chinese sourcing are awaiting the verification judgement, so the confirmed counts are a floor" % pending})
+            entry["warnings"].append({"type": "llm_backlog", "text": "%d articles carrying official Chinese sourcing are awaiting the verification judgement, so the unchecked state sourcing count is a floor" % pending})
+        # A country whose unjudged pile rivals what has been judged cannot be compared with one whose
+        # backlog is small: the difference between them is partly the backlog, not the world. This is
+        # the state the whole map is in while the model budget is spent.
+        if pending >= 5 and pending >= 0.5 * max(judged_china, 1):
+            entry["warnings"].append({"type": "not_comparable", "text": "%d articles are still unjudged against %d judged, so this country's unchecked state sourcing figure is not comparable with countries whose backlog is smaller" % (pending, judged_china)})
         if at["polls"] >= 10 and at["sat"] / float(at["polls"]) >= config.FEED_SATURATION_WARNING_SHARE:
             entry["warnings"].append({"type": "feed_saturation", "text": "%d percent of feed polls came back as a full window with nothing seen before, so items were lost between polls; an estimated %d were missed" % (round(100.0 * at["sat"] / at["polls"]), at["miss"])})
         if relayed:
@@ -426,16 +487,16 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                                        "feeds_total": 0, "feeds_ok": 0, "population": population.get(g["country"]),
                                        "top_outlets": 0, "top_outlets_ranked": False, "languages": [], "language_support": "none",
                                        "theme_language_support": "none", "relay_outlets": 0, "release_sections": release_summary([]),
-                                       "all_time": _derive(_empty_country(), 0), "last_30d": _derive(_empty_country(), 0), "warnings": []}
+                                       "all_time": _derive(_empty_country(), 0, visible), "last_30d": _derive(_empty_country(), 0, visible), "warnings": []}
 
-    n_active = sum(1 for o in outlets if o["active"])
-    totals = {"all_time": _derive(_empty_country(), n_active), "last_30d": _derive(_empty_country(), n_active)}
+    n_active = len(registry.active_outlets(outlets))
+    totals = {"all_time": _derive(_empty_country(), n_active, visible), "last_30d": _derive(_empty_country(), n_active, visible)}
     for scope_key, src in (("all_time", all_time), ("last_30d", last30)):
         t = totals[scope_key]
         for c in src.values():
             for k in _empty_country():
                 t[k] += c[k]
-        _derive(t, n_active)
+        _derive(t, n_active, visible)
     totals["population"] = sum(v["population"] or 0 for v in countries.values() if v["coverage"] == "monitored")
     return {"generated_at": store.utcnow(), "window_start_30d": since30, "countries": countries, "totals": totals}
 
@@ -674,7 +735,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     # 2026-09-16, when the draw was capped at 600 against 3,710 waiting and only 279 calls were made.
     ceiling_days = [r["date"] for r in conn.execute("SELECT date FROM llm_usage WHERE ceiling_hit=1 ORDER BY date")]
     calls_by_day = {r["date"]: r["calls"] for r in conn.execute("SELECT date, calls FROM llm_usage ORDER BY date")}
-    active = [o for o in outlets if o["active"]]
+    active = registry.active_outlets(outlets)
     countries_active = sorted({o["country"] for o in active})
     tot = latest["totals"]["all_time"]
     attempted = tot["fetched"] + tot["paywalled"] + tot["failed"] + tot["blocked"]
@@ -702,7 +763,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
     } if model_study else None
     # Provisional is the state before any study: the model has labelled articles and nothing has checked
     # them yet. Once a study of either kind has produced a kappa the counts are published or withheld.
-    any_study = bool((kappa and kappa["kappa_bc"] is not None) or (model_study and model_study["kappa_bc"] is not None))
+    # A study that ran counts as having been done even when it could not produce a figure, otherwise the
+    # interface says "nothing has checked them yet" while relay_study says the study is finished.
+    any_study = bool(kappa or model_study)
+    inconclusive = bool((kappa or model_study) and not settled and not reliable
+                        and not (kappa and kappa["kappa_bc"] is not None) and not (model_study and model_study["kappa_bc"] is not None))
     # Which study, if any, is holding the gate open. Never "validated": no human has coded anything.
     relay_basis = "human_coding" if settled else ((model_study["method"] or "model_vs_model") if reliable else None)
     by_language = (details.get("bc_by_language") if settled else model_details.get("bc_by_language")) or {}
@@ -763,6 +828,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "relay_publishable": bool(llm_labels) and (settled or reliable),
         # Real counts, marked as one model's unchecked judgement, until the first study reports.
         "relay_provisional": bool(config.RELAY_PROVISIONAL_DISPLAY and llm_labels and not (settled or reliable) and not any_study),
+        # A study ran and the sample could not support a figure. Not provisional, not certified.
+        "relay_study_inconclusive": inconclusive,
         "relay_study": second_rater.study_state(conn),
         "relay_basis": relay_basis,
         "relay_reliability": relay_reliability,
@@ -777,6 +844,13 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,
         # Spending, estimated from recorded token usage at published prices, and the calls today's
         # share of the monthly budget pays for at the batch price the scheduled runs use.
+        # Global release distribution services, counted apart from every country. They are polled and
+        # classified like any outlet; what they are not is a national media market.
+        "distribution_wires": {
+            "outlets": sorted(registry.distribution_wire_ids(outlets)),
+            "counts": _wire_counts(conn, outlets),
+            "note": "Global press release distribution services. Their releases are written by their issuers and pushed worldwide, so they are counted here and never inside a country.",
+        },
         "llm_budget": dict(llm_cost.month_to_date(conn),
                            budget_usd=config.LLM_MONTHLY_BUDGET_USD,
                            daily_cap_today=(cap := llm_cost.daily_cap(conn, batched=True)["cap"]),
@@ -799,6 +873,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
             sum(n for v, n in mix.items() if v != config.RULESET_VERSION) <= unreclassifiable),
         "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r)} for r in classify_rules.ROUTE_IDS],
         "route_totals": route_totals,
+        # A state origin label with no signature is not a route. It is the model asserting state origin
+        # where the deterministic layer found nothing, which is a different kind of evidence and is
+        # reported as its own stratum rather than as one more row in the route table.
+        "route_signature_totals": {k: v for k, v in route_totals.items() if k != "unattributed"},
+        "model_only_state_origin": route_totals.get("unattributed", 0),
         "arrivals": [{"id": r, "label": ARRIVAL_LABELS.get(r, r)} for r in classify_rules.ARRIVAL_IDS],
         "arrival_totals": _arrival_totals(conn),
         "relay_collector": relay_status(conn, outlets),
@@ -832,26 +911,43 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 ORDER BY a.id"""
     ).fetchall()
-    by_month = defaultdict(list)
+    by_day = defaultdict(list)
     for r in rows:
-        by_month[_day(r)[:7]].append(dict(r))
+        by_day[_day(r)].append(dict(r))
     written = {}
-    for month, items in by_month.items():
-        path = audit_dir / ("articles-%s.jsonl" % month)
-        with open(path, "w", encoding="utf-8") as fh:
-            for it in items:
-                fh.write(json.dumps(it, ensure_ascii=False, sort_keys=True) + "\n")
-        written[month] = len(items)
+    for day, items in by_day.items():
+        path = audit_dir / ("articles-%s.jsonl" % day)
+        body = "".join(json.dumps(it, ensure_ascii=False, sort_keys=True) + "\n" for it in items)
+        # Only rewrite a day that changed. A month in one file meant a fresh multi megabyte blob in
+        # every export commit, twice a day, and a repository that grew by that much each time.
+        if not path.exists() or path.read_text(encoding="utf-8") != body:
+            path.write_text(body, encoding="utf-8")
+        written[day] = len(items)
+    # The monthly files this replaced would otherwise sit in the tree forever, stale.
+    for old in audit_dir.glob("articles-[0-9][0-9][0-9][0-9]-[0-9][0-9].jsonl"):
+        old.unlink()
     return written
 
 
+def housekeeping(conn) -> Dict:
+    """The irreversible part of an export: dropping gated out rows past their retention and
+    compacting the file. Kept apart from writing the files so it can run after the generated
+    files have been validated and committed, never before. A failed check must not leave the
+    database advanced and the site stale."""
+    pruned = store.prune_gated_out(conn)
+    store.vacuum(conn)
+    return {"pruned_gated_out": pruned, "vacuumed": True}
+
+
 def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
-        audit_dir: Path = config.EXPORT_DIR_AUDIT, methodology_path: Optional[Path] = None) -> Dict:
+        audit_dir: Path = config.EXPORT_DIR_AUDIT, methodology_path: Optional[Path] = None,
+        prune: bool = True) -> Dict:
     """Write every generated file. All output locations are parameters so tests never touch
     the repository's own files. methodology_path defaults to METHODOLOGY.md at the root, and
-    the same text is copied into the site so the interface can link it."""
+    the same text is copied into the site so the interface can link it. prune=False leaves the
+    irreversible housekeeping for a later call, once the files have been checked."""
     log_id = store.start_stage(conn, run_id, "export")
-    pruned = store.prune_gated_out(conn)
+    pruned = store.prune_gated_out(conn) if prune else 0
     tagged = themes_mod.ensure(conn)
     routed = classify_rules.ensure_routes(conn)
     authors_cleaned = extract.clean_stored_authors(conn)
@@ -877,7 +973,8 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
               "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     store.finish_stage(conn, log_id, True, counts)
-    store.vacuum(conn)
+    if prune:
+        store.vacuum(conn)
     from pipeline import methodology
     mpath = methodology_path or (config.ROOT / "METHODOLOGY.md")
     methodology.write(meta, latest, mpath)
@@ -887,5 +984,10 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
 
 
 if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("cmd", nargs="?", default="export", choices=["export", "housekeeping"])
+    ap.add_argument("--no-prune", action="store_true", help="leave pruning and vacuuming for the housekeeping command")
+    args = ap.parse_args()
     conn = store.connect()
-    print(json.dumps(run(conn)))
+    print(json.dumps(housekeeping(conn) if args.cmd == "housekeeping" else run(conn, prune=not args.no_prune)))

@@ -39,7 +39,8 @@ def test_bundle_and_ingest_round_trip(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
     dst = store.connect(tmp_path / "main.db")
     counts = relay.ingest(dst, data)
-    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2, "already_delivered": 0, "feeds": 1, "outlet_days": 1}
+    assert counts == {"seen": 3, "inserted": 3, "bodies": 2, "relevant": 2, "already_delivered": 0, "updated": 0,
+                      "feeds": 1, "outlet_days": 1}
     assert dst.execute("SELECT consecutive_failures FROM feed_health WHERE feed_url='https://blocked.test/feed'").fetchone()[0] == 0
     rows = dst.execute("SELECT status, gate_relevant, page_labels FROM articles ORDER BY id").fetchall()
     assert [tuple(r) for r in rows] == [("gated_out", 0, None), ("fetched", 1, "section: World"), ("fetched", 1, "section: World")]
@@ -73,6 +74,57 @@ def test_pruned_items_are_not_delivered_twice(tmp_path, monkeypatch):
     assert second["inserted"] == 0 and second["already_delivered"] == 1
     assert dst.execute("SELECT COUNT(*) FROM articles").fetchone()[0] == 2
     assert dst.execute("SELECT discovered FROM daily_outlet_discovery").fetchone()[0] == 3
+
+
+def test_relay_decisions_reach_the_hosted_row_it_already_has(tmp_path, monkeypatch):
+    """The relay runs the gate and the fetcher for outlets the hosted runner cannot reach, so its
+    copy of an article it already delivered is often further along. Skipping every url_hash the
+    hosted side had left those decisions stranded: gated_out articles stayed gated_out even when
+    the relay had them as gate-relevant with section terms, and recoveries never landed."""
+    from pipeline import config
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    src = store.connect(tmp_path / "relay.db")
+    _seed(src, n=3)
+    dst = store.connect(tmp_path / "main.db")
+    relay.ingest(dst, relay.build_bundle(src))
+    # the hosted side has them; now the relay moves each one on
+    src.execute("UPDATE articles SET status='queued', gate_relevant=1, gate_terms='[\"section:press_release\"]', "
+                "feed_url='https://blocked.test/pr/feed' WHERE status='gated_out'")
+    src.execute("UPDATE articles SET status='failed', fail_reason='http_503' WHERE id=2")
+    src.commit()
+    dst.execute("UPDATE articles SET status='failed', fail_reason='ConnectionError' WHERE id=3")
+    dst.commit()
+    src.execute("UPDATE articles SET status='fetched', fail_reason=NULL WHERE id=3")
+    src.commit()
+    counts = relay.ingest(dst, relay.build_bundle(src))
+    assert counts["inserted"] == 0 and counts["updated"] == 2 and counts["promoted_relevant"] == 1
+    rows = {r["id"]: r for r in dst.execute("SELECT * FROM articles")}
+    assert rows[1]["status"] == "queued" and rows[1]["gate_relevant"] == 1
+    assert "section:press_release" in rows[1]["gate_terms"] and rows[1]["feed_url"] == "https://blocked.test/pr/feed"
+    assert rows[3]["status"] == "fetched", "a transient failure the relay recovered from"
+    # never backwards: the relay says failed, the hosted side already has it fetched
+    assert rows[2]["status"] == "fetched"
+    # and discovery is not counted twice
+    assert dst.execute("SELECT discovered FROM daily_outlet_discovery").fetchone()[0] == 3
+
+
+def test_a_hosted_classification_is_never_overwritten(tmp_path, monkeypatch):
+    from pipeline import config
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    src = store.connect(tmp_path / "relay.db")
+    _seed(src, n=2)
+    dst = store.connect(tmp_path / "main.db")
+    relay.ingest(dst, relay.build_bundle(src))
+    store.insert_classification(dst, 2, "llm", "B", 0.8, model_version="claude-sonnet-5")
+    store.update_article(dst, 2, status="classified")
+    dst.commit()
+    src.execute("UPDATE articles SET status='queued', gate_relevant=0 WHERE id=2")
+    src.commit()
+    counts = relay.ingest(dst, relay.build_bundle(src))
+    assert counts["updated"] == 0
+    row = dst.execute("SELECT status FROM articles WHERE id=2").fetchone()
+    assert row[0] == "classified"
+    assert store.current_classification(dst, 2)["category"] == "B"
 
 
 def test_unknown_record_types_are_skipped_not_fatal(tmp_path, monkeypatch):

@@ -106,4 +106,41 @@ var fourSlot = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, t
                                    "2026-09-02": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [3, 2, 0, 2]}}}}}};
 var th4 = C.aggregateThemes(fourSlot, "2026-09-02", 2).ITA.diplomacy;
 assert(th4[0] === 5 && th4[3] === 2 && th4.length === 4, "fourth theme slot, and three slot files still read");
+/* A value that could not be computed is never an observed zero: every branch that refuses to compute
+   one marks it sparse, so fillClass gives it the "not shown" pattern instead of falling through to zero. */
+var monitored = {coverage: "monitored", outlets_active: 6};
+var stream = Object.assign(C.emptyCounts(), {A: 3, C: 9, tdisc: 400, ta: 3, ttarget: 3, tchina: 12});
+var byRouteShare = C.metricValue(stream, "share_of_output_a", 6, "all", undefined, {topOutlets: 8, routeCount: 2});
+assert(byRouteShare.value === null && byRouteShare.sparse === true && C.fillClass(monitored, byRouteShare) === "sparse", "share of output by route is not shown, never zero");
+var reviewedShare = C.metricValue(stream, "share_of_output_a", 6, "reviewed", {A: 1, B: 0, C: 1, N: 0}, {topOutlets: 8});
+assert(reviewedShare.value === null && reviewedShare.sparse === true && C.fillClass(monitored, reviewedShare) === "sparse", "share of output in reviewed mode is not shown, never zero");
+var oldExport = C.metricValue(Object.assign(C.emptyCounts(), {A: 1, B: 2, C: 9, tdisc: 400}), "share_of_output_b", 6, "all", undefined, {topOutlets: 8, noRelayOutput: true});
+assert(oldExport.value === null && oldExport.sparse === true && C.fillClass(monitored, oldExport) === "sparse", "a share the export cannot carry is not shown, never zero");
+var offRouteCount = C.metricValue(stream, "count_china", 6, "all", undefined, {routeCount: 2});
+assert(offRouteCount.value === null && offRouteCount.sparse === true, "the route filter leaves other measures not shown, never zero");
+/* A country that published items but classified no China coverage still has no per capita value. */
+var noPop = C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 400}), "per_million_a", 6, "all", undefined, {});
+assert(noPop.value === null && noPop.sparse === true && C.fillClass(monitored, noPop) === "sparse", "no population is not shown, never zero");
+/* The sums that contain unchecked state sourcing are never withheld, and carry its provisional marking. */
+var insideProv = C.metricValue(relayCounts, "count_target", 5, "all", undefined, {relay: PROV});
+assert(insideProv.value === 5 && insideProv.provisional === true && !insideProv.withheld && insideProv.note === C.RELAY_PROVISIONAL, "state-linked articles are marked provisional while the relay count inside them is");
+assert(C.metricValue(relayCounts, "count_china", 5, "all", undefined, {relay: PROV}).provisional === true, "all China coverage is marked provisional too");
+assert(C.metricValue(relayCounts, "count_a", 5, "all", undefined, {relay: PROV}).provisional === false, "state origin contains no relay count, so it is not marked");
+assert(C.METRICS.count_target.relayInside && C.METRICS.count_china.relayInside && !C.METRICS.count_a.relayInside, "which metrics contain the relay count");
+/* A withheld count cannot be reconstructed from the columns beside it. */
+var WITHHELD = {measured: true, publishable: false, provisional: false};
+var wLatest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}}};
+var wAgg = {countries: {ITA: relayCounts}, reviewed: {}};
+var wa = C.rankCountries(wAgg, wLatest, "count_a", "all", {}, function () { return {relay: WITHHELD}; })[0];
+assert(wa.unverified_relay === "" && wa.target === "" && wa.china_total === "" && wa.target_in_published_items === "" && wa.china_in_published_items === "", "no sum containing a withheld count is written beside it");
+assert(wa.state_origin === 1 && wa.independent === 5, "state origin and independent journalism still travel when the shown value contains no relay count");
+var wt = C.rankCountries(wAgg, wLatest, "count_target", "all", {}, function () { return {relay: WITHHELD}; })[0];
+assert(wt.value === 5 && wt.state_origin === "" && wt.official_sourcing_pending === "", "the counts the shown sum would be differenced against leave with it");
+/* A route narrows state origin and nothing else, so the counts it does not touch are not written beside it. */
+var rr = C.rankCountries({countries: {ITA: relayCounts}, reviewed: {}}, wLatest, "count_a", "all", {}, function () { return {relay: {measured: true, publishable: true}, routeCount: 1}; })[0];
+assert(rr.value === 1 && rr.state_origin === 1 && rr.target === "" && rr.china_total === "" && rr.state_origin_underlying_items === "" && rr.items_published_monitored_outlets === "" && /route/.test(rr.note), "a route filtered row carries only what the route filtered");
+/* CSV: a lone carriage return breaks a row, and a leading =, +, - or @ runs as a formula. */
+assert(C.toCSV([{a: "one\rtwo"}], ["a"]) === 'a\n"one\rtwo"\n', "a carriage return is quoted");
+assert(C.toCSV([{a: "=1+1"}, {a: "@x"}, {a: "-lead"}], ["a"]) === 'a\n"\'=1+1"\n"\'@x"\n"\'-lead"\n', "a formula is quoted and marked as text");
+assert(C.toCSV([{a: -3.5}, {a: 0.25}], ["a"]) === "a\n-3.5\n0.25\n", "a negative number is still a number");
 console.log("frontend smoke ok");

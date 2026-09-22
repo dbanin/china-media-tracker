@@ -119,7 +119,7 @@ FEED_SATURATION_WARNING_SHARE = 0.25
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
 # Must match ruleset_version in signatures.yaml: a label records the version the signatures carried,
 # while reclassify() compares against this one, so a mismatch would reclassify the same rows forever.
-RULESET_VERSION = "2026.09.7"
+RULESET_VERSION = "2026.09.8"
 
 # Current relevance gate version. Separate from the ruleset: the ruleset decides an article's label
 # and is stored on every classification row, while the gate decides what enters the corpus at all.
@@ -127,5 +127,5 @@ RULESET_VERSION = "2026.09.7"
 # must not trigger reclassification; it does move the boundary of what is collected, which is why the
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
-GATE_VERSION = "2026.09.6"
-SCHEMA_VERSION = 6   # 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+GATE_VERSION = "2026.09.7"
+SCHEMA_VERSION = 7   # 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

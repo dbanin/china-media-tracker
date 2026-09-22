@@ -30,19 +30,54 @@ from pipeline import config, store
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
 
-def cohens_kappa(pairs: List[Tuple[str, str]]) -> Optional[float]:
-    """Cohen's kappa for two raters over the same items. None when undefined."""
+# A binary kappa is reported only when both raters placed at least this many items in the class the
+# study is about (B, unverified relay). The prompt tells the model to answer C when it is uncertain,
+# so a sample with almost no B is the expected case, not a freak one, and on such a sample the
+# formula returns a number that says nothing: 300 pairs of notB against notB came back as 1.0, which
+# cleared the publication threshold on a study that never tested the distinction, while 299
+# agreements and one disagreement came back as 0.0 and withheld counts that were fine. Ten on each
+# side is the point below which one item moves the figure across the whole of its range.
+MIN_POSITIVE_FOR_KAPPA = 10
+
+
+def cohens_kappa(pairs: List[Tuple[str, str]], min_positive: int = 0, positive=None) -> Optional[float]:
+    """Cohen's kappa for two raters over the same items, or None when the sample cannot support one.
+
+    None, never a number, when: there are no pairs; both raters between them used a single label,
+    where the formula is 0/0 and perfect agreement on a constant sample is not a finding; or
+    min_positive is set and either rater used `positive` fewer than min_positive times."""
     n = len(pairs)
     if n == 0:
         return None
-    labels = sorted({a for a, _ in pairs} | {b for _, b in pairs})
+    labels = sorted({a for a, _ in pairs} | {b for _, b in pairs}, key=str)
+    if len(labels) < 2:
+        return None
+    if min_positive:
+        if sum(1 for a, _ in pairs if a == positive) < min_positive:
+            return None
+        if sum(1 for _, b in pairs if b == positive) < min_positive:
+            return None
     po = sum(1 for a, b in pairs if a == b) / float(n)
     ca = Counter(a for a, _ in pairs)
     cb = Counter(b for _, b in pairs)
     pe = sum((ca[l] / float(n)) * (cb[l] / float(n)) for l in labels)
-    if pe == 1.0:
-        return 1.0 if po == 1.0 else 0.0
+    if pe >= 1.0:       # a marginal wholly inside one label; kappa is undefined
+        return None
     return (po - pe) / (1.0 - pe)
+
+
+def kappa_shortfall(pairs: List[Tuple[str, str]], positive="B", min_positive: int = MIN_POSITIVE_FOR_KAPPA) -> Optional[str]:
+    """Why a binary kappa cannot be reported on these pairs, in a sentence, or None when it can."""
+    if not pairs:
+        return "no pairs in the comparison"
+    a = sum(1 for x, _ in pairs if x == positive)
+    b = sum(1 for _, y in pairs if y == positive)
+    if a < min_positive or b < min_positive:
+        return ("%d of %d pairs carry %s from the first rater and %d from the second; at least %d on each side "
+                "are needed before a kappa on that distinction means anything" % (a, len(pairs), positive, b, min_positive))
+    if len({x for x, _ in pairs} | {y for _, y in pairs}) < 2:
+        return "both raters used a single label, so there is no distinction to measure"
+    return None
 
 
 def stratified_sample(rows: List[Dict], n: int, seed: Optional[int] = None) -> List[Dict]:
@@ -106,7 +141,8 @@ def compute_from_pairs(items: List[Dict]) -> Dict:
     kappa_all = cohens_kappa(pairs)
     bc = [(m, h) for m, h in pairs if m in ("B", "C") or h in ("B", "C")]
     bc_binary = [("B" if m == "B" else "notB", "B" if h == "B" else "notB") for m, h in bc]
-    kappa_bc = cohens_kappa(bc_binary)
+    kappa_bc = cohens_kappa(bc_binary, min_positive=MIN_POSITIVE_FOR_KAPPA, positive="B")
+    kappa_bc_inconclusive = kappa_shortfall(bc_binary) if kappa_bc is None else None
     confusion = defaultdict(Counter)
     for m, h in pairs:
         confusion[m][h] += 1
@@ -124,8 +160,10 @@ def compute_from_pairs(items: List[Dict]) -> Dict:
         sub = [("B" if it["machine_category"] == "B" else "notB", "B" if it["human_category"] == "B" else "notB")
                for it in items if it.get("language") == lang
                and (it["machine_category"] in ("B", "C") or it["human_category"] in ("B", "C"))]
-        bc_by_language[lang] = {"kappa": cohens_kappa(sub), "n": len(sub)}
-    return {"kappa_all": kappa_all, "kappa_bc": kappa_bc, "n": len(pairs), "n_bc": len(bc),
+        bc_by_language[lang] = {"kappa": cohens_kappa(sub, min_positive=MIN_POSITIVE_FOR_KAPPA, positive="B"),
+                                "n": len(sub), "n_b": sum(1 for a, _ in sub if a == "B")}
+    return {"kappa_all": kappa_all, "kappa_bc": kappa_bc, "kappa_bc_inconclusive": kappa_bc_inconclusive,
+            "kappa_min_positive": MIN_POSITIVE_FOR_KAPPA, "n": len(pairs), "n_bc": len(bc),
             "agreement": sum(1 for m, h in pairs if m == h) / float(len(pairs)) if pairs else None,
             "confusion": {m: dict(c) for m, c in confusion.items()},
             "kappa_by_category": by_category, "bc_by_language": bc_by_language}
@@ -160,6 +198,8 @@ def cmd_compute(conn, csv_path: Path, reviewer: str, record: bool = True) -> Dic
     print("agreement: %.3f" % res["agreement"])
     print("Cohen's kappa, all categories: %s" % ("%.3f" % res["kappa_all"] if res["kappa_all"] is not None else "undefined"))
     print("Cohen's kappa, B versus C (n=%d): %s" % (res["n_bc"], "%.3f" % res["kappa_bc"] if res["kappa_bc"] is not None else "undefined"))
+    if res["kappa_bc"] is None:
+        print("  inconclusive: %s" % res["kappa_bc_inconclusive"])
     print("confusion (machine -> human): %s" % json.dumps(res["confusion"]))
     if res["kappa_bc"] is not None and res["kappa_bc"] < config.KAPPA_WARNING_THRESHOLD:
         print("kappa on B versus C is below %.1f. The interface will not display B counts as settled." % config.KAPPA_WARNING_THRESHOLD)
@@ -167,7 +207,9 @@ def cmd_compute(conn, csv_path: Path, reviewer: str, record: bool = True) -> Dic
         conn.execute(
             "INSERT INTO agreement_studies(computed_at, sample_size, kappa_all, kappa_bc, n_bc, details) VALUES (?,?,?,?,?,?)",
             (store.utcnow(), res["n"], res["kappa_all"], res["kappa_bc"], res["n_bc"],
-             json.dumps({"csv": str(csv_path), "confusion": res["confusion"], "agreement": res["agreement"], "key": str(key_path)})),
+             json.dumps({"csv": str(csv_path), "confusion": res["confusion"], "agreement": res["agreement"],
+                         "key": str(key_path), "kappa_bc_inconclusive": res["kappa_bc_inconclusive"],
+                         "kappa_min_positive": res["kappa_min_positive"]})),
         )
         for it in items:
             store.insert_human_review(conn, it["article_id"], it["classification_id"], it["human_category"], reviewer,

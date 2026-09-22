@@ -138,12 +138,17 @@ jobs:
           [ "$RELIABILITY" = "true" ] && ARGS="--submit --force"
           python -m pipeline.second_rater auto $ARGS
 
-      - name: Export, rollups, site data and METHODOLOGY.md
-        if: env.STAGE == 'export'
-        run: python -m pipeline.export
-      - name: Tests, including schema validation of the files just generated
+      - name: Tests, before anything irreversible touches the database
         if: env.STAGE == 'export'
         run: python -m pytest -q
+      - name: Export, rollups, site data and METHODOLOGY.md
+        # Pruning and compacting are left for after the generated files have been checked and
+        # committed, so a failed check never leaves the database advanced and the site stale.
+        if: env.STAGE == 'export'
+        run: python -m pipeline.export --no-prune
+      - name: Schema validation of the files just generated
+        if: env.STAGE == 'export'
+        run: python -m pytest -q tests/test_export.py tests/test_frontend.py
       - name: Commit generated files
         if: env.STAGE == 'export'
         run: |
@@ -153,6 +158,9 @@ jobs:
           git diff --cached --quiet || git commit -m "export: daily rollups and site data $(date -u +%Y-%m-%d)"
           git pull --rebase --autostash -X theirs origin ${{ github.ref_name }} || { git rebase --abort; exit 1; }
           git push
+      - name: Prune and compact, now that the files are committed
+        if: env.STAGE == 'export'
+        run: python -m pipeline.export housekeeping
       - name: Publish the compressed database snapshot
         if: env.STAGE == 'export'
         run: scripts/db_snapshot.sh

@@ -717,8 +717,15 @@ ay:
 gn:
   - China
   - Beijing
+# Languages whose own script is matched as a plain substring, because they write without
+# spaces or attach grammar directly to the noun. Korean joins its particles to the noun with
+# no space, so a word boundary missed every inflected mention: "중국 경제가" matched while
+# "중국의 경제가", "중국은 대만과" and "베이징에서" did not. Latin script terms keep their
+# boundary and their case rule in these languages all the same, so "Xi" does not match inside
+# "Taxi" nor "BRI" inside "British".
 no_word_boundaries:
   - ja
+  - ko
   - th
   - km
   - lo
@@ -737,6 +744,26 @@ weak:
   - Sinopec
   - Mainland
   - CCTV
+  # Korean is matched as a substring from gate 2026.09.7, because its particles attach to the
+  # noun. Two of its terms have common homographs inside longer words, so they corroborate
+  # rather than admit: 신장 is Xinjiang but also a kidney, 신장장애 a disability and 신장하다 to
+  # grow, and 중공 is the Communist Party but sits inside 중공업, heavy industry, which is most
+  # of Korean shipbuilding coverage.
+  - 신장
+  - 중공
+
+# Terms that count only when their first letter is capitalised, whatever their length. The rest
+# of the term stays case blind, so an all-capitals headline still matches. "Kina", "Kine" and
+# "Kini" are China in Croatian, Serbian and Bosnian and also the genitive and plural of "kino",
+# a cinema (and the word for quinine), so the lowercase forms filled the corpus with film
+# listings: "Raspored kina u Zagrebu" and "U kina stize novi film" both passed the gate, and 86
+# percent of the Croatian items turned out not relevant. The country is a proper noun, so
+# sentence initial and all-capitals uses of it are unaffected.
+capitalised:
+  - Kina
+  - Kine
+  - Kini
+  - Кина
 
 # Regular expressions applied verbatim, case sensitive, to every language.
 # Plain "Sino" is the Spanish and Italian conjunction, so it must be the

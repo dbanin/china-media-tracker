@@ -38,11 +38,12 @@ def _load():
     nowb = set(data.pop("no_word_boundaries", []) or [])
     weak = set(data.pop("weak", []) or [])
     regex = data.pop("regex", {}) or {}
+    csens = set(data.pop("capitalised", []) or [])
     home = {k: set(v) for k, v in (data.pop("home_terms", {}) or {}).items()}
     # Longest phrase first, so "Malaysian Chinese Association" goes before "Malaysian Chinese".
     phrases = {k: [_phrase_pattern(p) for p in sorted(v, key=len, reverse=True)]
                for k, v in (data.pop("home_phrases", {}) or {}).items()}
-    return data, nowb, weak, regex, home, phrases
+    return data, nowb, weak, regex, home, phrases, csens
 
 
 def weak_terms() -> set:
@@ -55,9 +56,30 @@ def supported_languages() -> set:
     return {k for k in _load()[0] if k != "all"}
 
 
+# A term is Latin script when it contains a Latin letter. Latin script terms keep a word
+# boundary and their case rule in every language, including the languages that do without
+# boundaries for their own script: without this, "Xi" matched inside "Taxi", "BRI" inside
+# "British" and "PLA" inside "display" in Thai, Japanese, Lao, Khmer and Burmese items.
+_LATIN_TERM_RE = re.compile(r"[A-Za-zÀ-ɏ]")
+# The boundary for a Latin term is a Latin letter or digit, not any word character, so the term
+# still matches where a native script runs straight into it, as Japanese and Korean write it
+# ("中国のBRI構想").
+_LATIN_EDGE = r"[A-Za-z0-9À-ɏ]"
+
+
+def _capitalised_source(term: str) -> str:
+    """Pattern source for a term whose first letter must be capitalised. The rest stays case
+    blind, so KINA in an all-capitals headline matches and "kina", a cinema, does not."""
+    out = re.escape(term[0].upper())
+    for ch in term[1:]:
+        lower, upper = ch.lower(), ch.upper()
+        out += "[%s%s]" % (re.escape(lower), re.escape(upper)) if lower != upper else re.escape(ch)
+    return out
+
+
 @lru_cache(maxsize=None)
 def _patterns(language: str):
-    data, nowb, weak, regex, _, _ = _load()
+    data, nowb, weak, regex, _, _, csens = _load()
     terms = list(data.get("all", [])) + list(data.get(language, []))
     # Always include English terms too, because English proper nouns leak into every language.
     if language != "en":
@@ -69,14 +91,21 @@ def _patterns(language: str):
         if term in seen:
             continue
         seen.add(term)
-        esc = re.escape(term)
-        if language in nowb:
-            pat = re.compile(esc, re.IGNORECASE)
+        # Short terms (<=3 chars) are case sensitive to avoid matching "bri" inside prose in
+        # languages where BRI is not an acronym. Terms listed under "capitalised" carry their
+        # case rule in the pattern source instead, because a lowercase homograph makes them
+        # useless while an all-capitals headline must still match.
+        esc = _capitalised_source(term) if term in csens else re.escape(term)
+        flags = 0 if (len(term) <= 3 or term in csens) else re.IGNORECASE
+        if language in nowb and not _LATIN_TERM_RE.search(term):
+            # Native script term in a language that writes without spaces: substring matching,
+            # which is the only way to reach a noun carrying a particle or a counter.
+            pat = re.compile(esc, flags | re.UNICODE)
+        elif language in nowb:
+            pat = re.compile(r"(?<!%s)%s(?!%s)" % (_LATIN_EDGE, esc, _LATIN_EDGE), flags | re.UNICODE)
         else:
             # Unicode aware word boundary. \b is unreliable for non-Latin scripts, so use
-            # lookarounds on word characters. Short terms (<=3 chars) are case sensitive
-            # to avoid matching "bri" inside prose in languages where BRI is not an acronym.
-            flags = 0 if len(term) <= 3 else re.IGNORECASE
+            # lookarounds on word characters.
             pat = re.compile(r"(?<!\w)%s(?!\w)" % esc, flags | re.UNICODE)
         compiled.append((term, pat))
     for label, rx in regex.items():
@@ -113,7 +142,7 @@ def check(title: str, summary: str, language: str, country: Optional[str] = None
     state origin signature carries "state_origin_signature:<id>" among its terms."""
     plain_summary = strip_html(summary or "")
     text = mask_home_phrases("%s\n%s" % (title or "", plain_summary), country)
-    _, _, weak, _, home, _ = _load()
+    weak, home = _load()[2], _load()[4]
     ignore = home.get(country or "", set())
     hits = []
     for term, pat in _patterns(language):
@@ -131,21 +160,31 @@ def check(title: str, summary: str, language: str, country: Optional[str] = None
 
 def count(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[int, int, bool]:
     """(distinct non-weak terms, total occurrences of non-weak terms, non-weak term in the title).
-    Used by the residual relevance rule, which needs more than a yes or no."""
-    _, _, weak, _, home, _ = _load()
+    Used by the residual relevance rule, which needs more than a yes or no.
+
+    One stretch of text counts once. The term list overlaps itself, so counting each term
+    separately turned a single phrase into several findings: "Xi Jinping" was both "Xi" and
+    "Xi Jinping", "Belt and Road Initiative" was two more, and a headline naming one Chinese
+    person cleared the "a term in the headline and at least two occurrences" branch on its own.
+    Matches are taken longest first and a match wholly inside one already counted is dropped."""
+    weak, home = _load()[2], _load()[4]
     ignore = home.get(country or "", set()) | weak
     title = mask_home_phrases(title or "", country)
     body_text = "%s\n%s" % (title, mask_home_phrases(body or "", country))
-    distinct = 0
-    total = 0
-    in_title = False
+    found = []
     for term, pat in _patterns(language):
         if term in ignore:
             continue
-        n = len(pat.findall(body_text))
-        if n:
-            distinct += 1
-            total += n
-            if pat.search(title):
-                in_title = True
-    return distinct, total, in_title
+        for m in pat.finditer(body_text):
+            if m.end() > m.start():
+                found.append((m.start(), m.end(), term))
+    # Longest first, then leftmost, so the containing phrase claims the span before its parts.
+    found.sort(key=lambda f: (f[0] - f[1], f[0], f[2]))
+    accepted = []
+    for start, end, term in found:
+        if any(s <= start and end <= e for s, e, _ in accepted):
+            continue
+        accepted.append((start, end, term))
+    title_end = len(title)
+    return (len({t for _, _, t in accepted}), len(accepted),
+            any(s < title_end for s, _, _ in accepted))

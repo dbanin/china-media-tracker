@@ -211,8 +211,12 @@ def test_language_support_and_ruleset_history():
 def test_gate_version_is_separate_from_the_ruleset(tmp_path):
     """A gate change moves what is collected, not how anything is labelled, so it carries its own
     version and never triggers reclassification."""
-    assert {"version": config.GATE_VERSION, "date": "2026-09-15"} in export.gate_changes()
-    assert {"version": config.RULESET_VERSION, "date": "2026-09-15"} in export.ruleset_changes()
+    # The current version of each series has a dated entry of its own. The date is not pinned here:
+    # pinning it made the test fail on the next version bump rather than on the thing it guards.
+    assert config.GATE_VERSION in [c["version"] for c in export.gate_changes()]
+    assert config.RULESET_VERSION in [c["version"] for c in export.ruleset_changes()]
+    assert {"version": "2026.09.6", "date": "2026-09-15"} in export.gate_changes()
+    assert {"version": "2026.09.7", "date": "2026-09-15"} in export.ruleset_changes()
     # The two series are read from their own headings and never pick up each other's entries, even
     # when a gate change and a ruleset change happen to carry the same version number on one day.
     assert not any(c["version"] == "2026.09.5" for c in export.gate_changes())
@@ -231,3 +235,43 @@ def test_themes_read_the_whole_body():
 def cr_themes_tag(body):
     from pipeline import themes
     return themes.tag("Regional news", "", body, "en")
+
+
+# Regressions for gate 2026.09.7. Each was measured on the live corpus.
+
+def test_korean_particles_no_longer_hide_a_mention():
+    """Korean attaches its particles to the noun with no space, and the gate demanded a word boundary,
+    so every inflected mention was missed. Korean is the third largest source of sourcing labels."""
+    for title in ("중국 경제가 성장했다", "중국의 경제가 성장했다", "중국은 대만과 갈등", "베이징에서 열린 회의"):
+        relevant, terms = gate.check(title, "", "ko")
+        assert relevant, (title, terms)
+
+
+def test_korean_homographs_do_not_admit_on_their_own():
+    """신장 is Xinjiang and also a kidney; 중공 is the Communist Party and sits inside 중공업, heavy
+    industry. They corroborate, they do not admit."""
+    for title in ("신장장애인 지원 확대", "현대중공업 수주 소식"):
+        relevant, terms = gate.check(title, "", "ko")
+        assert not relevant, (title, terms)
+
+
+def test_croatian_cinema_listings_are_not_china_coverage():
+    """Kina is China and also the genitive of kino, a cinema. Lowercase forms filled the Croatian
+    corpus with film listings and 86 percent of its items turned out not relevant."""
+    for title in ("Raspored kina u Zagrebu ovaj vikend", "U kina stize novi film"):
+        relevant, terms = gate.check(title, "", "hr")
+        assert not relevant, (title, terms)
+    for title in ("Kina i Rusija potpisale sporazum", "KINA ULAZI U NOVO RAZDOBLJE"):
+        relevant, terms = gate.check(title, "", "hr")
+        assert relevant, (title, terms)
+
+
+def test_latin_terms_keep_their_boundary_in_every_language():
+    """In the languages matched as substrings, Latin terms lost their boundary too, so Xi matched
+    inside Taxi, BRI inside British and PLA inside display."""
+    for lang in ("th", "ja", "lo", "km", "my", "ko"):
+        relevant, terms = gate.check("Taxi service in Vientiane expands", "", lang)
+        assert not relevant, (lang, terms)
+        relevant, terms = gate.check("Please display the plan for British Airways", "", lang)
+        assert not relevant, (lang, terms)
+
