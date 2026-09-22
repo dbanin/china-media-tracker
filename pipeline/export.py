@@ -963,6 +963,11 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     write_json(export_dir / "latest.json", latest)
     for month, m in daily.items():
         write_json(export_dir / "daily" / ("%s.json" % month), m)
+    # A month that no longer has any days must not be left behind. Moving the day of record to the
+    # discovery day emptied August, and a stale file would sit in the published directory forever.
+    for stale in (export_dir / "daily").glob("*.json"):
+        if stale.stem not in daily:
+            stale.unlink()
     write_json(export_dir / "global_series.json", series)
     write_json(export_dir / "outlets.json", outlets_json)
     # One file per country in latest.json, empty where nothing is classified, so the page never 404s.
