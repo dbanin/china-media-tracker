@@ -5,6 +5,11 @@ The research, one YAML file per batch of countries, gives for each country:
 - any of those outlets that were missing, with feeds that were verified before they were proposed;
 - a political leaning and an ownership type for every active outlet, each with a cited source.
 
+Leaning and ownership also come from their own research jobs, in lean_*.yaml and own_*.yaml:
+country blocks whose outlets carry {id, political_leaning, leaning_source} or {id, ownership,
+ownership_source}. Those fill any outlet still unassessed. Where one already holds a different
+sourced value, the existing value stays and the disagreement is reported for a person to settle.
+
 This script applies that to the registry. It refuses to guess: a proposed outlet that collides with
 an existing id or an existing feed host is reported, not added. An inactive outlet is never
 reactivated here, because only the weekly feed validation may decide that.
@@ -127,6 +132,46 @@ def apply(outlets, blocks, today):
     return report, issues
 
 
+ATTRIBUTES = (
+    ("lean_*.yaml", "political_leaning", "leaning_source", LEANINGS),
+    ("own_*.yaml", "ownership", "ownership_source", OWNERSHIP),
+)
+
+
+def apply_attributes(outlets, directory):
+    by_id = {o["id"]: o for o in outlets}
+    report = Counter()
+    issues = []
+    for pattern, field, source_field, allowed in ATTRIBUTES:
+        for path in sorted(glob.glob(str(Path(directory) / pattern))):
+            for b in yaml.safe_load(open(path, encoding="utf-8")) or []:
+                country = b.get("country")
+                for e in b.get("outlets") or []:
+                    oid, value, source = e.get("id"), e.get(field), e.get(source_field)
+                    target = by_id.get(oid)
+                    if not target:
+                        issues.append((country, oid, "%s for an id not in the registry, skipped" % field)); continue
+                    if value not in allowed:
+                        issues.append((country, oid, "unknown %s %r, skipped" % (field, value))); continue
+                    if value != "unassessed" and not source:
+                        issues.append((country, oid, "%s %s without a source, skipped" % (field, value))); continue
+                    current = target.get(field) or "unassessed"
+                    if value == "unassessed":
+                        target.setdefault(field, "unassessed")
+                        report[field + "_unassessed"] += 1
+                    elif current == "unassessed":
+                        target[field] = value
+                        target[source_field] = source
+                        report[field + "_filled"] += 1
+                    elif current != value:
+                        issues.append((country, oid, "%s disagreement: registry %s, research %s (%s); kept %s"
+                                       % (field, current, value, source, current)))
+                        report[field + "_disagreements"] += 1
+                    else:
+                        report[field + "_confirmed"] += 1
+    return report, issues
+
+
 def coverage(outlets):
     active = Counter(o["country"] for o in outlets if o.get("active") and o.get("tier") != "distribution_wire")
     return active
@@ -140,6 +185,9 @@ def main(argv=None):
     outlets = registry.load_outlets()
     before = coverage(outlets)
     report, issues = apply(outlets, load_blocks(args.directory), dt.date.today().isoformat())
+    attr_report, attr_issues = apply_attributes(outlets, args.directory)
+    report.update(attr_report)
+    issues.extend(attr_issues)
     registry.validate_outlets(outlets)
     after = coverage(outlets)
     countries = sorted(set(before) | set(after))
