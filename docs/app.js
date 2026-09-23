@@ -589,6 +589,121 @@
     });
   }
 
+  /* ------------------------------------------------------ who publishes it */
+  /* Share of a category's articles by the political leaning or the ownership of the outlet that published
+     it. All time, active outlets only, and without the global press release distribution services, which
+     are not national newsrooms. Leaning is judged against each country's own political spectrum from a
+     cited source; not assessed means no source was found, never a guess. Groups keep a fixed order and a
+     fixed colour, so a filter never repaints a survivor. */
+  var LEAN_GROUPS = {
+    leaning: [["left", "Left", "var(--lean-left)"], ["centre_left", "Centre left", "var(--lean-cleft)"],
+              ["centre", "Centre", "var(--lean-centre)"], ["centre_right", "Centre right", "var(--lean-cright)"],
+              ["right", "Right", "var(--lean-right)"], ["unassessed", "Not assessed", null]],
+    ownership: [["private", "Private", "var(--own-private)"], ["public_service", "Public service", "var(--own-public)"],
+                ["state", "State", "var(--own-state)"], ["party", "Party", "var(--own-party)"], ["unassessed", "Not assessed", null]]
+  };
+  state.leanAxis = "leaning";
+  function leanValue(o) {
+    var c = o.counts || {}, m = state.measure;
+    if (m === "a") return c.A || 0;
+    if (m === "b") return c.B || 0;
+    if (m === "target") return (c.A || 0) + (c.B || 0) + (c.pending || 0);
+    return (c.A || 0) + (c.B || 0) + (c.C || 0) + (c.pending || 0);
+  }
+  function leanModel() {
+    var axis = state.leanAxis, key = axis === "leaning" ? "political_leaning" : "ownership";
+    var iso = state.selected && String(state.selected).indexOf("name:") !== 0 ? state.selected : null;
+    var outs = (state.outlets || []).filter(function (o) { return o.active && o.tier !== "distribution_wire" && (!iso || o.country === iso); });
+    var rows = LEAN_GROUPS[axis].map(function (g) { return {id: g[0], label: g[1], color: g[2], articles: 0, outlets: 0}; });
+    var byId = {}; rows.forEach(function (r) { byId[r.id] = r; });
+    outs.forEach(function (o) {
+      var r = byId[o[key]] || byId.unassessed;
+      r.articles += leanValue(o); r.outlets += 1;
+    });
+    var total = rows.reduce(function (t, r) { return t + r.articles; }, 0);
+    rows.forEach(function (r) { r.share = total ? r.articles / total : 0; r.perOutlet = r.outlets ? r.articles / r.outlets : null; });
+    return {axis: axis, iso: iso, rows: rows, total: total, outlets: outs.length,
+            assessed: outs.filter(function (o) { return byId[o[key]] && o[key] !== "unassessed"; }).length};
+  }
+  function renderLeaning() {
+    if (!el("leaning")) return;
+    var md = leanModel(), relay = relayFor(null), noun = measureNoun();
+    var marked = relay.provisional && (state.measure === "b" || state.measure === "target" || state.measure === "china");
+    var what = md.axis === "leaning" ? "political leaning" : "ownership";
+    el("leaning-title").textContent = md.axis === "leaning" ? "Outlets by political leaning" : "Outlets by ownership";
+    el("leaning-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + (marked ? " (provisional)" : "") +
+      " by the " + what + " of the outlet that published them, " + (md.iso ? "in " + countryName(md.iso) : "in every monitored country") +
+      ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + (md.axis === "leaning" ? "leaning" : "ownership type") + ".";
+    el("lean-note").textContent = "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
+      (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. " : "") +
+      "Not assessed means no reliable source was found, never a guess.";
+    var svg = d3.select("#lean-pie"); svg.selectAll("*").remove();
+    var defs = svg.append("defs");
+    var pat = defs.append("pattern").attr("id", "lean-hatch").attr("patternUnits", "userSpaceOnUse").attr("width", 6).attr("height", 6).attr("patternTransform", "rotate(45)");
+    pat.append("rect").attr("width", 6).attr("height", 6).attr("fill", "#1f2226");
+    pat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 6).attr("stroke", "#5d5a53").attr("stroke-width", 1.5);
+    var table = el("lean-table");
+    if (relayHidden()) {
+      table.innerHTML = '<tbody><tr><td class="muted">' + esc(relayText(relay, 0).charAt(0).toUpperCase() + relayText(relay, 0).slice(1)) +
+        ': unchecked state sourcing is not shown until a reliability study clears it.</td></tr></tbody>';
+      return;
+    }
+    var g = svg.append("g").attr("transform", "translate(120,120)");
+    if (!md.assessed) {
+      /* Before any outlet has a sourced leaning the chart would be one hatched ring, which reads as a
+         finding. Say what is missing instead. */
+      g.append("circle").attr("r", 87).attr("fill", "none").attr("stroke", "var(--rule-strong)").attr("stroke-width", 42).attr("stroke-dasharray", "2 5");
+      g.append("text").attr("class", "lean-total-sub").attr("dy", "0.35em").text("Not assessed yet");
+      table.innerHTML = '<tbody><tr><td class="muted">No outlet has a sourced ' + (md.axis === "leaning" ? "political leaning" : "ownership type") +
+        ' yet. Each outlet is being researched against a cited source, and the chart fills in as that lands.</td></tr></tbody>';
+      return;
+    }
+    if (!md.total) {
+      g.append("circle").attr("r", 104).attr("fill", "none").attr("stroke", "var(--rule-strong)").attr("stroke-width", 1);
+      g.append("text").attr("class", "lean-total-sub").attr("dy", "0.35em").text("None yet");
+    } else {
+      var arcs = d3.pie().sort(null).value(function (r) { return r.articles; }).padAngle(0.012)(md.rows);
+      var arc = d3.arc().innerRadius(66).outerRadius(108).cornerRadius(2);
+      g.selectAll("path").data(arcs.filter(function (a) { return a.data.articles > 0; })).enter().append("path")
+        .attr("class", "slice").attr("d", arc).attr("data-id", function (a) { return a.data.id; })
+        .style("fill", function (a) { return a.data.color || "url(#lean-hatch)"; })
+        .attr("stroke", "var(--ink)").attr("stroke-width", 2)
+        .on("mousemove", function (ev, a) { showLeanTip(ev, a.data, md); highlightLean(a.data.id); })
+        .on("mouseleave", function () { el("lean-tip").style.display = "none"; highlightLean(null); });
+      g.append("text").attr("class", "lean-total").attr("dy", "0.1em").text(md.total.toLocaleString("en-US"));
+      g.append("text").attr("class", "lean-total-sub").attr("dy", "2.1em").text(state.measure === "china" ? "China articles" : "articles");
+    }
+    var fmtPer = function (v) { return v === null ? "n/a" : v.toFixed(v < 10 ? 2 : 1); };
+    table.innerHTML = '<thead><tr><th></th><th>' + (md.axis === "leaning" ? "Leaning" : "Ownership") + '</th><th class="num">Articles</th><th class="num">Share</th><th class="num">Outlets</th><th class="num">Per outlet</th></tr></thead><tbody>' +
+      md.rows.map(function (r) {
+        var sw = r.color ? "background:" + r.color : "background:var(--lean-hatch)";
+        return '<tr data-id="' + esc(r.id) + '" class="' + (r.articles ? "" : "zero") + '" tabindex="0">' +
+          '<td><span class="lean-sw" style="' + sw + '"></span></td><td>' + esc(r.label) + '</td>' +
+          '<td class="num">' + r.articles.toLocaleString("en-US") + '</td><td class="num">' + (md.total ? pctText(r.share) : "n/a") + '</td>' +
+          '<td class="num">' + r.outlets + '</td><td class="num">' + fmtPer(r.perOutlet) + '</td></tr>';
+      }).join("") + '</tbody>';
+    Array.prototype.forEach.call(table.querySelectorAll("tbody tr"), function (tr) {
+      var id = tr.getAttribute("data-id");
+      tr.addEventListener("mouseenter", function () { highlightLean(id); });
+      tr.addEventListener("mouseleave", function () { highlightLean(null); });
+      tr.addEventListener("focus", function () { highlightLean(id); });
+      tr.addEventListener("blur", function () { highlightLean(null); });
+    });
+  }
+  function highlightLean(id) {
+    d3.selectAll("#lean-pie .slice").classed("dim", function () { return id !== null && this.getAttribute("data-id") !== id; });
+  }
+  function showLeanTip(ev, r, md) {
+    var tip = el("lean-tip"), sec = el("leaning").getBoundingClientRect();
+    tip.innerHTML = '<div><strong>' + esc(r.label) + '</strong></div>' +
+      '<div>' + r.articles.toLocaleString("en-US") + ' ' + esc(measureNoun()) + ', ' + pctText(r.share) + ' of the total</div>' +
+      '<div class="muted">' + plural(r.outlets, "active outlet") + (r.perOutlet === null ? "" : ', ' + r.perOutlet.toFixed(2) + ' per outlet') + '</div>';
+    tip.style.display = "block";
+    var x = ev.clientX - sec.left + 14, y = ev.clientY - sec.top + 14;
+    if (x + 280 > sec.width) x = ev.clientX - sec.left - 290;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+
   /* ---------------------------------------------------------------- themes */
   /* Cells are shaded by the share of that country's articles in the theme, using swatches taken from the
      map ramp so the two charts read the same way: light for a small share, dark for a large one. */
@@ -796,12 +911,12 @@
         var v = b.getAttribute("data-theme-window");
         state.themeWindow = v === "all" ? "all" : Number(v);
         Array.prototype.forEach.call(document.querySelectorAll("[data-theme-window-group] button"), function (x) { x.classList.toggle("active", x === b); });
-        renderThemes();
+        renderThemes(); renderLeaning();
       });
     });
     el("theme-grid-wrap").addEventListener("scroll", updateGridScroll);
     window.addEventListener("resize", updateGridScroll);
-    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(); }
+    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(); renderLeaning(); }
     el("theme-focus").addEventListener("click", function (ev) {
       var li = ev.target.closest("li[data-theme]");
       if (li) toggleSort(li.getAttribute("data-theme"));
@@ -840,7 +955,7 @@
     if (state.selected) state.lastCountry = state.selected;
     syncCountryPicks();
     renderMap();
-    renderThemes();
+    renderThemes(); renderLeaning();
     renderPanel();
   }
   function countryName(iso) { return String(iso).indexOf("name:") === 0 ? String(iso).slice(5) : (state.names[iso] || iso); }
@@ -1190,7 +1305,7 @@
     el("th-scrub").value = i;
     state.themeEnd = tlDays[i];
     el("th-date").textContent = state.themeEnd;
-    renderThemes();
+    renderThemes(); renderLeaning();
   }
   function stopThemePlay() {
     if (!state.themePlaying) return;
@@ -1345,7 +1460,7 @@
         b.classList.toggle("active", b.getAttribute("data-measure") === state.measure);
       });
       el("route").value = state.route ? state.route.kind + ":" + state.route.id : "";
-      renderMap(); renderSpark(); renderThemes(); if (state.selected) renderPanel();
+      renderMap(); renderSpark(); renderThemes(); renderLeaning(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
       b.setAttribute("data-title", b.title || "");
@@ -1356,6 +1471,13 @@
         state.measure = b.getAttribute("data-measure");
         if (state.measure !== "a") state.route = null;
         applyMetric();
+      });
+    });
+    Array.prototype.forEach.call(el("lean-axis").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        state.leanAxis = b.getAttribute("data-axis");
+        Array.prototype.forEach.call(el("lean-axis").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
+        renderLeaning();
       });
     });
     el("route").addEventListener("change", function () {
@@ -1377,7 +1499,7 @@
       b.addEventListener("click", function () {
         state.mode = b.getAttribute("data-mode");
         Array.prototype.forEach.call(el("mode").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
-        renderMap(); renderThemes(); if (state.selected) renderPanel();
+        renderMap(); renderThemes(); renderLeaning(); if (state.selected) renderPanel();
       });
     });
     Array.prototype.forEach.call(el("view").querySelectorAll("button"), function (b) {
@@ -1405,7 +1527,7 @@
       setupThemeTimeline();
       renderNotices();
       renderMap();
-      renderThemes();
+      renderThemes(); renderLeaning();
       renderPanel();
       renderMethod();
       renderLoadFailures();
@@ -1413,7 +1535,7 @@
       console.error(e);
       el("data-notice").textContent = "Data could not be loaded: " + e.message;
       el("data-notice").classList.remove("hidden");
-      try { setupMap(); bindControls(); setupTimeline(); setupThemeTimeline(); renderMap(); renderThemes(); renderPanel(); renderMethod(); } catch (e2) { console.error(e2); }
+      try { setupMap(); bindControls(); setupTimeline(); setupThemeTimeline(); renderMap(); renderThemes(); renderLeaning(); renderPanel(); renderMethod(); } catch (e2) { console.error(e2); }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

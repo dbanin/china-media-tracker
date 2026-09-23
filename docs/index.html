@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=61">
+<link rel="stylesheet" href="style.css?v=62">
 </head>
 <body>
 <header class="top">
@@ -158,6 +158,29 @@
     </div>
     <div id="theme-tip" class="tooltip"></div>
   </section>
+  <section id="leaning" aria-labelledby="leaning-title">
+    <div class="th-kicker">Who publishes it</div>
+    <h2 id="leaning-title">Outlets by political leaning</h2>
+    <p class="th-sub" id="leaning-sub"></p>
+    <div class="th-head">
+      <div class="control"><label>Measure</label><div class="segment" data-measure-group>
+        <button data-measure="a" class="active">State origin</button>
+        <button data-measure="b">Unchecked state sourcing</button>
+        <button data-measure="target">State-linked articles</button>
+        <button data-measure="china">All China coverage</button>
+      </div></div>
+      <div class="control"><label>Group outlets by</label><div class="segment" id="lean-axis">
+        <button data-axis="leaning" class="active">Political leaning</button>
+        <button data-axis="ownership">Ownership</button>
+      </div></div>
+    </div>
+    <div class="lean-body">
+      <svg id="lean-pie" viewBox="0 0 240 240" role="img" aria-label="Share of articles by the political leaning or ownership of the outlet. The table beside it gives every figure."></svg>
+      <table id="lean-table"></table>
+    </div>
+    <p class="lean-note" id="lean-note"></p>
+    <div id="lean-tip" class="tooltip"></div>
+  </section>
   <aside id="panel">
     <div id="panel-body"></div>
   </aside>
@@ -175,6 +198,7 @@
     <p><strong>Unchecked state sourcing: provisional, then published or withheld.</strong> Until the model stage has run, unchecked state sourcing is shown as not yet measured, never as zero. Once it has run and before any reliability study, the counts are shown as provisional: they are one model's judgement, nothing has checked them, and every figure that contains them says so, on the map legend, in the tooltip and panel, and as relay_status in the CSV export. The study runs by itself as soon as the monthly model budget can pay for it: the same model re-judges a stratified sample of articles it has already labelled, seeing exactly what it saw the first time. If Cohen's kappa on the unchecked sourcing versus independent journalism judgement is at or above the threshold, the provisional marking is replaced by a statement of what the study measured; if it is below, the counts are withheld, not merely annotated, and they stay withheld for any language whose own kappa falls below it. Provisional means not checked yet, never checked and failed. A same model rerun measures whether the judgement is stable, not whether it is correct, and no article has been read by a person, so a published unchecked state sourcing count carries that qualifier wherever it appears and should be read as consistent rather than verified. That boundary is where classification error concentrates. State-linked articles add the candidates still waiting for the judgement, so that measure mixes a measured quantity with an unmeasured one.</p>
     <p><strong>Routes and arrival.</strong> Every state origin label records its route, the mechanism named by the signature that established it: a wire credit line or dateline, a press release distribution stamp, a sponsored or partner disclosure, or a byline by a Chinese diplomat. A label the model gave without a signature is unattributed. Every article also records where it was collected: an editorial feed, or the outlet's press release, sponsored or partner section. The route filter shows state origin for one route or one arrival at a time.</p>
     <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and a cap, the 95th percentile of every country's value on every date of the timeline for the chosen measure and window, so the scale does not move when the day changes and a shade means the same number on every date. Values above the cap sit in the darkest, overflow step, and the legend gives the highest value. Countries withheld, unreadable, not monitored or with too small a denominator have their own patterns and are never on the scale.</p>
+    <p><strong>Political leaning and ownership.</strong> Every active outlet carries a political leaning and an ownership type, each taken from a cited source: Wikipedia media lists with alignment columns, Media Bias/Fact Check, RSF's Media Ownership Monitor, the Reuters Institute Digital News Report, academic studies or the outlet's own editorial statement. Leaning is judged against each country's own political spectrum, so a centre right paper in one country and in another need not hold the same positions. Not assessed means no reliable source was found; it is never inferred from an outlet's name, language or country. Ownership separates private outlets, public service broadcasters with statutory editorial independence, state outlets without it, and party owned outlets. The chart is all time, counts active outlets only, and leaves out the global press release distribution services, which are not national newsrooms. A share of articles partly counts outlets, because a leaning with more monitored outlets publishes more, so the table beside the chart also gives the rate per outlet.</p>
     <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms appear in its headline, its feed summary or anywhere in its body. Until themes version 2026.09.4 only the first 800 characters of the body were read, which favored whatever an article names early. An article can carry several themes, so theme counts do not add up to article counts, and one with none is Other. The theme counter carries the same four category buttons as the map, and the two move together, so it can show themes for state origin, unchecked state sourcing, state-linked articles or all China coverage. It has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country. Its tags are keyword matches, not a reading of the article, so they should be checked by hand before a theme count is cited.</p>
     <p><strong>Denominators.</strong> Per outlet divides by the country's active monitored outlets. Share of monitored output divides by every item the country's monitored outlets put in their feeds during the window, whether or not it concerns China, and the tooltip gives the same figure per 1,000 published items; until audience ranks are recorded in the registry that is every active outlet, not the largest publications, and no share is shown for a country with fewer than five outlets, where it would describe a handful of feeds. Per capita divides by the resident population in sources/population.json and is not shown for territories under 100,000 residents; population measures people, not media saturation, so it is the least defensible of the three. Paywalled articles are never classified, so they are missing from every count, and from the share of China coverage, where an unread article is in neither half. They do stay in the share of monitored output denominator, which counts every item the monitored outlets published whether or not it could be read, so in a country with many paywalls that share is a lower bound. A country where paywalls pass a third of retrieved articles carries a warning on every figure shown for it.</p>
     <p><strong>Placements and underlying items.</strong> One wire item syndicated to thirty outlets and thirty separate items are different phenomena. Near-duplicate titles within a country are linked as one underlying item, and the tooltip, the ranked list, the country panel and the CSV export show both numbers.</p>
@@ -206,7 +230,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=61"></script>
-<script src="app.js?v=61"></script>
+<script src="compute.js?v=62"></script>
+<script src="app.js?v=62"></script>
 </body>
 </html>
