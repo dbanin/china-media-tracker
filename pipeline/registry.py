@@ -93,9 +93,21 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
     key_order = ["id", "name", "country", "language", "feeds", "section_feeds", "release_sections", "tier", "notes",
-                 "audience_rank", "collector", "active", "inactive_reason", "inactive_since"]
+                 "audience_rank", "rank_source", "political_leaning", "leaning_source", "ownership", "ownership_source",
+                 "collector", "active", "inactive_reason", "inactive_since"]
+    # Every field the schema allows must be listed, or saving drops it silently. The weekly feed
+    # validation saves through here, so a missing key would erase that field from the whole registry.
+    with open(config.OUTLETS_SCHEMA_PATH, "r", encoding="utf-8") as fh:
+        schema = json.load(fh)
+    allowed = set((schema.get("items") or schema)["properties"])
+    missing = allowed - set(key_order)
+    if missing:
+        raise ValueError("save_outlets would drop schema fields: %s" % ", ".join(sorted(missing)))
     ordered = []
     for o in outlets:
+        unknown = set(o) - set(key_order)
+        if unknown:
+            raise ValueError("outlet %s has fields save_outlets would drop: %s" % (o.get("id"), ", ".join(sorted(unknown))))
         ordered.append({k: o[k] for k in key_order if k in o})
     with open(path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(ordered, fh, allow_unicode=True, sort_keys=False, width=200)
