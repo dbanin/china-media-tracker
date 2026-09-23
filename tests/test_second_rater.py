@@ -254,6 +254,10 @@ def test_a_study_never_takes_more_calls_than_the_day_allows(tmp_path, monkeypatc
     monkeypatch.setattr(config, "LLM_COST_PER_CALL_UNBATCHED", 0.0175)
     monkeypatch.setattr(config, "RELIABILITY_SAMPLE", 250)
     monkeypatch.setattr(config, "RELIABILITY_MIN_PAIRS", 150)
+    # Pinned, because config reads it from the environment: CI sets the repository variable to
+    # 4000, which leaves room for the study on the last day, while the default of 600 does not.
+    # The test then depended on where it ran, and failed only in CI.
+    monkeypatch.setattr(config, "LLM_DAILY_CALL_CEILING", 600)
     today = dt.date(2026, 10, 1)
     plan = sr.study_plan(conn, today, config.RELIABILITY_SAMPLE)
     assert plan["day_allowance"] == 110 and plan["day_share"] == 55
