@@ -287,7 +287,9 @@
   var STEPS = 7;
   var RAMP = d3.piecewise(d3.interpolateLab, [LOW_COLOR, "#ef8a73", "#d23a2e", "#9e0f17", HIGH_COLOR]);
   var STEP_COLORS = d3.range(STEPS).map(function (i) { return RAMP(STEPS === 1 ? 1 : i / (STEPS - 1)); });
-  function stepEdges(max) { return d3.range(1, STEPS).map(function (i) { return max * Math.pow(i / STEPS, 2); }); }
+  /* The key for a cap: edges snapped to what the key prints, so the map and its key never disagree. */
+  function keyFor(cap, unit) { return C.keyTiers(cap, unit, STEPS); }
+  function shadeFor(key) { return function (v) { return v > 0 ? STEP_COLORS[C.keyIndex(v, key.edges)] : ZERO_COLOR; }; }
   function setupMap() {
     svg = d3.select("#map");
     svg.selectAll("*").remove();
@@ -377,7 +379,6 @@
       perIso[iso] = {entry: entry, mv: mv, cls: cls};
       if (cls === "value") vals.push(mv.value);
     });
-    var fmt = metricDef().format || "int";
     var sc = scaleFor();
     /* The cap is the 95th percentile of every date, and nothing else. A floor under it would make the
        legend's own sentence false: the scale is relative, and a small cap is the honest one. */
@@ -385,8 +386,8 @@
     var trueMax = sc.max !== null && sc.max !== undefined ? sc.max : (vals.length ? d3.max(vals) : max);
     var capped = trueMax > max || vals.some(function (v) { return v > max; });
     /* White for exactly zero; any positive value takes one of STEPS tinted steps up to deep red at the cap. */
-    var stepScale = d3.scaleThreshold().domain(stepEdges(max)).range(STEP_COLORS);
-    colorScale = function (v) { return v > 0 ? stepScale(v) : ZERO_COLOR; };
+    var key = keyFor(max, C.keyUnit(state.metric));
+    colorScale = shadeFor(key);
     state._perIso = perIso; state._agg = agg; state._max = max; state._capped = capped; state._trueMax = trueMax;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
@@ -407,7 +408,7 @@
       if (isNaN(c[0])) return;
       gMarkers.append("path").attr("class", "warn-marker").attr("d", d3.symbol(d3.symbolTriangle, 40)()).attr("transform", "translate(" + c[0] + "," + c[1] + ") scale(" + (1 / state.zoomK) + ")");
     });
-    renderLegend(max, fmt);
+    renderLegend(key);
     renderBars(agg);
   }
 
@@ -465,23 +466,39 @@
 
   /* The legend reads top to bottom: what the color measures and over which days, the value range
      each shade stands for, then everything on the map that is not on the color scale. */
-  function renderLegend(max, fmt) {
-    var bounds = [0].concat(stepEdges(max)).concat([Infinity]);
-    var steps = [];
-    STEP_COLORS.forEach(function (color, i) {
-      var lo = bounds[i], hi = bounds[i + 1], label;
-      if (fmt === "int") {
-        /* Whole-number metrics: step i covers lo <= v < hi, so list the whole numbers inside it. */
-        var a = i === 0 ? 1 : Math.ceil(lo);
-        var b = hi === Infinity ? null : Math.ceil(hi) - 1;
-        if (b !== null && b < a) return;
-        label = b === null ? a + " or more" : (a === b ? String(a) : a + " to " + b);
-      } else if (i === 0) {
-        label = "Above 0, under " + C.formatValue(hi, fmt);
-      } else {
-        label = hi === Infinity ? C.formatValue(lo, fmt) + " or more" : C.formatValue(lo, fmt) + " to " + C.formatValue(hi, fmt);
-      }
-      steps.push('<li><span class="sw" style="background:' + color + '"></span><span>' + esc(label) + '</span></li>');
+  /* What one tier of the key counts, in the words of the Measure and Basis buttons. */
+  function keyUnitText(metric) {
+    var parts = C.metricParts(metric), noun = measureNounFor(parts.measure);
+    var Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+    if (routeActive()) Noun += ", " + routeLabel(state.route).toLowerCase() + ",";
+    return {
+      count: "Number of " + (routeActive() ? Noun.charAt(0).toLowerCase() + Noun.slice(1) : noun) + " in the window",
+      per_outlet: Noun + " per active monitored outlet",
+      share_of_china: Noun + " as a percent of the country’s China coverage",
+      share_of_output: Noun + " per 1,000 items the monitored outlets published; 1 per 1,000 is 0.1%",
+      per_million: Noun + " per million people"
+    }[parts.basis] || metricLabel();
+  }
+  /* The heading names the three things that set the scale: measure, basis and window. */
+  function keyHeading() {
+    var parts = C.metricParts(state.metric);
+    return [C.MEASURE_NAMES[parts.measure] + (routeActive() ? ", " + routeLabel(state.route).toLowerCase() : ""),
+            C.BASIS_NAMES[parts.basis] || "", windowLabel()]
+      .concat(state.mode === "reviewed" ? ["human-reviewed labels only"] : []).filter(Boolean);
+  }
+  /* A 30 day window over a shorter timeline covers the same days as Total, so the two share one key.
+     Say so, or flipping between them looks like the key failed to update. */
+  function sameWindowNote() {
+    var all = days(), w = state.windowDays;
+    if (!all.length || !tlDays.length) return "";
+    var span = Math.round((Date.parse(tlDays[tlDays.length - 1]) - Date.parse(all[0])) / 864e5) + 1;
+    var twin = w === "all" ? [7, 30].filter(function (n) { return n >= span; })[0] : (Number(w) > 1 && Number(w) >= span ? "all" : null);
+    if (!twin) return "";
+    return " The timeline holds " + plural(span, "day") + ", so " + (w === "all" ? "Total and the " + twin + " day window" : "the " + Number(w) + " day window and Total") + " cover the same days and share this key.";
+  }
+  function renderLegend(key) {
+    var steps = key.tiers.map(function (t) {
+      return '<li><span class="sw" style="background:' + STEP_COLORS[t.index] + '"></span><span>' + esc(t.label) + '</span></li>';
     });
     var m = metricDef();
     /* The key names the reason the reader is actually looking at: under a route filter, or in reviewed
@@ -497,15 +514,17 @@
     el("legend").innerHTML =
       '<div class="lg-group">' +
         '<div class="lg-kicker">Color scale</div>' +
-        '<div class="lg-head">' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + '</div>' +
+        '<div class="lg-head" title="' + esc(metricLabel()) + '">' + keyHeading().map(esc).join('<span class="lg-sep"> \u00b7 </span>') + '</div>' +
         ((m.relay || m.relayInside) && relay.provisional ? '<div class="lg-prov">Provisional: ' + (m.relayInside ? 'contains unchecked state sourcing, which is one model\u2019s judgement, not yet reliability checked' : 'one model\u2019s judgement, not yet reliability checked') + '</div>' : '') +
-        '<div class="lg-when">' + esc(windowLabel()) + '</div>' +
+        '<div class="lg-unit">Each tier: ' + esc(keyUnitText(state.metric).charAt(0).toLowerCase() + keyUnitText(state.metric).slice(1)) + '</div>' +
         '<ul class="lg-steps">' +
           '<li><span class="sw" style="background:' + ZERO_COLOR + '"></span><span>None found</span></li>' +
           steps.join("") +
         '</ul>' +
-        '<p class="lg-note">The scale is fixed for this measure and window across every date on the timeline, so a shade means the same number on every day.' +
-          (state._capped ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatValue(state._trueMax, fmt)) + '.' : '') + '</p>' +
+        '<p class="lg-note">The scale is fixed for this measure, basis and window across every date on the timeline, so a shade means the same number on every day.' +
+          (state._capped ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatKeyNumber(state._trueMax, key.unit, 3)) + (key.unit.per1000 ? ' per 1,000 items' : '') + '.' : '') +
+          (key.tiers.length < STEPS ? ' The cap is small enough that ' + plural(STEPS - key.tiers.length, "shade holds", "shades hold") + ' no whole number, so ' + (STEPS - key.tiers.length === 1 ? 'it is' : 'they are') + ' left out.' : '') +
+          esc(sameWindowNote()) + '</p>' +
         (state.zoomIso ? '<p class="lg-note">Zoomed to ' + esc(countryName(state.zoomIso)) + '. Shades keep the world scale, so they compare directly with every other country.</p>' : '') +
       '</div>' +
       '<div class="lg-group">' +
@@ -705,20 +724,28 @@
   }
 
   /* ---------------------------------------------------------------- themes */
-  /* Cells are shaded by the share of that country's articles in the theme, using swatches taken from the
-     map ramp so the two charts read the same way: light for a small share, dark for a large one. */
-  var THEME_HEAT = [0, 2, 3, 5, 6].map(function (i) { return STEP_COLORS[i]; });
+  /* Cells are shaded by the number of articles in them, on the map's own steps and swatches, so the two
+     charts read the same way and the key says how many articles each shade needs for the measure shown.
+     The share of the row each cell holds is in its tooltip. Like the map, the tiers are pooled over every
+     day of the theme timeline, so moving the counter's day never changes what a shade means. */
   function inkOn(color) { return d3.lab(color).l > 62 ? "#0c0d0f" : "#f3ede2"; }
-  var THEME_EDGES = [0.05, 0.15, 0.3, 0.5];
-  var THEME_BANDS = ["under 5%", "5 to 15%", "15 to 30%", "30 to 50%", "50% or more"];
   var THEME_ROWS = 15;
-  function heat(share) {
-    if (!share) return null;
-    var i = 0;
-    while (i < THEME_EDGES.length && share >= THEME_EDGES[i]) i++;
-    return THEME_HEAT[i];
+  var themeCapCache = {};
+  function themeKey(iso) {
+    var mi = measureIndex(), ids = ((state.meta && state.meta.themes) || []).map(function (c) { return c.id; });
+    var w = iso ? 1 : windowArg(state.themeWindow);
+    var k = [mi, iso ? "day:" + iso : state.themeWindow, (state.meta && state.meta.generated_at) || ""].join("|");
+    if (!themeCapCache[k]) themeCapCache[k] = C.themeScaleCap(state.months, tlDays, w, mi, ids, iso || null);
+    var sc = themeCapCache[k];
+    var key = keyFor(sc.cap || sc.max || 1, C.WHOLE_UNIT);
+    key.max = sc.max;
+    return key;
   }
-  function measureNoun() { return {target: "state-linked articles", a: "state origin articles", b: "unchecked state sourcing articles", china: "China articles"}[state.measure] || "articles"; }
+  function themeKeyItems(key) {
+    return key.tiers.map(function (t) { return '<span class="tl-i"><span class="sw" style="background:' + STEP_COLORS[t.index] + '"></span>' + esc(t.label) + '</span>'; }).join("");
+  }
+  function measureNoun() { return measureNounFor(state.measure); }
+  function measureNounFor(m) { return {target: "state-linked articles", a: "state origin articles", b: "unchecked state sourcing articles", china: "China articles"}[m] || "articles"; }
   /* The theme grid, the theme focus panel and the theme curve all read the fourth theme slot, which is the
      same unchecked state sourcing count the map hatches. One test governs all of them. */
   function relayHidden() { return state.measure === "b" && !relayFor(null).visible; }
@@ -818,6 +845,7 @@
     });
     var shown = rows.slice(0, THEME_ROWS);
     if (sel && shown.indexOf(sel) === -1) shown.push(sel);
+    var tkey = themeKey(null), heat = shadeFor(tkey);
     el("theme-grid").innerHTML =
       '<thead><tr><th class="c-country" scope="col">Country</th><th class="c-n" scope="col">' + esc(noun.charAt(0).toUpperCase() + noun.slice(1)) + '</th>' +
       catalog.map(function (c) {
@@ -827,17 +855,19 @@
         return '<tr data-iso="' + esc(r.iso) + '"' + (r.iso === state.selected ? ' class="selected"' : '') + '>' +
           '<th scope="row" class="c-country">' + esc(r.name) + '</th><td class="c-n">' + r.n + '</td>' +
           catalog.map(function (c) {
-            var v = r.t[c.id] || 0, share = Math.min(1, v / Math.max(r.n, 1)), bg = heat(share);
+            var v = r.t[c.id] || 0, share = Math.min(1, v / Math.max(r.n, 1)), bg = v > 0 ? heat(v) : null;
             return '<td class="cell" data-theme="' + esc(c.id) + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
           }).join("") + '</tr>';
       }).join("") + '</tbody>';
     updateGridScroll();
     el("theme-legend").innerHTML =
-      '<span class="tl-title">Cell shade: share of that country\'s ' + esc(noun) + ' in the theme</span>' +
-      THEME_BANDS.map(function (b, i) { return '<span class="tl-i"><span class="sw" style="background:' + THEME_HEAT[i] + '"></span>' + b + '</span>'; }).join("") +
-      '<span class="tl-foot">The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
+      '<span class="tl-title">Cell shade: number of ' + esc(noun) + ' in the theme, ' + esc(themeWindowLabel()) + '</span>' +
+      themeKeyItems(tkey) +
+      '<span class="tl-foot">Same steps and colors as the map. The tiers are fixed for this measure and window across every day of the theme timeline' +
+      (tkey.max > tkey.cap ? '; the darkest shade holds everything above the 95th percentile, up to ' + tkey.max.toLocaleString("en-US") : '') +
+      '. Hover a cell for its share of the country’s ' + esc(noun) + '. The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
       (sortKey ? ' in ' + esc(label[sortKey].label.toLowerCase()) : '') + ' in this window' +
-      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Shares in a row can add up to more than 100 percent, because an article can carry several themes. Click a country to open it, or a theme heading to rank by it.</span>';
+      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
   }
 
   /* Single country view of the theme counter: themes down, days across, ending on the counter's own day.
@@ -860,18 +890,9 @@
     var order = catalog.filter(function (c) { return c.id !== "other"; }).sort(function (a, b) { return total(b.id) - total(a.id); });
     if (label.other) order.push(label.other);
     /* Shaded by the number of articles, on the map's steps: darker always means more. A share of a
-       day's articles would paint a day with one article as dark as the busiest day. */
-    var counts = [];
-    perDay.forEach(function (p) { order.forEach(function (c) { if (p.t[c.id] > 0) counts.push(p.t[c.id]); }); });
-    var cap = counts.length ? Math.max(1, C.percentile(counts, 0.95)) : 1;
-    var edges = stepEdges(cap);
-    var shade = d3.scaleThreshold().domain(edges).range(STEP_COLORS);
-    var bands = [];
-    STEP_COLORS.forEach(function (color, i) {
-      var lo = i === 0 ? 1 : Math.floor(edges[i - 1]) + 1, hi = i < edges.length ? Math.floor(edges[i]) : null;
-      if (hi !== null && hi < lo) return;
-      bands.push({color: color, text: hi === null ? lo + " or more" : (lo === hi ? String(lo) : lo + " to " + hi)});
-    });
+       day's articles would paint a day with one article as dark as the busiest day. The tiers come from
+       this country's single days across the whole timeline, so they hold still while the day moves. */
+    var dkey = themeKey(iso), shade = shadeFor(dkey);
     var grid = el("theme-grid");
     grid.classList.add("days");
     grid.innerHTML =
@@ -889,9 +910,11 @@
       }).join("") + '</tbody>';
     updateGridScroll();
     el("theme-legend").innerHTML =
-      '<span class="tl-title">Cell shade: number of ' + esc(noun) + ' that day, same steps as the map</span>' +
-      bands.map(function (b) { return '<span class="tl-i"><span class="sw" style="background:' + b.color + '"></span>' + b.text + '</span>'; }).join("") +
-      '<span class="tl-foot">' + esc(name) + ', the ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
+      '<span class="tl-title">Cell shade: number of ' + esc(noun) + ' in the theme that day, ' + esc(name) + '</span>' +
+      themeKeyItems(dkey) +
+      '<span class="tl-foot">Same steps and colors as the map. The tiers are fixed for this measure and country across every day of the timeline' +
+      (dkey.max > dkey.cap ? '; the darkest shade holds everything above the 95th percentile, up to ' + dkey.max.toLocaleString("en-US") : '') +
+      '. The ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
   }
 
   /* The grid scrolls sideways only when the column is too narrow for every theme; say so when it does. */

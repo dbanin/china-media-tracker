@@ -231,6 +231,8 @@ def top_outlets(outlets):
     country carries a rank, otherwise every active outlet. Returns (ids_by_country, ranked_countries)."""
     by_country = {}
     for o in outlets:
+        if is_distribution_wire(o):
+            continue   # a release wire is no country's output, so it is in no country's denominator
         by_country.setdefault(o["country"], []).append(o)
     ids = {}
     ranked = []
