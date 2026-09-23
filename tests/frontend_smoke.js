@@ -143,4 +143,57 @@ assert(rr.value === 1 && rr.state_origin === 1 && rr.target === "" && rr.china_t
 assert(C.toCSV([{a: "one\rtwo"}], ["a"]) === 'a\n"one\rtwo"\n', "a carriage return is quoted");
 assert(C.toCSV([{a: "=1+1"}, {a: "@x"}, {a: "-lead"}], ["a"]) === 'a\n"\'=1+1"\n"\'@x"\n"\'-lead"\n', "a formula is quoted and marked as text");
 assert(C.toCSV([{a: -3.5}, {a: 0.25}], ["a"]) === "a\n-3.5\n0.25\n", "a negative number is still a number");
+/* The color key. Its tiers are exactly what the map colors with, and every printed bound is distinct. */
+function keyNumbers(label) { return (label.match(/[0-9][0-9,]*(\.[0-9]+)?/g) || []).map(function (s) { return Number(s.replace(/,/g, "")); }); }
+[0.4, 1, 1.9, 2, 3, 5, 7, 10, 26.3, 49, 192.4, 1000.5, 25000].forEach(function (cap) {
+  var k = C.keyTiers(cap, C.keyUnit("count_a"));
+  var labels = k.tiers.map(function (t) { return t.label; });
+  assert(k.tiers.length >= 1 && k.tiers.length <= C.KEY_STEPS, "count key has between one and seven tiers at cap " + cap);
+  assert(new Set(labels).size === labels.length, "no count tier is printed twice at cap " + cap);
+  assert(k.tiers[0].lo === 1 && /or more$/.test(labels[labels.length - 1]), "count tiers start at 1 and end open at cap " + cap);
+  k.tiers.forEach(function (t, i) {
+    assert(Number.isInteger(t.lo) && (t.hi === null || (Number.isInteger(t.hi) && t.hi >= t.lo)), "whole-number tier " + t.label + " at cap " + cap);
+    keyNumbers(t.label).forEach(function (n) { assert(Number.isInteger(n), "no decimal in a count tier: " + t.label); });
+    if (i) assert(t.lo === k.tiers[i - 1].hi + 1, "count tiers are contiguous at cap " + cap);
+    assert(i === 0 || t.index > k.tiers[i - 1].index, "each count tier has its own shade at cap " + cap);
+  });
+  /* Every whole number takes the shade of the tier whose label contains it. */
+  for (var v = 1; v <= Math.min(3 * cap + 3, 400); v++) {
+    var hit = k.tiers.filter(function (t) { return v >= t.lo && (t.hi === null || v <= t.hi); });
+    assert(hit.length === 1 && hit[0].index === C.keyIndex(v, k.edges), "value " + v + " is colored as its tier says at cap " + cap);
+  }
+});
+assert(C.keyTiers(1, C.WHOLE_UNIT).tiers.length === 1 && C.keyTiers(1, C.WHOLE_UNIT).tiers[0].label === "1 or more", "a cap of one gives one tier, not seven copies of it");
+assert(C.keyTiers(2, C.WHOLE_UNIT).tiers.map(function (t) { return t.label; }).join("|") === "1|2 or more", "a cap of two gives two tiers");
+/* Everything that is not an amount: distinct, increasing bounds at any scale, and never an "under 0". */
+["per_outlet_a", "share_a", "share_of_output_a", "share_of_output_b", "per_million_china"].forEach(function (metric) {
+  [0.00003, 0.0004, 0.0021, 0.008, 0.05, 0.32, 1, 2.94, 17.8, 250, 12345].forEach(function (cap) {
+    if (C.METRICS[metric].format === "pct" && cap > 1) return;
+    var k = C.keyTiers(cap, C.keyUnit(metric));
+    assert(k.tiers.length === C.KEY_STEPS, metric + " keeps seven tiers at cap " + cap);
+    var bounds = [];
+    k.tiers.forEach(function (t, i) {
+      assert(i > 0 || t.label.indexOf("Above 0, under ") === 0, metric + " lowest tier opens above zero");
+      var ns = keyNumbers(t.label.replace(/^Above 0, /, ""));
+      assert(!/under 0(\.0*)?(%|$)/.test(t.label) && ns.every(function (n) { return n > 0; }), metric + " prints no zero bound: " + t.label);
+      if (i === 0) bounds.push(ns[ns.length - 1]); else if (t.hi === null) assert(ns[0] === bounds[bounds.length - 1], metric + " top tier opens at the last bound");
+      else { assert(ns[0] === bounds[bounds.length - 1], metric + " tiers meet: " + t.label); bounds.push(ns[1]); }
+    });
+    for (var j = 1; j < bounds.length; j++) assert(bounds[j] > bounds[j - 1], metric + " prints distinct increasing bounds at cap " + cap + ": " + bounds.join(", "));
+    /* The printed bounds are the edges the map uses, in the key's unit. */
+    k.edges.forEach(function (e, i) { assert(Math.abs(e * k.unit.factor - bounds[i]) < 1e-9 * Math.max(1, bounds[i]), metric + " edge " + i + " is what the key prints"); });
+  });
+});
+/* Tiny shares read per 1,000 published items, never as 0.0%. */
+var tinyShare = C.keyTiers(0.008, C.keyUnit("share_of_output_a")).tiers.map(function (t) { return t.label; });
+assert(C.keyUnit("share_of_output_a").per1000 && C.keyUnit("share_of_output_a").factor === 1000, "share of monitored output is keyed per 1,000 items");
+assert(tinyShare[0] === "Above 0, under 0.16" && tinyShare[6] === "5.9 or more" && tinyShare.join("|").indexOf("%") === -1, "a share under one percent reads per 1,000: " + tinyShare.join(" | "));
+assert(C.keyTiers(0.45, C.keyUnit("share_a")).tiers[6].label === "33% or more" && C.keyTiers(0.012, C.keyUnit("share_a")).tiers[0].label === "Above 0, under 0.024%", "share of China coverage keeps percent, with precision to suit the cap");
+assert(C.formatKeyNumber(0.000114, C.keyUnit("share_of_output_a"), 3) === "0.114" && C.formatKeyNumber(255, C.WHOLE_UNIT) === "255" && C.formatKeyNumber(12500, C.WHOLE_UNIT) === "12,500", "key numbers");
+var parts = C.metricParts("share_of_output_target");
+assert(parts.measure === "target" && parts.basis === "share_of_output" && C.BASIS_NAMES[parts.basis] === "Share of monitored output" && C.MEASURE_NAMES.b === "Unchecked state sourcing", "the key names measure and basis as the buttons do");
+/* The theme counter's cap is pooled over dates and reads one measure slot. */
+var tsc = C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 1, 0, ["diplomacy", "culture"]);
+assert(tsc.values === 3 && tsc.max === 3 && Math.abs(tsc.cap - C.percentile([2, 1, 3], 0.95)) < 1e-9, "theme scale cap pools days");
+assert(C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 2, 2, null, "ITA").max === 1 && C.themeScaleCap({}, [], 1, 0).cap === null, "theme scale cap by slot and country");
 console.log("frontend smoke ok");

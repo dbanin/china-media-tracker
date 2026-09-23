@@ -160,9 +160,12 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
                 c2["groups"].add(r["dup_group_id"] or r["id"])
     # discovered totals per day and country include gated-out items. They come from the
     # permanent daily_discovery table, because gated-out rows are pruned from articles.
-    for r in conn.execute("SELECT date, country, discovered FROM daily_discovery"):
-        coverage[(r["date"], r["country"])]["discovered"] += r["discovered"]
+    # A distribution wire's releases are not part of any country's output, so they are left out of the
+    # discovery denominators as well as the numerators; counting them understated every US share.
     for r in conn.execute("SELECT date, outlet_id, country, discovered FROM daily_outlet_discovery"):
+        if r["outlet_id"] in wire_ids:
+            continue
+        coverage[(r["date"], r["country"])]["discovered"] += r["discovered"]
         if r["outlet_id"] in top_ids.get(r["country"], set()):
             coverage[(r["date"], r["country"])]["top_discovered"] += r["discovered"]
 
@@ -501,7 +504,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
     return {"generated_at": store.utcnow(), "window_start_30d": since30, "countries": countries, "totals": totals}
 
 
-def build_daily(conn) -> Dict[str, Dict]:
+def build_daily(conn, outlets: Optional[List[Dict]] = None) -> Dict[str, Dict]:
     months = defaultdict(lambda: {"days": defaultdict(lambda: defaultdict(_empty_country))})
     for r in conn.execute("SELECT * FROM daily_counts"):
         d = r["date"]
@@ -534,7 +537,10 @@ def build_daily(conn) -> Dict[str, Dict]:
     routes = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     arrivals = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     older_ruleset = defaultdict(int)
+    wire_ids = registry.distribution_wire_ids(outlets if outlets is not None else registry.load_outlets())
     for r in article_rows(conn):
+        if r["outlet_id"] in wire_ids:
+            continue   # counted as their own stratum, never inside a country
         pending = r["status"] in ("awaiting_llm", "llm_submitted")
         cat = r["m_cat"]
         d = _day(r)
@@ -663,7 +669,7 @@ def _trigger_sources(trigger_ids):
 ORDER = {"A": 0, "B": 1, "pending": 2, "C": 3}
 
 
-def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
+def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = None) -> Dict[str, List[Dict]]:
     """Per country: state origin first, then unchecked state sourcing, then articles carrying official
     Chinese sourcing whose verification judgement is pending, then independent journalism."""
     rows = conn.execute(
@@ -677,7 +683,10 @@ def build_articles(conn, per_country: int = 80) -> Dict[str, List[Dict]]:
            ORDER BY COALESCE(a.published_at, a.discovered_at) DESC"""
     ).fetchall()
     out = defaultdict(list)
+    wire_ids = registry.distribution_wire_ids(outlets if outlets is not None else registry.load_outlets())
     for r in rows:
+        if r["outlet_id"] in wire_ids:
+            continue   # a release wire's items are not a country's articles
         pending = r["category"] is None
         cat = "pending" if pending else r["category"]
         entry = {
@@ -785,7 +794,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         (config.RULESET_VERSION, REFETCH_ATTEMPT_LIMIT),
     ).fetchone()[0]
     mix = {r[0]: r[1] for r in conn.execute("SELECT ruleset_version, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY ruleset_version")}
+    wires = sorted(registry.distribution_wire_ids(outlets))
     route_totals = {r[0] or "unattributed": r[1] for r in conn.execute(
+        """SELECT c.route, COUNT(*) FROM classifications c JOIN articles a ON a.id=c.article_id
+           WHERE c.is_current=1 AND c.category='A' AND a.outlet_id NOT IN (%s) GROUP BY c.route""" % ",".join("?" * len(wires)),
+        tuple(wires))} if wires else {r[0] or "unattributed": r[1] for r in conn.execute(
         "SELECT route, COUNT(*) FROM classifications WHERE is_current=1 AND category='A' GROUP BY route")}
     sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), COALESCE(SUM(missed_estimate), 0) FROM feed_polls").fetchone()
     return {
@@ -958,10 +971,10 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
     latest = build_latest(conn, outlets, gaps)
-    daily = build_daily(conn)
+    daily = build_daily(conn, outlets)
     series = build_global_series(daily)
     outlets_json = build_outlets(conn, outlets)
-    articles = build_articles(conn)
+    articles = build_articles(conn, outlets=outlets)
     meta = build_meta(conn, outlets, gaps, latest)
     write_json(export_dir / "latest.json", latest)
     for month, m in daily.items():

@@ -288,6 +288,110 @@
     return {cap: percentile(vals, 0.95), max: max, values: vals.length, dates: pick.length};
   }
 
+  /* The theme counter's version of scaleCap: the 95th percentile of every positive theme count in one
+     measure slot, pooled over every sampled end date, so the grid's shades keep their meaning while its
+     own day moves. iso, when given, reads that country alone. */
+  function themeScaleCap(months, endDates, windowDays, measureIndex, themeIds, iso, maxSamples) {
+    var dates = endDates || [], n = maxSamples || 60, pick = [];
+    if (dates.length <= n) pick = dates.slice();
+    else for (var i = 0; i < n; i++) pick.push(dates[Math.round(i * (dates.length - 1) / (n - 1))]);
+    var vals = [], max = null;
+    pick.forEach(function (d) {
+      var by = aggregateThemes(months, d, windowDays);
+      Object.keys(by).forEach(function (c) {
+        if (iso && c !== iso) return;
+        (themeIds || Object.keys(by[c])).forEach(function (t) {
+          var v = (by[c][t] || [0, 0, 0, 0])[measureIndex] || 0;
+          if (v > 0) { vals.push(v); if (max === null || v > max) max = v; }
+        });
+      });
+    });
+    return {cap: percentile(vals, 0.95), max: max, values: vals.length, dates: pick.length};
+  }
+
+  /* ------------------------------------------------------------ color key
+     Seven steps whose edges follow a square law up to the cap. The edges are snapped to what the key
+     prints, and the map colors with the snapped edges, so every printed tier is exactly the set of
+     values that takes its shade:
+       counts        whole numbers; a step that holds no whole number is dropped, never printed twice
+       other values  two significant figures, which keeps every printed bound distinct and above zero
+                     at any scale (consecutive square law edges differ by at least 44 percent)
+     A share of monitored output is a small fraction of one percent almost everywhere, so its key reads
+     per 1,000 published items, as the tooltip does. */
+  var KEY_STEPS = 7;
+  var MEASURE_NAMES = {a: "State origin", b: "Unchecked state sourcing", target: "State-linked articles", china: "All China coverage"};
+  var BASIS_NAMES = {count: "Amount", per_outlet: "Per outlet", share_of_china: "Share of China coverage", share_of_output: "Share of monitored output", per_million: "Per capita"};
+  /* The Measure and Basis a metric sits at in the grid, for naming it the way the buttons do. */
+  function metricParts(metric) {
+    var hit = {measure: (METRICS[metric] || {}).measure || null, basis: null};
+    Object.keys(GRID).forEach(function (m) {
+      Object.keys(GRID[m]).forEach(function (b) { if (GRID[m][b] === metric) { hit.measure = m; hit.basis = b; } });
+    });
+    return hit;
+  }
+  var WHOLE_UNIT = {factor: 1, suffix: "", whole: true, per1000: false};
+  function keyUnit(metric) {
+    var def = METRICS[metric] || {};
+    if (def.format === "int") return WHOLE_UNIT;
+    if (def.format === "pct" && def.allItems) return {factor: 1000, suffix: "", whole: false, per1000: true};
+    if (def.format === "pct") return {factor: 100, suffix: "%", whole: false, per1000: false};
+    return {factor: 1, suffix: "", whole: false, per1000: false};
+  }
+  function stepEdges(cap, steps) {
+    var out = [], n = steps || KEY_STEPS;
+    for (var i = 1; i < n; i++) out.push(cap * Math.pow(i / n, 2));
+    return out;
+  }
+  function roundSig(x, sig) {
+    if (!x || !isFinite(x)) return 0;
+    var p = Math.pow(10, sig - 1 - Math.floor(Math.log(Math.abs(x)) / Math.LN10));
+    return Math.round(x * p) / p;
+  }
+  /* A number in the key's own unit: v is a raw value, already rounded where the key rounds it. */
+  function formatKeyNumber(v, unit, sig) {
+    var x = v * unit.factor;
+    if (unit.whole) return Math.round(x).toLocaleString("en-US");
+    x = roundSig(x, sig || 2);
+    var d = Math.max(0, (sig || 2) - 1 - Math.floor(Math.log(Math.abs(x)) / Math.LN10 + 1e-9));
+    var s = x.toFixed(Math.min(d, 12));
+    if (s.indexOf(".") !== -1) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    if (Math.abs(x) >= 1000) s = Number(s).toLocaleString("en-US", {maximumFractionDigits: 12});
+    return s + unit.suffix;
+  }
+  /* Which step a positive value takes: the number of snapped edges at or below it. */
+  function keyIndex(v, edges) {
+    var i = 0;
+    while (i < edges.length && v >= edges[i]) i++;
+    return i;
+  }
+  /* The key for one cap: the snapped edges the map colors with, and one tier per step that can hold a
+     value, each carrying the step index of its shade. */
+  function keyTiers(cap, unit, steps) {
+    unit = unit || WHOLE_UNIT;
+    var n = steps || KEY_STEPS;
+    var c = cap > 0 && isFinite(cap) ? cap : 1;
+    var edges = stepEdges(c, n).map(function (e) {
+      return unit.whole ? Math.max(1, Math.ceil(e - 1e-9)) : roundSig(e * unit.factor, 2) / unit.factor;
+    });
+    var tiers = [];
+    for (var i = 0; i < n; i++) {
+      var lo = i === 0 ? 0 : edges[i - 1], hi = i < edges.length ? edges[i] : Infinity, label;
+      if (unit.whole) {
+        var a = Math.max(1, lo), b = hi - 1;
+        if (hi !== Infinity && b < a) continue;
+        label = hi === Infinity ? formatKeyNumber(a, unit) + " or more" : (a === b ? formatKeyNumber(a, unit) : formatKeyNumber(a, unit) + " to " + formatKeyNumber(b, unit));
+        tiers.push({index: i, lo: a, hi: hi === Infinity ? null : b, label: label});
+      } else {
+        if (hi !== Infinity && !(hi > lo)) continue;
+        label = i === 0 ? "Above 0, under " + formatKeyNumber(hi, unit)
+          : hi === Infinity ? formatKeyNumber(lo, unit) + " or more"
+          : formatKeyNumber(lo, unit) + " to " + formatKeyNumber(hi, unit);
+        tiers.push({index: i, lo: lo, hi: hi === Infinity ? null : hi, label: label});
+      }
+    }
+    return {edges: edges, tiers: tiers, unit: unit, cap: c};
+  }
+
   function formatValue(v, fmt) {
     if (v === null || v === undefined || isNaN(v)) return "n/a";
     if (fmt === "pct") return (v * 100).toFixed(1) + "%";
@@ -377,5 +481,7 @@
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
-          formatValue: formatValue, percentile: percentile, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
+          formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap,
+          KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
+          stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
 }));
