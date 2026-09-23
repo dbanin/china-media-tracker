@@ -138,3 +138,17 @@ def test_check_section_feed_drops_comment_and_duplicate_feeds(monkeypatch):
     assert ds.check_section_feed({}, {"url": "https://x.com/sponsored/feed", "type": "rss"}, editorial) == (False, "mostly the same items as the editorial feeds")
     assert ds.check_section_feed({}, {"url": "https://x.com/category/communique/feed", "type": "rss"}, editorial) == (False, "comments feed")
     assert ds.check_section_feed({}, {"url": "https://x.com/comments/feed", "type": "rss"}, editorial) == (False, "comments feed")
+
+
+def test_saving_the_registry_never_drops_a_schema_field(tmp_path):
+    """save_outlets writes a fixed key order. A field missing from it vanished from the whole registry the
+    next time anything saved, and the weekly feed validation saves every Monday."""
+    from pipeline import registry
+    outs = registry.load_outlets()
+    target = tmp_path / "outlets.yaml"
+    registry.save_outlets(outs, target)
+    again = registry.load_outlets(target)
+    assert again == outs
+    import pytest
+    with pytest.raises(ValueError):
+        registry.save_outlets([dict(outs[0], not_a_field=1)], tmp_path / "bad.yaml")
