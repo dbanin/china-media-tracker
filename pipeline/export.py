@@ -631,6 +631,9 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
                           "consecutive_failures": h["consecutive_failures"] if h else None})
         out.append({"id": o["id"], "name": o["name"], "country": o["country"], "language": o["language"],
                     "tier": o["tier"], "active": o["active"], "notes": o.get("notes"),
+                    "audience_rank": o.get("audience_rank"),
+                    "political_leaning": o.get("political_leaning") or "unassessed", "leaning_source": o.get("leaning_source"),
+                    "ownership": o.get("ownership") or "unassessed", "ownership_source": o.get("ownership_source"),
                     "inactive_reason": o.get("inactive_reason"), "feeds": feeds, "counts": dict(per_outlet[o["id"]]),
                     "collector": registry.collector_of(o),
                     "release_sections": (o.get("release_sections") or {}).get("status") or "not_searched"})

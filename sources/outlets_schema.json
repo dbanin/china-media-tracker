@@ -177,6 +177,41 @@
             }
           }
         }
+      },
+      "political_leaning": {
+        "type": "string",
+        "enum": [
+          "left",
+          "centre_left",
+          "centre",
+          "centre_right",
+          "right",
+          "unassessed"
+        ],
+        "description": "Editorial leaning judged against the outlet's own country's political spectrum, not a US or European one. unassessed when no reliable source was found; never inferred from the name, language or country."
+      },
+      "leaning_source": {
+        "type": "string",
+        "description": "URL of the source for political_leaning."
+      },
+      "ownership": {
+        "type": "string",
+        "enum": [
+          "private",
+          "public_service",
+          "state",
+          "party",
+          "unassessed"
+        ],
+        "description": "private; public_service, a public broadcaster with statutory editorial independence; state, government controlled or state owned without editorial independence; party, owned by a political party; unassessed."
+      },
+      "ownership_source": {
+        "type": "string",
+        "description": "URL of the source for ownership."
+      },
+      "rank_source": {
+        "type": "string",
+        "description": "URL of the readership source behind audience_rank."
       }
     }
   }
