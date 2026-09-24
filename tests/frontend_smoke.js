@@ -191,7 +191,7 @@ assert(tinyShare[0] === "Above 0, under 0.16" && tinyShare[6] === "5.9 or more" 
 assert(C.keyTiers(0.45, C.keyUnit("share_a")).tiers[6].label === "33% or more" && C.keyTiers(0.012, C.keyUnit("share_a")).tiers[0].label === "Above 0, under 0.024%", "share of China coverage keeps percent, with precision to suit the cap");
 assert(C.formatKeyNumber(0.000114, C.keyUnit("share_of_output_a"), 3) === "0.114" && C.formatKeyNumber(255, C.WHOLE_UNIT) === "255" && C.formatKeyNumber(12500, C.WHOLE_UNIT) === "12,500", "key numbers");
 var parts = C.metricParts("share_of_output_target");
-assert(parts.measure === "target" && parts.basis === "share_of_output" && C.BASIS_NAMES[parts.basis] === "Share of monitored output" && C.MEASURE_NAMES.b === "Unchecked state sourcing", "the key names measure and basis as the buttons do");
+assert(parts.measure === "target" && parts.basis === "share_of_output" && C.BASIS_NAMES[parts.basis] === "% of all its news" && C.MEASURE_NAMES.b === "Unchecked state sourcing", "the key names measure and basis as the buttons do");
 /* The theme counter's cap is pooled over dates and reads one measure slot. */
 var tsc = C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 1, 0, ["diplomacy", "culture"]);
 assert(tsc.values === 3 && tsc.max === 3 && Math.abs(tsc.cap - C.percentile([2, 1, 3], 0.95)) < 1e-9, "theme scale cap pools days");
