@@ -321,4 +321,7 @@ body.map-failed.force-list #map-wrap { display: block; }
 #lean-table tbody tr:hover td, #lean-table tbody tr:focus-within td { background: var(--ink-3); }
 .lean-sw { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; vertical-align: -0.1rem; }
 .lean-note { color: var(--ash); font-size: 0.8rem; max-width: 54rem; margin: 1.2rem 0 0; }
+/* The base rule above is later in the sheet than the medium-width block, so the row override must
+   follow it or the section lands on top of the theme counter. */
+@media (max-width: 1100px) { #leaning { grid-row: 5; padding-left: 1.6rem; } }
 @media (max-width: 700px) { #leaning .lean-body { grid-template-columns: 1fr; } #lean-pie { margin: 0 auto; } }
