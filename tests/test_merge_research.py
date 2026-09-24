@@ -56,3 +56,18 @@ def test_chinese_language_outlet_registered_inactive():
     new = {o["id"]: o for o in outlets}["tw_new"]
     assert new["active"] is False and "Chinese" in new["inactive_reason"]
     assert report["registered_excluded_language"] == 1
+
+
+def test_state_owned_outlets_get_state_controlled_leaning():
+    outlets = [
+        {"id": "id_a", "country": "IDN", "ownership": "state", "ownership_source": "https://s/1"},
+        {"id": "id_b", "country": "IDN", "ownership": "state", "ownership_source": "https://s/2", "political_leaning": "centre", "leaning_source": "https://l/1"},
+        {"id": "id_c", "country": "IDN", "ownership": "private", "ownership_source": "https://s/3"},
+        {"id": "id_d", "country": "IDN", "ownership": "state"},
+    ]
+    assert merge.derive_state_controlled(outlets) == 1
+    by_id = {o["id"]: o for o in outlets}
+    assert by_id["id_a"]["political_leaning"] == "state_controlled" and by_id["id_a"]["leaning_source"] == "https://s/1"
+    assert by_id["id_b"]["political_leaning"] == "centre"          # a sourced leaning is kept
+    assert "political_leaning" not in by_id["id_c"]                # private: nothing derived
+    assert "political_leaning" not in by_id["id_d"]                # state without a source: nothing derived

@@ -186,9 +186,10 @@
           "centre",
           "centre_right",
           "right",
+          "state_controlled",
           "unassessed"
         ],
-        "description": "Editorial leaning judged against the outlet's own country's political spectrum, not a US or European one. unassessed when no reliable source was found; never inferred from the name, language or country."
+        "description": "Editorial leaning judged against the outlet's own country's political spectrum, not a US or European one. state_controlled when the outlet is state owned without editorial independence (ownership: state), so its line is the government's rather than a left or right one; the source is the ownership source. unassessed when no reliable source was found; never inferred from the name, language or country."
       },
       "leaning_source": {
         "type": "string",
