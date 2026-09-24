@@ -46,3 +46,13 @@ def test_fills_unassessed_and_keeps_disagreements(tmp_path):
     assert report["political_leaning_disagreements"] == 1
     reasons = " ".join(i[2] for i in issues)
     assert "disagreement" in reasons and "without a source" in reasons and "not in the registry" in reasons
+
+
+def test_chinese_language_outlet_registered_inactive():
+    outlets = [{"id": "tw_a", "country": "TWN", "language": "en", "feeds": ["https://a.tw/rss"], "tier": "national_daily", "active": True}]
+    block = {"country": "TWN", "outlets": [{"id": "tw_new", "new": True, "name": "New", "language": "zh", "tier": "national_daily",
+                                            "feeds": ["https://new.tw/rss"], "feed_check": {"ok": True, "entries": 20}}]}
+    report, issues = merge.apply(outlets, [block], "2026-09-23")
+    new = {o["id"]: o for o in outlets}["tw_new"]
+    assert new["active"] is False and "Chinese" in new["inactive_reason"]
+    assert report["registered_excluded_language"] == 1

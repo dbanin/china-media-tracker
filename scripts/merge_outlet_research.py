@@ -36,6 +36,9 @@ from pipeline import registry  # noqa: E402
 LEANINGS = {"left", "centre_left", "centre", "centre_right", "right", "unassessed"}
 OWNERSHIP = {"private", "public_service", "state", "party", "unassessed"}
 TIERS = {"national_daily", "agency", "broadcaster", "business", "regional", "aggregator"}
+# Project rule: Chinese-language outlets are registered but never monitored (see tw_udn_zh).
+EXCLUDED_LANGUAGES = {"zh": "publishes primarily in Chinese; excluded by project rule because the owner does not read "
+                            "Chinese and machine translation would miss the coding distinctions"}
 
 
 def host(url):
@@ -92,6 +95,10 @@ def apply(outlets, blocks, today):
                         note += " Monitored in place of a more-read outlet that refuses the crawler or publishes no feed."
                     target = {"id": oid, "name": e["name"], "country": country, "language": e["language"],
                               "feeds": feeds, "tier": e["tier"], "notes": note, "active": True}
+                    if e["language"] in EXCLUDED_LANGUAGES:
+                        target.update(active=False, inactive_reason=EXCLUDED_LANGUAGES[e["language"]], inactive_since=today)
+                        issues.append((country, oid, "registered inactive: %s" % EXCLUDED_LANGUAGES[e["language"]].split(";")[0]))
+                        report["registered_excluded_language"] += 1
                     outlets.append(target); by_id[oid] = target
                     for f in feeds:
                         hosts[(country, host(f))].add(oid)
