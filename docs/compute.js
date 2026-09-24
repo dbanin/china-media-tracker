@@ -93,19 +93,19 @@
   var METRICS = {
     count_a: {label: "State origin articles", format: "int", measure: "a"},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", measure: "a"},
-    share_of_output_a: {label: "Share of monitored output: state origin articles as a share of every item the monitored outlets published", format: "pct", measure: "a", allItems: true},
+    share_of_output_a: {label: "% of all its news: state origin articles as a share of every item the monitored outlets published", format: "pct", measure: "a", allItems: true},
     per_million_a: {label: "State origin articles per million people", format: "dec", measure: "a", population: true},
     count_b: {label: "Unchecked state sourcing articles", format: "int", measure: "b", relay: true},
     per_outlet_b: {label: "Unchecked state sourcing articles per monitored outlet", format: "dec", measure: "b", relay: true},
-    share_of_output_b: {label: "Share of monitored output: unchecked state sourcing articles as a share of every item the monitored outlets published", format: "pct", measure: "b", allItems: true, relay: true},
+    share_of_output_b: {label: "% of all its news: unchecked state sourcing articles as a share of every item the monitored outlets published", format: "pct", measure: "b", allItems: true, relay: true},
     per_million_b: {label: "Unchecked state sourcing articles per million people", format: "dec", measure: "b", population: true, relay: true},
     count_target: {label: "State-linked articles: state origin, confirmed unchecked state sourcing and sourcing candidates not yet verified", format: "int", measure: "target", relayInside: true},
     per_outlet_target: {label: "State-linked articles per monitored outlet", format: "dec", measure: "target", relayInside: true},
-    share_of_output_target: {label: "Share of monitored output: state-linked articles as a share of every item the monitored outlets published", format: "pct", measure: "target", allItems: true, relayInside: true},
+    share_of_output_target: {label: "% of all its news: state-linked articles as a share of every item the monitored outlets published", format: "pct", measure: "target", allItems: true, relayInside: true},
     per_million_target: {label: "State-linked articles per million people", format: "dec", measure: "target", population: true, relayInside: true},
     count_china: {label: "All China coverage: every article that concerns China", format: "int", measure: "china", relayInside: true},
     per_outlet_china: {label: "All China coverage per monitored outlet", format: "dec", measure: "china", relayInside: true},
-    share_of_output_china: {label: "Share of monitored output: all China coverage as a share of every item the monitored outlets published", format: "pct", measure: "china", allItems: true, relayInside: true},
+    share_of_output_china: {label: "% of all its news: all China coverage as a share of every item the monitored outlets published", format: "pct", measure: "china", allItems: true, relayInside: true},
     per_million_china: {label: "All China coverage per million people", format: "dec", measure: "china", population: true, relayInside: true},
     share_a: {label: "Share of China coverage that is state origin", format: "pct", measure: "a"},
     share_b: {label: "Share of China coverage that is unchecked state sourcing", format: "pct", measure: "b", relay: true},
@@ -320,7 +320,7 @@
      per 1,000 published items, as the tooltip does. */
   var KEY_STEPS = 7;
   var MEASURE_NAMES = {a: "State origin", b: "Unchecked state sourcing", target: "State-linked articles", china: "All China coverage"};
-  var BASIS_NAMES = {count: "Amount", per_outlet: "Per outlet", share_of_china: "Share of China coverage", share_of_output: "Share of monitored output", per_million: "Per capita"};
+  var BASIS_NAMES = {count: "Number of articles", per_outlet: "Per outlet we monitor", share_of_china: "% of its China coverage", share_of_output: "% of all its news", per_million: "Per million people"};
   /* The Measure and Basis a metric sits at in the grid, for naming it the way the buttons do. */
   function metricParts(metric) {
     var hit = {measure: (METRICS[metric] || {}).measure || null, basis: null};
