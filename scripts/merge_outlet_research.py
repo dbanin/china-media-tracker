@@ -33,7 +33,7 @@ import yaml  # noqa: E402
 
 from pipeline import registry  # noqa: E402
 
-LEANINGS = {"left", "centre_left", "centre", "centre_right", "right", "unassessed"}
+LEANINGS = {"left", "centre_left", "centre", "centre_right", "right", "state_controlled", "unassessed"}
 OWNERSHIP = {"private", "public_service", "state", "party", "unassessed"}
 TIERS = {"national_daily", "agency", "broadcaster", "business", "regional", "aggregator"}
 # Project rule: Chinese-language outlets are registered but never monitored (see tw_udn_zh).
@@ -179,6 +179,19 @@ def apply_attributes(outlets, directory):
     return report, issues
 
 
+def derive_state_controlled(outlets):
+    """A state owned outlet without editorial independence carries the government's line, not a left or
+    right one. Where the ownership is sourced as state and no leaning was found, record state_controlled
+    with the ownership source, so the chart separates "no independent line" from "not looked up"."""
+    n = 0
+    for o in outlets:
+        if o.get("ownership") == "state" and o.get("ownership_source") and (o.get("political_leaning") or "unassessed") == "unassessed":
+            o["political_leaning"] = "state_controlled"
+            o["leaning_source"] = o["ownership_source"]
+            n += 1
+    return n
+
+
 def coverage(outlets):
     active = Counter(o["country"] for o in outlets if o.get("active") and o.get("tier") != "distribution_wire")
     return active
@@ -195,6 +208,7 @@ def main(argv=None):
     attr_report, attr_issues = apply_attributes(outlets, args.directory)
     report.update(attr_report)
     issues.extend(attr_issues)
+    report["state_controlled_derived"] = derive_state_controlled(outlets)
     registry.validate_outlets(outlets)
     after = coverage(outlets)
     countries = sorted(set(before) | set(after))

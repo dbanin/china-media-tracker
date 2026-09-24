@@ -299,7 +299,7 @@ body.map-failed.force-list #map-wrap { display: block; }
    contrast). Red is kept out of the leaning scale on purpose: the map already uses it for "more state
    content", and red and blue mean opposite parties in the United States and in Europe. */
 #leaning { grid-column: 1; grid-row: 4; position: relative; padding: 1.8rem 1.6rem 2.4rem 2.4rem; border-top: 1px solid var(--rule);
-  --lean-left: #3987e5; --lean-cleft: #256abf; --lean-centre: #75726b; --lean-cright: #a74c2a; --lean-right: #d45e31;
+  --lean-left: #3987e5; --lean-cleft: #256abf; --lean-centre: #75726b; --lean-cright: #a74c2a; --lean-right: #d45e31; --lean-state: #9085e9;
   --own-private: #199e70; --own-public: #c98500; --own-state: #d55181; --own-party: #9085e9;
   --lean-hatch: repeating-linear-gradient(45deg, #1f2226 0 3px, #5d5a53 3px 4px); }
 #leaning .th-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }

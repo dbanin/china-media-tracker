@@ -184,7 +184,8 @@
   notes: Public broadcaster. World section feed returns 404, the cronaca feed carries foreign items too. Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://www.semrush.com/trending-websites/it/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/RAI
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RAI
   active: true
@@ -1833,7 +1834,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/RTSH
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RTSH
   active: true
@@ -1940,7 +1942,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://statemediamonitor.com/2025/07/sky-news-arabia/
   ownership: state
   ownership_source: https://statemediamonitor.com/2025/07/sky-news-arabia/
   active: true
@@ -1959,7 +1962,8 @@
   notes: Discovered by automated feed search. Verified 2026-09-02. Name taken from the feed title; language inferred from the country, check on first review.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/united-arab-emirates/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/The_National_(Abu_Dhabi)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/The_National_(Abu_Dhabi)
   active: true
@@ -2470,7 +2474,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/oxu.az/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Azerbaijani_Press_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Azerbaijani_Press_Agency
   active: true
@@ -2531,7 +2536,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/oxu.az/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Qafqazinfo
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Qafqazinfo
   active: true
@@ -2934,7 +2940,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/benin
   ownership: state
   ownership_source: https://rsf.org/en/country/benin
   active: true
@@ -2952,7 +2959,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.facebook.com/rtburkina/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: true
@@ -3094,7 +3102,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.facebook.com/rtburkina/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: true
@@ -3122,7 +3131,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.facebook.com/rtburkina/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Sidwaya
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sidwaya
   active: true
@@ -3627,7 +3637,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_the_Bahamas
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/ZNS-TV
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/ZNS-TV
   active: true
@@ -3661,7 +3672,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   active: true
@@ -3754,7 +3766,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   active: true
@@ -3925,7 +3938,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.ebc.com.br/sobre
   ownership: state
   ownership_source: https://www.ebc.com.br/sobre
   active: true
@@ -3941,7 +3955,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www12.senado.leg.br/noticias/quem-somos-agencia-senado
   ownership: state
   ownership_source: https://www12.senado.leg.br/noticias/quem-somos-agencia-senado
   active: true
@@ -4438,7 +4453,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/barbadostoday.bb/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Caribbean_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Caribbean_Broadcasting_Corporation
   active: true
@@ -4497,7 +4513,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Brunei
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.bizbrunei.com/
   ownership: state
   ownership_source: https://www.bizbrunei.com/
   active: true
@@ -4526,7 +4543,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Brunei
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Radio_Television_Brunei
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Television_Brunei
   active: true
@@ -4567,7 +4585,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/thebhutanese.bt/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
   active: true
@@ -5005,7 +5024,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   audience_rank: 8
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Empresa_Period%C3%ADstica_La_Naci%C3%B3n_S.A.
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Empresa_Period%C3%ADstica_La_Naci%C3%B3n_S.A.
   active: true
@@ -5141,7 +5161,8 @@
       readable: false
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/ivory-coast
   ownership: state
   ownership_source: https://rsf.org/en/country/ivory-coast
   active: true
@@ -5433,7 +5454,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/democratic-republic-congo
   ownership: state
   ownership_source: https://rsf.org/en/country/democratic-republic-congo
   active: true
@@ -5490,7 +5512,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_the_Republic_of_the_Congo
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_the_Republic_of_the_Congo
   active: true
@@ -5684,7 +5707,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   ownership: state
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   active: true
@@ -5751,7 +5775,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/comoros
   ownership: state
   ownership_source: https://rsf.org/en/country/comoros
   active: true
@@ -6025,7 +6050,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/cibercuba.com/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Cubadebate
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Cubadebate
   active: true
@@ -6052,7 +6078,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -6068,7 +6095,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -6150,7 +6178,8 @@
   tier: agency
   notes: Verified 2026-09-02.
   audience_rank: 7
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -6167,7 +6196,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -6183,7 +6213,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -6199,7 +6230,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
@@ -7024,7 +7056,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/djibouti
   ownership: state
   ownership_source: https://rsf.org/en/country/djibouti
   active: true
@@ -7057,7 +7090,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/djibouti
   ownership: state
   ownership_source: https://rsf.org/en/country/djibouti
   active: true
@@ -7481,7 +7515,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_Algeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Algeria
   active: true
@@ -7600,7 +7635,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://es.wikipedia.org/wiki/TC_Televisión
   ownership: state
   ownership_source: https://es.wikipedia.org/wiki/TC_Televisión
   active: true
@@ -7800,7 +7836,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
   ownership: state
   ownership_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
   active: true
@@ -8377,7 +8414,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   active: true
@@ -8582,7 +8620,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/The_Fiji_Times
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
   active: true
@@ -9132,7 +9171,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
   active: true
@@ -9614,7 +9654,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/ghana
   ownership: state
   ownership_source: https://rsf.org/en/country/ghana
   active: true
@@ -9630,7 +9671,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/ghana
   ownership: state
   ownership_source: https://rsf.org/en/country/ghana
   active: true
@@ -9648,7 +9690,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://news.feedspot.com/ghana_news_websites/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   active: true
@@ -9726,7 +9769,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Agence_guin%C3%A9enne_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_guin%C3%A9enne_de_presse
   active: true
@@ -9993,7 +10037,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/guinea-bissau
   ownership: state
   ownership_source: https://rsf.org/en/country/guinea-bissau
   active: true
@@ -10091,7 +10136,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_Greece
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Greece
   active: true
@@ -10388,7 +10434,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/kaieteurnewsonline.com/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
   active: true
@@ -10431,7 +10478,8 @@
       readable: true
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://dpi.gov.gy/
   ownership: state
   ownership_source: https://dpi.gov.gy/
   active: true
@@ -10617,7 +10665,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 7
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/hong-kong
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Radio_Television_Hong_Kong
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Television_Hong_Kong
   active: true
@@ -11242,7 +11291,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
   ownership: state
   ownership_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
   active: true
@@ -11430,7 +11480,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   active: true
@@ -11452,7 +11503,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   active: true
@@ -13304,7 +13356,8 @@
       readable: true
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Jamaica
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Jamaica
   active: true
@@ -13875,7 +13928,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Kenya_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Kenya_Broadcasting_Corporation
   active: true
@@ -14086,7 +14140,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   active: true
@@ -14102,7 +14157,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   active: true
@@ -14157,7 +14213,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   active: true
@@ -14328,7 +14385,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://pressocm.gov.kh/en/
   ownership: state
   ownership_source: https://pressocm.gov.kh/en/
   active: true
@@ -14709,7 +14767,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 7
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/south-korea
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   active: true
@@ -14726,7 +14785,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   active: true
@@ -14815,7 +14875,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   audience_rank: 4
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://laopost.com/
   ownership: state
   ownership_source: https://laopost.com/
   active: true
@@ -15038,7 +15099,8 @@
   tier: agency
   notes: Verified 2026-09-02.
   audience_rank: 12
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
@@ -15055,7 +15117,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
@@ -15410,7 +15473,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.gov.ls/feed/
   ownership: state
   ownership_source: https://www.gov.ls/feed/
   collector: self_hosted
@@ -16771,7 +16835,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
   active: true
@@ -16852,7 +16917,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Agence_malienne_de_presse_et_de_publicit%C3%A9
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_malienne_de_presse_et_de_publicit%C3%A9
   active: true
@@ -17356,7 +17422,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.scimagomedia.com/rankings.php?country=Mozambique
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   active: true
@@ -17596,7 +17663,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=Malawi
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/malawi
   ownership: state
   ownership_source: https://rsf.org/en/country/malawi
   active: true
@@ -17827,7 +17895,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Malaysia
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Malaysia
   active: true
@@ -17997,7 +18066,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.scimagomedia.com/rankings.php?country=Namibia
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/namibia
   ownership: state
   ownership_source: https://rsf.org/en/country/namibia
   active: true
@@ -18051,7 +18121,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Agence_nig%C3%A9rienne_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_nig%C3%A9rienne_de_presse
   active: true
@@ -18080,7 +18151,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=Niger
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Niger
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Niger
   active: true
@@ -18297,7 +18369,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
   active: true
@@ -18491,7 +18564,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
   active: true
@@ -19443,7 +19517,8 @@
   notes: Discovered by automated feed search. Verified 2026-09-02. Name taken from the feed title; language inferred from the country, check on first review.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/om/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Oman_Daily_Observer
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Oman_Daily_Observer
   active: true
@@ -19509,7 +19584,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   active: true
@@ -19840,7 +19916,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   active: true
@@ -19856,7 +19933,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   active: true
@@ -20500,7 +20578,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Polish_Press_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Polish_Press_Agency
   active: true
@@ -20875,7 +20954,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.ip.gov.py/ip/
   ownership: state
   ownership_source: https://www.ip.gov.py/ip/
   active: true
@@ -21097,7 +21177,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/qa/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
   active: true
@@ -21167,7 +21248,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Agerpres
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Agerpres
   active: true
@@ -21375,7 +21457,8 @@
       readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Argumenty_i_Fakty
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Argumenty_i_Fakty
   active: true
@@ -21425,7 +21508,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Gazeta.ru
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Gazeta.ru
   active: true
@@ -21703,7 +21787,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
   active: true
@@ -21726,7 +21811,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/RIA_Novosti
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RIA_Novosti
   active: true
@@ -21753,7 +21839,8 @@
       readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   active: true
@@ -21779,7 +21866,8 @@
       readable: true
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   active: true
@@ -21795,7 +21883,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/TASS
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TASS
   active: true
@@ -21821,7 +21910,8 @@
       readable: true
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/TASS
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TASS
   active: true
@@ -22066,7 +22156,8 @@
       readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Arab_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Arab_News
   collector: self_hosted
@@ -22083,7 +22174,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   active: true
@@ -22099,7 +22191,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   active: true
@@ -22260,7 +22353,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
   active: true
@@ -22318,7 +22412,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/Le_Soleil_(S%C3%A9n%C3%A9gal)
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Le_Soleil_(S%C3%A9n%C3%A9gal)
   active: true
@@ -23261,7 +23356,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://nl.wikipedia.org/wiki/Communicatie_Dienst_Suriname
   ownership: state
   ownership_source: https://nl.wikipedia.org/wiki/Communicatie_Dienst_Suriname
   active: true
@@ -23348,7 +23444,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://en.wikipedia.org/wiki/De_Ware_Tijd
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://nl.wikipedia.org/wiki/Surinaamse_Televisie_Stichting
   ownership: state
   ownership_source: https://nl.wikipedia.org/wiki/Surinaamse_Televisie_Stichting
   active: true
@@ -23894,7 +23991,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://rsf.org/en/country/seychelles
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/seychelles
   ownership: state
   ownership_source: https://rsf.org/en/country/seychelles
   active: true
@@ -24029,7 +24127,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   active: true
@@ -24048,7 +24147,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/syria.tv/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   active: true
@@ -24146,7 +24246,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://atpe.td/
   ownership: state
   ownership_source: https://atpe.td/
   active: true
@@ -24241,7 +24342,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://atop.tg/
   ownership: state
   ownership_source: https://atop.tg/
   active: true
@@ -24609,7 +24711,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://journalists.feedspot.com/tajikistan_news_websites/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Khovar
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Khovar
   active: true
@@ -24642,7 +24745,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   active: true
@@ -24768,7 +24872,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Tatoli
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Tatoli
   active: true
@@ -24784,7 +24889,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Tatoli
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Tatoli
   active: true
@@ -25052,7 +25158,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.semrush.com/trending-websites/tn/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
   ownership: state
   ownership_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
   active: true
@@ -25762,7 +25869,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=Tanzania
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   active: true
@@ -25780,7 +25888,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.scimagomedia.com/rankings.php?country=Tanzania
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   active: true
@@ -26153,7 +26262,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Ukrinform
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ukrinform
   active: true
@@ -26169,7 +26279,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Ukrinform
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ukrinform
   active: true
@@ -27466,7 +27577,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://www.similarweb.com/website/kun.uz/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/UzA
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/UzA
   active: true
@@ -27482,7 +27594,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/UzA
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/UzA
   active: true
@@ -27732,7 +27845,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/top-websites/vietnam/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://vi.wikipedia.org/wiki/D%C3%A2n_tr%C3%AD_(b%C3%A1o)
   ownership: state
   ownership_source: https://vi.wikipedia.org/wiki/D%C3%A2n_tr%C3%AD_(b%C3%A1o)
   active: true
@@ -27782,7 +27896,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://vi.wikipedia.org/wiki/S%C3%A0i_G%C3%B2n_Gi%E1%BA%A3i_Ph%C3%B3ng_(b%C3%A1o)
   ownership: state
   ownership_source: https://vi.wikipedia.org/wiki/S%C3%A0i_G%C3%B2n_Gi%E1%BA%A3i_Ph%C3%B3ng_(b%C3%A1o)
   active: true
@@ -27800,7 +27915,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   audience_rank: 6
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Thanh_Ni%C3%AAn
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Thanh_Ni%C3%AAn
   active: true
@@ -27853,7 +27969,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.similarweb.com/top-websites/vietnam/news-and-media/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/VietNamNet
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/VietNamNet
   active: true
@@ -27870,7 +27987,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
@@ -27887,7 +28005,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
@@ -27903,7 +28022,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
@@ -27966,7 +28086,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/Vanuatu_Daily_Post
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vanuatu_Broadcasting_and_Television_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vanuatu_Broadcasting_and_Television_Corporation
   active: true
@@ -28372,7 +28493,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   active: true
@@ -28388,7 +28510,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.sanews.gov.za/
   ownership: state
   ownership_source: https://www.sanews.gov.za/
   active: true
@@ -28501,7 +28624,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=Zambia
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/zambia
   ownership: state
   ownership_source: https://rsf.org/en/country/zambia
   active: true
@@ -28864,7 +28988,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://taaf.fr/
   ownership: state
   ownership_source: https://taaf.fr/
   active: true
@@ -28882,7 +29007,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://antiguaobserver.com/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Antigua_Broadcasting_Service
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antigua_Broadcasting_Service
   active: true
@@ -29352,7 +29478,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://gov.fm/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://gov.fm/
   ownership: state
   ownership_source: https://gov.fm/
   active: true
@@ -29551,7 +29678,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://biot.gov.io/
   ownership: state
   ownership_source: https://biot.gov.io/
   active: true
@@ -29622,7 +29750,8 @@
       readable: true
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   active: true
@@ -29823,7 +29952,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Monaco
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Monaco_Info
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Monaco_Info
   active: true
@@ -29928,7 +30058,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.gov.ms/
   ownership: state
   ownership_source: https://www.gov.ms/
   collector: self_hosted
@@ -30389,7 +30520,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.gov.gs/
   ownership: state
   ownership_source: https://www.gov.gs/
   active: true
@@ -30406,7 +30538,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.sainthelena.gov.sh/
   ownership: state
   ownership_source: https://www.sainthelena.gov.sh/
   active: true
@@ -30582,7 +30715,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/Vatican_News
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.fides.org/en
   ownership: state
   ownership_source: https://www.fides.org/en
   active: true
@@ -30600,7 +30734,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/Vatican_News
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
   active: true
@@ -30630,7 +30765,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/Vatican_News
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vatican_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vatican_News
   active: true
@@ -30648,7 +30784,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/Vatican_News
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Vatican_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vatican_News
   active: true
@@ -30685,7 +30822,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/stvincenttimes.com/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.nbcsvg.com/about-us/
   ownership: state
   ownership_source: https://www.nbcsvg.com/about-us/
   active: true
@@ -30974,7 +31112,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 3
   rank_source: https://www.yaga-burundi.com/ou-informent-burundais/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://www.state.gov/report/custom/435b7d7a07/
   ownership: state
   ownership_source: https://www.state.gov/report/custom/435b7d7a07/
   active: true
@@ -31015,7 +31154,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.scimagomedia.com/rankings.php?country=Mozambique
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   active: true
@@ -31029,7 +31169,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://www.scimagomedia.com/rankings.php?country=Mauritania
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/mauritania
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritania
   active: true
@@ -31043,7 +31184,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 3
   rank_source: https://www.scimagomedia.com/rankings.php?country=Mauritania
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/mauritania
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritania
   active: true
@@ -31057,7 +31199,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.scimagomedia.com/rankings.php?country=Mauritius
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/mauritius
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritius
   active: true
@@ -31085,7 +31228,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.scimagomedia.com/rankings.php?country=Namibia
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/namibia
   ownership: state
   ownership_source: https://rsf.org/en/country/namibia
   active: true
@@ -31142,7 +31286,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://ahrefstop.com/websites/rwanda/news
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://guides.library.stanford.edu/rwanda-news-rwanda-newspapers
   ownership: state
   ownership_source: https://guides.library.stanford.edu/rwanda-news-rwanda-newspapers
   active: true
@@ -31183,7 +31328,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://ahrefstop.com/websites/senegal/news
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_au_S%C3%A9n%C3%A9gal
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_au_S%C3%A9n%C3%A9gal
   active: true
@@ -31225,7 +31371,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.scimagomedia.com/rankings.php?country=Sao+Tome+and+Principe
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rn-stp.com/
   ownership: state
   ownership_source: https://rn-stp.com/
   active: true
@@ -31239,7 +31386,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://rsf.org/en/country/togo
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/w/index.php?search=%22Togo-Presse%22
   ownership: state
   ownership_source: https://fr.wikipedia.org/w/index.php?search=%22Togo-Presse%22
   active: true
@@ -31467,7 +31615,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/The_Montserrat_Reporter
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Radio_Montserrat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Montserrat
   active: true
@@ -31521,7 +31670,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/ZIZ
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/ZIZ
   active: true
@@ -31669,7 +31819,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/trinidadexpress.com/
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Television
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Television
   active: true
@@ -31914,7 +32065,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://unsco.unmissions.org/sites/default/files/2025-07/Media_Survey_Report_CPIO_FINAL_ENG.pdf
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   active: true
@@ -32064,7 +32216,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://www.semrush.com/trending-websites/jo/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://rsf.org/en/country/jordan
   ownership: state
   ownership_source: https://rsf.org/en/country/jordan
   active: true
@@ -32143,7 +32296,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://www.semrush.com/trending-websites/ye/newspapers
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Saba_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Saba_News_Agency
   active: true
@@ -32710,7 +32864,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/Media_of_New_Zealand
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/TVNZ
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TVNZ
   active: true
@@ -32798,7 +32953,8 @@
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/Media_of_Ghana
-  political_leaning: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Ghanaian_Times
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ghanaian_Times
   active: true

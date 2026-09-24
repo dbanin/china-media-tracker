@@ -617,7 +617,8 @@
   var LEAN_GROUPS = {
     leaning: [["left", "Left", "var(--lean-left)"], ["centre_left", "Centre left", "var(--lean-cleft)"],
               ["centre", "Centre", "var(--lean-centre)"], ["centre_right", "Centre right", "var(--lean-cright)"],
-              ["right", "Right", "var(--lean-right)"], ["unassessed", "Not assessed", null]],
+              ["right", "Right", "var(--lean-right)"], ["state_controlled", "State controlled", "var(--lean-state)"],
+              ["unassessed", "Not assessed", null]],
     ownership: [["private", "Private", "var(--own-private)"], ["public_service", "Public service", "var(--own-public)"],
                 ["state", "State", "var(--own-state)"], ["party", "Party", "var(--own-party)"], ["unassessed", "Not assessed", null]]
   };
@@ -654,7 +655,7 @@
       " by the " + what + " of the outlet that published them, " + (md.iso ? "in " + countryName(md.iso) : "in every monitored country") +
       ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + (md.axis === "leaning" ? "leaning" : "ownership type") + ".";
     el("lean-note").textContent = "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
-      (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. " : "") +
+      (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. State controlled means a state owned outlet without editorial independence, whose line is the government's rather than a left or right one. " : "") +
       "Not assessed means no reliable source was found, never a guess.";
     var svg = d3.select("#lean-pie"); svg.selectAll("*").remove();
     var defs = svg.append("defs");
