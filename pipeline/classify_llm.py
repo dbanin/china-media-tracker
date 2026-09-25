@@ -212,6 +212,45 @@ def make_client(dry_run: bool = False):
     return anthropic.Anthropic(api_key=config._env("ANTHROPIC_API_KEY", ""))
 
 
+def _collapse_dup_groups(rows: List) -> List:
+    """Collapse a to-do list to at most one representative row per non-null dup_group_id, in the
+    order given. The rest are simply left out; they stay at 'awaiting_llm' and are picked up by
+    _settle_pending_dup_siblings once the representative has a label, or by the ordinary
+    _copy_from_dup_group sweep on a later run if the representative is never drawn this run."""
+    seen = set()
+    representatives = []
+    for r in rows:
+        gid = r["dup_group_id"]
+        if gid:
+            if gid in seen:
+                continue
+            seen.add(gid)
+        representatives.append(r)
+    return representatives
+
+
+def _settle_pending_dup_siblings(conn, article_id: int) -> int:
+    """After article_id gets a fresh (non-copied) label, copy it into every other still-pending
+    ('awaiting_llm') member of its near-duplicate group, via the existing _copy_from_dup_group
+    path. Returns the number settled. Used both after a synchronous classification and after a
+    batch collection, so a held-back sibling never has to wait for a separate run to be copied for
+    free."""
+    row = conn.execute("SELECT dup_group_id FROM articles WHERE id=?", (article_id,)).fetchone()
+    gid = row["dup_group_id"] if row else None
+    if not gid:
+        return 0
+    siblings = conn.execute(
+        "SELECT * FROM articles WHERE dup_group_id=? AND id<>? AND status='awaiting_llm'",
+        (gid, article_id),
+    ).fetchall()
+    settled = 0
+    for sib in siblings:
+        if _copy_from_dup_group(conn, sib):
+            settled += 1
+            conn.commit()
+    return settled
+
+
 def _copy_from_dup_group(conn, row) -> bool:
     """If another placement of the same underlying item already has an LLM label, copy it."""
     if not row["dup_group_id"]:
@@ -297,6 +336,21 @@ def draw(rows: List, k: int, seed: str) -> Tuple[List, Dict[str, List[int]]]:
 
 def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False, dry_run: bool = False,
         client=None, max_consecutive_errors: int = 3) -> Dict:
+    """Run one classify_llm stage.
+
+    CHANGELOG (no RULESET_VERSION/GATE_VERSION bump: this changes which calls are made, not what
+    any label means). Near-duplicate members of one dup_group_id are normally labelled once and
+    copied to their siblings for free via _copy_from_dup_group. That copy only sees a label
+    already recorded before *this* row was checked, so when several still-unlabelled members of
+    the same group were drawn into the same run or the same batch submission, none of them had a
+    label yet at submission time and all went out as separate, billable calls, about 3.5% of a
+    month's model calls, purely mechanical waste. The to-do list is now collapsed to at most one
+    representative per dup_group_id before draw() runs, so only the representative is ever drawn
+    or submitted and only it counts against the daily ceiling and the per-country draw quotas; the
+    held-back siblings stay queued at 'awaiting_llm' and are settled, via the same
+    _copy_from_dup_group path, the moment the representative gets a label: synchronously right
+    after it is classified, or after a later run collects the batch that classified it.
+    """
     log_id = store.start_stage(conn, run_id, "classify_llm")
     counts = {"pending": 0, "classified": 0, "copied": 0, "errors": 0, "ceiling_hit": False,
               "calls": 0, "batch_submitted": 0, "batch_collected": 0, "skipped_deadline": 0}
@@ -350,6 +404,11 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             conn.commit()
         else:
             todo.append(r)
+    # Several still-unlabelled members of one dup_group_id must not all be drawn or submitted this
+    # run: none would have a label yet to copy from, so all would go out as separate real calls.
+    # Only one representative per group is offered to draw(); the rest stay at 'awaiting_llm' and
+    # are settled for free by _settle_pending_dup_siblings once the representative has a label.
+    todo = _collapse_dup_groups(todo)
     # When the ceiling binds, the articles sent are a stratified random draw across countries and the
     # allocation is recorded; otherwise every article is sent, in random order. In synchronous mode,
     # later members of a near-duplicate group still copy from a member classified earlier in this run.
@@ -381,6 +440,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         if _copy_from_dup_group(conn, r):
             counts["copied"] += 1
             conn.commit()
+            counts["copied"] += _settle_pending_dup_siblings(conn, r["id"])
             continue
         if remaining <= 0:
             break
@@ -427,6 +487,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         store_result(conn, r["id"], data, getattr(message, "model", None) or config.LLM_MODEL)
         counts["classified"] += 1
         conn.commit()
+        counts["copied"] += _settle_pending_dup_siblings(conn, r["id"])
     _record_draw(conn, today, binding, allocation, sent)
     left = conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0]
     store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
@@ -474,7 +535,7 @@ def _submit_batch(conn, client, rows) -> int:
 
 
 def _collect_batches(conn, client) -> Dict:
-    out = {"batch_collected": 0, "batch_errors": 0}
+    out = {"batch_collected": 0, "batch_errors": 0, "copied": 0}
     # The second rater's study batches carry other ids and are collected by pipeline.second_rater.
     for b in conn.execute("SELECT * FROM llm_batches WHERE status='submitted' AND kind='classify'").fetchall():
         # One batch that cannot be read must not stop the others, and must not stop the run: the
@@ -501,6 +562,10 @@ def _collect_batches(conn, client) -> Dict:
                     if data and not data.get("_error"):
                         store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"])
                         out["batch_collected"] += 1
+                        # A held-back sibling submitted to this or an earlier batch is settled for
+                        # free the moment its group's representative is collected, rather than
+                        # waiting for the next run's generic _copy_from_dup_group sweep.
+                        out["copied"] += _settle_pending_dup_siblings(conn, aid)
                         continue
                     kind = (data or {}).get("_error") or "no_response"
                 elif rtype in ("errored", "expired", "canceled"):
