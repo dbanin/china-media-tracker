@@ -108,7 +108,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Il_Messaggero
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   active: true
@@ -201,7 +202,8 @@
     sections: []
   tier: national_daily
   notes: Digital native. Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/il-post-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Il_Post
   active: true
@@ -316,7 +318,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://mediabiasfactcheck.com/il-tempo/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   active: true
@@ -349,7 +352,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/linkiesta-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Linkiesta
   active: true
@@ -429,7 +433,8 @@
     sections: []
   tier: regional
   notes: Naples regional daily. Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Il_Mattino
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   active: true
@@ -1433,7 +1438,8 @@
       readable: false
   tier: regional
   notes: ACM, Launceston. Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/launceston-examiner-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Australian_Community_Media
   active: true
@@ -1851,7 +1857,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://en.wikipedia.org/wiki/Tirana_Times
   ownership: unassessed
   active: true
 - id: al_top
@@ -1908,7 +1915,8 @@
   notes: Discovered by automated feed search. Verified 2026-09-02. Name taken from the feed title; language inferred from the country, check on first review.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/united-arab-emirates/news-and-media/
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://mediabiasfactcheck.com/gulf-news/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Gulf_News
   active: true
@@ -2088,7 +2096,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/El_D%C3%ADa_(La_Plata)
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_D%C3%ADa_(Argentina)
   active: true
@@ -2202,7 +2211,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://es.wikipedia.org/wiki/Diario_Perfil
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Perfil
   active: true
@@ -2509,7 +2519,8 @@
   audience_rank: 6
   rank_source: https://www.similarweb.com/website/oxu.az/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://minval.az/
   active: true
 - id: az_oxu
   name: Oxu.az
@@ -3075,7 +3086,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.minute.bf/a-propos-de-minute/
   active: true
 - id: bf_omega
   name: Radio Omega
@@ -3656,7 +3668,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.semrush.com/trending-websites/ba/all
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Dnevni_avaz
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   active: true
@@ -4121,7 +4134,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/brazil
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/globo-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/G1_(website)
   active: true
@@ -4787,7 +4801,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ndjonisango.com/2021/01/05/rca-oubangui-medias-un-nouveau-media-est-cree/
   collector: self_hosted
   active: true
 - id: cf_radiondekaluka
@@ -5090,7 +5105,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://afriksoir.net/a-propos/
   collector: self_hosted
   active: true
 - id: ci_ivoirmatin
@@ -5194,7 +5210,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://237online.com/a-propos/
   active: true
 - id: cm_actucameroun
   name: Actu Cameroun
@@ -5361,7 +5378,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.congoindependant.com/qui-sommes-nous/
   active: true
 - id: cd_infocongo
   name: Info Congo
@@ -5394,7 +5412,8 @@
   rank_source: https://en.wikipedia.org/wiki/Media_of_the_Democratic_Republic_of_the_Congo
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Le_Potentiel
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/Le_Potentiel
   collector: self_hosted
   active: true
 - id: cd_politico
@@ -5655,7 +5674,8 @@
     sections: []
   tier: business
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://es.wikipedia.org/wiki/La_República_(Colombia)
   ownership: private
   ownership_source: https://colombia.mom-gmr.org/es/media/detail/outlet/el-colombianocom/
   active: true
@@ -5793,7 +5813,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://anacao.cv/ficha-tecnica/
   active: true
 - id: cv_balai
   name: Balai
@@ -5829,7 +5850,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://expressodasilhas.cv/info/ficha-tecnica
   active: true
 - id: cv_rtc
   name: RTC
@@ -6499,7 +6521,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://cs.wikipedia.org/wiki/Forum24
   ownership: private
   ownership_source: https://www.nfnz.cz/rating/other/forum-24/
   active: true
@@ -7172,7 +7195,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/denmark/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/b-t-denmark/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/B.T._(tabloid)
   active: true
@@ -7210,7 +7234,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/denmark/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/ekstra-bladet-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ekstra_Bladet
   active: true
@@ -7308,7 +7333,8 @@
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/listindiario.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://eldia.com.do/quienes-somos/
   active: true
 - id: do_elnuevodiario
   name: El Nuevo Diario
@@ -7325,7 +7351,8 @@
   audience_rank: 7
   rank_source: https://www.similarweb.com/website/listindiario.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://elnuevodiario.com.do/quienes-somos/
   active: true
 - id: do_n
   name: N Digital
@@ -7340,7 +7367,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://n.com.do/
   active: true
 - id: do_noticiassin
   name: Noticias SIN
@@ -7446,7 +7474,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.semrush.com/trending-websites/dz/newspapers
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/El_Khabar
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Algeria
   active: true
@@ -7621,7 +7650,8 @@
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/primicias.ec/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.metroecuador.com.ec/ceo/
   active: true
 - id: ec_tctelevision
   name: TC Televisión
@@ -7943,7 +7973,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/El_Correo
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/ABC_(newspaper)
   active: true
@@ -8302,7 +8333,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/148514/eesti-rahvusringhaeaeling-err-online
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Eesti_Rahvusringh%C3%A4%C3%A4ling
   active: true
@@ -8340,7 +8372,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://addisfortune.news/about-us/
   active: true
 - id: et_addisstandard
   name: Addis Standard
@@ -8384,7 +8417,8 @@
   audience_rank: 5
   rank_source: https://news.feedspot.com/ethiopia_news_websites/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.capitalethiopia.com/
   active: true
 - id: et_ethiopiainsider
   name: Ethiopia Insider
@@ -8399,7 +8433,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ethiopiainsider.com/
   active: true
 - id: et_fana
   name: Fana Broadcasting
@@ -8493,7 +8528,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/finland
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://en.wikipedia.org/wiki/Iltalehti
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Iltalehti
   active: true
@@ -9209,7 +9245,8 @@
   audience_rank: 4
   rank_source: https://journalists.feedspot.com/gabon_news_websites/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.gabonreview.com/qui-sommes-nous/
   active: true
 - id: ga_infoplus
   name: Info241
@@ -9239,7 +9276,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://lalibreville.com/mentions-legales/
   collector: self_hosted
   active: true
 - id: gb_bbc
@@ -9624,7 +9662,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://3news.com/about-us/
   active: true
 - id: gh_asaase
   name: Asaase Radio
@@ -9819,7 +9858,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: http://www.kababachir.com/apres-son-contentieux-avec-antonio-souare-le-fondateur-de-guineelive-com-suspendu-de-laguipel-declaration/
   active: true
 - id: gn_guineematin
   name: Guinée Matin
@@ -9836,7 +9876,8 @@
   audience_rank: 1
   rank_source: https://journalists.feedspot.com/guinea_news_websites/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/Guineematin
   active: true
 - id: gn_guineenews
   name: Guinéenews
@@ -9941,7 +9982,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://alkambatimes.com/meet-the-alkamba-times-chairman-of-the-editorial-board-uncle-alieu-sagnia/
   active: true
 - id: gm_foroyaa
   name: Foroyaa
@@ -9992,7 +10034,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.kerrfatou.com/team/
   active: true
 - id: gm_standard
   name: The Standard Gambia
@@ -10007,7 +10050,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.accessgambia.com/extra/the-standard-newspaper.html
   active: true
 - id: gm_thevoice
   name: The Voice Gambia
@@ -10187,7 +10231,8 @@
   audience_rank: 5
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/greece
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.in.gr/omilos-alter-ego/
   active: true
 - id: gr_kathimerini
   name: Kathimerini
@@ -10417,7 +10462,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://directorio.sembramedia.org/republicagt/
   active: true
 - id: gy_chronicle
   name: Guyana Chronicle
@@ -10454,7 +10500,8 @@
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/kaieteurnewsonline.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://demerarawaves.com/about/
   active: true
 - id: gy_dpi
   name: DPI Guyana
@@ -10587,7 +10634,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://guyanachronicle.com/2021/04/17/village-voice-in-limbo/
   active: true
 - id: hk_asiatimes
   name: Asia Times
@@ -10601,7 +10649,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/asia-times/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Asia_Times
   active: true
@@ -10732,7 +10781,8 @@
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/laprensa.hn/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://es.wikipedia.org/wiki/Criterio.hn
   active: true
 - id: hn_elheraldo
   name: El Heraldo
@@ -10793,7 +10843,8 @@
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/laprensa.hn/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://hch.tv/nosotros/
   active: true
 - id: hn_hondudiario
   name: Hondudiario
@@ -10887,7 +10938,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.semrush.com/trending-websites/hr/all
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/148399/24-sata
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Croatia
   active: true
@@ -10994,7 +11046,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Novi_list
   ownership: private
   ownership_source: https://www.fiuman.hr/slovaci-prodali-novi-list-otkriveno-je-tko-je-novi-vlasnik-rijeckog-dnevnog-lista/
   active: true
@@ -11054,7 +11107,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://www.eurotopics.net/en/148836/tportal
   ownership: private
   ownership_source: https://www.eurotopics.net/en/148836/tportal
   active: true
@@ -11409,7 +11463,8 @@
     sections: []
   tier: business
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/portfolio-hungary-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Portfolio.hu
   active: true
@@ -11569,7 +11624,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/indonesia
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/detik-com/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Detik.com
   active: true
@@ -11597,7 +11653,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://id.wikipedia.org/wiki/Metta_Dharmasaputra
   active: true
 - id: id_kompas
   name: Kompas
@@ -11623,7 +11680,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Kontan
   collector: self_hosted
   active: true
 - id: id_liputan6
@@ -11640,8 +11698,10 @@
   notes: Verified 2026-09-02.
   audience_rank: 7
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/indonesia
-  political_leaning: unassessed
-  ownership: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/liputan6/
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Surya_Citra_Media
   active: true
 - id: id_mediaindonesia
   name: Media Indonesia
@@ -11673,7 +11733,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Republika_(Indonesian_newspaper)
   active: true
 - id: id_rri
   name: RRI
@@ -11716,7 +11777,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://id.wikipedia.org/wiki/Sindonews.com
   active: true
 - id: id_tempo
   name: Tempo
@@ -11872,7 +11934,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Dainik_Bhaskar
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
   active: true
@@ -12776,7 +12839,8 @@
   audience_rank: 9
   rank_source: https://www.similarweb.com/website/shafaq.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://find-and-update.company-information.service.gov.uk/company/05760872
   active: true
 - id: iq_ultrairaq
   name: Ultra Iraq
@@ -12793,7 +12857,8 @@
   audience_rank: 8
   rank_source: https://www.similarweb.com/website/shafaq.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ultrairaq.ultrasawt.com/
   active: true
 - id: is_dv
   name: DV
@@ -12872,7 +12937,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.semrush.com/trending-websites/is/all
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Morgunbla%C3%B0i%C3%B0
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Morgunbla%C3%B0i%C3%B0
   active: true
@@ -13218,7 +13284,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://he.wikipedia.org/wiki/%D7%A1%D7%A8%D7%95%D7%92%D7%99%D7%9D_(%D7%90%D7%AA%D7%A8_%D7%90%D7%99%D7%A0%D7%98%D7%A8%D7%A0%D7%98)
   active: true
 - id: il_timesofisrael
   name: The Times of Israel
@@ -13542,7 +13609,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.diamond.co.jp/company/
   active: true
 - id: jp_japantimes
   name: The Japan Times
@@ -13588,8 +13656,10 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
-  ownership: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/japan-today/
+  ownership: private
+  ownership_source: https://gplusmedia.com/en/2022/04/gplusmedia-acquired-by-gakken-holdings-co-ltd/
   active: true
 - id: jp_jiji
   name: Jiji Press
@@ -13700,7 +13770,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 7
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/nikkei-asian-review/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Nikkei_Inc.
   active: true
@@ -13746,7 +13817,8 @@
   audience_rank: 11
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Toyo_Keizai
   active: true
 - id: kz_astanatimes
   name: The Astana Times
@@ -13914,7 +13986,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://internewske.org/mediamap/place_capital_group.html
   active: true
 - id: ke_kbc
   name: KBC
@@ -14249,7 +14322,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://statsnet.co/companies/kg/56733511
   active: true
 - id: kh_bnn
   name: Bayon News
@@ -14279,7 +14353,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/cambodia-daily-bias-and-credibility/
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/the-cambodia-daily/
   active: true
@@ -14358,7 +14433,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/khmertimeskh.com/
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/koh-santepheap-daily/
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/kohsantepheapdailycomkh/
   active: true
@@ -14402,7 +14478,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
   ownership: public_service
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/wwwrfaorgkhmer/
   active: true
@@ -14438,7 +14515,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/daily-nk-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Daily_NK
   active: true
@@ -14514,7 +14592,8 @@
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/south-korea
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Korea_Economic_Daily
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://company.hankyung.com/ked/eng/
   active: true
 - id: kr_hankyung_en
   name: KED Global
@@ -14535,7 +14614,8 @@
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Korea_Economic_Daily
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.kedglobal.com/
   active: true
 - id: kr_kbs_en
   name: KBS World
@@ -14605,7 +14685,8 @@
       readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/korean-herald/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Korea_Herald
   active: true
@@ -14833,7 +14914,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Kuwait_Times
   active: true
 - id: kw_timeskuwait
   name: The Times Kuwait
@@ -14849,7 +14931,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 7
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://timeskuwait.com/news/about-us/
   active: true
 - id: la_laophattana
   name: Lao Phattana
@@ -14906,7 +14989,8 @@
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/kpl.gov.la/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://la.linkedin.com/company/the-laotian-times
   active: true
 - id: lb_addiyar
   name: Ad-Diyar
@@ -15492,7 +15576,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://newsdayonline.co.ls/
   active: true
 - id: ls_publiceye
   name: Public Eye
@@ -15614,7 +15699,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://www.eurotopics.net/en/148625/kauno-diena
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kauno_diena
   active: true
@@ -15648,7 +15734,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/lithuanian-national-radio-and-television-lrt-bias/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Lithuanian_National_Radio_and_Television
   active: true
@@ -15892,7 +15979,8 @@
   audience_rank: 5
   rank_source: https://en.wikipedia.org/wiki/Media_of_Macau
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://hojemacau.com.mo/ficha-tecnica/
   active: true
 - id: mo_macaonews
   name: Macao News
@@ -15909,7 +15997,8 @@
   audience_rank: 7
   rank_source: https://en.wikipedia.org/wiki/Media_of_Macau
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://macaonews.org/editorial-guidelines-and-code-of-practice-macao-news-macau/
   active: true
 - id: mo_macaubusiness
   name: Macau Business
@@ -15940,7 +16029,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Macau_Daily_Times
   active: true
 - id: mo_pontofinal
   name: Ponto Final
@@ -15957,7 +16047,8 @@
   audience_rank: 6
   rank_source: https://en.wikipedia.org/wiki/Media_of_Macau
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://pontofinalmacau.wordpress.com/ficha-tecnica/
   active: true
 - id: ma_2m
   name: 2M
@@ -16322,7 +16413,8 @@
   audience_rank: 6
   rank_source: https://www.similarweb.com/website/protv.md/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://moldova.mom-gmr.org/ro/owners/companies/company/news-maker-98125/
   active: true
 - id: md_point
   name: Point.md
@@ -16337,7 +16429,8 @@
   tier: aggregator
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://moldova.mom-gmr.org/ru/media/online/outlet/point-md-98108/
   active: true
 - id: md_tv8
   name: TV8
@@ -16421,7 +16514,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Madagascar_Tribune
   active: true
 - id: mg_midi
   name: Midi Madagasikara
@@ -16457,7 +16551,8 @@
   audience_rank: 3
   rank_source: https://news.feedspot.com/madagascar_news_websites/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_ligne_%C3%A0_Madagascar
   active: true
 - id: mv_avas
   name: Avas
@@ -16485,7 +16580,8 @@
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/mihaaru.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://english.sun.mv/page/about
   active: true
 - id: mx_24horas
   name: 24 Horas
@@ -16511,7 +16607,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.dnb.com/business-directory/company-profiles.el_economista_grupo_editorial_sa_de_cv.d5fbc1d43a559ca827c54277c11b6664.html
   active: true
 - id: mx_elfinanciero
   name: El Financiero
@@ -16544,7 +16641,8 @@
   tier: regional
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://es.wikipedia.org/wiki/El_Informador_(M%C3%A9xico)
   active: true
 - id: mx_elnorte
   name: El Norte
@@ -16575,7 +16673,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/El_Pa%C3%ADs
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Pa%C3%ADs
   active: true
@@ -16701,7 +16800,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/publimetro-mexico-bias-and-credibility/
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Publimetro
   active: true
@@ -16852,7 +16952,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://north-macedonia.mom-gmr.org/en/media/detail/outlet/republika/
   ownership: private
   ownership_source: https://republika.mk/impresum
   active: true
@@ -16937,7 +17038,8 @@
   audience_rank: 6
   rank_source: https://premise.com/blog/news-sources-in-mali/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://bamada.net/a-propos-de-nous
   active: true
 - id: ml_journaldumali
   name: Journal du Mali
@@ -16954,7 +17056,8 @@
   audience_rank: 5
   rank_source: https://premise.com/blog/news-sources-in-mali/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.journaldumali.com/mentions-legales/
   active: true
 - id: ml_maliactu
   name: Mali Actu
@@ -16971,7 +17074,8 @@
   audience_rank: 2
   rank_source: https://premise.com/blog/news-sources-in-mali/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/Maliactu
   active: true
 - id: ml_malijet
   name: Malijet
@@ -17038,7 +17142,8 @@
   audience_rank: 7
   rank_source: https://premise.com/blog/news-sources-in-mali/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://sahelien.com/
   active: true
 - id: ml_studiotamani
   name: Studio Tamani
@@ -17079,7 +17184,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://lovinmalta.com/news/lovin-malta-announces-transfer-of-shares/
   active: true
 - id: mt_maltatoday
   name: MaltaToday
@@ -17144,7 +17250,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://gijn.org/stories/independent-media-rebuilds-inside-and-outside-myanmar-after-violent-coup/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/bbc/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
   active: true
@@ -17253,7 +17360,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   audience_rank: 7
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
@@ -17270,7 +17378,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://montenegro.mom-gmr.org/en/media/detail/outlet/cdm/
   active: true
 - id: me_mina
   name: MINA
@@ -17336,7 +17445,8 @@
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Mongolia
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://mongolia.mom-rsf.org/en/media/detail/outlet/wwwikonmn/
   active: true
 - id: mn_montsame
   name: Montsame
@@ -17373,7 +17483,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://cartamz.com/
   active: true
 - id: mz_clubofmozambique
   name: Club of Mozambique
@@ -17405,7 +17516,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://evidencias.co.mz/
   active: true
 - id: mz_noticias
   name: Notícias
@@ -17509,7 +17621,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://initiativesnews.com/
   active: true
 - id: mr_sahara
   name: Sahara Medias
@@ -17569,7 +17682,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ionnews.mu/about-us/
   active: true
 - id: mu_lemauricien
   name: Le Mauricien
@@ -17913,7 +18027,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.scoop.my/opinion-analysis/101496/heres-the-scoop/
   collector: self_hosted
   active: true
 - id: my_sinchew_zh
@@ -18009,7 +18124,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Confidente
   active: true
 - id: na_eagle
   name: Eagle FM
@@ -18024,7 +18140,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://eaglefm.com.na/about-us/
   active: true
 - id: na_namibian
   name: The Namibian
@@ -18326,7 +18443,8 @@
       readable: true
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/daily-trust-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Nigeria
   active: true
@@ -19063,7 +19181,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/the-local-norway/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Local
   active: true
@@ -19167,7 +19286,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.nepalnews.com/
   collector: self_hosted
   active: true
 - id: np_onlinekhabar
@@ -19220,7 +19340,8 @@
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/onlinekhabar.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.ratopati.com/
   active: true
 - id: np_republica
   name: myRepublica
@@ -19484,7 +19605,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://unglobalcompact.org/what-is-gc/participants/158197-Al-Roya-Newspaper-LLC
   active: true
 - id: om_alwatan
   name: https://alwatan.om
@@ -19500,7 +19622,8 @@
   tier: national_daily
   notes: Discovered by automated feed search. Verified 2026-09-02. Name taken from the feed title; language inferred from the country, check on first review.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Alwatan_(Oman)
   active: true
 - id: om_omanobserver
   name: https://www.omanobserver.om
@@ -19614,7 +19737,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/dawn.com/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/ary-news-bias-and-credibility/
   ownership: private
   ownership_source: https://pakistan.mom-gmr.org/en/media/
   active: true
@@ -19900,8 +20024,10 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://en.wikipedia.org/wiki/Media_of_Panama
-  political_leaning: unassessed
-  ownership: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/tvn-news-bias-and-credibility/
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/TVN_(Panamanian_TV_network)
   active: true
 - id: pe_andina
   name: Andina
@@ -19966,7 +20092,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://es.wikipedia.org/wiki/Diario_Correo
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Diario_Correo
   active: true
@@ -20119,7 +20246,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://semanaeconomica.com/quienes-somos
   collector: self_hosted
   active: true
 - id: pe_trome
@@ -20134,7 +20262,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://es.wikipedia.org/wiki/Trome
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Comercio_(Peru)
   active: true
@@ -20231,7 +20360,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/philippines
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/gma-network-bias/
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/gma-news-online-2/
   active: true
@@ -20389,7 +20519,8 @@
     sections: []
   tier: regional
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/SunStar
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/sunstar-cebu-4/
   active: true
@@ -20431,7 +20562,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.businessadvantagepng.com/privacy-policy/
   active: true
 - id: pg_postcourier
   name: Post-Courier
@@ -20514,7 +20646,8 @@
     sections: []
   tier: aggregator
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/176986/interia
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Interia.pl
   active: true
@@ -20546,7 +20679,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/notes-from-poland-bias-and-credibility/
   ownership: private
   ownership_source: https://notesfrompoland.com/about/
   active: true
@@ -20922,7 +21056,8 @@
   audience_rank: 9
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Paraguay
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://eltrueno.com.py/
   active: true
 - id: py_hoy
   name: Hoy
@@ -20940,7 +21075,8 @@
   audience_rank: 7
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Paraguay
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.hoy.com.py/
   active: true
 - id: py_ip
   name: Agencia IP
@@ -20974,7 +21110,8 @@
   audience_rank: 8
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Paraguay
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Unicanal
   active: true
 - id: ps_alayyam
   name: Al-Ayyam
@@ -21013,7 +21150,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.semrush.com/trending-websites/ps/newspapers
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Al-Quds_(newspaper)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Al-Quds_(newspaper)
   collector: self_hosted
@@ -21107,7 +21245,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/the-new-arab/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_New_Arab
   active: true
@@ -21129,7 +21268,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   audience_rank: 6
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/the-new-arab/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_New_Arab
   active: true
@@ -21285,7 +21425,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.paginademedia.ro/2012/03/romania-tv-a-lansat-economica-net/
   active: true
 - id: ro_g4media
   name: G4Media
@@ -21490,7 +21631,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/dw-news/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Deutsche_Welle
   active: true
@@ -21530,7 +21672,8 @@
       readable: false
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/interfax-russia-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Interfax
   active: true
@@ -21677,7 +21820,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://www.eurotopics.net/en/170195/moskovskij-komsomolets
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Moskovsky_Komsomolets
   active: true
@@ -21755,7 +21899,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/rbc-ru-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/RBC_Group
   active: true
@@ -21771,7 +21916,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://ru.wikipedia.org/wiki/REGNUM
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/REGNUM_News_Agency
   active: true
@@ -21961,7 +22107,8 @@
   tier: regional
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ru.wikipedia.org/wiki/URA.RU
   active: true
 - id: ru_vedomosti
   name: Vedomosti
@@ -22026,7 +22173,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.ktpress.rw/about-us/
   active: true
 - id: rw_rna
   name: Rwanda News Agency
@@ -22238,7 +22386,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/saudi-gazette/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Saudi_Gazette
   active: true
@@ -22371,7 +22520,8 @@
   tier: broadcaster
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.agenceecofin.com/medias/1110-60747-senegal-le-groupe-de-presse-emedia-invest-lance-son-premier-site-d-information
   active: true
 - id: sn_lequotidien
   name: Le Quotidien
@@ -22462,7 +22612,8 @@
   audience_rank: 2
   rank_source: https://ahrefstop.com/websites/senegal/news
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://senego.com/a-propos-de-senego
   active: true
 - id: sn_seneweb
   name: Seneweb
@@ -22783,7 +22934,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://cocorioko.net/about-cocorioko/
   active: true
 - id: sl_sierraleonetelegraph
   name: Sierra Leone Telegraph
@@ -22813,7 +22965,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://sierraloaded.sl/about
   active: true
 - id: sl_thecalabash
   name: The Calabash
@@ -22897,7 +23050,8 @@
   audience_rank: 6
   rank_source: https://en.wikipedia.org/wiki/Telecommunications_in_El_Salvador
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://gatoencerrado.news/quienes-somos/
   active: true
 - id: sv_lapagina
   name: La Página
@@ -22940,7 +23094,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.revistafactum.com/quienes-somos/
   active: true
 - id: so_goobjoog
   name: Goobjoog
@@ -22973,7 +23128,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Puntland_Post
   active: true
 - id: so_radiodalsan
   name: Radio Dalsan
@@ -23038,7 +23194,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: right
+  leaning_source: https://mediabiasfactcheck.com/b92-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/B92
   active: true
@@ -23055,7 +23212,8 @@
   tier: agency
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://beta.rs/kontakt
   active: true
 - id: rs_biznis
   name: Biznis.rs
@@ -23070,7 +23228,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.companywall.rs/firma/info-biznisrs/MMx1Oqpt0
   active: true
 - id: rs_blic
   name: Blic
@@ -23125,7 +23284,8 @@
   notes: Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Kurir
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://serbia.mom-gmr.org/sr/mediji/detail/outlet/kurir-2/
   active: true
 - id: rs_n1
   name: N1 Srbija
@@ -23177,7 +23337,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://novaekonomija.rs/impressum
   active: true
 - id: rs_politika
   name: Politika
@@ -23233,7 +23394,8 @@
   audience_rank: 3
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/serbia
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://serbia.mom-gmr.org/sr/mediji/detail/outlet/telegrafrs-1/
   active: true
 - id: ss_eyeradio
   name: Eye Radio
@@ -23325,7 +23487,8 @@
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=Sao+Tome+and+Principe
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.telanon.info/acerca/
   active: true
 - id: sr_abc
   name: ABC Suriname
@@ -23342,7 +23505,8 @@
   audience_rank: 5
   rank_source: https://en.wikipedia.org/wiki/De_Ware_Tijd
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://abcsuriname.com/over-ons/
   active: true
 - id: sr_cds
   name: CDS Suriname
@@ -23373,7 +23537,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Dagblad_Suriname
   ownership: private
   ownership_source: https://nl.wikipedia.org/w/index.php?search=%22Dagblad+Suriname%22
   active: true
@@ -23472,7 +23637,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.srherald.com/
   active: true
 - id: sr_unitednews
   name: United News
@@ -23487,7 +23653,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://unitednews.sr/unitedbrands/
   active: true
 - id: sr_waterkant
   name: Waterkant
@@ -23521,7 +23688,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/slovakia/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://sk.wikipedia.org/wiki/Aktuality.sk
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Aktuality.sk
   active: true
@@ -23575,7 +23743,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.postoj.sk/o-nas
   ownership: private
   ownership_source: https://www.postoj.sk/o-nas
   active: true
@@ -23595,7 +23764,8 @@
   audience_rank: 6
   rank_source: https://www.similarweb.com/top-websites/slovakia/news-and-media/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.forbes.sk/dennik-pravda-ma-noveho-majitela-patri-rebricka-najbohatsich-cechov/
   active: true
 - id: sk_rtvs
   name: RTVS
@@ -23664,7 +23834,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://www.semrush.com/trending-websites/si/all
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Delo_(newspaper)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Delo_(newspaper)
   active: true
@@ -23934,7 +24105,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/the-local-sweden/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Local
   active: true
@@ -23951,7 +24123,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.independentnews.co.sz/about-us
   active: true
 - id: sz_timesofswaziland
   name: Times of Eswatini
@@ -24196,7 +24369,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/syrian-observer-bias-and-credibility/
   ownership: private
   ownership_source: https://syrianobserver.com/about-us
   active: true
@@ -24232,7 +24406,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.alwihdainfo.com/mentions-legales/
   active: true
 - id: td_atpe
   name: ATPE
@@ -24269,7 +24444,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.journaldutchad.com/mentions-legales/
   active: true
 - id: td_lepays
   name: Le Pays Tchad
@@ -24302,7 +24478,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/Tchadinfos
   active: true
 - id: td_tchadvision
   name: Tchad Vision
@@ -24611,7 +24788,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Thai_Enquirer
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Thailand
   active: true
@@ -24629,7 +24807,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/thailand
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/thairath-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Thai_Rath
   active: true
@@ -25070,7 +25249,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://africanmanager.com/mentions-legales/
   active: true
 - id: tn_alchourouk
   name: Al Chourouk
@@ -25125,7 +25305,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://news.gnet.tn/a-propos/
   active: true
 - id: tn_kapitalis
   name: Kapitalis
@@ -25456,7 +25637,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.dunya.com/gundem/dunya-gazetesinin-yeni-imtiyaz-sahibi-umut-guner-oldu-haberi-716599
   active: true
 - id: tr_duvar
   name: Gazete Duvar
@@ -25482,7 +25664,8 @@
   tier: business
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://tr.wikipedia.org/wiki/Nas%C4%B1l_Bir_Ekonomi
   active: true
 - id: tr_evrensel
   name: Evrensel
@@ -25603,7 +25786,8 @@
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Karar_(newspaper)
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://tr.wikipedia.org/wiki/Karar_(gazete)
   active: true
 - id: tr_medyascope
   name: Medyascope
@@ -25769,7 +25953,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.turkishminute.com/who-are-we/
   active: true
 - id: tr_yenisafak
   name: Yeni Şafak
@@ -25938,7 +26123,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/The_Independent_(Uganda)
   active: true
 - id: ug_monitor
   name: Daily Monitor
@@ -25980,7 +26166,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.everybodywiki.com/Nile_Post_News_Uganda
   collector: self_hosted
   active: true
 - id: ug_observer
@@ -26050,7 +26237,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/euromaidan-press/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Euromaidan_Press
   active: true
@@ -26066,7 +26254,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/kyiv-post/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kyiv_Post
   active: true
@@ -26129,7 +26318,8 @@
   audience_rank: 5
   rank_source: https://www.similarweb.com/top-websites/ukraine/news-and-media/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ru.wikipedia.org/wiki/%D0%9D%D0%92_(%D0%B8%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5)
   active: true
 - id: ua_nv_en
   name: NV English
@@ -26144,7 +26334,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://ru.wikipedia.org/wiki/%D0%9D%D0%92_(%D0%B8%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5)
   active: true
 - id: ua_obozrevatel
   name: Obozrevatel
@@ -26298,7 +26489,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/ukraine/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/191798/unian
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/UNIAN
   active: true
@@ -26314,7 +26506,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/191798/unian
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/UNIAN
   active: true
@@ -26331,8 +26524,10 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
-  ownership: unassessed
+  political_leaning: centre_left
+  leaning_source: https://en.wikipedia.org/wiki/Dzerkalo_Tyzhnia
+  ownership: private
+  ownership_source: https://youcontrol.com.ua/en/catalog/company_details/35761274/
   active: true
 - id: uy_brecha
   name: Brecha
@@ -26348,7 +26543,8 @@
   notes: Verified 2026-09-02.
   political_leaning: left
   leaning_source: https://es.wikipedia.org/wiki/Brecha_(semanario)
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://brecha.com.uy/historia/
   active: true
 - id: uy_elpais
   name: El País Uruguay
@@ -27652,7 +27848,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/efecto-cocuyo-bias-and-credibility/
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Efecto_Cocuyo
   active: true
@@ -28136,7 +28333,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://kosovo.mom-gmr.org/sq/pronesia/kompanite/detail/company/company/show/indeksonline-shpk-1/
   active: true
 - id: xk_insajderi
   name: Insajderi
@@ -28357,7 +28555,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/africa-news/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Africanews
   active: true
@@ -28452,7 +28651,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://af.wikipedia.org/wiki/Maroela_Media
   active: true
 - id: za_moneyweb
   name: Moneyweb
@@ -28545,7 +28745,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/The_South_African
   active: true
 - id: zm_lusakastar
   name: Lusaka Star
@@ -28575,7 +28776,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.lusakatimes.com/about/
   active: true
 - id: zm_mwebantu
   name: Mwebantu
@@ -28590,7 +28792,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Mwebantu
   active: true
 - id: zm_newsdiggers
   name: News Diggers
@@ -28644,7 +28847,8 @@
   audience_rank: 6
   rank_source: https://www.ibzim.com/telecom/rankings/top-100-most-visited-websites-in-zimbabwe/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.263chat.com/about-our-founder/
   active: true
 - id: zw_chronicle
   name: The Chronicle
@@ -28749,7 +28953,8 @@
   audience_rank: 4
   rank_source: https://www.ibzim.com/telecom/rankings/top-100-most-visited-websites-in-zimbabwe/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.pindula.co.zw/Pindula:About
   active: true
 - id: zw_sundaymail
   name: The Sunday Mail
@@ -28832,7 +29037,8 @@
   audience_rank: 1
   rank_source: https://24ora.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://aruba.nu/en/2021/12/media-directeur-24ora-haalt-fel-uit-naar-minister-kabinet-wever-croes/
   active: true
 - id: aw_arubatoday
   name: Aruba Today
@@ -29057,7 +29263,8 @@
   audience_rank: 1
   rank_source: https://bonaire.nu/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://bonaire.nu/
   active: true
 - id: bq_infobonaire
   name: InfoBonaire
@@ -29770,7 +29977,8 @@
   audience_rank: 5
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.caribjournal.com/about/
   active: true
 - id: kn_timescaribbean
   name: Times Caribbean
@@ -29972,7 +30180,8 @@
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Monaco
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.monacolife.net/
   active: true
 - id: mc_monacomatin
   name: Monaco-Matin
@@ -30110,7 +30319,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.mayottehebdo.com/somapresse/
   active: true
 - id: nc_actu
   name: Actu.nc
@@ -30175,7 +30385,8 @@
   audience_rank: 1
   rank_source: https://niuenews.nu/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.niuenews.nu/
   active: true
 - id: pw_islandtimes
   name: Island Times Palau
@@ -30192,7 +30403,8 @@
   audience_rank: 1
   rank_source: https://islandtimes.org/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://pina.com.fj/pina-members/island-times/
   active: true
 - id: pr_elnuevodia
   name: El Nuevo Día
@@ -30219,7 +30431,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/Media_of_Puerto_Rico
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/el-nuevo-dia/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Nuevo_D%C3%ADa
   active: true
@@ -30249,7 +30462,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.metro.pr/
   active: true
 - id: pr_newsismybusiness
   name: News is my Business
@@ -30411,7 +30625,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.nknews.org/
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
@@ -31083,7 +31298,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://www.semrush.com/trending-websites/tn/newspapers
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/babnet-bias/
   ownership: private
   ownership_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/babnetnet/
   active: true
@@ -31504,7 +31720,8 @@
   audience_rank: 2
   rank_source: https://24ora.com/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.noticiacla.com/
   active: true
 - id: bb_starcom
   name: Starcom Network
@@ -31645,7 +31862,8 @@
   audience_rank: 2
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/The_St._Kitts-Nevis_Observer
   active: true
 - id: kn_sknnews
   name: SKN News
@@ -31699,7 +31917,8 @@
   audience_rank: 3
   rank_source: https://www.thedailyherald.sx/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.stmaartennews.com/
   active: true
 - id: do_elnacional
   name: El Nacional
@@ -31781,6 +32000,8 @@
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/peru
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Infobae
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Infobae
   active: true
@@ -31794,7 +32015,10 @@
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 9
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/peru
-  ownership: unassessed
+  political_leaning: left
+  leaning_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2023/peru
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Radio_Exitosa
   active: true
 - id: tc_newslinetci
   name: Newsline TCI
@@ -32096,7 +32320,8 @@
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/vietnam/news-and-media/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://vi.wikipedia.org/wiki/24h_(website)
   active: true
 - id: ae_khaleejtimes
   name: Khaleej Times
@@ -32137,7 +32362,8 @@
   audience_rank: 10
   rank_source: https://www.similarweb.com/website/news.am/
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://armenia.mom-gmr.org/en/owners/companies/company/168-zham-llc-114663/
   active: true
 - id: az_haqqin
   name: Haqqin.az
@@ -32150,6 +32376,8 @@
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/oxu.az/
   political_leaning: unassessed
+  ownership: private
+  ownership_source: https://ru.wikipedia.org/wiki/Haqqin.az
   active: true
 - id: ge_radiotavisupleba
   name: რადიო თავისუფლება (Radio Tavisupleba / RFE/RL Georgian Service)
@@ -32161,7 +32389,8 @@
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/1tv.ge/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/radio-free-europe-radio-liberty/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: true
@@ -32270,8 +32499,10 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.semrush.com/trending-websites/qa/newspapers
-  political_leaning: unassessed
-  ownership: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Al_Sharq
+  ownership: state
+  ownership_source: https://en.wikipedia.org/wiki/Al_Sharq
   active: true
 - id: ye_sahafah24
   name: Sahafah 24
@@ -32367,7 +32598,8 @@
   rank_source: https://www.asub.ax/sv/utredning/medievanor-pa-aland-2020
   political_leaning: centre_right
   leaning_source: https://journals.uio.no/TJMI/article/view/993/2213
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://sv.wikipedia.org/wiki/%C3%85landstidningen
   active: true
 - id: dk_jyllandsposten
   name: Jyllands-Posten
@@ -32437,6 +32669,9 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.similarweb.com/top-websites/romania/news-and-media/
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://ro.wikipedia.org/wiki/%C8%98tiripesurse.ro
   active: true
 - id: sk_sme
   name: Sme
@@ -32448,6 +32683,9 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/slovakia/news-and-media/
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/SME_(newspaper)
   active: true
 - id: sk_topky
   name: Topky.sk
@@ -32459,6 +32697,9 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://www.similarweb.com/top-websites/slovakia/news-and-media/
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://www.topky.sk/
   active: true
 - id: ua_24tv
   name: 24 Kanal
@@ -32470,6 +32711,9 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/ukraine/news-and-media/
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/24_Kanal
   active: true
 - id: gb_gbnews
   name: GB News
@@ -32554,7 +32798,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://gemius.com/lv/blogs/gemiusaudience-august%C4%81-apmekl%C4%93t%C4%81ko-audit%C4%93to-viet%C5%86u-top-20/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/delfi-bias/
   ownership: private
   ownership_source: https://globalmediaownership.com/delfi-latvia/
   active: true
@@ -32640,7 +32885,8 @@
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/portugal
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.noticiasaominuto.com/ficha-tecnica
   active: true
 - id: pt_cnnportugal
   name: CNN Portugal
@@ -32667,7 +32913,8 @@
   audience_rank: 3
   rank_source: https://www.semrush.com/trending-websites/me/all
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.portalanalitika.me/
   active: true
 - id: me_borba
   name: Borba
@@ -32680,7 +32927,8 @@
   audience_rank: 4
   rank_source: https://www.semrush.com/trending-websites/me/all
   political_leaning: unassessed
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://montenegro.mom-gmr.org/cg/mediji/detail/outlet/portal-borba/
   active: true
 - id: me_dan
   name: Dan
@@ -32692,7 +32940,8 @@
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
   rank_source: https://www.semrush.com/trending-websites/me/all
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://en.wikipedia.org/wiki/Dan_(newspaper)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Dan_(newspaper)
   active: true
@@ -32941,6 +33190,7 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/ws/all
+  political_leaning: unassessed
   ownership: unassessed
   active: true
 - id: gh_ghanaiantimes
@@ -32993,7 +33243,10 @@
   - https://www.centrafrique-presse.com/feed/
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
-  ownership: unassessed
+  political_leaning: state_controlled
+  leaning_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
+  ownership: state
+  ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
   active: true
 - id: cg_congopage
   name: Congopage
@@ -33003,7 +33256,9 @@
   - https://feeds.feedburner.com/congopage
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
-  ownership: unassessed
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://www.congopage.com/Qui-sommes-nous
   active: true
 - id: km_comoresactualites
   name: Comores Actualités
@@ -33013,7 +33268,9 @@
   - https://www.comores-actualites.com/feed/
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
-  ownership: unassessed
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://www.comores-actualites.com/
   active: true
 - id: km_lemohelien
   name: Le Mohélien
@@ -33023,6 +33280,7 @@
   - https://lemohelien.com/feed/
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: unassessed
   ownership: unassessed
   active: true
 - id: km_habarizacomores
@@ -33033,6 +33291,7 @@
   - https://www.habarizacomores.com/feeds/posts/default?alt=rss
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: unassessed
   ownership: unassessed
   active: true
 - id: dj_adi
@@ -33043,6 +33302,10 @@
   - https://www.adi.dj/rss
   tier: agency
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: state_controlled
+  leaning_source: https://www.adi.dj/
+  ownership: state
+  ownership_source: https://www.adi.dj/
   active: true
 - id: er_asmarino
   name: Asmarino.com
@@ -33052,6 +33315,9 @@
   - https://www.asmarino.com/?format=feed&type=rss
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Asmarino
   active: true
 - id: sd_sudanile
   name: Sudanile
@@ -33061,6 +33327,8 @@
   - https://sudanile.com/feed/
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: unassessed
+  ownership: unassessed
   active: true
 - id: tz_jamhurimedia
   name: Jamhuri Media
@@ -33070,6 +33338,8 @@
   - https://jamhurimedia.co.tz/feed/
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
+  political_leaning: unassessed
+  ownership: unassessed
   active: true
 - id: bb_bajanreporter
   name: Bajan Reporter
@@ -33080,6 +33350,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://bajanreporter.com/about/
   active: true
 - id: cl_lacuarta
   name: La Cuarta
@@ -33090,6 +33363,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://es.wikipedia.org/wiki/La_Cuarta
   active: true
 - id: cw_paradisefm
   name: Paradise FM
@@ -33100,6 +33376,8 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: unassessed
   active: true
 - id: ec_extra
   name: Extra
@@ -33110,6 +33388,8 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: unassessed
   active: true
 - id: gp_franceantilles
   name: France-Antilles Guadeloupe
@@ -33120,6 +33400,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/France-Antilles
   active: true
 - id: gf_franceguyane
   name: France-Guyane
@@ -33130,6 +33413,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/France-Guyane
   active: true
 - id: mq_franceantilles
   name: France-Antilles Martinique
@@ -33140,6 +33426,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://fr.wikipedia.org/wiki/France-Antilles
   active: true
 - id: tm_azathabar
   name: Azathabar (RFE/RL Turkmen Service / Radio Azatlyk)
@@ -33150,6 +33439,9 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
+  political_leaning: unassessed
+  ownership: public_service
+  ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: true
 - id: ve_telesur
   name: teleSUR
@@ -33160,6 +33452,10 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/TeleSUR
+  ownership: state
+  ownership_source: https://en.wikipedia.org/wiki/TeleSUR
   active: true
 - id: la_rfalao
   name: RFA Lao (Radio Free Asia Lao Service)
@@ -33170,6 +33466,9 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 5
+  political_leaning: unassessed
+  ownership: public_service
+  ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
 - id: mv_psmnews
   name: PSM News
@@ -33179,6 +33478,10 @@
   - https://psmnews.mv/feed
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
+  ownership: state
+  ownership_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
   active: true
 - id: by_svaboda
   name: Радыё Свабода (Radio Svaboda / RFE/RL Belarusian Service)
@@ -33189,6 +33492,9 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: public_service
+  ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: true
 - id: by_belapan
   name: BelaPAN
@@ -33199,6 +33505,9 @@
   tier: agency
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 7
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/BelaPAN
   active: true
 - id: by_currenttime
   name: Настоящее Время (Current Time TV)
@@ -33209,6 +33518,9 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 8
+  political_leaning: unassessed
+  ownership: public_service
+  ownership_source: https://en.wikipedia.org/wiki/Current_Time_TV
   active: true
 - id: ie_dublinlive
   name: Dublin Live
@@ -33219,6 +33531,9 @@
   tier: regional
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/dublinlive-bias-and-credibility/
+  ownership: unassessed
   active: true
 - id: ad_altaveu
   name: Altaveu
@@ -33229,6 +33544,7 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
+  political_leaning: unassessed
   ownership: unassessed
   active: true
 - id: ba_radiosarajevo
@@ -33240,6 +33556,7 @@
   tier: broadcaster
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
+  political_leaning: unassessed
   ownership: private
   ownership_source: https://bosnia-herzegovina.mom-gmr.org/en/media/detail/outlet/radiosarajevoba-3/
   active: true
@@ -33252,6 +33569,8 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
+  political_leaning: unassessed
+  ownership: unassessed
   active: true
 - id: mk_plusinfo
   name: Plusinfo.mk
@@ -33262,6 +33581,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 3
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://north-macedonia.mom-gmr.org/mk/mediumi/detail/outlet/plusinfo/
   active: true
 - id: mk_faktor
   name: Faktor.mk
@@ -33272,6 +33594,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://north-macedonia.mom-gmr.org/mk/mediumi/detail/outlet/faktor/
   active: true
 - id: mk_skopje1
   name: Skopje1.mk
@@ -33282,6 +33607,9 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://skopje1.mk/za-nas
   active: true
 - id: at_meinbezirk
   name: MeinBezirk.at
@@ -33292,6 +33620,9 @@
   tier: regional
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 6
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Regionalmedien_Austria
   active: true
 - id: vu_dailypost
   name: Vanuatu Daily Post
@@ -33302,4 +33633,7 @@
   tier: national_daily
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Vanuatu_Daily_Post
   active: true
