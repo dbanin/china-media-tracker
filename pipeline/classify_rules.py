@@ -8,7 +8,12 @@ Decision rule:
     Chinese state entity is named somewhere in the article or its page chrome
       -> Category A, confidence 1.0, method rules, no LLM call
   - one weak signature
-      -> routed to the LLM as an A candidate
+      -> routed to the LLM as an A candidate, unless the item arrived through a
+         gate-exempt section (press_release, sponsored, partner; fetch_feeds.py
+         skips the keyword gate for these by design) and its body does not clear
+         the same body-level relevance test used below for the residual C versus
+         not_relevant call; such an item is not_relevant by rules instead, with
+         no LLM call. A strong signature still gives A regardless of arrival.
   - no A signature but an official sourcing trigger
       -> routed to the LLM for the B versus C judgement
   - no A signature and no trigger
@@ -368,7 +373,20 @@ def classify_article(conn, row) -> Dict:
             route=route_of(res["matches"]),
         )
         return {"outcome": "A"}
-    if res["decision"] == "A_candidate" or res["triggers"]:
+    candidate = res["decision"] == "A_candidate"
+    if candidate and arrival_of(row["gate_terms"]) != "editorial_feed":
+        # Section feeds (press_release, sponsored, partner) skip the keyword gate by design
+        # (fetch_feeds.py), so a weak signature here is the only thing standing between an
+        # unrelated item and a model call. These outlets' own generic paid-content and wire
+        # disclosures trip a weak signature on stories with nothing to do with China; require
+        # the item to clear the same body-level China relevance test the residual rule below
+        # uses before its weak signature earns a model call. A strong signature already
+        # returned above and is unaffected; an official sourcing trigger still routes on its
+        # own, independent of this check.
+        relevant, _ = body_relevance(row["title"], body, row["language"], row["country"])
+        if not relevant:
+            candidate = False
+    if candidate or res["triggers"]:
         trig = {"a_candidate": fired, "triggers": [t["id"] for t in res["triggers"]],
                 "spans": [t["span"] for t in res["triggers"]][:3] + [m["span"] for m in res["matches"]][:2]}
         # A rules label from an earlier ruleset is withdrawn, not deleted; the LLM supplies the next one.

@@ -4,6 +4,67 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Ruleset 2026.09.9 (2026-09-25)
+
+A budget diagnosis of September's model spend, run after the $30/month cap
+was hit on 2026-09-16, traced most of the waste to two mechanisms rather than
+to genuine judgement calls.
+
+- classify_article no longer routes a gate-exempt section item (press_release,
+  sponsored or partner; fetch_feeds.py skips the keyword gate for these by
+  design) to the model on a weak signature alone. It now also requires the
+  item to clear the same body-level China relevance test the residual C
+  versus not_relevant rule already used (body_relevance, backed by
+  gate.count). Strong signatures still give Category A outright, with no
+  model call, exactly as before; an official sourcing trigger still routes to
+  the model on its own. Of the 3,921 model calls made in September, 1,119
+  (28.5%) carried a section tag, all reached by this same weak-signature
+  path, and 1,059 of those (94.6%) came back not_relevant, 77.6% of every
+  wasted call this period. Article bodies are not retained past
+  classification, so whether the new test would actually have failed on each
+  of those 1,059 could not be confirmed against September's stored data; on
+  the working assumption behind this change, that a not_relevant model
+  verdict on a section item usually means its body never substantively named
+  China either, roughly 1,059 calls would have been avoided. The other 60
+  section-tagged, weak-signature calls this period labelled A (59) or C (1);
+  these are the change's exposure, an upper bound rather than a measured
+  loss, since a genuine Chinese state placement names a China entity in its
+  own body almost by definition and should still clear the relevance test and
+  reach the model as before. Both figures come from the stored gate_terms and
+  llm_trigger of every current September classification.
+- Two exclusions (the existing signatures.yaml exclusions mechanism) strip
+  recurring, content-independent site furniture that was extracted into the
+  article body and read as a state-linked sponsorship signal: nst_recirc_boilerplate
+  for New Straits Times (my_nst), where a "Branded Content" label inside a
+  fixed five-line recirculation widget fired all five language variants of
+  the sponsored_placement group at once on unrelated sports and entertainment
+  stories, and bharian_nav_menu_boilerplate for Berita Harian (my_bharian),
+  where the "Iklan Web" item in the site's own navigation menu fired the
+  sponsored_asia weak signature the same way. In September, my_nst made 49
+  model calls that carried only this span (48 not_relevant, 1 C) and
+  my_bharian made 51 (47 not_relevant, 2 B, 2 C); both exclusions were built
+  directly from those calls' stored llm_trigger spans. All 100 calls would
+  now be kept out of the model, since neither outlet's items carried any
+  other signature or trigger. The 5 that had reached B or C (1 at my_nst, 4
+  at my_bharian) would be relabelled not_relevant by rule on the next
+  reclassification; the model's own reasoning on all 5 already described the
+  scraped body as site navigation with no actual article content, so this is
+  a loss of a low-confidence default judgement, not of a substantiated label.
+  Each regex matches the whole recurring block, not the bare disclosure word,
+  so it does not touch a genuine per-article sponsorship disclosure. A third
+  outlet named in the same diagnosis, Utusan Malaysia (my_utusan), was
+  checked and excluded from this change: its wire_stamp_alone hits (58 of its
+  59 September model calls) are each a distinct PRNewswire release from a
+  different company in its press-release section, not a repeating span, so
+  there is no literal boilerplate to exclude there; that outlet's waste is
+  addressed by the section change above instead.
+- Combined, the two changes would have kept roughly 1,159 of September's
+  3,921 model calls (about 30%) out of the model: an estimated 1,059 from the
+  section change plus a fully measured 100 from the two exclusions, against
+  an upper bound of 65 at-risk labels (60 unmeasured from the section change,
+  expected to be far fewer in practice, plus 5 measured B or C labels from
+  the exclusions).
+
 ## Ruleset 2026.09.8 (2026-09-22)
 
 An audit of the whole instrument found that most state origin labels rested on
