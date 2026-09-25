@@ -23,7 +23,7 @@
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.09.8"
+ruleset_version: "2026.09.9"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -39,6 +39,12 @@ exclusions:
   - id: syndication_disclaimer
     regex: '(?i)\(?(except for the headline,?\s*)?this (article|story|report|content) (has|was) (not been edited|been published|auto-?generated|not been modified)[^\n)]{0,160}\)?|\(?this (story|article) (has been|is) (published|generated) (from|by) a (wire|syndicated|third[- ]party) (agency )?feed[^\n)]{0,120}\)?|disclaimer: this (article|story|content)[^\n]{0,160}'
     note: Indian and other syndication boilerplate ("Except for the headline, this article has not been edited by ...") names a wire agency, not a sponsor. Removed before the sponsored placement patterns run.
+  - id: nst_recirc_boilerplate
+    regex: '(?i)What To Read Next\s*\n\s*Featured Video\s*\n\s*Latest\s*\n\s*What To Read Next\s*\n\s*Branded Content'
+    note: Added in ruleset 2026.09.9. New Straits Times (my_nst) extracts a fixed five-line "recirculation" widget ahead of every article's actual text, and its own literal label "Branded Content" is one of the phrases sponsored_en, sponsored_it, sponsored_es, sponsored_pt and sponsored_nl all match, so unrelated sports and entertainment stories fired all five at once. Traced to 49 September model calls at this outlet carrying only that span, 48 not_relevant and 1 C. The regex requires the whole five-line widget, not the bare phrase, so a genuine "Branded Content" disclosure on a real sponsored piece is untouched.
+  - id: bharian_nav_menu_boilerplate
+    regex: '(?i)Infografik\s*\n\s*Langgan\s*\n\s*Akhbar Digital\s*\n\s*Akhbar BH\s*\n\s*Perkhidmatan\s*\n\s*Iklan Web\s*\n\s*1Klassifieds\s*\n\s*NSTP KLiK\s*\n\s*Radio\s*\n\s*Dapatkan Audio'
+    note: Added in ruleset 2026.09.9. Berita Harian (my_bharian) extracts its own ten-item site navigation menu ahead of every article's actual text, and the menu item "Iklan Web" (web advertising) is enough to fire the sponsored_asia weak signature on unrelated stories. Traced to 51 September model calls at this outlet carrying only that span, 47 not_relevant, 2 B and 2 C. The regex requires the whole navigation sequence, not the bare word, so a genuine sponsored-content disclosure elsewhere in a Malay-language body is untouched.
 
 groups:
   credit_dateline:

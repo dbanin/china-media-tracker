@@ -295,3 +295,101 @@ def test_overlapping_terms_count_once():
     relevant, why = cr.body_relevance("Sastanak s Xi Jinpingom", "Predsjednik je odrzao sastanak.", "hr")
     assert relevant is False, why
 
+
+# Regressions for ruleset 2026.09.9. A budget diagnosis of September's model spend found that 28.5%
+# of model calls carried a gate-exempt section tag, and 94.6% of those came back not_relevant, 77.6%
+# of all wasted calls: the section exemption (fetch_feeds.py skips the keyword gate by design for
+# press_release, sponsored and partner feeds) let a weak signature alone reach the model with nothing
+# checking whether the body was about China at all.
+
+def test_section_item_with_weak_signature_and_no_china_terms_skips_the_model(monkeypatch, tmp_path):
+    from pipeline import config, store
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    conn = store.connect(tmp_path / "s1.db")
+    url = "https://example.test/chef"
+    body = ("Sponsored content\n\nA celebrity chef opens a new restaurant downtown, promising quality "
+            "service to locals.")
+    aid = store.insert_discovered(conn, {"url": url, "outlet_id": "o", "country": "USA", "language": "en",
+                                         "title": "Chef opens new restaurant", "status": "fetched",
+                                         "gate_relevant": 1, "gate_terms": ["section:sponsored"]})
+    store.save_body(store.url_hash(url), body)
+    conn.commit()
+    row = store.get_article(conn, aid)
+    # Sanity: the weak signature alone would have been an A candidate before this ruleset.
+    assert cr.match_signatures(row["title"], body, row["author"])["decision"] == "A_candidate"
+    out = cr.classify_article(conn, row)
+    assert out["outcome"] == "not_relevant"
+    current = store.current_classification(conn, aid)
+    assert current["method"] == "rules" and current["category"] == "not_relevant"
+
+
+def test_section_item_with_weak_signature_and_china_terms_still_reaches_the_model(monkeypatch, tmp_path):
+    from pipeline import config, store
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    conn = store.connect(tmp_path / "s2.db")
+    url = "https://example.test/trade"
+    body = ("Sponsored content\n\nChina said on Monday that the border would reopen. China's ministry "
+            "added that trade would resume next week.")
+    aid = store.insert_discovered(conn, {"url": url, "outlet_id": "o", "country": "USA", "language": "en",
+                                         "title": "China warns Nepal over border trade", "status": "fetched",
+                                         "gate_relevant": 1, "gate_terms": ["section:sponsored"]})
+    store.save_body(store.url_hash(url), body)
+    conn.commit()
+    row = store.get_article(conn, aid)
+    assert cr.body_relevance(row["title"], body, "en", "USA")[0]
+    out = cr.classify_article(conn, row)
+    assert out["outcome"] == "llm"
+    assert store.get_article(conn, aid)["status"] == "awaiting_llm"
+
+
+def test_non_section_item_with_weak_signature_is_unchanged(monkeypatch, tmp_path):
+    """The new body-relevance gate applies only to section arrivals; an ordinary editorial-feed item
+    still reaches the model on a weak signature alone, exactly as before 2026.09.9."""
+    from pipeline import config, store
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "b")
+    conn = store.connect(tmp_path / "s3.db")
+    url = "https://example.test/nosection"
+    body = ("Sponsored content\n\nA celebrity chef opens a new restaurant downtown, promising quality "
+            "service to locals.")
+    aid = store.insert_discovered(conn, {"url": url, "outlet_id": "o", "country": "USA", "language": "en",
+                                         "title": "Chef opens new restaurant", "status": "fetched",
+                                         "gate_relevant": 1})
+    store.save_body(store.url_hash(url), body)
+    conn.commit()
+    row = store.get_article(conn, aid)
+    assert cr.arrival_of(row["gate_terms"]) == "editorial_feed"
+    out = cr.classify_article(conn, row)
+    assert out["outcome"] == "llm"
+
+
+def test_nst_recirc_boilerplate_exclusion_strips_furniture_not_disclosure():
+    """Traced to 49 September model calls at my_nst carrying only this span, 48 not_relevant and 1 C:
+    a fixed recirculation widget extracted ahead of the article fired all five language variants of
+    sponsored_placement at once, on stories with nothing to do with sponsorship."""
+    sigs = cr.load_signatures()
+    boilerplate = ("s\nWhat To Read Next\nFeatured Video\nLatest\nWhat To Read Next\nBranded Content\n;\n"
+                   "Malaysia qualify for Junior Asia Cup semi-finals | New Straits Times")
+    cleaned, fired = cr.apply_exclusions(boilerplate, sigs)
+    assert "nst_recirc_boilerplate" in fired
+    assert "Branded Content" not in cleaned
+    genuine = "This article is Branded Content produced in partnership with the advertiser."
+    cleaned2, fired2 = cr.apply_exclusions(genuine, sigs)
+    assert "nst_recirc_boilerplate" not in fired2
+    assert "Branded Content" in cleaned2
+
+
+def test_bharian_nav_menu_boilerplate_exclusion_strips_furniture_not_disclosure():
+    """Traced to 51 September model calls at my_bharian carrying only this span, 47 not_relevant, 2 B
+    and 2 C: the site's own navigation menu, extracted ahead of the article, contains "Iklan Web"
+    (web advertising), enough to fire the sponsored_asia weak signature on unrelated stories."""
+    sigs = cr.load_signatures()
+    nav = ("TV\nInfografik\nLanggan\nAkhbar Digital\nAkhbar BH\nPerkhidmatan\nIklan Web\n1Klassifieds\n"
+           "NSTP KLiK\nRadio\nDapatkan Audio+\nHot FM\nKOO\nMalaysia mara ke separuh akhir")
+    cleaned, fired = cr.apply_exclusions(nav, sigs)
+    assert "bharian_nav_menu_boilerplate" in fired
+    assert "Iklan Web" not in cleaned
+    genuine = "Kandungan ini adalah iklan berbayar daripada penaja rasmi."
+    cleaned2, fired2 = cr.apply_exclusions(genuine, sigs)
+    assert "bharian_nav_menu_boilerplate" not in fired2
+    assert "iklan" in cleaned2
+
