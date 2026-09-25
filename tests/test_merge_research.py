@@ -71,3 +71,15 @@ def test_state_owned_outlets_get_state_controlled_leaning():
     assert by_id["id_b"]["political_leaning"] == "centre"          # a sourced leaning is kept
     assert "political_leaning" not in by_id["id_c"]                # private: nothing derived
     assert "political_leaning" not in by_id["id_d"]                # state without a source: nothing derived
+
+
+def test_flat_attribute_lists_are_read(tmp_path):
+    (tmp_path / "lean_9.yaml").write_text(yaml.safe_dump([
+        {"id": "it_a", "political_leaning": "centre", "leaning_source": "https://y/9"},
+        {"id": "it_c", "political_leaning": "unassessed", "note": "checked"},
+    ]))
+    outlets = _outlets()
+    report, issues = merge.apply_attributes(outlets, tmp_path)
+    by_id = {o["id"]: o for o in outlets}
+    assert by_id["it_a"]["political_leaning"] == "centre" and report["political_leaning_filled"] == 1
+    assert by_id["it_c"]["political_leaning"] == "unassessed" and not issues

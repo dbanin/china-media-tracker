@@ -152,8 +152,10 @@ def apply_attributes(outlets, directory):
     for pattern, field, source_field, allowed in ATTRIBUTES:
         for path in sorted(glob.glob(str(Path(directory) / pattern))):
             for b in yaml.safe_load(open(path, encoding="utf-8")) or []:
+                # A country block with an outlets list, or a flat entry that is the outlet itself.
                 country = b.get("country")
-                for e in b.get("outlets") or []:
+                entries = b.get("outlets") if "outlets" in b else [b]
+                for e in entries or []:
                     oid, value, source = e.get("id"), e.get(field), e.get(source_field)
                     target = by_id.get(oid)
                     if not target:
