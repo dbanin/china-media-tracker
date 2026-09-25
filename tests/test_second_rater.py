@@ -198,7 +198,7 @@ def test_auto_submits_once_the_budget_reopens_then_records_the_study(tmp_path, m
     assert client.messages.batches.created[0][0]["custom_id"].startswith("study-")
     assert llm_cost.outstanding(conn, "2026-01-01", "2099-01-01") == 10, "the study counts against the budget until collected"
     # Classification must never try to collect a study batch: its ids are not article ids.
-    assert classify_llm._collect_batches(conn, client) == {"batch_collected": 0, "batch_errors": 0}
+    assert classify_llm._collect_batches(conn, client) == {"batch_collected": 0, "batch_errors": 0, "copied": 0}
     out2 = sr.auto(conn, submit=True, today=today, client=client)
     assert out2["collected"]["state"] == "recorded" and out2["collected"]["method"] == "same_model_rerun"
     assert out2["submitted"] == 0, "one study a month"

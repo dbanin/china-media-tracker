@@ -95,6 +95,88 @@ def test_dup_group_copies_without_call(monkeypatch, tmp_path):
     assert counts["calls"] == 1 and counts["copied"] == 2 and counts["classified"] == 1
 
 
+def _seed_dup_group_plus_solo(conn, dup_prefix, solo_prefix):
+    """Three articles sharing one dup_group_id, plus one unrelated article, each with a distinct
+    URL and a saved body. Returns (dup_ids, solo_id)."""
+    urls = ["https://%s.com/%d" % (dup_prefix, i) for i in range(3)] + ["https://%s.com/0" % solo_prefix]
+    ids = []
+    for u in urls:
+        aid = store.insert_discovered(conn, {"url": u, "outlet_id": "o", "country": "ITA", "language": "it",
+                                              "title": u, "status": "awaiting_llm", "gate_relevant": 1})
+        ids.append(aid)
+        store.save_body(store.url_hash(u), "Body for %s" % u)
+    dup_ids, solo_id = ids[:3], ids[3]
+    conn.execute("UPDATE articles SET dup_group_id=? WHERE id IN (?,?,?)", (dup_ids[0], *dup_ids))
+    conn.commit()
+    return dup_ids, solo_id
+
+
+def test_dup_group_race_collapses_to_one_representative(monkeypatch, tmp_path):
+    """Diagnosis (recommendation 3): several still-unlabelled members of one dup_group_id drawn
+    into the same run had no label yet to copy from at submission time, so all went out as
+    separate real calls -- 138 avoidable calls, 3.5% of a month's volume. The to-do list is now
+    collapsed to one representative per group before draw(), and the held-back siblings are
+    settled through the existing copy path as soon as the representative is classified, in the
+    same run."""
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
+    conn = _db()
+    dup_ids, solo_id = _seed_dup_group_plus_solo(conn, "dup-sync", "solo-sync")
+    client = cl.DryRunClient(answer=lambda body: "B")
+    counts = cl.run(conn, "t", client=client)
+
+    # Only the representative and the unrelated article were actually sent to the model.
+    assert counts["calls"] == 2 and len(client.calls) == 2
+    assert store.llm_calls_today(conn) == 2, "the ceiling/budget counters see two calls, not four"
+    assert counts["copied"] == 2
+
+    # All four settle, and the three duplicates carry the same label.
+    cats = [store.current_classification(conn, aid)["category"] for aid in dup_ids + [solo_id]]
+    assert cats == ["B", "B", "B", "B"]
+    assert conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0] == 0
+
+
+class _RecordingBatchApi:
+    """Records what was submitted; retrieve/results are unused here (a separate call collects)."""
+
+    def __init__(self):
+        self.created = []
+
+    def create(self, requests):
+        self.created.append(requests)
+        return type("B", (), {"id": "b1"})()
+
+
+def test_batch_submission_collapses_dup_group_and_settles_on_collection(monkeypatch, tmp_path):
+    """Same race as the synchronous case, but for the batch submission path: the batch API sends
+    every request in the submission at once, so a held-back sibling must never be included in the
+    payload. Once the batch collects, the sibling settles through the same copy path without a
+    separate run."""
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
+    conn = _db()
+    dup_ids, solo_id = _seed_dup_group_plus_solo(conn, "dup-batch", "solo-batch")
+
+    recorder = _RecordingBatchApi()
+    client = type("C", (), {"messages": type("M", (), {"batches": recorder})()})()
+    counts = cl.run(conn, "t", client=client, batch=True)
+
+    submitted_ids = {int(req["custom_id"]) for req in recorder.created[0]}
+    assert len(submitted_ids) == 2 and counts["batch_submitted"] == 2, "only one representative, not all three duplicates"
+    assert solo_id in submitted_ids
+    representative = next(i for i in submitted_ids if i != solo_id)
+    assert representative in dup_ids
+
+    good = ('{"category": "B", "confidence": 0.7, "evidence_quote": "q", "reasoning": "r", '
+            '"china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null}')
+    out = cl._collect_batches(conn, _batch_client([(representative, "succeeded", _message("end_turn", good)),
+                                                    (solo_id, "succeeded", _message("end_turn", good))]))
+    assert out["batch_collected"] == 2 and out["copied"] == 2, "the two held-back siblings settle on collection"
+
+    cats = [store.current_classification(conn, aid)["category"] for aid in dup_ids + [solo_id]]
+    assert cats == ["B", "B", "B", "B"]
+    assert store.llm_calls_today(conn) == 2, "the ceiling counts two calls for the whole group of four"
+    assert conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0] == 0
+
+
 def test_submitted_batches_are_collected_by_any_later_run(monkeypatch, tmp_path):
     """A batch submitted by one run has to be collected by the next run, which is synchronous.
     Collecting only inside the batch path left submissions sitting unclaimed."""
