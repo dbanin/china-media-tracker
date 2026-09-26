@@ -4317,7 +4317,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/the-rio-times-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Rio_Times
   active: true
@@ -4333,7 +4334,8 @@
     sections: []
   tier: aggregator
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/213697/terra
   ownership: private
   ownership_source: https://pt.wikipedia.org/wiki/Terra_(empresa)
   active: true
@@ -8317,7 +8319,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/delfi.ee/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/148752/postimees
   ownership: private
   ownership_source: https://news.postimees.ee/3307051/margus-linnamae-to-become-sole-owner-of-eesti-meedia
   active: true
@@ -10230,7 +10233,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/greece
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://www.eurotopics.net/en/248332/in-gr
   ownership: private
   ownership_source: https://www.in.gr/omilos-alter-ego/
   active: true
@@ -10268,7 +10272,8 @@
       readable: true
   tier: business
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://www.eurotopics.net/en/148725/naftemporiki
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Naftemporiki
   active: true
@@ -11313,7 +11318,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/budapest-times-bias-and-credibility/
   ownership: private
   ownership_source: https://www.budapesttimes.hu/about-us/
   active: true
@@ -11329,7 +11335,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://mediabiasfactcheck.com/daily-news-hungary-bias-and-credibility/
   ownership: private
   ownership_source: https://www.newstex.com/blog/newstex-publishers-stories-alpar-kato-of-daily-news-hungary
   active: true
@@ -11364,7 +11371,8 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   audience_rank: 6
-  political_leaning: unassessed
+  political_leaning: centre_left
+  leaning_source: https://www.eurotopics.net/en/148565/hvg
   ownership: private
   ownership_source: https://www.freepressunlimited.org/en/countries/hungary
   active: true
@@ -11402,8 +11410,8 @@
   notes: Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
-  ownership: private
-  ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  ownership: state
+  ownership_source: https://www.eurotopics.net/en/148712/magyar-nemzet
   active: true
 - id: hu_mandiner
   name: Mandiner
@@ -11419,8 +11427,8 @@
   notes: Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Mandiner
-  ownership: private
-  ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  ownership: state
+  ownership_source: https://www.eurotopics.net/en/148715/mandiner
   active: true
 - id: hu_mti
   name: MTI / hirado.hu
@@ -13742,7 +13750,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/nhk-nippon-hoso-kyokai/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/NHK
   active: true
@@ -14083,7 +14092,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/the-standard-kenya/
   ownership: private
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/kenya
   active: true
@@ -15718,7 +15728,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://gemius.com/lt/blogas/gemiusaudience-2026-rugpjucio-menesio-apzvalga/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/148702/lrt
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Lithuanian_National_Radio_and_Television
   active: true
@@ -16623,7 +16634,8 @@
     sections: []
   tier: business
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/el-financiero-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Financiero_(Mexico)
   active: true
@@ -16706,7 +16718,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/212872/excelsior
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Grupo_Imagen
   active: true
@@ -18870,7 +18883,8 @@
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/nl-times-bias-and-credibility/
-  ownership: unassessed
+  ownership: private
+  ownership_source: https://www.wikidata.org/wiki/Q140447891
   active: true
 - id: nl_nos
   name: NOS
@@ -19390,7 +19404,8 @@
       readable: false
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/newsroom-new-zealand-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Newsroom_(website)
   active: true
@@ -19828,7 +19843,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/geo-tv-pakistan/
   ownership: private
   ownership_source: https://pakistan.mom-gmr.org/en/media/
   active: true
@@ -19929,7 +19945,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/the-news-international/
   ownership: private
   ownership_source: https://pakistan.mom-gmr.org/en/media/
   active: true
@@ -21215,7 +21232,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: left
+  leaning_source: https://mediabiasfactcheck.com/pnn-palestine-news-network-bias-and-credibility/
   ownership: unassessed
   active: true
 - id: ps_ultrapalestine
@@ -21372,7 +21390,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/148403/adevrul
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Adev%C4%83rul
   active: true
@@ -21408,7 +21427,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/romania/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/digi24-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Digi24
   active: true
@@ -21493,7 +21513,8 @@
     sections: []
   tier: national_daily
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/227289/libertatea
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Libertatea
   active: true
@@ -21510,7 +21531,8 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02.
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://www.eurotopics.net/en/249633/mediafax
   ownership: private
   ownership_source: https://ro.wikipedia.org/wiki/Mediafax
   active: true
@@ -23816,7 +23838,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/si/all
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/24ur-com/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/POP_TV
   active: true
@@ -30571,7 +30594,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.nknews.org/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/38-north/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/38_North
   active: true
@@ -30589,7 +30613,8 @@
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.nknews.org/
-  political_leaning: unassessed
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/daily-nk-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Daily_NK
   active: true
@@ -32333,7 +32358,8 @@
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/united-arab-emirates/news-and-media/
-  political_leaning: unassessed
+  political_leaning: centre_right
+  leaning_source: https://mediabiasfactcheck.com/khaleej-times-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Khaleej_Times
   active: true
