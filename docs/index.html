@@ -7,17 +7,34 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=66">
+<link rel="stylesheet" href="style.css?v=69">
 </head>
 <body>
 <header class="top">
   <h1>Chinese state media, <em>traced</em> through the world's newsrooms.</h1>
+  <div id="findings-box" class="findings-box" hidden></div>
   <p class="sub">This instrument looks for two kinds of article in every country it monitors: text placed by the Chinese state and published unaltered (state origin), and local reporting that carries claims from Chinese officials or state media without independent checking (unchecked state sourcing). Ordinary China coverage is only the denominator. Counts come from the full text of articles in a fixed registry of outlets, every day. Hatched countries are not monitored. That is absence of data, not absence of content.</p>
 </header>
 
 <!-- One line of reading notes; the full notes live in the methodology section. -->
 <p id="notes-strip" class="notes-strip" hidden></p>
 <div id="data-notice" class="notice hidden"></div>
+
+<details id="start-here" class="start-here" hidden>
+  <summary><span class="sh-title">Start here</span><span class="sh-hint">What the categories and routes mean</span></summary>
+  <div class="sh-body">
+    <div id="sh-intro" class="sh-intro"></div>
+    <dl id="sh-categories" class="sh-categories"></dl>
+    <div class="sh-routes-label">How state text arrives, in four ways</div>
+    <div id="sh-routes" class="sh-routes"></div>
+  </div>
+</details>
+
+<section id="examples" class="examples" aria-labelledby="examples-title" hidden>
+  <div class="eyebrow">A few examples</div>
+  <h2 id="examples-title">What this looks like</h2>
+  <div id="examples-list" class="ex-list"></div>
+</section>
 
 <div class="controls">
   <div class="control">
@@ -98,6 +115,7 @@
         <button data-window="all">Total</button>
       </div></div>
     </div>
+    <p id="bars-caption" class="bars-caption" hidden></p>
     <div id="bars"></div>
   </div>
   <div id="timeline" class="timeline">
@@ -187,6 +205,12 @@
 </main>
 
 
+<section class="faq" id="faq" aria-labelledby="faq-title" hidden>
+  <div class="eyebrow">Common questions</div>
+  <h2 id="faq-title">Frequently asked</h2>
+  <div id="faq-list" class="faq-list"></div>
+</section>
+
 <section class="method" id="method">
   <div class="eyebrow">How the numbers are made</div>
   <h2>Methodology</h2>
@@ -211,6 +235,11 @@
     <p class="muted">What limits the figures today, written from the data at the last export.</p>
     <ul id="method-notes"></ul>
   </div>
+  <div id="technical-notes-wrap" hidden>
+    <h3>Technical notes</h3>
+    <p class="muted">Operational detail: call caps, ruleset and gate versions, and reclassification status, written from the data at the last export.</p>
+    <dl id="technical-notes"></dl>
+  </div>
   <dl id="method-facts"></dl>
   <div class="owner-note">
     <p id="owner-note">What this can tell you is how often, in a fixed set of outlets that I can actually read, Chinese state text appears unaltered, and how often local journalists pass on official Chinese claims without checking them. What it cannot tell you is what happens behind paywalls I do not cross, in outlets I do not track, in sections I have not searched, in languages I excluded, or in the ordinary gaps of an hourly poll of RSS feeds. A country that looks empty here may simply be a country I have not yet found a working feed for. Read the hatching before you read the color.</p>
@@ -221,6 +250,7 @@
     <button id="export-daily">CSV of the full daily counts table</button>
     <a href="METHODOLOGY.md" id="method-link">Full methodology file</a>
   </div>
+  <p id="cta-line" class="cta-line" hidden></p>
   <div id="citation"></div>
 </section>
 
@@ -230,7 +260,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=66"></script>
-<script src="app.js?v=66"></script>
+<script src="compute.js?v=69"></script>
+<script src="app.js?v=69"></script>
 </body>
 </html>

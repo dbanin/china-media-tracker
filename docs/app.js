@@ -4,10 +4,14 @@
   "use strict";
   var C = window.TrackerCompute;
   var CITATION_AUTHOR = "Daniel Banin";
+  /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
+     linked from the page, so it carries its own copy of the same number here. */
+  var ASSET_VERSION = "69";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
+    content: null, examples: null,
     articlesCache: {}, scaleCache: {}, loadFailures: [], mapped: null
   };
 
@@ -32,6 +36,12 @@
     function soft(url, fallback) {
       return getJSON(url).catch(function (e) { console.error(e); failed.push(url); return fallback; });
     }
+    /* content.json and examples.json hold reader-facing prose and rotating examples, never a figure
+       on the map or in a count: a missing one hides the sections built from it, and does not belong
+       in the "every figure reads as zero" notice that a missing data/*.json file gets. */
+    function quiet(url, fallback) {
+      return getJSON(url).catch(function (e) { console.error(e); return fallback; });
+    }
     return Promise.all([
       soft("data/meta.json", null),
       soft("data/latest.json", {countries: {}, totals: {}}),
@@ -39,7 +49,9 @@
       soft("data/outlets.json", {outlets: []}),
       soft("vendor/countries-110m.json", null),
       soft("vendor/iso3166.json", []),
-      soft("country-names.json", {names: {}})
+      soft("country-names.json", {names: {}}),
+      quiet("content.json?v=" + ASSET_VERSION, null),
+      quiet("data/examples.json", null)
     ]).then(function (res) {
       state.meta = res[0]; state.latest = res[1] || {countries: {}, totals: {}};
       state.series = res[2] || []; state.outlets = (res[3] && res[3].outlets) || [];
@@ -48,6 +60,8 @@
       /* ISO short names are often formal or inverted ("Korea, Republic of"); show the common English name. */
       var common = (res[6] && res[6].names) || {};
       Object.keys(common).forEach(function (iso) { state.names[iso] = common[iso]; });
+      state.content = res[7] || null;
+      state.examples = res[8] || null;
       var monthsWanted = {};
       state.series.forEach(function (d) { monthsWanted[d.date.slice(0, 7)] = true; });
       return Promise.all(Object.keys(monthsWanted).map(function (m) {
@@ -137,6 +151,46 @@
     return Number(days) + " days ending " + date;
   }
   function plural(n, word, words) { return n + " " + (n === 1 ? word : (words || word + "s")); }
+  function intComma(n) { return n === null || n === undefined ? "n/a" : Number(n).toLocaleString("en-US"); }
+
+  /* --------------------------------------------------------------- content
+     content.json carries every piece of reader-facing prose this page shows: the definitions in
+     Start here, the FAQ, the map and panel captions, and the tokens the findings box fills in. Every
+     function here reads state.content and degrades to nothing, never to an error, when it is absent
+     (a page built before content.json existed) or missing the one key asked for. */
+  function caption(id) { return (state.content && state.content.captions && state.content.captions[id]) || null; }
+  /* Internal category codes to the ids content.categories uses, so the panel can show the plainer
+     label content.json proposes wherever one exists, without renaming the codes used everywhere else
+     (the CSV export, the classifier, the codebase). */
+  var CODE_TO_CATEGORY_ID = {A: "state_origin", B: "unchecked_state_sourcing", pending: "official_chinese_sourcing_verification_pending",
+    C: "independent_journalism", N: "not_relevant", paywalled: "paywalled_unread_and_uncounted"};
+  function clearerLabel(code, fallback) {
+    var cats = (state.content && state.content.categories) || {};
+    var id = CODE_TO_CATEGORY_ID[code];
+    var c = id && cats[id];
+    return (c && (c.proposed_clearer_label || c.label)) || fallback;
+  }
+  function contentRouteName(id) { return C.contentRouteName(state.content && state.content.routes, id) || routeLabel({kind: "route", id: id}); }
+  /* A URL inside a content.json string (a country note's "Source: ..." tail, or the CTA's GitHub
+     link) rendered as a real anchor. Everything else is plain escaped text: this never trusts the
+     string enough to treat it as markup beyond the links it finds itself. */
+  var URL_IN_TEXT = /https?:\/\/[^\s,)]+/g;
+  function linkifyHtml(text) {
+    var s = String(text === null || text === undefined ? "" : text);
+    var out = "", last = 0, m;
+    URL_IN_TEXT.lastIndex = 0;
+    while ((m = URL_IN_TEXT.exec(s))) {
+      out += escText(s.slice(last, m.index));
+      var u = safeUrl(m[0]);
+      out += u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + escText(m[0]) + '</a>' : escText(m[0]);
+      last = m.index + m[0].length;
+    }
+    out += escText(s.slice(last));
+    return out;
+  }
+  /* The short form of a country note for the map tooltip: the descriptive sentence(s) without the
+     trailing "Source(s): url" tail, and never a link, as the tooltip carries no links anywhere. */
+  function shortNoteText(text) { return String(text || "").replace(/\s*Sources?:\s*https?:\/\/.*$/i, "").trim(); }
 
   /* Unchecked state sourcing is published only when the verification stage has run and a reliability study has
      settled it, and never for a country whose outlets publish in a language withheld on its own kappa.
@@ -239,17 +293,9 @@
         else if (rc.stale) parts.push("The collector on the owner's machine has not collected for " + Math.round(rc.hours_since_last_run) + " hours, so recent counts for its " + rc.outlets + " outlets in " + (rc.countries || []).length + " countries are incomplete.");
         if ((rc.incomplete_days || []).length) parts.push("It ran in too few hours on " + plural(rc.incomplete_days.length, "day") + ", marked in red along the timeline.");
       }
-      if (m.reclassification_complete === false) {
-        var older = 0;
-        Object.keys(m.ruleset_mix || {}).forEach(function (v) { if (v !== m.ruleset_version) older += m.ruleset_mix[v]; });
-        var stuck = m.labels_unreclassifiable || 0;
-        if (older > stuck) short.push((older - stuck) + " labels await reclassification");
-        parts.push(older > stuck
-          ? "Reclassification under ruleset " + m.ruleset_version + " is still running: " + older + " labels carry an older ruleset" + (stuck ? ", of which " + stuck + " can never be redone because the article can no longer be retrieved" : "") + ". The days affected are marked on the timeline, so a jump there is not a trend."
-          : older + " labels carry an older ruleset and can never be redone, because the article can no longer be retrieved and its fetch attempts are spent. Reclassification of everything retrievable is complete. The days affected are marked on the timeline.");
-      }
-      var gc = (m.gate_changes || []).slice(-1)[0];
-      if (gc) parts.push("The relevance gate changed on " + gc.date + " (version " + gc.version + "). The gate decides what enters the corpus, not how an article is labelled, and it applies only to items discovered after that date; items rejected earlier are not re-examined.");
+      /* Ruleset mix, reclassification progress and relevance gate version changes are operational
+         detail rather than something that changes how today's map should be read: they live in the
+         Technical notes block inside the methodology section (renderTechnicalNotes), not here. */
       var fs = m.feed_saturation;
       if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: an estimated " + fs.missed_estimate + " in all. Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
@@ -263,6 +309,7 @@
     el("method-notes-wrap").hidden = !full.length;
     var strip = el("notes-strip");
     strip.innerHTML = "";
+    strip.title = caption("notes_strip") || "";
     if (short.length) {
       var nk = document.createElement("span"); nk.className = "nk"; nk.textContent = "Notes"; strip.appendChild(nk);
       strip.appendChild(document.createTextNode(short.join("; ") + ". "));
@@ -277,6 +324,220 @@
     el("mode-control").classList.toggle("hidden", !reviewed);
     el("review-coverage-control").classList.toggle("hidden", !reviewed);
     el("review-coverage").textContent = m ? pct(m.review_coverage) + " of classified articles" : "n/a";
+  }
+
+  /* -------------------------------------------------------- reader content
+     The sections built entirely from content.json and data/examples.json: the "What we found" box,
+     the collapsible Start here explainer with its route cards, the rotating worked examples, and the
+     FAQ. Every one of these hides itself, rather than rendering empty, when its data has not arrived. */
+  function ownershipLabels() {
+    var out = {};
+    (LEAN_GROUPS.ownership || []).forEach(function (g) { out[g[0]] = g[1]; });
+    return out;
+  }
+  function renderFindings() {
+    var box = el("findings-box");
+    if (!box) return;
+    var content = state.content, f = state.meta && state.meta.findings;
+    if (!content || !f || !content.findings_template) { box.hidden = true; return; }
+    var sentences = C.fillFindingsTemplate(content.findings_template, f, state.names, ownershipLabels());
+    if (!sentences) { box.hidden = true; return; }
+    var tc = f.top_country;
+    var routeText = tc && tc.top_route ? contentRouteName(tc.top_route) : null;
+    var at = f.all_time || {};
+    var html = '<div class="fb-kicker">What we found</div><p>' + sentences.map(esc).join(" ") +
+      (routeText && tc ? " In " + esc(countryName(tc.iso)) + ", most of it arrived by the " + esc(routeText.toLowerCase()) + " route." : "") + '</p>' +
+      '<p class="fb-meta">Pilot data since ' + esc(f.since || "n/a") + '. ' + intComma(at.state_origin) + ' state origin' +
+      (at.unchecked !== null && at.unchecked !== undefined ? ', ' + intComma(at.unchecked) + ' unchecked state sourcing' + (relayFor(null).provisional ? ' (provisional)' : '') : '') +
+      ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far.</p>';
+    box.innerHTML = html;
+    box.hidden = false;
+    if (tc && tc.iso) {
+      var see = document.createElement("a");
+      see.href = "#"; see.className = "fb-see";
+      see.textContent = "See " + countryName(tc.iso);
+      /* Exactly the click handler the map itself uses, so the link opens the country view the same way. */
+      see.addEventListener("click", function (ev) { ev.preventDefault(); selectCountry(tc.iso); });
+      box.appendChild(see);
+    }
+  }
+
+  var START_HERE_LS_KEY = "tracker_start_here_closed";
+  function setupStartHere() {
+    var det = el("start-here");
+    if (!det) return;
+    var closed = false;
+    try { closed = localStorage.getItem(START_HERE_LS_KEY) === "1"; } catch (e) { closed = false; }
+    det.open = !closed;
+    det.addEventListener("toggle", function () {
+      try { localStorage.setItem(START_HERE_LS_KEY, det.open ? "0" : "1"); } catch (e) { /* private mode or blocked storage: nothing persists, page still works */ }
+    });
+  }
+  var ROUTE_CARD_ORDER = ["wire_credit", "distribution_stamp", "sponsored_disclosure", "diplomatic_byline"];
+  function renderRouteCards() {
+    var wrap = el("sh-routes");
+    if (!wrap) return;
+    var routes = (state.content && state.content.routes) || {};
+    wrap.innerHTML = ROUTE_CARD_ORDER.filter(function (id) { return routes[id]; }).map(function (id) {
+      var r = routes[id];
+      return '<button type="button" class="sh-route-card" data-route-id="' + esc(id) + '">' +
+        '<span class="sh-route-name">' + esc(r.plain_name) + '</span>' +
+        '<span class="sh-route-how">' + esc(r.how_it_arrives) + '</span>' +
+        '<span class="sh-route-line"><span class="sh-badge">Illustrative</span> ' + esc(r.illustrative_line) + '</span></button>';
+    }).join("");
+    Array.prototype.forEach.call(wrap.querySelectorAll(".sh-route-card"), function (btn) {
+      btn.addEventListener("click", function () { selectRouteCard(btn.getAttribute("data-route-id")); });
+    });
+  }
+  /* Selects the route in the existing Route of state origin select, exactly as choosing it there
+     would, then scrolls the map into view. */
+  function selectRouteCard(id) {
+    var sel = el("route");
+    if (!sel) return;
+    var value = "route:" + id;
+    var found = Array.prototype.some.call(sel.options, function (o) { return o.value === value; });
+    if (!found) return;
+    sel.value = value;
+    sel.dispatchEvent(new Event("change"));
+    var wrap = el("map-wrap");
+    if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+  function renderStartHere() {
+    var det = el("start-here");
+    if (!det) return;
+    var content = state.content;
+    if (!content || !content.start_here) { det.hidden = true; return; }
+    det.hidden = false;
+    var introEl = el("sh-intro");
+    introEl.innerHTML = "";
+    String(content.start_here).split(/\n{2,}/).forEach(function (para) {
+      var p = document.createElement("p");
+      p.textContent = para;
+      introEl.appendChild(p);
+    });
+    var cats = content.categories || {};
+    var order = ["state_origin", "unchecked_state_sourcing", "official_chinese_sourcing_verification_pending", "independent_journalism", "not_relevant", "paywalled_unread_and_uncounted"];
+    el("sh-categories").innerHTML = order.filter(function (id) { return cats[id]; }).map(function (id) {
+      var c = cats[id];
+      return '<dt>' + esc(c.proposed_clearer_label || c.label) + '</dt><dd>' + esc(c.definition) + '</dd>';
+    }).join("");
+    renderRouteCards();
+  }
+
+  /* Picks the same two or three examples all day, by hashing the calendar date into the pool: stable
+     within a day, different the next. A pool smaller than three shows what there is. */
+  function dailyRotationIndices(n, dateStr, count) {
+    if (!n) return [];
+    var h = 0, s = String(dateStr || "");
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    var c = Math.max(0, Math.min(n, count || 0));
+    var start = h % n, out = [];
+    for (var j = 0; j < c; j++) out.push((start + j) % n);
+    return out;
+  }
+  /* The matched phrase inside a snippet, built from text nodes: the snippet and its offsets come
+     straight from the data file, so nothing here is ever parsed as markup. */
+  function buildSnippetFragment(snippet, start, end) {
+    var frag = document.createDocumentFragment();
+    var s = String(snippet || "");
+    var st = Math.max(0, Math.min(s.length, start || 0));
+    var en = Math.max(st, Math.min(s.length, end || 0));
+    if (st > 0) frag.appendChild(document.createTextNode(s.slice(0, st)));
+    if (en > st) {
+      var mark = document.createElement("mark");
+      mark.className = "ex-hl";
+      mark.appendChild(document.createTextNode(s.slice(st, en)));
+      frag.appendChild(mark);
+    }
+    if (en < s.length) frag.appendChild(document.createTextNode(s.slice(en)));
+    return frag;
+  }
+  function renderExamples() {
+    var sec = el("examples"), list = el("examples-list");
+    if (!sec || !list) return;
+    var ex = state.examples;
+    var poolA = ((ex && ex.A) || []).map(function (e) { return {item: e, cat: "A"}; });
+    var poolB = ((ex && ex.B) || []).map(function (e) { return {item: e, cat: "B"}; });
+    var pool = poolA.concat(poolB).filter(function (w) { return w.item && w.item.tell && w.item.tell.snippet; });
+    if (!pool.length) { sec.hidden = true; return; }
+    sec.hidden = false;
+    var today = new Date().toISOString().slice(0, 10);
+    var count = pool.length >= 3 ? 3 : pool.length;
+    var idxs = dailyRotationIndices(pool.length, today, count);
+    list.innerHTML = "";
+    idxs.map(function (i) { return pool[i]; }).forEach(function (w) {
+      var item = w.item, tell = item.tell;
+      var div = document.createElement("div");
+      div.className = "ex-item";
+      var href = safeUrl(item.url);
+      var a = document.createElement(href ? "a" : "span");
+      a.className = "ex-headline";
+      if (href) { a.href = href; a.target = "_blank"; a.rel = "noopener"; }
+      a.textContent = decodeEntities(item.headline || item.url || "Untitled article");
+      div.appendChild(a);
+      var meta = document.createElement("div");
+      meta.className = "ex-meta";
+      var badge = document.createElement("span");
+      badge.className = "badge cat-" + w.cat;
+      badge.textContent = clearerLabel(w.cat, w.cat === "A" ? "State origin" : "Unchecked state sourcing");
+      meta.appendChild(badge);
+      meta.appendChild(document.createTextNode(" " + (item.outlet_name || item.outlet_id || "an unnamed outlet") + ", " +
+        countryName(item.country) + ", " + (item.date || "date unknown") + (w.cat === "A" && item.route ? ", " + contentRouteName(item.route).toLowerCase() + " route" : "")));
+      div.appendChild(meta);
+      var q = document.createElement("p");
+      q.className = "ex-snippet";
+      q.appendChild(document.createTextNode("“"));
+      var ww = C.wholeWordSnippet(tell.snippet, tell.start, tell.end);
+      q.appendChild(buildSnippetFragment(ww.snippet, ww.start, ww.end));
+      q.appendChild(document.createTextNode("”"));
+      div.appendChild(q);
+      list.appendChild(div);
+    });
+  }
+
+  function renderFaq() {
+    var sec = el("faq"), list = el("faq-list");
+    if (!sec || !list) return;
+    var items = state.content && state.content.faq;
+    if (!items || !items.length) { sec.hidden = true; return; }
+    sec.hidden = false;
+    list.innerHTML = "";
+    items.forEach(function (item) {
+      var det = document.createElement("details");
+      det.className = "faq-item";
+      var sum = document.createElement("summary");
+      sum.textContent = item.question;
+      det.appendChild(sum);
+      var p = document.createElement("p");
+      p.textContent = item.answer;
+      det.appendChild(p);
+      var srcs = item.sources || [];
+      if (srcs.length) {
+        var ul = document.createElement("ul");
+        ul.className = "faq-sources";
+        srcs.forEach(function (u) {
+          var li = document.createElement("li");
+          var safe = safeUrl(u);
+          if (safe) {
+            var a = document.createElement("a");
+            a.href = safe; a.target = "_blank"; a.rel = "noopener";
+            a.textContent = safe;
+            li.appendChild(a);
+          } else li.textContent = u;
+          ul.appendChild(li);
+        });
+        det.appendChild(ul);
+      }
+      list.appendChild(det);
+    });
+  }
+  function renderCta() {
+    var line = el("cta-line");
+    if (!line) return;
+    var t = state.content && state.content.cta;
+    if (!t) { line.hidden = true; return; }
+    line.innerHTML = linkifyHtml(t);
+    line.hidden = false;
   }
 
   /* ------------------------------------------------------------------- map */
@@ -568,6 +829,10 @@
         if (metricDef().allItems && mv.value !== null) html += '<div class="muted">Per 1,000 published items: ' + C.formatValue(mv.value * 1000, "dec") + '</div>';
         if (metricDef().allItems) html += '<div class="muted">' + mv.allItems + ' items published by ' + (e.top_outlets_ranked ? 'the ' + e.top_outlets + ' largest monitored outlets' : 'all ' + e.top_outlets + ' monitored outlets (no audience ranks are recorded)') + ', ' + mv.allItemsTarget + ' targets and ' + mv.allItemsChina + ' China items among them</div>';
         if (metricDef().population && e.population) html += '<div class="muted">Population ' + e.population.toLocaleString("en-US") + '</div>';
+        if (e.top_carrier) html += '<div class="muted">Carried mostly by ' + esc(e.top_carrier.name) + ' (' + plural(e.top_carrier.count, "article") + ')</div>';
+        if (e.top_route) html += '<div class="muted">Mostly arrives as ' + esc(contentRouteName(e.top_route.id).toLowerCase()) + '</div>';
+        var noteText = iso && state.content && state.content.country_notes && state.content.country_notes[iso];
+        if (noteText) html += '<div class="muted">' + esc(shortNoteText(noteText)) + '</div>';
       }
       countryWarnings(e, agg).forEach(function (w) { html += '<div class="t-warn">Warning: ' + esc(w) + '</div>'; });
     }
@@ -588,6 +853,8 @@
     var itemsMeasure = metricDef().measure;
     var showItems = (itemsMeasure === "a" || itemsMeasure === "b") && state.basis === "count" && !routeActive();
     el("bars-title").textContent = metricLabel() + (routeActive() ? ", " + routeLabel(state.route).toLowerCase() : "") + ", " + windowLabel();
+    var capEl = el("bars-caption");
+    if (capEl) { var capText = caption("ranked_list"); capEl.textContent = capText || ""; capEl.hidden = !capText; }
     el("bars").innerHTML = rows.map(function (r) {
       var w = r.value ? Math.max(2, 100 * r.value / max) : 0;
       /* sparse keeps its own class: a value that could not be computed is never drawn as an observed zero. */
@@ -595,8 +862,14 @@
       var entry = state.latest.countries[r.iso] || {};
       var warns = countryWarnings(entry, agg);
       var num = r.fill === "withheld" ? relayText(relayFor(entry), 0) : C.formatValue(r.value, fmt);
+      /* Article count and underlying-item count used to run together with only a CSS gap between
+         them; spelled out as "290 articles, 211 underlying items" they cannot be misread as one number. */
+      var itemsCount = itemsMeasure === "b" ? r.unverified_relay_underlying_items : r.state_origin_underlying_items;
+      var numHtml = (showItems && r.value)
+        ? esc(num) + ' articles<span class="items" title="Underlying items: syndicated placements of one item count once">, ' + esc(itemsCount) + ' underlying items</span>'
+        : esc(num);
       return '<div class="bar-row" role="button" tabindex="0" aria-label="' + esc(r.name + ", " + num + (warns.length ? ", data warning" : "")) + '" data-iso="' + esc(r.iso) + '"><span>' + esc(r.name) + '</span><span><span class="bar ' + cls + '" style="width:' + (r.fill === "value" ? w : (r.fill === "nocoverage" ? 100 : 6)) + '%"></span></span>' +
-        '<span class="num">' + esc(num) + (showItems && r.value ? '<span class="items" title="Underlying items: syndicated placements of one item count once">' + (itemsMeasure === "b" ? r.unverified_relay_underlying_items : r.state_origin_underlying_items) + ' items</span>' : '') + '</span>' +
+        '<span class="num">' + numHtml + '</span>' +
         '<span class="bar-warn"' + (warns.length ? ' title="' + esc(warns.join("; ")) + '">!' : '>') + '</span></div>';
     }).join("") || '<p class="muted">No countries in the dataset.</p>';
     Array.prototype.forEach.call(el("bars").querySelectorAll(".bar-row"), function (row) {
@@ -654,7 +927,9 @@
     el("leaning-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + (marked ? " (provisional)" : "") +
       " by the " + what + " of the outlet that published them, " + (md.iso ? "in " + countryName(md.iso) : "in every monitored country") +
       ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + (md.axis === "leaning" ? "leaning" : "ownership type") + ".";
-    el("lean-note").textContent = "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
+    var leanCap = caption("leaning_chart_note");
+    el("lean-note").textContent = (leanCap ? leanCap + " " : "") +
+      "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
       (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. State controlled means a state owned outlet without editorial independence, whose line is the government's rather than a left or right one. " : "") +
       "Not assessed means no reliable source was found, never a guess.";
     var svg = d3.select("#lean-pie"); svg.selectAll("*").remove();
@@ -789,7 +1064,9 @@
     var catalog = model.catalog;
     var noun = measureNoun();
     var langs = (state.meta && state.meta.theme_languages) || [];
-    el("themes-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
+    var themeCap = caption("theme_counter_intro");
+    el("themes-sub").textContent = (themeCap ? themeCap + " " : "") +
+      noun.charAt(0).toUpperCase() + noun.slice(1) + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
       ". Tags read the headline, the feed summary and the whole body. An article can carry more than one theme, so theme counts do not add up to the number of articles." +
       (langs.length ? " Theme terms exist in " + langs.length + " languages; articles in other languages are matched on English terms only." : "") +
       (routeActive() ? " Themes are not split by route, so the route filter does not apply here." : "");
@@ -1073,8 +1350,15 @@
     var relayAll = relayFor(null);
     if (!state.selected) {
       var t = (state.latest.totals && state.latest.totals.all_time) || null;
-      body.innerHTML = '<h2>Select a country</h2><p class="muted">Click a country on the map, type one into the Country search, or open a row in the ranked list, which is shown on small screens and can be reached with the keyboard. The country view carries its time series, category breakdown, routes, monitored outlets and recent classified articles.</p>' +
-        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>State origin</th><td class="num">' + t.A + '</td></tr><tr><th>Unchecked state sourcing</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>Official Chinese sourcing, verification pending</th><td class="num">' + t.pending + '</td></tr><tr><th>Independent journalism</th><td class="num">' + t.C + '</td></tr><tr><th>Not relevant</th><td class="num">' + t.N + '</td></tr><tr><th>Paywalled, unread and uncounted</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+      var introText = caption("side_panel_labels") || "Click a country on the map, type one into the Country search, or open a row in the ranked list, which is shown on small screens and can be reached with the keyboard. The country view carries its time series, category breakdown, routes, monitored outlets and recent classified articles.";
+      var top3 = C.rankCountries(currentAgg(), state.latest, state.metric, state.mode, state.names, ctxFor).filter(function (r) { return r.value; }).slice(0, 3);
+      body.innerHTML = '<h2>Select a country</h2><p class="muted">' + esc(introText) + '</p>' +
+        (top3.length ? '<div class="panel-shortcuts" id="panel-shortcuts"><span class="ps-label">Jump to the top ' + top3.length + ':</span>' +
+          top3.map(function (r) { return '<button type="button" class="ps-btn" data-iso="' + esc(r.iso) + '">' + esc(r.name) + '</button>'; }).join("") + '</div>' : '') +
+        (t ? '<h3>All monitored countries, all time</h3><table><tr><th>' + esc(clearerLabel("A", "State origin")) + '</th><td class="num">' + t.A + '</td></tr><tr><th>' + esc(clearerLabel("B", "Unchecked state sourcing")) + '</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</th><td class="num">' + t.pending + '</td></tr><tr><th>' + esc(clearerLabel("C", "Independent journalism")) + '</th><td class="num">' + t.C + '</td></tr><tr><th>' + esc(clearerLabel("N", "Not relevant")) + '</th><td class="num">' + t.N + '</td></tr><tr><th>' + esc(clearerLabel("paywalled", "Paywalled, unread and uncounted")) + '</th><td class="num">' + t.paywalled + '</td></tr></table>' : '<p class="muted">No totals available.</p>');
+      Array.prototype.forEach.call(body.querySelectorAll(".ps-btn"), function (btn) {
+        btn.addEventListener("click", function () { selectCountry(btn.getAttribute("data-iso")); });
+      });
       return;
     }
     var iso = state.selected;
@@ -1085,6 +1369,8 @@
     if (!entry) { html += '<p class="muted">No monitored outlets in ' + esc(name) + '. This is absence of data, not absence of content. To add coverage, add an outlet with a working feed to sources/outlets.yaml, or record the reason in sources/gaps.yaml.</p>'; body.innerHTML = html; bindClose(); return; }
     if (entry.coverage === "gap") { html += '<p class="warn">Coverage gap: ' + esc(entry.gap_reason) + '</p>'; body.innerHTML = html; bindClose(); return; }
     countryWarnings(entry, agg).forEach(function (w) { html += '<p class="warn">Warning: ' + esc(w) + '</p>'; });
+    var countryNote = state.content && state.content.country_notes && state.content.country_notes[iso];
+    if (countryNote) html += '<div class="panel-note-box"><h3>Why this number</h3><p>' + linkifyHtml(countryNote) + '</p></div>';
     var relay = relayFor(entry);
     var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg));
     html += '<p>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(routeLabel(state.route).toLowerCase()) : '') + ', ' + esc(windowLabel()) + ': <strong>' + (mv.withheld ? esc(relayText(relay, 0)) : C.formatValue(mv.value, metricDef().format) + (mv.provisional ? " (provisional)" : "")) + '</strong></p>';
@@ -1099,12 +1385,12 @@
       ? '<td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td>'
       : '<td class="num relay-state" colspan="4">' + esc(relayText(relay, 0)) + '</td>';
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
-      '<tr><td>State origin</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
+      '<tr><td>' + esc(clearerLabel("A", "State origin")) + '</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
       '<tr><td class="muted">Underlying items among them</td><td class="num">' + k.uniqA + '</td><td></td><td></td><td></td></tr>' +
-      '<tr><td>Unchecked state sourcing' + relayNote + '</td>' + relayCells + '</tr>' +
-      '<tr><td>Official Chinese sourcing, verification pending</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
-      '<tr><td>Independent journalism</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
-      '<tr><td>Not relevant</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
+      '<tr><td>' + esc(clearerLabel("B", "Unchecked state sourcing")) + relayNote + '</td>' + relayCells + '</tr>' +
+      '<tr><td>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
+      '<tr><td>' + esc(clearerLabel("C", "Independent journalism")) + '</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
+      '<tr><td>' + esc(clearerLabel("N", "Not relevant")) + '</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
       '<tr><td class="muted">Fetched / paywalled / failed / robots</td><td class="num" colspan="4">' + k.fetched + ' / ' + k.paywalled + ' / ' + k.failed + ' / ' + k.blocked + '</td></tr>' +
       '<tr><td class="muted">Feed polls full with nothing seen before / estimated items missed</td><td class="num" colspan="4">' + k.sat + ' of ' + k.polls + ' / ' + k.miss + '</td></tr>' +
       '</table>';
@@ -1278,7 +1564,9 @@
       return {i: i, d: d, v: tot, ceiling: !!(e && e.llm_ceiling_hit), relayGap: !!(e && e.relay_incomplete), older: !!(e && e.labels_on_older_ruleset)};
     });
     var noun = byRoute ? "state origin articles, " + routeLabel(state.route).toLowerCase() : measureNoun();
-    el("tl-hint").textContent = "Moves only the map; the theme counter keeps its own day and window. The shaded curve is the global daily number of " + noun + ". Amber bars are days on which more articles were waiting than the daily model call cap allowed, so those days are truncated rather than quiet; the cap binds the draw and a run can stop at its time budget before spending it. Red ticks along the bottom are days the collector on the owner's machine ran too few hours. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset. Gold dotted lines are relevance gate changes, which apply only to items discovered after them.";
+    var mapCap = caption("map_timeline_caption");
+    el("tl-hint").textContent = "The shaded curve is the global daily number of " + noun + ". " + (mapCap ||
+      "Moves only the map; the theme counter keeps its own day and window. Amber bars are days on which more articles were waiting than the daily model call cap allowed, so those days are truncated rather than quiet; the cap binds the draw and a run can stop at its time budget before spending it. Red ticks along the bottom are days the collector on the owner's machine ran too few hours. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset. Gold dotted lines are relevance gate changes, which apply only to items discovered after them.");
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
@@ -1405,6 +1693,27 @@
     dl.innerHTML = rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join("");
     el("citation").textContent = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
     el("footer-run").textContent = "Generated " + m.generated_at + ". Ruleset " + m.ruleset_version + ". Schema " + m.schema_version + ".";
+  }
+
+  /* The operational detail a reader does not need to interpret today's map, moved out of the notes
+     strip and the "Current notes" list: model call caps, ruleset and gate versions, reclassification
+     progress, the reliability study, feed saturation, the owner-run collector, and release section
+     search coverage. Static prose from content.json, written at the last export; hidden entirely when
+     content.json has not loaded or carries none of these keys. */
+  var TECHNICAL_NOTE_KEYS = [
+    ["model_call_caps", "Model call caps"], ["ruleset_and_gate_versions", "Ruleset and gate versions"],
+    ["reclassification_status", "Reclassification status"], ["reliability_study", "Reliability study"],
+    ["feed_saturation", "Feed saturation"], ["relay_collector", "Owner-run collector"],
+    ["release_section_search_coverage", "Release section search coverage"]
+  ];
+  function renderTechnicalNotes() {
+    var wrap = el("technical-notes-wrap"), dl = el("technical-notes");
+    if (!wrap || !dl) return;
+    var extra = state.content && state.content.methodology_extra;
+    if (!extra) { wrap.hidden = true; return; }
+    var rows = TECHNICAL_NOTE_KEYS.filter(function (kv) { return extra[kv[0]]; });
+    dl.innerHTML = rows.map(function (kv) { return '<dt>' + esc(kv[1]) + '</dt><dd>' + esc(extra[kv[0]]) + '</dd>'; }).join("");
+    wrap.hidden = !rows.length;
   }
 
   /* --------------------------------------------------------------- exports */
@@ -1549,11 +1858,18 @@
       setupCountryPicks();
       setupTimeline();
       setupThemeTimeline();
+      setupStartHere();
       renderNotices();
       renderMap();
       renderThemes(); renderLeaning();
       renderPanel();
       renderMethod();
+      renderTechnicalNotes();
+      renderFindings();
+      renderStartHere();
+      renderExamples();
+      renderFaq();
+      renderCta();
       renderLoadFailures();
     }).catch(function (e) {
       console.error(e);
