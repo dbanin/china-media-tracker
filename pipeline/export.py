@@ -20,7 +20,7 @@ import json
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from pipeline import classify_rules, config, extract, gate, llm_cost, registry, second_rater, store
 from pipeline import themes as themes_mod
@@ -388,6 +388,40 @@ def gate_changes(path: Path = None) -> List[Dict]:
     return _changelog_changes(CHANGELOG_GATE, path)
 
 
+def _country_top_carriers(conn, outlets: List[Dict], since30: str) -> Dict[str, Dict]:
+    """Per country, the outlet and the route that carried most of its state origin count in the
+    last 30 days, so a map tooltip can say what carried the number. Distribution wires are
+    excluded, exactly as every country figure excludes them. A route with no signature at all is
+    not a route (see route_signature_totals in build_meta) and is never reported here as one."""
+    wire_ids = registry.distribution_wire_ids(outlets)
+    where = ""
+    params: List = [since30]
+    if wire_ids:
+        where = " AND a.outlet_id NOT IN (%s)" % ",".join("?" * len(wire_ids))
+        params += sorted(wire_ids)
+    outlet_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    route_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for r in conn.execute(
+            """SELECT a.country, a.outlet_id, c.route FROM articles a JOIN classifications c
+               ON c.article_id=a.id AND c.is_current=1
+               WHERE c.category='A' AND a.discovered_at>=?%s""" % where, params):
+        outlet_counts[r["country"]][r["outlet_id"]] += 1
+        route_counts[r["country"]][r["route"] or "unattributed"] += 1
+    names = {o["id"]: o["name"] for o in outlets}
+    out = {}
+    for country in set(outlet_counts) | set(route_counts):
+        oc = outlet_counts.get(country, {})
+        rc = dict(route_counts.get(country, {}))
+        rc.pop("unattributed", None)
+        top_o = max(oc, key=lambda k: (oc[k], k)) if oc else None
+        top_r = max(rc, key=lambda k: (rc[k], k)) if rc else None
+        out[country] = {
+            "top_carrier": {"id": top_o, "name": names.get(top_o, top_o), "count": oc[top_o]} if top_o else None,
+            "top_route": {"id": top_r, "count": rc[top_r]} if top_r else None,
+        }
+    return out
+
+
 def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Optional[Dict] = None) -> Dict:
     visible = relay_visible(conn)
     population = population if population is not None else registry.load_population()
@@ -402,6 +436,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
     theme_langs = themes_mod.languages()
     relay = relay_status(conn, outlets)
     relay_inc30 = [d for d in relay["incomplete_days"] if d >= since30]
+    carriers = _country_top_carriers(conn, outlets, since30)
 
     all_time = defaultdict(_empty_country)
     last30 = defaultdict(_empty_country)
@@ -448,6 +483,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             "theme_language_support": language_support(languages, theme_langs),
             "relay_outlets": relayed,
             "release_sections": release_summary(os_),
+            "top_carrier": carriers.get(country, {}).get("top_carrier"),
+            "top_route": carriers.get(country, {}).get("top_route"),
             "all_time": _derive(dict(all_time[country]), len(active), visible),
             "last_30d": _derive(dict(last30[country]), len(active), visible),
             "reviewed_all_time": _reviewed_block(conn, country, None),
@@ -490,6 +527,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                                        "feeds_total": 0, "feeds_ok": 0, "population": population.get(g["country"]),
                                        "top_outlets": 0, "top_outlets_ranked": False, "languages": [], "language_support": "none",
                                        "theme_language_support": "none", "relay_outlets": 0, "release_sections": release_summary([]),
+                                       "top_carrier": None, "top_route": None,
                                        "all_time": _derive(_empty_country(), 0, visible), "last_30d": _derive(_empty_country(), 0, visible), "warnings": []}
 
     n_active = len(registry.active_outlets(outlets))
@@ -720,7 +758,242 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
     return out
 
 
-def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dict:
+# ---------------------------------------------------------------------------
+# Worked examples: the short matched span that produced a label, for the reader's "why this one"
+# ---------------------------------------------------------------------------
+
+def _pattern_index() -> Dict[str, "re.Pattern"]:
+    """Every compiled signature and LLM trigger pattern, keyed by id, so a stored evidence span can
+    be searched again to recover where inside it the matched phrase sits. The offsets are never
+    stored on the classification itself, only the span text around the match."""
+    sigs = classify_rules.load_signatures()
+    idx = {}
+    for pats in sigs["groups"].values():
+        for p in pats:
+            idx[p["id"]] = p["re"]
+    for t_id, rx in sigs["llm_triggers"]:
+        idx[t_id] = rx
+    return idx
+
+
+def _diplomat_offset(span: str) -> Optional[Tuple[int, int]]:
+    """The diplomat_list_author and diplomat_list_name_only signatures are not regex patterns; they
+    fire on a name from pipeline/diplomats.yaml found in the author field. Recover the name's own
+    position in the stored span the same way match_signatures found it."""
+    for name in classify_rules.load_diplomats():
+        m = re.search(r"\b%s\b" % re.escape(name), span, re.IGNORECASE)
+        if m:
+            return m.start(), m.end()
+    return None
+
+
+def _match_offset(pattern_id: str, span: str) -> Optional[Tuple[int, int]]:
+    if pattern_id in ("diplomat_list_author", "diplomat_list_name_only"):
+        return _diplomat_offset(span)
+    rx = _pattern_index().get(pattern_id)
+    if not rx:
+        return None
+    m = rx.search(span)
+    return (m.start(), m.end()) if m else None
+
+
+def _trim_to_words(text: str, start: int, end: int, max_words: int = 25) -> Tuple[str, int, int]:
+    """Cut text to at most max_words words, keeping the matched [start, end) span inside the
+    result, with the leftover word budget split evenly around it. Returns the trimmed snippet and
+    the matched span's offsets inside that snippet."""
+    words = [(m.start(), m.end()) for m in re.finditer(r"\S+", text)]
+    if not words:
+        return text, start, end
+    lo_i = next((i for i, (s, e) in enumerate(words) if e > start), 0)
+    hi_i = next((i for i, (s, e) in enumerate(words) if s >= end), len(words)) - 1
+    hi_i = max(hi_i, lo_i)
+    budget = max(0, max_words - (hi_i - lo_i + 1))
+    before, after = budget // 2, budget - budget // 2
+    lo = max(0, lo_i - before)
+    hi = min(len(words) - 1, hi_i + after)
+    snippet = text[words[lo][0]:words[hi][1]]
+    return snippet, start - words[lo][0], end - words[lo][0]
+
+
+def _tell(category: str, signatures_fired, evidence_quote: Optional[str], llm_trigger_json) -> Optional[Dict]:
+    """The short matched span that produced a state origin or unchecked state sourcing label, cut to
+    at most 25 words, with the offsets of the matched phrase inside it so the front end can
+    highlight it. For state origin this is the deterministic signature recorded on the
+    classification; for unchecked state sourcing, which the model judges freely, it is the official
+    sourcing trigger, or lacking one the weak signature, that routed the article to the model in the
+    first place: the article's llm_trigger field, still on the row after judgement. Returns None
+    when no matched span can be recovered, so the caller skips the article rather than showing a
+    fabricated highlight."""
+    if category == "A":
+        ids = signatures_fired or []
+        span = evidence_quote
+        if not ids or not span:
+            return None
+        offset = _match_offset(ids[0], span)
+    else:
+        try:
+            trig = json.loads(llm_trigger_json or "{}") or {}
+        except ValueError:
+            trig = {}
+        triggers = trig.get("triggers") or []
+        a_candidate = trig.get("a_candidate") or []
+        spans = trig.get("spans") or []
+        pattern_id, span = (triggers[0], spans[0]) if triggers and spans else \
+            ((a_candidate[0], spans[0]) if a_candidate and spans else (None, None))
+        if not pattern_id or not span:
+            return None
+        offset = _match_offset(pattern_id, span)
+    if not offset:
+        return None
+    snippet, s, e = _trim_to_words(span, offset[0], offset[1])
+    return {"snippet": snippet, "start": s, "end": e}
+
+
+def build_examples(conn, outlets: Optional[List[Dict]] = None, limit: int = 6) -> Dict:
+    """Up to `limit` recent, varied worked examples for state origin, and for unchecked state
+    sourcing when it may be shown: different countries and different outlets, most recent first,
+    current ruleset labels only. Paywalled articles are never classified, so they are absent here in
+    any case; the status check guards that directly rather than relying on it. Distribution wires
+    are excluded, as everywhere."""
+    outlets = outlets if outlets is not None else registry.load_outlets()
+    wire_ids = registry.distribution_wire_ids(outlets)
+    names = {o["id"]: o["name"] for o in outlets}
+    visible = relay_visible(conn)
+    out = {"generated_at": store.utcnow()}
+    for cat in (["A", "B"] if visible else ["A"]):
+        rows = conn.execute(
+            """SELECT a.id, a.title, a.url, a.outlet_id, a.country, a.discovered_at, a.llm_trigger,
+                      c.evidence_quote, c.signatures_fired, c.route
+               FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+               WHERE c.category=? AND c.ruleset_version=? AND a.status<>'paywalled'
+               ORDER BY a.discovered_at DESC""",
+            (cat, config.RULESET_VERSION),
+        ).fetchall()
+        picked = []
+        seen_countries, seen_outlets = set(), set()
+        for r in rows:
+            if r["outlet_id"] in wire_ids:
+                continue
+            if r["country"] in seen_countries or r["outlet_id"] in seen_outlets:
+                continue
+            sigs = json.loads(r["signatures_fired"] or "[]") if cat == "A" else None
+            tell = _tell(cat, sigs, r["evidence_quote"], r["llm_trigger"])
+            if not tell:
+                continue
+            picked.append({
+                "id": r["id"], "headline": r["title"], "outlet_id": r["outlet_id"],
+                "outlet_name": names.get(r["outlet_id"], r["outlet_id"]), "country": r["country"],
+                "url": r["url"], "date": (r["discovered_at"] or "")[:10],
+                "route": r["route"] if cat == "A" else None, "tell": tell,
+            })
+            seen_countries.add(r["country"])
+            seen_outlets.add(r["outlet_id"])
+            if len(picked) >= limit:
+                break
+        out[cat] = picked
+    return out
+
+
+# ---------------------------------------------------------------------------
+# meta.findings: the small "what we found" summary the front end turns into a box
+# ---------------------------------------------------------------------------
+
+OWNERSHIP_GROUPS = ["private", "public_service", "state", "party", "unassessed"]
+
+
+def by_ownership_findings(outlets_json: Dict) -> Dict:
+    """State origin output by the publishing outlet's ownership, all time, active outlets only,
+    distribution wires excluded: the same figures docs/app.js leanModel computes for the ownership
+    axis with measure "a", read here to match rather than reimplemented differently."""
+    groups = {g: {"articles": 0, "outlets": 0} for g in OWNERSHIP_GROUPS}
+    for o in outlets_json["outlets"]:
+        if not o["active"] or o["tier"] == "distribution_wire":
+            continue
+        key = o.get("ownership") or "unassessed"
+        if key not in groups:
+            key = "unassessed"
+        groups[key]["articles"] += (o.get("counts") or {}).get("A", 0)
+        groups[key]["outlets"] += 1
+    rows = []
+    top = None
+    for g in OWNERSHIP_GROUPS:
+        v = groups[g]
+        rate = round(v["articles"] / v["outlets"], 3) if v["outlets"] else None
+        rows.append({"id": g, "articles": v["articles"], "outlets": v["outlets"], "per_outlet_rate": rate})
+        if rate is not None and (top is None or rate > top["per_outlet_rate"]):
+            top = rows[-1]
+    return {"groups": rows, "top": {"id": top["id"], "per_outlet_rate": top["per_outlet_rate"]} if top else None}
+
+
+def _top_country_last30(conn, outlets: List[Dict], latest: Dict, since30: str) -> Optional[Dict]:
+    """The country with the most state origin articles in the last 30 days: its share of the
+    world's state origin in that window, the outlet that carried most of it, and the route that
+    carried most of it. Distribution wires are excluded, exactly as every country figure excludes
+    them, and a route with no signature at all is not counted as a route, matching
+    route_signature_totals in build_meta."""
+    world = 0
+    by_country = {}
+    for iso, c in latest["countries"].items():
+        a = (c.get("last_30d") or {}).get("A", 0)
+        world += a
+        if a:
+            by_country[iso] = a
+    if not by_country:
+        return None
+    top_iso = max(by_country, key=lambda k: (by_country[k], k))
+    wire_ids = registry.distribution_wire_ids(outlets)
+    where = ""
+    params: List = [top_iso, since30]
+    if wire_ids:
+        where = " AND a.outlet_id NOT IN (%s)" % ",".join("?" * len(wire_ids))
+        params += sorted(wire_ids)
+    outlet_counts, route_counts = defaultdict(int), defaultdict(int)
+    for r in conn.execute(
+            """SELECT a.outlet_id, c.route FROM articles a JOIN classifications c
+               ON c.article_id=a.id AND c.is_current=1
+               WHERE a.country=? AND c.category='A' AND a.discovered_at>=?%s""" % where, params):
+        outlet_counts[r["outlet_id"]] += 1
+        route_counts[r["route"] or "unattributed"] += 1
+    route_counts.pop("unattributed", None)
+    names = {o["id"]: o["name"] for o in outlets}
+    top_outlet_id = max(outlet_counts, key=lambda k: (outlet_counts[k], k)) if outlet_counts else None
+    top_route_id = max(route_counts, key=lambda k: (route_counts[k], k)) if route_counts else None
+    return {
+        "iso": top_iso,
+        "state_origin": by_country[top_iso],
+        "share_of_world": round(by_country[top_iso] / world, 4) if world else None,
+        "top_outlet": {"id": top_outlet_id, "name": names.get(top_outlet_id, top_outlet_id)} if top_outlet_id else None,
+        "top_route": top_route_id,
+    }
+
+
+def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, first_discovered: Optional[str]) -> Dict:
+    """The small "what we found" summary the front end turns into a box: since when, the all time
+    state origin, unchecked state sourcing and independent totals and the state share of China
+    coverage, the country carrying most state origin in the last 30 days, and state origin output by
+    the publishing outlet's ownership."""
+    visible = relay_visible(conn)
+    tot = latest["totals"]["all_time"]
+    # china_total is A + B + C across every country, distribution wires excluded: the same
+    # denominator the interface already uses for "share of its China coverage" (_derive above).
+    china_total = tot["china_total"]
+    return {
+        "since": first_discovered,
+        "all_time": {
+            "state_origin": tot["A"],
+            "unchecked": tot["B"] if visible else None,
+            "independent": tot["C"],
+            "china_total": china_total,
+            "state_share_of_china": round(tot["A"] / china_total, 4) if china_total else None,
+        },
+        "top_country": _top_country_last30(conn, outlets, latest, latest["window_start_30d"]),
+        "by_ownership": by_ownership_findings(outlets_json),
+        "generated_at": store.utcnow(),
+    }
+
+
+def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlets_json: Optional[Dict] = None) -> Dict:
+    outlets_json = outlets_json if outlets_json is not None else build_outlets(conn, outlets)
     last_runs = {}
     for r in conn.execute("SELECT stage, MAX(finished_at) f FROM run_log WHERE ok=1 GROUP BY stage"):
         last_runs[r["stage"]] = r["f"]
@@ -801,8 +1074,10 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         tuple(wires))} if wires else {r[0] or "unattributed": r[1] for r in conn.execute(
         "SELECT route, COUNT(*) FROM classifications WHERE is_current=1 AND category='A' GROUP BY route")}
     sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), COALESCE(SUM(missed_estimate), 0) FROM feed_polls").fetchone()
+    first_discovered = (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None
     return {
         "schema_version": config.SCHEMA_VERSION,
+        "findings": build_findings(conn, outlets, latest, outlets_json, first_discovered),
         "ruleset_version": config.RULESET_VERSION,
         "llm_model": config.LLM_MODEL,
         "generated_at": store.utcnow(),
@@ -822,7 +1097,7 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict) -> Dic
         "min_outlets_for_output_share": config.MIN_OUTLETS_FOR_OUTPUT_SHARE,
         "gaps": gaps,
         "articles_discovered": conn.execute("SELECT COALESCE(SUM(discovered), 0) FROM daily_discovery").fetchone()[0],
-        "first_discovered": (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None,
+        "first_discovered": first_discovered,
         "articles_gate_relevant": conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1").fetchone()[0],
         "articles_classified": cls_total,
         "official_sourcing_pending": conn.execute("SELECT COUNT(*) FROM articles WHERE status IN ('awaiting_llm','llm_submitted')").fetchone()[0],
@@ -975,7 +1250,8 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     series = build_global_series(daily)
     outlets_json = build_outlets(conn, outlets)
     articles = build_articles(conn, outlets=outlets)
-    meta = build_meta(conn, outlets, gaps, latest)
+    examples = build_examples(conn, outlets=outlets)
+    meta = build_meta(conn, outlets, gaps, latest, outlets_json)
     write_json(export_dir / "latest.json", latest)
     for month, m in daily.items():
         write_json(export_dir / "daily" / ("%s.json" % month), m)
@@ -990,6 +1266,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     for country in latest["countries"]:
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
+    write_json(export_dir / "examples.json", examples)
     counts = {"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
               "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
