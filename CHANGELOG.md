@@ -134,6 +134,33 @@ to items discovered after today.
   least two occurrences" branch on its own, and was published as independent
   journalism.
 
+## Data schema 8 (2026-09-28)
+
+Three new generated pieces for a front end aimed at an educated newcomer. No
+label changes, and every figure below reuses the existing rollups and
+definitions: discovery day attribution, distribution wires excluded from
+every country figure, paywalled items uncounted, unchecked state sourcing
+gated by relay_visible and relay_provisional exactly as before.
+
+- meta.findings, a small summary the front end turns into a "what we found"
+  box: since when the data runs, the all time state origin, unchecked state
+  sourcing and independent totals with the state share of China coverage, the
+  country carrying the most state origin in the last 30 days with the outlet
+  and route that carried most of it, and state origin output by the
+  publishing outlet's ownership, all time and active outlets only. Unchecked
+  state sourcing is null in this box whenever it may not be shown, the same
+  gate the rest of the interface already applies.
+- docs/data/examples.json, up to six recent worked examples each for state
+  origin and, when it may be shown, unchecked state sourcing: headline,
+  outlet, country, url, discovery date, route, and the short matched span
+  that produced the label, cut to at most 25 words, with the character
+  offsets of the matched phrase inside it so the front end can highlight it.
+  Examples are varied by country and outlet, most recent first, current
+  ruleset labels only, distribution wires excluded.
+- latest.json carries top_carrier and top_route per country for the last 30
+  days of state origin, so a map tooltip can say what carried the country's
+  number.
+
 ## Data schema 7 (2026-09-22)
 
 Changes to what is counted and where, from the same audit. Anyone comparing
