@@ -12,14 +12,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
-from urllib import robotparser
 from urllib.parse import urlsplit
 
 import requests
 
-from pipeline import config, extract, store
+from pipeline import config, extract, robots, store
 
-_robots_cache: Dict[str, Optional[robotparser.RobotFileParser]] = {}
+_robots_cache: Dict[str, tuple] = {}
 _robots_lock = threading.Lock()
 _last_request: Dict[str, float] = {}
 _rate_lock = threading.Lock()
@@ -51,9 +50,7 @@ def robots_for(domain: str, scheme: str = "https"):
         _rate_wait(domain)
         resp = requests.get(url, headers={"User-Agent": config.USER_AGENT}, timeout=config.FETCH_TIMEOUT)
         if resp.status_code == 200:
-            rp = robotparser.RobotFileParser()
-            rp.parse(resp.text.splitlines())
-            result = ("ok", rp)
+            result = ("ok", robots.parse(resp.text.splitlines()))
         elif 400 <= resp.status_code < 500:
             result = ("allow_all", None)
         else:
@@ -74,8 +71,9 @@ def can_fetch(url: str):
         return False, "robots_unavailable"
     if state == "allow_all" or rp is None:
         return True, "no_robots"
-    agent_token = config.PROJECT_NAME
-    if rp.can_fetch(agent_token, url) and rp.can_fetch("*", url):
+    # RFC 9309: the group naming this crawler governs, or the "*" group when none does, and within
+    # it the most specific matching rule wins (see pipeline/robots.py).
+    if rp.can_fetch(config.PROJECT_NAME, url):
         return True, "robots_allowed"
     return False, "robots_disallowed"
 

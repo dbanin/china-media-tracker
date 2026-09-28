@@ -4,6 +4,20 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Crawler: robots.txt read as RFC 9309 defines it (2026-09-28)
+
+The weekly feed check on 2026-09-28 reported 47 feeds blocked by robots.txt. Thirteen of them,
+at eight outlets (iDNES, Lidovky, Kloop, Kommersant and its English edition, Lenta, Sveriges
+Radio and teleSUR), are in fact open to crawlers. urllib.robotparser applies the first matching
+rule in file order where the standard applies the longest match, so "Disallow: /" followed by
+"Allow: /rss.aspx" closed the feed the publisher had opened; it has no "*" or "$" wildcards; and
+it drops a "?" from a rule, so "Disallow: /?" became "Disallow: /" and closed Lenta entirely. The
+crawler also required both its own group and the "*" group to allow a URL, where the standard has
+a group naming the crawler replace the "*" group. pipeline/robots.py now does all four the way the
+standard says. The other 34 feeds really do disallow crawlers and stay blocked. All eight outlets
+had stayed active in the registry, so their per outlet denominators counted outlets that were
+contributing nothing; they contribute again from the next run. No label meaning changes.
+
 ## Ruleset 2026.09.9 (2026-09-25)
 
 A budget diagnosis of September's model spend, run after the $30/month cap
