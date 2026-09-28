@@ -997,7 +997,9 @@
   leaning_source: https://mediabiasfactcheck.com/windsor-star/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Canada
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-19 (auto)
+  inactive_since: '2026-09-28'
 - id: ca_citynews
   name: CityNews
   country: CAN
@@ -8084,7 +8086,9 @@
   leaning_source: https://en.wikipedia.org/wiki/El_Peri%C3%B3dico_de_Catalunya
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Peri%C3%B3dico_de_Catalunya
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto)
+  inactive_since: '2026-09-28'
 - id: es_europapress
   name: Europa Press
   country: ESP
@@ -20361,7 +20365,9 @@
   leaning_source: https://en.wikipedia.org/wiki/BusinessWorld
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/businessworld/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-18 (auto)
+  inactive_since: '2026-09-28'
 - id: ph_gma
   name: GMA News
   country: PHL
@@ -27378,7 +27384,9 @@
   leaning_source: https://mediabiasfactcheck.com/yahoo-news/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/yahoo-news/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto)
+  inactive_since: '2026-09-28'
 - id: us_seattletimes
   name: The Seattle Times
   country: USA
@@ -29877,7 +29885,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.mediaisleofman.im/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-15 (auto)
+  inactive_since: '2026-09-28'
 - id: im_iomtoday
   name: Isle of Man Today
   country: IMN
@@ -30223,7 +30233,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Monaco-Matin
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-15 (auto)
+  inactive_since: '2026-09-28'
 - id: mc_monacotribune
   name: Monaco Tribune
   country: MCO
