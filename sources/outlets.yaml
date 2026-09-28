@@ -16726,6 +16726,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ziarul_de_Gard%C4%83
+  government_stance: independent
+  stance_source: https://moldova.mom-gmr.org/en/media/print/outlet/ziarul-de-garda-98063
+  stance_as_of: 2024
   active: true
 - id: md_ziarulnational
   name: Ziarul Național
@@ -23591,6 +23594,9 @@
   leaning_source: https://mediabiasfactcheck.com/b92-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/B92
+  government_stance: pro_government
+  stance_source: https://serbia.mom-gmr.org/en/owners/individual-owners/detail/owner/owner/show/srdan-milovanovic-1/
+  stance_as_of: 2023
   active: true
 - id: rs_beta
   name: Beta
@@ -23661,6 +23667,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Danas
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Danas
+  government_stance: independent
+  stance_source: https://serbia.mom-gmr.org/en/media/detail/outlet/danasrs/
+  stance_as_of: 2023
   active: true
 - id: rs_kurir
   name: Kurir
@@ -23679,6 +23688,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Kurir
   ownership: private
   ownership_source: https://serbia.mom-gmr.org/sr/mediji/detail/outlet/kurir-2/
+  government_stance: pro_government
+  stance_source: https://serbia.mom-gmr.org/en/media/detail/outlet/kurirrs-1/
+  stance_as_of: 2023
   active: true
 - id: rs_n1
   name: N1 Srbija
@@ -23763,6 +23775,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio_Television_of_Serbia
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Television_of_Serbia
+  government_stance: pro_government
+  stance_source: https://serbia.mom-gmr.org/en/media/detail/outlet/rts-1-1/
+  stance_as_of: 2023
   active: true
 - id: rs_tanjug
   name: Tanjug
@@ -32929,6 +32944,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://armenia.mom-gmr.org/en/owners/companies/company/168-zham-llc-114663/
+  government_stance: opposition
+  stance_source: https://armenia.mom-gmr.org/en/media/print/outlet/168-zham-114958
+  stance_as_of: 2025
   active: true
 - id: az_haqqin
   name: Haqqin.az
