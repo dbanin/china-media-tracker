@@ -168,3 +168,50 @@ def test_an_editorial_repeat_does_not_readmit(monkeypatch, tmp_path):
     second = fetch_feeds.run(conn, "t2", outlets=[outlet])
     assert second["readmitted_section"] == 0
     assert conn.execute("SELECT status FROM articles").fetchone()[0] == "gated_out"
+
+
+# robots.txt read as RFC 9309 defines it (pipeline/robots.py).
+from pipeline import robots as robots_mod
+
+
+def _rb(text):
+    return robots_mod.parse(text.strip().splitlines())
+
+
+def test_robots_longest_match_wins_over_file_order():
+    # iDNES: everything closed except the feed, which the publisher opens explicitly.
+    rb = _rb("User-agent: *\nDisallow: /\nAllow: /rss.aspx")
+    assert rb.can_fetch("ChinaStateMediaTracker", "https://servis.idnes.cz/rss.aspx?c=zpravodaj")
+    assert not rb.can_fetch("ChinaStateMediaTracker", "https://servis.idnes.cz/clanek")
+
+
+def test_robots_feed_path_disallowed_stays_disallowed():
+    rb = _rb("User-agent: *\nDisallow: /wp-admin/\nDisallow: /feed/")
+    assert not rb.can_fetch("ChinaStateMediaTracker", "https://www.ilfattoquotidiano.it/feed/")
+    assert rb.can_fetch("ChinaStateMediaTracker", "https://www.ilfattoquotidiano.it/2026/09/28/articolo/")
+
+
+def test_robots_wildcards_and_end_anchor():
+    rb = _rb("User-agent: *\nDisallow: /*?*\nDisallow: /*.pdf$\nAllow: /feed/$")
+    assert not rb.can_fetch("x", "https://a.example/news?page=2")
+    assert not rb.can_fetch("x", "https://a.example/files/report.pdf")
+    assert rb.can_fetch("x", "https://a.example/files/report.pdf.html")
+    assert rb.can_fetch("x", "https://a.example/feed/")
+
+
+def test_robots_named_group_replaces_star_and_tie_goes_to_allow():
+    rb = _rb("User-agent: *\nDisallow: /\n\nUser-agent: ChinaStateMediaTracker\nDisallow: /private/\nAllow: /private/\n")
+    assert rb.can_fetch("ChinaStateMediaTracker", "https://a.example/news/")        # named group governs
+    assert rb.can_fetch("ChinaStateMediaTracker", "https://a.example/private/x")    # equal length: allow wins
+    assert not rb.can_fetch("OtherBot", "https://a.example/news/")                  # others get the * group
+
+
+def test_robots_a_partial_agent_name_is_not_our_group():
+    rb = _rb("User-agent: tracker\nAllow: /\n\nUser-agent: *\nDisallow: /")
+    assert not rb.can_fetch("ChinaStateMediaTracker", "https://a.example/news/")
+
+
+def test_robots_empty_disallow_and_consecutive_agents():
+    rb = _rb("User-agent: GPTBot\nUser-agent: CCBot\nDisallow: /\n\nUser-agent: *\nDisallow:\n")
+    assert rb.can_fetch("ChinaStateMediaTracker", "https://a.example/anything")
+    assert not rb.can_fetch("GPTBot", "https://a.example/anything")
