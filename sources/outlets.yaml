@@ -189,6 +189,8 @@
   leaning_source: https://en.wikipedia.org/wiki/RAI
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RAI
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/RAI
   active: true
 - id: it_ilpost
   name: Il Post
@@ -1846,6 +1848,8 @@
   leaning_source: https://en.wikipedia.org/wiki/RTSH
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RTSH
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/RTSH
   active: true
 - id: al_tiranatimes
   name: Tirana Times
@@ -1956,6 +1960,8 @@
   leaning_source: https://statemediamonitor.com/2025/07/sky-news-arabia/
   ownership: state
   ownership_source: https://statemediamonitor.com/2025/07/sky-news-arabia/
+  government_stance: state_controlled
+  stance_source: https://statemediamonitor.com/2025/07/sky-news-arabia/
   active: true
 - id: ae_thenationalnews
   name: The National
@@ -1976,6 +1982,8 @@
   leaning_source: https://en.wikipedia.org/wiki/The_National_(Abu_Dhabi)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/The_National_(Abu_Dhabi)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/The_National_(Abu_Dhabi)
   active: true
 - id: ar_ambito
   name: Ámbito
@@ -2490,6 +2498,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Azerbaijani_Press_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Azerbaijani_Press_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Azerbaijani_Press_Agency
   active: true
 - id: az_azernews
   name: Azernews
@@ -2553,6 +2563,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Qafqazinfo
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Qafqazinfo
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Qafqazinfo
   active: true
 - id: az_report
   name: Report.az
@@ -2957,6 +2969,8 @@
   leaning_source: https://rsf.org/en/country/benin
   ownership: state
   ownership_source: https://rsf.org/en/country/benin
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/benin
   active: true
 - id: bf_aib
   name: AIB
@@ -2976,6 +2990,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: true
 - id: bf_burkina24
   name: Burkina 24
@@ -3120,6 +3136,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: true
 - id: bf_sidwaya
   name: Sidwaya
@@ -3149,6 +3167,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Sidwaya
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sidwaya
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Sidwaya
   active: true
 - id: bf_wakatsera
   name: Wakat Séra
@@ -3655,6 +3675,8 @@
   leaning_source: https://en.wikipedia.org/wiki/ZNS-TV
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/ZNS-TV
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/ZNS-TV
   active: true
 - id: ba_avaz
   name: Dnevni avaz
@@ -3691,6 +3713,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   active: true
 - id: ba_glassrpske
   name: Glas Srpske
@@ -3785,6 +3809,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   active: true
 - id: by_belta_en
   name: BelTA English
@@ -3957,6 +3983,8 @@
   leaning_source: https://www.ebc.com.br/sobre
   ownership: state
   ownership_source: https://www.ebc.com.br/sobre
+  government_stance: state_controlled
+  stance_source: https://www.ebc.com.br/sobre
   active: true
 - id: br_agenciasenado
   name: Agência Senado
@@ -3974,6 +4002,8 @@
   leaning_source: https://www12.senado.leg.br/noticias/quem-somos-agencia-senado
   ownership: state
   ownership_source: https://www12.senado.leg.br/noticias/quem-somos-agencia-senado
+  government_stance: state_controlled
+  stance_source: https://www12.senado.leg.br/noticias/quem-somos-agencia-senado
   active: true
 - id: br_amazonia
   name: Amazônia Real
@@ -4475,6 +4505,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Caribbean_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Caribbean_Broadcasting_Corporation
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Caribbean_Broadcasting_Corporation
   active: true
 - id: bb_gis
   name: Barbados GIS
@@ -4535,6 +4567,8 @@
   leaning_source: https://www.bizbrunei.com/
   ownership: state
   ownership_source: https://www.bizbrunei.com/
+  government_stance: state_controlled
+  stance_source: https://www.bizbrunei.com/
   active: true
 - id: bn_mediapermata
   name: Media Permata
@@ -4565,6 +4599,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio_Television_Brunei
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Television_Brunei
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Radio_Television_Brunei
   active: true
 - id: bn_thescoop
   name: The Scoop
@@ -4607,6 +4643,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
   active: true
 - id: bt_bhutanese
   name: The Bhutanese
@@ -5047,6 +5085,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Empresa_Period%C3%ADstica_La_Naci%C3%B3n_S.A.
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Empresa_Period%C3%ADstica_La_Naci%C3%B3n_S.A.
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Empresa_Period%C3%ADstica_La_Naci%C3%B3n_S.A.
   active: true
 - id: cl_latercera
   name: La Tercera
@@ -5185,6 +5225,8 @@
   leaning_source: https://rsf.org/en/country/ivory-coast
   ownership: state
   ownership_source: https://rsf.org/en/country/ivory-coast
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/ivory-coast
   active: true
 - id: ci_yeclo
   name: Yeclo
@@ -5481,6 +5523,8 @@
   leaning_source: https://rsf.org/en/country/democratic-republic-congo
   ownership: state
   ownership_source: https://rsf.org/en/country/democratic-republic-congo
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/democratic-republic-congo
   active: true
 - id: cd_zoomeco
   name: Zoom Eco
@@ -5539,6 +5583,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_the_Republic_of_the_Congo
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_the_Republic_of_the_Congo
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_the_Republic_of_the_Congo
   active: true
 - id: cg_journaldebrazza
   name: Journal de Brazza
@@ -5735,6 +5781,8 @@
   leaning_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   ownership: state
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
+  government_stance: state_controlled
+  stance_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   active: true
 - id: co_semana
   name: Semana
@@ -5803,6 +5851,8 @@
   leaning_source: https://rsf.org/en/country/comoros
   ownership: state
   ownership_source: https://rsf.org/en/country/comoros
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/comoros
   active: true
 - id: cv_anacao
   name: A Nação
@@ -6080,6 +6130,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Cubadebate
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Cubadebate
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Cubadebate
   active: true
 - id: cu_cubanet
   name: Cubanet
@@ -6108,6 +6160,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cu_cubasi
   name: CubaSí
@@ -6125,6 +6179,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cu_diariodecuba
   name: Diario de Cuba
@@ -6208,6 +6264,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cu_prensalatina_en
   name: Prensa Latina English
@@ -6226,6 +6284,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cu_radiohc
   name: Radio Habana Cuba
@@ -6243,6 +6303,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cu_trabajadores
   name: Trabajadores
@@ -6260,6 +6322,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   active: true
 - id: cy_alphanews
   name: Alphanews
@@ -7087,6 +7151,8 @@
   leaning_source: https://rsf.org/en/country/djibouti
   ownership: state
   ownership_source: https://rsf.org/en/country/djibouti
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/djibouti
   active: true
 - id: dj_lavoixdedjibouti
   name: La Voix de Djibouti
@@ -7121,6 +7187,8 @@
   leaning_source: https://rsf.org/en/country/djibouti
   ownership: state
   ownership_source: https://rsf.org/en/country/djibouti
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/djibouti
   active: true
 - id: dk_altinget
   name: Altinget
@@ -7552,6 +7620,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Algeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Algeria
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_Algeria
   active: true
 - id: dz_tsa
   name: TSA
@@ -7673,6 +7743,8 @@
   leaning_source: https://es.wikipedia.org/wiki/TC_Televisión
   ownership: state
   ownership_source: https://es.wikipedia.org/wiki/TC_Televisión
+  government_stance: state_controlled
+  stance_source: https://es.wikipedia.org/wiki/TC_Televisión
   active: true
 - id: eg_ahram
   name: Al-Ahram
@@ -7874,6 +7946,8 @@
   leaning_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
   ownership: state
   ownership_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
+  government_stance: state_controlled
+  stance_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
   active: true
 - id: es_20minutos
   name: 20minutos
@@ -8460,6 +8534,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   active: true
 - id: fi_aamulehti
   name: Aamulehti
@@ -8667,6 +8743,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
   active: true
 - id: fj_islandsbusiness
   name: Islands Business
@@ -9218,6 +9296,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
   active: true
 - id: ga_gabonactu
   name: Gabonactu
@@ -9704,6 +9784,8 @@
   leaning_source: https://rsf.org/en/country/ghana
   ownership: state
   ownership_source: https://rsf.org/en/country/ghana
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/ghana
   active: true
 - id: gh_gna
   name: Ghana News Agency
@@ -9721,6 +9803,8 @@
   leaning_source: https://rsf.org/en/country/ghana
   ownership: state
   ownership_source: https://rsf.org/en/country/ghana
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/ghana
   active: true
 - id: gh_graphic
   name: Daily Graphic
@@ -9740,6 +9824,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   active: true
 - id: gh_modernghana
   name: Modern Ghana
@@ -9819,6 +9905,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Agence_guin%C3%A9enne_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_guin%C3%A9enne_de_presse
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Agence_guin%C3%A9enne_de_presse
   active: true
 - id: gn_guinee7
   name: Guinée7
@@ -10092,6 +10180,8 @@
   leaning_source: https://rsf.org/en/country/guinea-bissau
   ownership: state
   ownership_source: https://rsf.org/en/country/guinea-bissau
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/guinea-bissau
   active: true
 - id: gq_ahoraeg
   name: Ahora EG
@@ -10191,6 +10281,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Greece
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Greece
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_Greece
   active: true
 - id: gr_greekreporter
   name: Greek Reporter
@@ -10493,6 +10585,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
   active: true
 - id: gy_demerarawaves
   name: Demerara Waves
@@ -10538,6 +10632,8 @@
   leaning_source: https://dpi.gov.gy/
   ownership: state
   ownership_source: https://dpi.gov.gy/
+  government_stance: state_controlled
+  stance_source: https://dpi.gov.gy/
   active: true
 - id: gy_guyanatimes
   name: Guyana Times
@@ -10727,6 +10823,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio_Television_Hong_Kong
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Television_Hong_Kong
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Radio_Television_Hong_Kong
   active: true
 - id: hk_rthk_zh
   name: RTHK Chinese
@@ -11360,6 +11458,8 @@
   leaning_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
   ownership: state
   ownership_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
+  government_stance: state_controlled
+  stance_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
   active: true
 - id: hu_hvg
   name: HVG
@@ -11416,6 +11516,8 @@
   leaning_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
   ownership: state
   ownership_source: https://www.eurotopics.net/en/148712/magyar-nemzet
+  government_stance: state_controlled
+  stance_source: https://www.eurotopics.net/en/148712/magyar-nemzet
   active: true
 - id: hu_mandiner
   name: Mandiner
@@ -11433,6 +11535,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mandiner
   ownership: state
   ownership_source: https://www.eurotopics.net/en/148715/mandiner
+  government_stance: state_controlled
+  stance_source: https://www.eurotopics.net/en/148715/mandiner
   active: true
 - id: hu_mti
   name: MTI / hirado.hu
@@ -11533,6 +11637,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vil%C3%A1ggazdas%C3%A1g
   ownership: state
   ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  government_stance: state_controlled
+  stance_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
   active: true
 - id: id_antara
   name: Antara
@@ -11551,6 +11657,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   active: true
 - id: id_antara_en
   name: Antara English
@@ -11574,6 +11682,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   active: true
 - id: id_beritasatu
   name: BeritaSatu
@@ -12506,6 +12616,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Hamshahri
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Hamshahri
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Hamshahri
   active: true
 - id: ir_ilna
   name: ILNA
@@ -12523,6 +12635,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Worker_House
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Iranian_Labour_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Iranian_Labour_News_Agency
   active: true
 - id: ir_iranintl
   name: Iran International
@@ -12606,6 +12720,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
   active: true
 - id: ir_isna_en
   name: ISNA English
@@ -12623,6 +12739,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
   active: true
 - id: ir_khabaronline
   name: Khabar Online
@@ -12663,6 +12781,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
   active: true
 - id: ir_mehr_en
   name: Mehr News English
@@ -12680,6 +12800,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
   active: true
 - id: ir_tehrantimes
   name: Tehran Times
@@ -12698,6 +12820,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Tehran_Times
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Tehran_Times
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Tehran_Times
   active: true
 - id: ir_tejaratnews
   name: Tejarat News
@@ -13439,6 +13563,8 @@
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Jamaica
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Jamaica
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Jamaica
   active: true
 - id: jm_nationwide
   name: Nationwide Radio
@@ -13851,6 +13977,8 @@
   leaning_source: https://mediabiasfactcheck.com/astana-times-bias-and-credibility/
   ownership: state
   ownership_source: https://mediabiasfactcheck.com/astana-times-bias-and-credibility/
+  government_stance: state_controlled
+  stance_source: https://mediabiasfactcheck.com/astana-times-bias-and-credibility/
   active: true
 - id: kz_egemen
   name: Egemen Qazaqstan
@@ -14018,6 +14146,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Kenya_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Kenya_Broadcasting_Corporation
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Kenya_Broadcasting_Corporation
   active: true
 - id: ke_kna
   name: Kenya News Agency
@@ -14231,6 +14361,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   active: true
 - id: kg_kabar_en
   name: Kabar English
@@ -14248,6 +14380,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
   active: true
 - id: kg_kaktus
   name: Kaktus.media
@@ -14304,6 +14438,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   active: true
 - id: kg_tazabek
   name: Tazabek
@@ -14479,6 +14615,8 @@
   leaning_source: https://pressocm.gov.kh/en/
   ownership: state
   ownership_source: https://pressocm.gov.kh/en/
+  government_stance: state_controlled
+  stance_source: https://pressocm.gov.kh/en/
   active: true
 - id: kh_rfakhmer
   name: RFA Khmer
@@ -14866,6 +15004,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   active: true
 - id: kr_yonhap_en
   name: Yonhap English
@@ -14884,6 +15024,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Yonhap_News_Agency
   active: true
 - id: kr_yonhap_zh
   name: Yonhap Chinese
@@ -14976,6 +15118,8 @@
   leaning_source: https://laopost.com/
   ownership: state
   ownership_source: https://laopost.com/
+  government_stance: state_controlled
+  stance_source: https://laopost.com/
   active: true
 - id: la_laotiantimes
   name: The Laotian Times
@@ -15201,6 +15345,8 @@
   leaning_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
   active: true
 - id: lb_nna_ar
@@ -15219,6 +15365,8 @@
   leaning_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
   active: true
 - id: lb_the961
@@ -15575,6 +15723,8 @@
   leaning_source: https://www.gov.ls/feed/
   ownership: state
   ownership_source: https://www.gov.ls/feed/
+  government_stance: state_controlled
+  stance_source: https://www.gov.ls/feed/
   collector: self_hosted
   active: true
 - id: ls_newsday
@@ -16956,6 +17106,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
   active: true
 - id: mk_republika
   name: Republika
@@ -17039,6 +17191,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Agence_malienne_de_presse_et_de_publicit%C3%A9
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_malienne_de_presse_et_de_publicit%C3%A9
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Agence_malienne_de_presse_et_de_publicit%C3%A9
   active: true
 - id: ml_bamada
   name: Bamada.net
@@ -17555,6 +17709,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   active: true
 - id: mz_opais
   name: O País
@@ -17798,6 +17954,8 @@
   leaning_source: https://rsf.org/en/country/malawi
   ownership: state
   ownership_source: https://rsf.org/en/country/malawi
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/malawi
   active: true
 - id: mw_nation
   name: The Nation Malawi
@@ -18030,6 +18188,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Malaysia
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Malaysia
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Malaysia
   active: true
 - id: my_scoop
   name: Scoop
@@ -18204,6 +18364,8 @@
   leaning_source: https://rsf.org/en/country/namibia
   ownership: state
   ownership_source: https://rsf.org/en/country/namibia
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/namibia
   active: true
 - id: na_windhoekobserver
   name: Windhoek Observer
@@ -18259,6 +18421,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Agence_nig%C3%A9rienne_de_presse
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_nig%C3%A9rienne_de_presse
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Agence_nig%C3%A9rienne_de_presse
   active: true
 - id: ne_lesahel
   name: Le Sahel
@@ -18289,6 +18453,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Niger
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Niger
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Niger
   active: true
 - id: ne_niameysoir
   name: Niamey Soir
@@ -18508,6 +18674,8 @@
   leaning_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
   active: true
 - id: ng_pmnews
   name: PM News
@@ -18703,6 +18871,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
   active: true
 - id: ni_articulo66
   name: Artículo 66
@@ -19663,6 +19833,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Oman_Daily_Observer
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Oman_Daily_Observer
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Oman_Daily_Observer
   active: true
 - id: om_ona
   name: ONA
@@ -19730,6 +19902,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   active: true
 - id: pk_ary
   name: ARY News
@@ -20067,6 +20241,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   active: true
 - id: pe_andina_en
   name: Andina English
@@ -20084,6 +20260,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   active: true
 - id: pe_canaln
   name: Canal N
@@ -20739,6 +20917,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Polish_Press_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Polish_Press_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Polish_Press_Agency
   active: true
 - id: pl_polsatnews
   name: Polsat News
@@ -21117,6 +21297,8 @@
   leaning_source: https://www.ip.gov.py/ip/
   ownership: state
   ownership_source: https://www.ip.gov.py/ip/
+  government_stance: state_controlled
+  stance_source: https://www.ip.gov.py/ip/
   active: true
 - id: py_unicanal
   name: Unicanal
@@ -21223,6 +21405,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Middle_East_Monitor
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Middle_East_Monitor
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Middle_East_Monitor
   collector: self_hosted
   active: true
 - id: ps_pnn
@@ -21325,6 +21509,8 @@
   leaning_source: https://mediabiasfactcheck.com/al-jazeera/
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
   active: true
 - id: qa_aljazeera_ar
   name: Al Jazeera Arabic
@@ -21345,6 +21531,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Al_Jazeera_Media_Network
   active: true
 - id: qa_dohanews
   name: Doha News
@@ -21417,6 +21605,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Agerpres
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Agerpres
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Agerpres
   active: true
 - id: ro_digi24
   name: Digi24
@@ -21630,6 +21820,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Argumenty_i_Fakty
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Argumenty_i_Fakty
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Argumenty_i_Fakty
   active: true
 - id: ru_bfm
   name: BFM.ru
@@ -21682,6 +21874,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Gazeta.ru
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Gazeta.ru
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Gazeta.ru
   active: true
 - id: ru_interfax
   name: Interfax
@@ -21797,6 +21991,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Lenta.ru
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Lenta.ru
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Lenta.ru
   active: true
 - id: ru_meduza
   name: Meduza
@@ -21965,6 +22161,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
   active: true
 - id: ru_ria
   name: RIA Novosti
@@ -21989,6 +22187,8 @@
   leaning_source: https://en.wikipedia.org/wiki/RIA_Novosti
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RIA_Novosti
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/RIA_Novosti
   active: true
 - id: ru_rt
   name: RT
@@ -22017,6 +22217,8 @@
   leaning_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RT_(TV_network)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   active: true
 - id: ru_rt_ru
   name: RT Russian
@@ -22044,6 +22246,8 @@
   leaning_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/RT_(TV_network)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/RT_(TV_network)
   active: true
 - id: ru_tass
   name: TASS
@@ -22061,6 +22265,8 @@
   leaning_source: https://en.wikipedia.org/wiki/TASS
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TASS
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/TASS
   active: true
 - id: ru_tass_en
   name: TASS English
@@ -22088,6 +22294,8 @@
   leaning_source: https://en.wikipedia.org/wiki/TASS
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TASS
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/TASS
   active: true
 - id: ru_thebell
   name: The Bell
@@ -22336,6 +22544,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Arab_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Arab_News
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Arab_News
   collector: self_hosted
   active: true
 - id: sa_asharqalawsat
@@ -22354,6 +22564,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   active: true
 - id: sa_asharqalawsat_en
   name: Asharq Al-Awsat English
@@ -22371,6 +22583,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Asharq_Al-Awsat
   active: true
 - id: sa_asharqbusiness
   name: Asharq Business
@@ -22534,6 +22748,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
   active: true
 - id: sn_emedia
   name: E-Media
@@ -22594,6 +22810,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/Le_Soleil_(S%C3%A9n%C3%A9gal)
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/Le_Soleil_(S%C3%A9n%C3%A9gal)
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/Le_Soleil_(S%C3%A9n%C3%A9gal)
   active: true
 - id: sn_ndarinfo
   name: Ndarinfo
@@ -22739,6 +22957,8 @@
   leaning_source: https://mediabiasfactcheck.com/channel-news-asia/
   ownership: state
   ownership_source: https://mediabiasfactcheck.com/channel-news-asia/
+  government_stance: state_controlled
+  stance_source: https://mediabiasfactcheck.com/channel-news-asia/
   active: true
 - id: sg_edgesingapore
   name: The Edge Singapore
@@ -23552,6 +23772,8 @@
   leaning_source: https://nl.wikipedia.org/wiki/Communicatie_Dienst_Suriname
   ownership: state
   ownership_source: https://nl.wikipedia.org/wiki/Communicatie_Dienst_Suriname
+  government_stance: state_controlled
+  stance_source: https://nl.wikipedia.org/wiki/Communicatie_Dienst_Suriname
   active: true
 - id: sr_dbsuriname
   name: Dagblad Suriname
@@ -23641,6 +23863,8 @@
   leaning_source: https://nl.wikipedia.org/wiki/Surinaamse_Televisie_Stichting
   ownership: state
   ownership_source: https://nl.wikipedia.org/wiki/Surinaamse_Televisie_Stichting
+  government_stance: state_controlled
+  stance_source: https://nl.wikipedia.org/wiki/Surinaamse_Televisie_Stichting
   active: true
 - id: sr_suriname
   name: Suriname Herald
@@ -24197,6 +24421,8 @@
   leaning_source: https://rsf.org/en/country/seychelles
   ownership: state
   ownership_source: https://rsf.org/en/country/seychelles
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/seychelles
   active: true
 - id: sc_sna
   name: Seychelles News Agency
@@ -24333,6 +24559,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   active: true
 - id: sy_sana_ar
   name: SANA Arabic
@@ -24353,6 +24581,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Syrian_Arab_News_Agency
   active: true
 - id: sy_snacksyrian
   name: Snack Syrian
@@ -24454,6 +24684,8 @@
   leaning_source: https://atpe.td/
   ownership: state
   ownership_source: https://atpe.td/
+  government_stance: state_controlled
+  stance_source: https://atpe.td/
   active: true
 - id: td_journaldutchad
   name: Journal du Tchad
@@ -24552,6 +24784,8 @@
   leaning_source: https://atop.tg/
   ownership: state
   ownership_source: https://atop.tg/
+  government_stance: state_controlled
+  stance_source: https://atop.tg/
   active: true
 - id: tg_focusinfos
   name: Focus Infos
@@ -24923,6 +25157,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Khovar
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Khovar
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Khovar
   active: true
 - id: tj_pressa
   name: Pressa.tj
@@ -24957,6 +25193,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Sputnik_(news_agency)
   active: true
 - id: tj_yourtj
   name: Your.tj
@@ -25084,6 +25322,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Tatoli
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Tatoli
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Tatoli
   active: true
 - id: tl_tatoli_en
   name: Tatoli English
@@ -25101,6 +25341,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Tatoli
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Tatoli
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Tatoli
   active: true
 - id: to_matangi
   name: Matangi Tonga
@@ -25372,6 +25614,8 @@
   leaning_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
   ownership: state
   ownership_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
+  government_stance: state_controlled
+  stance_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
   active: true
 - id: tn_leaders
   name: Leaders
@@ -25526,6 +25770,8 @@
   leaning_source: https://mediabiasfactcheck.com/anadolu-agency/
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Anadolu_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Anadolu_Agency
   active: true
 - id: tr_aa_en
   name: Anadolu Agency English
@@ -25543,6 +25789,8 @@
   leaning_source: https://mediabiasfactcheck.com/anadolu-agency/
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Anadolu_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Anadolu_Agency
   active: true
 - id: tr_bianet
   name: Bianet
@@ -25957,6 +26205,8 @@
   leaning_source: https://en.wikipedia.org/wiki/TRT_Haber
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TRT_Haber
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/TRT_Haber
   active: true
 - id: tr_trtworld
   name: TRT World
@@ -26087,6 +26337,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   active: true
 - id: tz_habarileo
   name: HabariLeo
@@ -26106,6 +26358,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   active: true
 - id: tz_thechanzo
   name: The Chanzo
@@ -26486,6 +26740,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Ukrinform
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ukrinform
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Ukrinform
   active: true
 - id: ua_ukrinform_en
   name: Ukrinform English
@@ -26503,6 +26759,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Ukrinform
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ukrinform
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Ukrinform
   active: true
 - id: ua_unian
   name: UNIAN
@@ -27808,6 +28066,8 @@
   leaning_source: https://en.wikipedia.org/wiki/UzA
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/UzA
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/UzA
   active: true
 - id: uz_uza_en
   name: UzA English
@@ -27825,6 +28085,8 @@
   leaning_source: https://en.wikipedia.org/wiki/UzA
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/UzA
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/UzA
   active: true
 - id: uz_uzdaily
   name: UzDaily
@@ -28077,6 +28339,8 @@
   leaning_source: https://vi.wikipedia.org/wiki/D%C3%A2n_tr%C3%AD_(b%C3%A1o)
   ownership: state
   ownership_source: https://vi.wikipedia.org/wiki/D%C3%A2n_tr%C3%AD_(b%C3%A1o)
+  government_stance: state_controlled
+  stance_source: https://vi.wikipedia.org/wiki/D%C3%A2n_tr%C3%AD_(b%C3%A1o)
   active: true
 - id: vn_nhandan
   name: Nhân Dân
@@ -28128,6 +28392,8 @@
   leaning_source: https://vi.wikipedia.org/wiki/S%C3%A0i_G%C3%B2n_Gi%E1%BA%A3i_Ph%C3%B3ng_(b%C3%A1o)
   ownership: state
   ownership_source: https://vi.wikipedia.org/wiki/S%C3%A0i_G%C3%B2n_Gi%E1%BA%A3i_Ph%C3%B3ng_(b%C3%A1o)
+  government_stance: state_controlled
+  stance_source: https://vi.wikipedia.org/wiki/S%C3%A0i_G%C3%B2n_Gi%E1%BA%A3i_Ph%C3%B3ng_(b%C3%A1o)
   active: true
 - id: vn_thanhnien
   name: Thanh Niên
@@ -28147,6 +28413,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Thanh_Ni%C3%AAn
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Thanh_Ni%C3%AAn
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Thanh_Ni%C3%AAn
   active: true
 - id: vn_tuoitre
   name: Tuổi Trẻ
@@ -28201,6 +28469,8 @@
   leaning_source: https://en.wikipedia.org/wiki/VietNamNet
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/VietNamNet
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/VietNamNet
   active: true
 - id: vn_vietnamnews
   name: Viet Nam News
@@ -28219,6 +28489,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
 - id: vn_vna
   name: Vietnam News Agency
@@ -28237,6 +28509,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
 - id: vn_vna_en
   name: VietnamPlus English
@@ -28254,6 +28528,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   active: true
 - id: vn_vnexpress
   name: VnExpress
@@ -28318,6 +28594,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vanuatu_Broadcasting_and_Television_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vanuatu_Broadcasting_and_Television_Corporation
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vanuatu_Broadcasting_and_Television_Corporation
   active: true
 - id: ws_samoanews
   name: Samoa News
@@ -28728,6 +29006,8 @@
   leaning_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   active: true
 - id: za_sanews
   name: SAnews
@@ -28745,6 +29025,8 @@
   leaning_source: https://www.sanews.gov.za/
   ownership: state
   ownership_source: https://www.sanews.gov.za/
+  government_stance: state_controlled
+  stance_source: https://www.sanews.gov.za/
   active: true
 - id: za_theconversation
   name: The Conversation Africa
@@ -28862,6 +29144,8 @@
   leaning_source: https://rsf.org/en/country/zambia
   ownership: state
   ownership_source: https://rsf.org/en/country/zambia
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/zambia
   active: true
 - id: zw_263chat
   name: 263Chat
@@ -29229,6 +29513,8 @@
   leaning_source: https://taaf.fr/
   ownership: state
   ownership_source: https://taaf.fr/
+  government_stance: state_controlled
+  stance_source: https://taaf.fr/
   active: true
 - id: ag_abstv
   name: ABS TV
@@ -29248,6 +29534,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Antigua_Broadcasting_Service
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Antigua_Broadcasting_Service
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Antigua_Broadcasting_Service
   active: true
 - id: ag_antiguanewsroom
   name: Antigua Newsroom
@@ -29720,6 +30008,8 @@
   leaning_source: https://gov.fm/
   ownership: state
   ownership_source: https://gov.fm/
+  government_stance: state_controlled
+  stance_source: https://gov.fm/
   active: true
 - id: gg_bbcguernsey
   name: BBC Guernsey
@@ -29922,6 +30212,8 @@
   leaning_source: https://biot.gov.io/
   ownership: state
   ownership_source: https://biot.gov.io/
+  government_stance: state_controlled
+  stance_source: https://biot.gov.io/
   active: true
 - id: io_chagos
   name: Chagos Conservation Trust
@@ -29994,6 +30286,8 @@
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   active: true
 - id: kn_thewestern
   name: Caribbean Journal
@@ -30197,6 +30491,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Monaco_Info
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Monaco_Info
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Monaco_Info
   active: true
 - id: mc_monacolife
   name: Monaco Life
@@ -30306,6 +30602,8 @@
   leaning_source: https://www.gov.ms/
   ownership: state
   ownership_source: https://www.gov.ms/
+  government_stance: state_controlled
+  stance_source: https://www.gov.ms/
   collector: self_hosted
   active: true
 - id: ms_montserratreporter
@@ -30776,6 +31074,8 @@
   leaning_source: https://www.gov.gs/
   ownership: state
   ownership_source: https://www.gov.gs/
+  government_stance: state_controlled
+  stance_source: https://www.gov.gs/
   active: true
 - id: sh_gov
   name: St Helena Government
@@ -30794,6 +31094,8 @@
   leaning_source: https://www.sainthelena.gov.sh/
   ownership: state
   ownership_source: https://www.sainthelena.gov.sh/
+  government_stance: state_controlled
+  stance_source: https://www.sainthelena.gov.sh/
   active: true
 - id: sh_independent
   name: St Helena Independent
@@ -30971,6 +31273,8 @@
   leaning_source: https://www.fides.org/en
   ownership: state
   ownership_source: https://www.fides.org/en
+  government_stance: state_controlled
+  stance_source: https://www.fides.org/en
   active: true
 - id: va_osservatore
   name: L'Osservatore Romano
@@ -30990,6 +31294,8 @@
   leaning_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
   active: true
 - id: va_ucanews
   name: UCA News
@@ -31021,6 +31327,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vatican_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vatican_News
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vatican_News
   active: true
 - id: va_vaticannews_it
   name: Vatican News Italiano
@@ -31040,6 +31348,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Vatican_News
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Vatican_News
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Vatican_News
   active: true
 - id: vc_iwnsvg
   name: iWitness News
@@ -31078,6 +31388,8 @@
   leaning_source: https://www.nbcsvg.com/about-us/
   ownership: state
   ownership_source: https://www.nbcsvg.com/about-us/
+  government_stance: state_controlled
+  stance_source: https://www.nbcsvg.com/about-us/
   active: true
 - id: vc_searchlight
   name: Searchlight
@@ -31369,6 +31681,8 @@
   leaning_source: https://www.state.gov/report/custom/435b7d7a07/
   ownership: state
   ownership_source: https://www.state.gov/report/custom/435b7d7a07/
+  government_stance: state_controlled
+  stance_source: https://www.state.gov/report/custom/435b7d7a07/
   active: true
 - id: bw_mmegi
   name: Mmegi
@@ -31411,6 +31725,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
   active: true
 - id: mr_ami
   name: Agence Mauritanienne d'Information (AMI)
@@ -31426,6 +31742,8 @@
   leaning_source: https://rsf.org/en/country/mauritania
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritania
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/mauritania
   active: true
 - id: mr_radiomauritanie
   name: Radio Mauritanie
@@ -31441,6 +31759,8 @@
   leaning_source: https://rsf.org/en/country/mauritania
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritania
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/mauritania
   active: true
 - id: mu_mbc
   name: Mauritius Broadcasting Corporation (MBC)
@@ -31456,6 +31776,8 @@
   leaning_source: https://rsf.org/en/country/mauritius
   ownership: state
   ownership_source: https://rsf.org/en/country/mauritius
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/mauritius
   active: true
 - id: yt_kwezi
   name: L'info Kwezi (Kwezi TV / Kwezi FM)
@@ -31485,6 +31807,8 @@
   leaning_source: https://rsf.org/en/country/namibia
   ownership: state
   ownership_source: https://rsf.org/en/country/namibia
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/namibia
   active: true
 - id: ng_legit
   name: Legit.ng
@@ -31543,6 +31867,8 @@
   leaning_source: https://guides.library.stanford.edu/rwanda-news-rwanda-newspapers
   ownership: state
   ownership_source: https://guides.library.stanford.edu/rwanda-news-rwanda-newspapers
+  government_stance: state_controlled
+  stance_source: https://guides.library.stanford.edu/rwanda-news-rwanda-newspapers
   active: true
 - id: sn_senenews
   name: SeneNews
@@ -31585,6 +31911,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_au_S%C3%A9n%C3%A9gal
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_au_S%C3%A9n%C3%A9gal
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_au_S%C3%A9n%C3%A9gal
   active: true
 - id: so_hiiraan
   name: Hiiraan Online
@@ -31628,6 +31956,8 @@
   leaning_source: https://rn-stp.com/
   ownership: state
   ownership_source: https://rn-stp.com/
+  government_stance: state_controlled
+  stance_source: https://rn-stp.com/
   active: true
 - id: tg_togopresse
   name: Togo-Presse
@@ -31643,6 +31973,8 @@
   leaning_source: https://fr.wikipedia.org/w/index.php?search=%22Togo-Presse%22
   ownership: state
   ownership_source: https://fr.wikipedia.org/w/index.php?search=%22Togo-Presse%22
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/w/index.php?search=%22Togo-Presse%22
   active: true
 - id: ug_ntv
   name: NTV Uganda
@@ -31873,6 +32205,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio_Montserrat
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio_Montserrat
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Radio_Montserrat
   active: true
 - id: gd_newtoday
   name: The New Today
@@ -31929,6 +32263,8 @@
   leaning_source: https://en.wikipedia.org/wiki/ZIZ
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/ZIZ
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/ZIZ
   active: true
 - id: lc_stlucianewsonline
   name: St. Lucia News Online
@@ -32084,6 +32420,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Television
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Television
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Television
   active: true
 - id: uy_elobservador
   name: El Observador
@@ -32330,6 +32668,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   active: true
 - id: tl_stl
   name: Suara Timor Lorosae
@@ -32487,6 +32827,8 @@
   leaning_source: https://rsf.org/en/country/jordan
   ownership: state
   ownership_source: https://rsf.org/en/country/jordan
+  government_stance: state_controlled
+  stance_source: https://rsf.org/en/country/jordan
   active: true
 - id: om_arabianstories
   name: The Arabian Stories
@@ -32541,6 +32883,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Al_Sharq
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Al_Sharq
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Al_Sharq
   active: true
 - id: ye_sahafah24
   name: Sahafah 24
@@ -32569,6 +32913,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Saba_News_Agency
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Saba_News_Agency
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Saba_News_Agency
   active: true
 - id: ye_24post
   name: 24 Post
@@ -33155,6 +33501,8 @@
   leaning_source: https://en.wikipedia.org/wiki/TVNZ
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TVNZ
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/TVNZ
   active: true
 - id: nz_odt
   name: Otago Daily Times
@@ -33245,6 +33593,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Ghanaian_Times
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Ghanaian_Times
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Ghanaian_Times
   active: true
 - id: gh_chronicle
   name: Chronicle
@@ -33285,6 +33635,8 @@
   leaning_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
   ownership: state
   ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
+  government_stance: state_controlled
+  stance_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
   active: true
 - id: cg_congopage
   name: Congopage
@@ -33344,6 +33696,8 @@
   leaning_source: https://www.adi.dj/
   ownership: state
   ownership_source: https://www.adi.dj/
+  government_stance: state_controlled
+  stance_source: https://www.adi.dj/
   active: true
 - id: er_asmarino
   name: Asmarino.com
@@ -33494,6 +33848,8 @@
   leaning_source: https://en.wikipedia.org/wiki/TeleSUR
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TeleSUR
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/TeleSUR
   active: true
 - id: la_rfalao
   name: RFA Lao (Radio Free Asia Lao Service)
@@ -33520,6 +33876,8 @@
   leaning_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
   active: true
 - id: by_svaboda
   name: Радыё Свабода (Radio Svaboda / RFE/RL Belarusian Service)

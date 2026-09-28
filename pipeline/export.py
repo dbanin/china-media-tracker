@@ -678,6 +678,8 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
                     "audience_rank": o.get("audience_rank"),
                     "political_leaning": o.get("political_leaning") or "unassessed", "leaning_source": o.get("leaning_source"),
                     "ownership": o.get("ownership") or "unassessed", "ownership_source": o.get("ownership_source"),
+                    "government_stance": o.get("government_stance") or "unassessed", "stance_source": o.get("stance_source"),
+                    "stance_as_of": o.get("stance_as_of"),
                     "inactive_reason": o.get("inactive_reason"), "feeds": feeds, "counts": dict(per_outlet[o["id"]]),
                     "collector": registry.collector_of(o),
                     "release_sections": (o.get("release_sections") or {}).get("status") or "not_searched"})

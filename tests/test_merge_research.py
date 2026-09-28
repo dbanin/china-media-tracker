@@ -83,3 +83,20 @@ def test_flat_attribute_lists_are_read(tmp_path):
     by_id = {o["id"]: o for o in outlets}
     assert by_id["it_a"]["political_leaning"] == "centre" and report["political_leaning_filled"] == 1
     assert by_id["it_c"]["political_leaning"] == "unassessed" and not issues
+
+
+def test_stance_needs_a_recent_dated_source_and_state_outlets_are_derived(tmp_path):
+    (tmp_path / "stance_rsf.yaml").write_text(yaml.safe_dump([
+        {"id": "it_a", "government_stance": "pro_government", "stance_source": "https://rsf/1", "as_of": 2025},
+        {"id": "it_b", "government_stance": "opposition", "stance_source": "https://rsf/2", "as_of": 2019},
+        {"id": "it_c", "government_stance": "independent", "stance_source": "https://rsf/3"},
+    ]))
+    outlets = _outlets()
+    report, issues = merge.apply_attributes(outlets, tmp_path)
+    by_id = {o["id"]: o for o in outlets}
+    assert by_id["it_a"]["government_stance"] == "pro_government" and by_id["it_a"]["stance_as_of"] == 2025
+    assert "government_stance" not in by_id["it_b"] and "government_stance" not in by_id["it_c"]
+    assert sum("older than" in i[2] for i in issues) == 2
+    state = [{"id": "x_s", "country": "XXX", "ownership": "state", "ownership_source": "https://own/1"}]
+    merge.derive_state_controlled(state)
+    assert state[0]["government_stance"] == "state_controlled" and state[0]["stance_source"] == "https://own/1"
