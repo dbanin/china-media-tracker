@@ -399,3 +399,177 @@ body.map-failed.force-list #map-wrap { display: block; }
 /* On a phone the five basis buttons are wider than the screen; without wrapping they pushed the
    ranked list 62px past the edge and the whole page scrolled sideways. */
 @media (max-width: 520px) { .segment { flex-wrap: wrap; max-width: 100%; } .segment button { flex: 1 1 auto; } }
+
+/* ======================================================================================
+   Redesign, 2026-09-28. Same identity (near-black, bone, gold, serif display with italic
+   emphasis) on a modern frame: a centred container, rounded cards, pill controls with a gold
+   active state, a 16px reading size, one spacing scale, and the map first.
+   ====================================================================================== */
+:root {
+  --page: 1360px;
+  --gutter: clamp(16px, 4vw, 48px);
+  --radius: 14px;
+  --radius-sm: 999px;
+  --card: #131518;
+  --card-2: #181b1f;
+  --ash: #aaa396;                 /* captions a step lighter: 7:1 on the card, was 5.6:1 */
+  --gold-tint: rgba(201, 169, 97, 0.14);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+  --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 48px; --s6: 72px;
+}
+html, body { font-size: 16px; font-weight: 400; }
+body { background:
+  radial-gradient(1200px 520px at 12% -120px, rgba(201, 169, 97, 0.09), transparent 70%),
+  radial-gradient(900px 480px at 100% 0, rgba(191, 42, 49, 0.05), transparent 70%), var(--ink); }
+p { line-height: 1.6; }
+::selection { background: var(--gold-soft); color: var(--bone); }
+
+/* Header: slim, with section links */
+header.top { max-width: var(--page); margin: 0 auto; padding: var(--s5) var(--gutter) var(--s3); border-bottom: none; background: none; }
+header.top .brand { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s2); }
+h1 { font-size: clamp(2.2rem, 4.2vw, 3.6rem); letter-spacing: -0.005em; max-width: 22ch; }
+header.top .sub { font-size: 1.08rem; color: var(--bone-soft); max-width: 60ch; margin: var(--s2) 0 var(--s3); }
+.top-nav { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.top-nav a { border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 0.84rem; color: var(--bone-soft); background: rgba(255, 255, 255, 0.02); transition: border-color 180ms ease, color 180ms ease, background 180ms ease; }
+.top-nav a:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+.notes-strip, .notice { max-width: var(--page); margin: 0 auto var(--s2); padding: 0 var(--gutter); box-sizing: border-box; }
+.notice { padding: 12px 16px; border-radius: 10px; }
+
+/* Sections share one frame */
+.sec { max-width: var(--page); margin: var(--s6) auto 0; padding: 0 var(--gutter); box-sizing: border-box; }
+.sec > h2, .sec h2 { font-size: clamp(1.8rem, 2.6vw, 2.4rem); margin: 0 0 var(--s2); }
+.eyebrow, #themes .th-kicker, #leaning .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
+.card-sec { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: var(--s5) var(--s5) var(--s4) !important; max-width: calc(var(--page) - 2 * var(--gutter)); }
+@media (max-width: 1400px) { .card-sec { margin-left: var(--gutter); margin-right: var(--gutter); } }
+#themes .th-sub, #leaning .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; }
+
+/* The map card: controls, map, legend, timeline and the country panel in one surface */
+.map-card { max-width: var(--page); margin: var(--s2) auto 0; padding: 0 var(--gutter); box-sizing: border-box; }
+.map-card > .controls, .map-card > main { background: var(--card); border: 1px solid var(--rule); box-shadow: var(--shadow); }
+.map-card > .controls { border-radius: var(--radius) var(--radius) 0 0; border-bottom: 1px solid var(--rule); padding: var(--s3) var(--s4); gap: var(--s2) var(--s4); }
+.map-card > main { border-top: none; border-radius: 0 0 var(--radius) var(--radius); overflow: hidden; min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: auto auto; }
+aside#panel { grid-row: 1 / span 2; background: var(--card-2); border-left: 1px solid var(--rule); max-height: none; position: static; padding: var(--s4); }
+#map-wrap { padding: var(--s2) var(--s4) 0; background: radial-gradient(ellipse 60% 70% at 50% 45%, rgba(201, 169, 97, 0.05), transparent 70%); }
+.map-head { padding: var(--s2) 0 var(--s1); gap: var(--s2) var(--s3); }
+#bars-wrap { padding: var(--s3) var(--s4); }
+#timeline { padding: var(--s3) var(--s4); border-top: 1px solid var(--rule); }
+#legend { padding: var(--s2) 0 var(--s3); gap: var(--s2) var(--s4); }
+@media (max-width: 1100px) {
+  .map-card > main { grid-template-columns: 1fr; }
+  aside#panel { grid-column: 1; grid-row: 3; border-left: none; border-top: 1px solid var(--rule); }
+}
+
+/* Controls: labelled pills with a gold active state */
+.control label { font-size: 0.7rem; color: var(--ash); letter-spacing: 0.16em; }
+.segment { border: 1px solid var(--rule-strong); border-radius: var(--radius-sm); padding: 3px; gap: 2px; background: rgba(0, 0, 0, 0.25); }
+.segment button { border: none !important; border-radius: var(--radius-sm); padding: 7px 14px; min-height: 34px; color: var(--bone-soft); font-size: 0.86rem; letter-spacing: 0.01em; transition: background 180ms ease, color 180ms ease; }
+.segment button:hover { color: var(--bone); background: rgba(255, 255, 255, 0.05); }
+.segment button.active { background: var(--gold-tint); color: var(--gold); box-shadow: inset 0 0 0 1px rgba(201, 169, 97, 0.55); }
+button { border-radius: var(--radius-sm); padding: 7px 16px; min-height: 34px; }
+select, .csearch input { border-radius: 10px; min-height: 38px; background-color: rgba(0, 0, 0, 0.25); }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.control.method a { border: 1px solid var(--rule-strong); border-radius: var(--radius-sm); padding: 7px 16px; font-size: 0.86rem; }
+
+/* What we found: headline numbers, then the sentences */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin: var(--s3) 0; }
+.kpi { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--s3); box-shadow: var(--shadow); }
+.kpi .k-label { font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ash); }
+.kpi .k-value { font-family: var(--display); font-size: clamp(2.2rem, 3.4vw, 3rem); line-height: 1.05; color: var(--bone); margin: 10px 0 6px; font-variant-numeric: tabular-nums; }
+.kpi .k-value em { color: var(--gold); font-style: italic; font-weight: 300; }
+.kpi .k-note { font-size: 0.86rem; color: var(--bone-soft); line-height: 1.45; }
+.kpi.accent { border-color: rgba(201, 169, 97, 0.45); background: linear-gradient(180deg, rgba(201, 169, 97, 0.10), var(--card) 70%); }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .kpis { grid-template-columns: 1fr; } }
+.findings-box { max-width: none; margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--rule); border-left: 3px solid var(--gold); border-radius: var(--radius); background: var(--card); }
+.findings-box .fb-kicker { display: none; }
+.findings-box p { font-size: 1.05rem; line-height: 1.65; color: var(--bone-soft); max-width: 80ch; }
+.findings-box .fb-see { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--gold); border-radius: var(--radius-sm); padding: 7px 16px; color: var(--gold); margin-top: var(--s1); transition: background 180ms ease; }
+.findings-box .fb-see:hover { background: var(--gold-tint); }
+
+/* Start here */
+.start-here { margin-top: var(--s5); border: 1px solid var(--rule); border-left: 1px solid var(--rule); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); padding: var(--s3) var(--s4); max-width: calc(var(--page) - 2 * var(--gutter)); }
+@media (max-width: 1400px) { .start-here { margin-left: var(--gutter); margin-right: var(--gutter); } }
+.start-here .sh-title { font-size: 1.6rem; }
+.start-here summary::before { font-size: 1.5rem; }
+.sh-intro p { font-size: 1.02rem; line-height: 1.7; max-width: 72ch; }
+.sh-categories { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--s2); }
+.sh-categories dt, .sh-categories dd { display: block; }
+.sh-routes { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); counter-reset: route; }
+@media (max-width: 1000px) { .sh-routes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sh-route-card { position: relative; border-radius: 12px; background: var(--card-2); border: 1px solid var(--rule); padding: var(--s3) var(--s2) var(--s2); gap: 8px; transition: border-color 180ms ease, transform 180ms ease, background 180ms ease; counter-increment: route; }
+.sh-route-card::before { content: counter(route); position: absolute; top: 14px; right: 16px; font-family: var(--display); font-style: italic; font-size: 1.6rem; color: var(--gold-soft); }
+.sh-route-card:hover { border-color: var(--gold); background: #1c1f24; transform: translateY(-2px); }
+.sh-route-how { font-size: 0.9rem; line-height: 1.5; }
+.sh-route-line { font-size: 0.84rem; }
+
+/* Examples: a row of cards */
+.examples { border-top: none; padding-top: 0; }
+.ex-list { grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--s2); }
+.ex-item { background: var(--card); border: 1px solid var(--rule); border-left: 1px solid var(--rule); border-radius: var(--radius); padding: var(--s3); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; transition: border-color 180ms ease; }
+.ex-item:hover { border-color: rgba(201, 169, 97, 0.45); }
+.ex-headline { font-size: 1.3rem; line-height: 1.25; }
+.ex-meta { font-size: 0.84rem; }
+.ex-snippet { font-size: 1.08rem; line-height: 1.5; border-top: 1px solid var(--rule); padding-top: 12px; margin-top: auto; }
+.ex-hl { background: rgba(201, 169, 97, 0.28); box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.28); border-radius: 3px; }
+
+/* Theme counter and Who publishes it */
+.tf-list li { font-size: 0.92rem; padding: 8px 6px; }
+.th-grid { font-size: 0.86rem; }
+.th-grid td.cell { border-radius: 4px; }
+#leaning .lean-body { grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr); gap: var(--s5); }
+#lean-table { font-size: 0.92rem; }
+#lean-table td { padding: 10px 8px; }
+.lean-note { font-size: 0.9rem; line-height: 1.6; }
+
+/* Questions: two columns of cards */
+section.faq { padding-top: 0; }
+.faq-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+@media (max-width: 900px) { .faq-list { grid-template-columns: 1fr; } }
+.faq-item { background: var(--card); border: 1px solid var(--rule); border-radius: 12px; padding: var(--s2) var(--s3); transition: border-color 180ms ease; }
+.faq-item[open] { border-color: rgba(201, 169, 97, 0.45); }
+.faq-item summary { font-size: 1.2rem; line-height: 1.35; }
+.faq-item p { font-size: 0.98rem; line-height: 1.65; }
+
+/* Methodology: a readable measure */
+section.method { border-top: 1px solid var(--rule); padding-top: var(--s5); padding-bottom: var(--s5); margin-top: var(--s6); }
+section.method .defs p { font-size: 0.98rem; line-height: 1.7; max-width: 78ch; }
+footer { max-width: var(--page); margin: 0 auto; padding: var(--s4) var(--gutter) var(--s5); border-top: 1px solid var(--rule); }
+
+@media (prefers-reduced-motion: reduce) { .sh-route-card:hover { transform: none; } }
+@media (max-width: 640px) {
+  .map-card > .controls { padding: var(--s2); }
+  #map-wrap, #bars-wrap, #timeline, aside#panel { padding-left: var(--s2); padding-right: var(--s2); }
+  .card-sec, .start-here { padding: var(--s3) var(--s2) !important; margin-left: var(--gutter); margin-right: var(--gutter); }
+  .sh-routes { grid-template-columns: 1fr; }
+  .findings-box { padding: var(--s2); }
+}
+/* Keep the map near the top: a one-line title, and the methodology link lives in the header nav. */
+h1 { max-width: none; font-size: clamp(2rem, 3.2vw, 3rem); }
+header.top { padding-top: var(--s4); padding-bottom: var(--s2); }
+header.top .sub { margin: var(--s1) 0 var(--s2); }
+.map-card .control.method { display: none; }
+.map-head { gap: var(--s2) var(--s2); }
+/* Section widths: the older element rules were more specific than .sec. */
+section.sec.faq, section.sec.method { max-width: var(--page); padding-left: var(--gutter); padding-right: var(--gutter); }
+/* Category definitions: each term sits with its own definition, as a small card. */
+.sh-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: var(--s2); margin: var(--s3) 0; }
+.sh-cat { background: var(--card-2); border: 1px solid var(--rule); border-radius: 12px; padding: var(--s2) var(--s3); }
+.sh-cat dt { font-size: 1.15rem; margin-bottom: 6px; }
+.sh-cat dd { font-size: 0.92rem; line-height: 1.55; }
+/* The timeline curves are drawn in their own coordinates; clip them to the track so they never widen the page. */
+.timeline .tl-track, .timeline svg.spark { overflow: hidden; }
+.map-card, .map-card > main { max-width: 100%; }
+/* Phone rules that must follow the redesign layer above, or its desktop rules win. */
+@media (max-width: 700px) {
+  #leaning .lean-body { grid-template-columns: 1fr; gap: var(--s3); }
+  #lean-pie { margin: 0 auto; max-width: 13rem; }
+  #lean-table { font-size: 0.84rem; }
+  #lean-table th, #lean-table td { padding: 8px 4px; }
+}
+@media (max-width: 520px) {
+  /* Wrapped button rows are rounded rectangles, not stretched pills. */
+  .segment { border-radius: 18px; }
+  .segment button { border-radius: 14px; }
+}
