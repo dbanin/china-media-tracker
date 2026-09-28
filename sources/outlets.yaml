@@ -2361,6 +2361,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Hetq
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Hetq
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/armenia
+  stance_as_of: 2026
   active: true
 - id: am_news
   name: News.am
@@ -2641,6 +2644,9 @@
   leaning_source: https://theconversation.com/how-burundis-independent-press-lost-its-freedom-143062
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burundi
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/burundi
+  stance_as_of: 2026
   active: true
 - id: bi_sosmedias
   name: SOS Médias Burundi
@@ -3263,6 +3269,9 @@
   leaning_source: https://en.wikipedia.org/wiki/The_Daily_Star_(Bangladesh)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Daily_Star_(Bangladesh)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/bangladesh
+  stance_as_of: 2026
   active: true
 - id: bd_dailysun
   name: Daily Sun
@@ -3348,6 +3357,9 @@
   leaning_source: https://www.himalmag.com/media-prothom-alo-the-enemy-sheikh-hasina-awami-league-bangladesh/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Prothom_Alo
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/bangladesh
+  stance_as_of: 2026
   active: true
 - id: bd_prothomalo_en
   name: Prothom Alo English
@@ -3365,6 +3377,9 @@
   leaning_source: https://www.himalmag.com/media-prothom-alo-the-enemy-sheikh-hasina-awami-league-bangladesh/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Prothom_Alo
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/bangladesh
+  stance_as_of: 2026
   active: true
 - id: bd_risingbd
   name: Risingbd
@@ -6021,6 +6036,9 @@
   leaning_source: https://mediabiasfactcheck.com/la-nacion-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/La_Naci%C3%B3n_(Costa_Rica)
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/costa-rica/freedom-world/2024
+  stance_as_of: 2023
   active: true
 - id: cr_repretel
   name: Repretel
@@ -6088,6 +6106,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/14ymedio
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/cuba/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: cu_cibercuba
   name: CiberCuba
@@ -6245,6 +6266,9 @@
   leaning_source: https://mediabiasfactcheck.com/granma-cuba-bias/
   ownership: party
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
+  government_stance: pro_government
+  stance_source: https://rsf.org/en/country/cuba
+  stance_as_of: 2026
   active: true
 - id: cu_prensalatina
   name: Prensa Latina
@@ -7170,6 +7194,9 @@
   leaning_source: https://en.wikipedia.org/wiki/La_Voix_de_Djibouti
   ownership: private
   ownership_source: https://rsf.org/en/country/djibouti
+  government_stance: opposition
+  stance_source: https://freedomhouse.org/country/djibouti/freedom-world/2024
+  stance_as_of: 2023
   active: true
 - id: dj_rtd
   name: RTD
@@ -7915,6 +7942,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Mada_Masr
   ownership: private
   ownership_source: https://egypt.mom-gmr.org/en/media/detail/outlet/mada-masr/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/egypt/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: eg_mena
   name: MENA
@@ -9386,6 +9416,9 @@
   leaning_source: https://mediabiasfactcheck.com/bbc/
   ownership: public_service
   ownership_source: https://mediabiasfactcheck.com/bbc/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/united-kingdom/freedom-world/2025
+  stance_as_of: 2024
   active: true
 - id: gb_dailymail
   name: Daily Mail
@@ -9861,6 +9894,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://rsf.org/en/country/ghana
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/ghana
+  stance_as_of: 2026
   active: true
 - id: gh_thebftonline
   name: Business and Financial Times
@@ -11371,6 +11407,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.freepressunlimited.org/en/countries/hungary
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_444
   name: '444'
@@ -11390,6 +11429,9 @@
   leaning_source: https://www.freepressunlimited.org/en/countries/hungary
   ownership: private
   ownership_source: https://www.freepressunlimited.org/en/countries/hungary
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_atv
   name: ATV
@@ -11453,13 +11495,14 @@
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
-  political_leaning: state_controlled
-  leaning_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
-  ownership: state
+  notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
+    is private and aligned with the opposition, no longer state controlled.'
+  political_leaning: unassessed
+  ownership: private
   ownership_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
-  government_stance: state_controlled
-  stance_source: https://statemediamonitor.com/2025/09/friends-of-hungary-foundation/
+  government_stance: opposition
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_hvg
   name: HVG
@@ -11479,6 +11522,9 @@
   leaning_source: https://www.eurotopics.net/en/148565/hvg
   ownership: private
   ownership_source: https://www.freepressunlimited.org/en/countries/hungary
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_index
   name: Index
@@ -11499,6 +11545,9 @@
   leaning_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
   ownership: private
   ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  government_stance: opposition
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_magyarnemzet
   name: Magyar Nemzet
@@ -11511,13 +11560,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
+    is private and aligned with the opposition, no longer state controlled.'
   political_leaning: right
   leaning_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
-  ownership: state
+  ownership: private
   ownership_source: https://www.eurotopics.net/en/148712/magyar-nemzet
-  government_stance: state_controlled
-  stance_source: https://www.eurotopics.net/en/148712/magyar-nemzet
+  government_stance: opposition
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_mandiner
   name: Mandiner
@@ -11530,13 +11581,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
+    is private and aligned with the opposition, no longer state controlled.'
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Mandiner
-  ownership: state
+  ownership: private
   ownership_source: https://www.eurotopics.net/en/148715/mandiner
-  government_stance: state_controlled
-  stance_source: https://www.eurotopics.net/en/148715/mandiner
+  government_stance: opposition
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_mti
   name: MTI / hirado.hu
@@ -11565,6 +11618,9 @@
   leaning_source: https://en.wikipedia.org/wiki/N%C3%A9pszava
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/N%C3%A9pszava
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_portfolio
   name: Portfolio
@@ -11603,6 +11659,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Telex.hu
   ownership: private
   ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_telex_en
   name: Telex English
@@ -11620,6 +11679,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Telex.hu
   ownership: private
   ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: hu_vg
   name: Világgazdaság
@@ -11632,13 +11694,15 @@
     status: none_found
     sections: []
   tier: business
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
+    is private and aligned with the opposition, no longer state controlled.'
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Vil%C3%A1ggazdas%C3%A1g
-  ownership: state
+  ownership: private
   ownership_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
-  government_stance: state_controlled
-  stance_source: https://ipi.media/the-rise-of-kesma-how-orbans-allies-bought-up-hungarys-media/
+  government_stance: opposition
+  stance_source: https://rsf.org/en/country/hungary
+  stance_as_of: 2026
   active: true
 - id: id_antara
   name: Antara
@@ -12255,6 +12319,9 @@
   leaning_source: https://mediabiasfactcheck.com/ndtv/
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
+  government_stance: pro_government
+  stance_source: https://freedomhouse.org/country/india/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: in_newindianexpress
   name: The New Indian Express
@@ -13236,6 +13303,9 @@
   leaning_source: https://mediabiasfactcheck.com/haaretz/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Haaretz
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/israel
+  stance_as_of: 2026
   active: true
 - id: il_haaretz_he
   name: Haaretz Hebrew
@@ -13253,6 +13323,9 @@
   leaning_source: https://mediabiasfactcheck.com/haaretz/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Haaretz
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/israel
+  stance_as_of: 2026
   active: true
 - id: il_ice
   name: ICE
@@ -14113,6 +14186,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ipi.media/the-outlook-building-independent-media-vlast-kazakhstan/
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/kazakhstan
+  stance_as_of: 2026
   active: true
 - id: ke_capitalfm
   name: Capital FM
@@ -14400,6 +14476,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Kyrgyzstan
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/kyrgyzstan/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: kg_kloop
   name: Kloop
@@ -14416,6 +14495,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kloop
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/kyrgyzstan/freedom-world/2024
+  stance_as_of: 2023
   active: true
 - id: kg_sputnik
   name: Sputnik Kyrgyzstan
@@ -14507,6 +14589,9 @@
   leaning_source: https://mediabiasfactcheck.com/cambodia-daily-bias-and-credibility/
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/the-cambodia-daily/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/cambodia/freedom-net/2025
+  stance_as_of: 2025
   active: true
 - id: kh_camboja
   name: CamboJA News
@@ -14524,6 +14609,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cambodia
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/cambodia
+  stance_as_of: 2026
   active: true
 - id: kh_dap
   name: DAP News
@@ -14634,6 +14722,9 @@
   leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
   ownership: public_service
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/wwwrfaorgkhmer/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/cambodia/freedom-net/2025
+  stance_as_of: 2025
   active: true
 - id: kr_chosun
   name: Chosun Ilbo
@@ -15149,6 +15240,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://la.linkedin.com/company/the-laotian-times
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/laos
+  stance_as_of: 2026
   active: true
 - id: lb_addiyar
   name: Ad-Diyar
@@ -17444,6 +17538,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Democratic_Voice_of_Burma
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/myanmar/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: mm_frontier
   name: Frontier Myanmar
@@ -17517,6 +17614,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Myanmar_Now
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/myanmar/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: mm_rfaburmese
   name: RFA Burmese
@@ -17730,6 +17830,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Daniel_David_(media_entrepreneur)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/mozambique
+  stance_as_of: 2026
   active: true
 - id: mz_zitamar
   name: Zitamar News
@@ -18344,6 +18447,9 @@
   leaning_source: https://en.wikipedia.org/wiki/The_Namibian
   ownership: private
   ownership_source: https://rsf.org/en/country/namibia
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/namibia
+  stance_as_of: 2026
   active: true
 - id: na_neweralive
   name: New Era
@@ -18949,6 +19055,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Radio_YA
+  government_stance: pro_government
+  stance_source: https://freedomhouse.org/country/nicaragua/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ni_laprensa
   name: La Prensa
@@ -18977,6 +19086,9 @@
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Nicaragua
   political_leaning: unassessed
   ownership: unassessed
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/nicaragua/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ni_tn8
   name: TN8
@@ -18995,6 +19107,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Canal_8_(Nicaragua)
+  government_stance: pro_government
+  stance_source: https://rsf.org/en/country/nicaragua
+  stance_as_of: 2026
   active: true
 - id: nl_ad
   name: Algemeen Dagblad
@@ -19079,6 +19194,9 @@
   leaning_source: https://mediabiasfactcheck.com/netherlands-radio-and-television-association-nos/
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Nederlandse_Omroep_Stichting
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/netherlands
+  stance_as_of: 2026
   active: true
 - id: nl_nrc
   name: NRC
@@ -19988,6 +20106,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Dawn_(newspaper)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Dawn_(newspaper)
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/pakistan/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: pk_express_ur
   name: Express Urdu
@@ -20054,6 +20175,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://pakistan.mom-gmr.org/en/media/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/pakistan/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: pk_ptv
   name: PTV World
@@ -20739,6 +20863,9 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/papua-new-guinea
+  stance_as_of: 2026
   active: true
 - id: pg_pngbusiness
   name: Business Advantage PNG
@@ -20900,6 +21027,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Onet.pl
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/poland
+  stance_as_of: 2026
   active: true
 - id: pl_pap_en
   name: PAP English
@@ -20987,6 +21117,9 @@
   leaning_source: https://en.wikipedia.org/wiki/TVN24
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/TVN24
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/poland
+  stance_as_of: 2026
   active: true
 - id: pl_wp
   name: Wirtualna Polska
@@ -21927,6 +22060,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Kommersant
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kommersant
+  government_stance: pro_government
+  stance_source: https://freedomhouse.org/country/russia/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ru_kommersant_en
   name: Kommersant
@@ -21944,6 +22080,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Kommersant
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kommersant
+  government_stance: pro_government
+  stance_source: https://freedomhouse.org/country/russia/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ru_kp
   name: Komsomolskaya Pravda
@@ -22011,6 +22150,9 @@
   leaning_source: https://mediabiasfactcheck.com/meduza/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Meduza_(website)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/russia
+  stance_as_of: 2026
   active: true
 - id: ru_meduza_en
   name: Meduza English
@@ -22028,6 +22170,9 @@
   leaning_source: https://mediabiasfactcheck.com/meduza/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Meduza_(website)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/russia
+  stance_as_of: 2026
   active: true
 - id: ru_mk
   name: Moskovskij Komsomolets
@@ -23553,6 +23698,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/N1_(TV_channel)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/serbia
+  stance_as_of: 2026
   active: true
 - id: rs_nova
   name: Nova.rs
@@ -25721,6 +25869,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Nawaat
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Nawaat
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/tunisia/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: tn_realites
   name: Réalités
@@ -25865,6 +26016,9 @@
   leaning_source: https://mediabiasfactcheck.com/cumhuriyet-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Cumhuriyet_(newspaper)
+  government_stance: opposition
+  stance_source: https://freedomhouse.org/country/turkey/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: tr_dailysabah
   name: Daily Sabah
@@ -26159,6 +26313,9 @@
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Turkey
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/S%C3%B6zc%C3%BC
+  government_stance: opposition
+  stance_source: https://freedomhouse.org/country/turkey/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: tr_t24
   name: T24
@@ -28145,6 +28302,9 @@
   leaning_source: https://mediabiasfactcheck.com/efecto-cocuyo-bias-and-credibility/
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Efecto_Cocuyo
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ve_elcarabobeno
   name: El Carabobeño
@@ -28161,6 +28321,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_Carabobeño
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ve_eldiario
   name: El Diario
@@ -28217,6 +28380,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Nacional_(Venezuela)
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ve_elpitazo
   name: El Pitazo
@@ -28233,6 +28399,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_Pitazo
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: ve_finanzasdigital
   name: Finanzas Digital
@@ -28302,6 +28471,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Tal_Cual
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Tal_Cual
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
+  stance_as_of: 2024
   collector: self_hosted
   active: true
 - id: vn_baotintuc
@@ -28916,6 +29088,9 @@
   leaning_source: https://mediabiasfactcheck.com/daily-maverick/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/daily-maverick/
+  government_stance: independent
+  stance_source: https://freedomhouse.org/country/south-africa/freedom-net/2024
+  stance_as_of: 2024
   active: true
 - id: za_independent
   name: Independent Online World
@@ -29691,6 +29866,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Amandala
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Amandala
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/belize
+  stance_as_of: 2026
   active: true
 - id: bz_breakingbelize
   name: Breaking Belize News
@@ -29739,6 +29917,9 @@
   leaning_source: https://en.wikipedia.org/wiki/John_Avery_(journalist)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Reporter_(Belize)
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/belize
+  stance_as_of: 2026
   collector: self_hosted
   active: true
 - id: bz_sanpedrosun
@@ -31666,6 +31847,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Radio_Isanganiro
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Radio_Isanganiro
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/burundi
+  stance_as_of: 2026
   active: true
 - id: bi_lerenouveau
   name: Le Renouveau du Burundi
@@ -32728,6 +32912,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
+  government_stance: independent
+  stance_source: https://rsf.org/en/country/armenia
+  stance_as_of: 2026
   active: true
 - id: am_168am
   name: 168.am

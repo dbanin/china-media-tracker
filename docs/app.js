@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "70";
+  var ASSET_VERSION = "73";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -352,14 +352,43 @@
       ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far.</p>';
     box.innerHTML = html;
     box.hidden = false;
+    renderKpis(f);
     if (tc && tc.iso) {
       var see = document.createElement("a");
       see.href = "#"; see.className = "fb-see";
       see.textContent = "See " + countryName(tc.iso);
       /* Exactly the click handler the map itself uses, so the link opens the country view the same way. */
-      see.addEventListener("click", function (ev) { ev.preventDefault(); selectCountry(tc.iso); });
+      see.addEventListener("click", function (ev) {
+        ev.preventDefault(); selectCountry(tc.iso);
+        var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+      });
       box.appendChild(see);
     }
+  }
+
+  /* Four headline numbers above the findings sentences: how much, what share, where, and how wide
+     the net is. Built from meta.findings and the outlet registry; hidden when findings are missing. */
+  function renderKpis(f) {
+    var wrap = el("kpis");
+    if (!wrap) return;
+    if (!f || !f.all_time) { wrap.hidden = true; return; }
+    var at = f.all_time, tc = f.top_country;
+    var outs = (state.outlets || []).filter(function (o) { return o.active && o.tier !== "distribution_wire"; });
+    var countries = {}; outs.forEach(function (o) { countries[o.country] = true; });
+    var nCountries = Object.keys(countries).length;
+    var share = at.state_share_of_china === null || at.state_share_of_china === undefined ? "n/a" : (at.state_share_of_china * 100).toFixed(1) + "%";
+    var cards = [
+      {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + (f.since || "the start") + "."},
+      {label: "Share of China coverage", value: share, note: "Of every China-related article the monitored outlets published.", accent: true},
+      tc ? {label: "Top country, last 30 days", value: esc(countryName(tc.iso)) + (tc.share_of_world ? " <em>" + Math.round(tc.share_of_world * 100) + "%</em>" : ""),
+            note: intComma(tc.state_origin) + " articles" + (tc.top_outlet ? ", mostly through " + tc.top_outlet.name : "") + ".", html: true} : null,
+      {label: "Outlets monitored", value: intComma(outs.length), note: "In " + nCountries + " countries and territories, read every day."}
+    ].filter(Boolean);
+    wrap.innerHTML = cards.map(function (c) {
+      return '<div class="kpi' + (c.accent ? ' accent' : '') + '"><div class="k-label">' + esc(c.label) + '</div><div class="k-value">' +
+        (c.html ? c.value : esc(c.value)) + '</div><div class="k-note">' + esc(c.note) + '</div></div>';
+    }).join("");
+    wrap.hidden = false;
   }
 
   var START_HERE_LS_KEY = "tracker_start_here_closed";
@@ -419,7 +448,7 @@
     var order = ["state_origin", "unchecked_state_sourcing", "official_chinese_sourcing_verification_pending", "independent_journalism", "not_relevant", "paywalled_unread_and_uncounted"];
     el("sh-categories").innerHTML = order.filter(function (id) { return cats[id]; }).map(function (id) {
       var c = cats[id];
-      return '<dt>' + esc(c.proposed_clearer_label || c.label) + '</dt><dd>' + esc(c.definition) + '</dd>';
+      return '<div class="sh-cat"><dt>' + esc(c.proposed_clearer_label || c.label) + '</dt><dd>' + esc(c.definition) + '</dd></div>';
     }).join("");
     renderRouteCards();
   }
@@ -937,7 +966,8 @@
       " by the " + what + " of the outlet that published them, " + (md.iso ? "in " + countryName(md.iso) : "in every monitored country") +
       ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + ax.noun + ".";
     var leanCap = caption(md.axis === "stance" ? "stance_chart_note" : "leaning_chart_note");
-    el("lean-note").textContent = (leanCap ? leanCap + " " : "") +
+    el("lean-note").textContent = leanCap ? leanCap + " A group with more outlets publishes more, so the per outlet column is the fairer comparison." +
+      (md.axis === "stance" ? " A stance source older than a change of government is not used." : "") :
       "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
       (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. State controlled means a state owned outlet without editorial independence, whose line is the government's rather than a left or right one. " : "") +
       (md.axis === "stance" ? "Stance is toward the government of the outlet's own country, from a dated source such as Reporters Without Borders or Freedom House; a source older than a change of government is not used. " : "") +
@@ -1075,7 +1105,11 @@
     var noun = measureNoun();
     var langs = (state.meta && state.meta.theme_languages) || [];
     var themeCap = caption("theme_counter_intro");
-    el("themes-sub").textContent = (themeCap ? themeCap + " " : "") +
+    /* The plain caption explains how tagging works; with it, only the live line (what is shown, for
+       which window) follows, so the reader does not get the same explanation twice. */
+    var themeLive = "Showing " + noun + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() + "." +
+      (routeActive() ? " Themes are not split by route, so the route filter does not apply here." : "");
+    el("themes-sub").textContent = themeCap ? themeCap + " " + themeLive :
       noun.charAt(0).toUpperCase() + noun.slice(1) + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
       ". Tags read the headline, the feed summary and the whole body. An article can carry more than one theme, so theme counts do not add up to the number of articles." +
       (langs.length ? " Theme terms exist in " + langs.length + " languages; articles in other languages are matched on English terms only." : "") +
