@@ -1,0 +1,157 @@
+{
+  "start_here": "Xinhua, CGTN, China Daily, Global Times, People's Daily and China News Service are owned and run by the Chinese state. Their job is to represent China's government to the world, not to report on it independently. Their text still ends up in ordinary newsrooms abroad. It arrives through wire subscriptions, where an outlet pays for a feed of Xinhua stories and can publish them as its own copy; through content-sharing agreements between national news agencies and Xinhua or China Media Group; through paid supplements and sponsored sections placed inside mainstream papers; and through signed opinion pieces written by Chinese ambassadors and embassy staff. None of this is unusual on its own. Wire services from many countries work the same way, and running a wire story can be an ordinary, disclosed part of how a newsroom fills space on a given day.\n\nThe problem is when readers cannot tell where the words came from. If a Chinese state agency's copy runs without a credit, or a local reporter repeats an official Chinese claim without checking it, a reader experiences it as independent local journalism, when it is not.\n\nThis tracker counts. It reads the full text of articles from a fixed list of outlets, every day, and records how often Chinese state text appears unaltered and how often local reporters pass on official Chinese claims unchecked. It does not judge why any single outlet ran a story, and it does not claim a given placement was hidden or sinister. Running a wire story can be routine. The counting is the whole claim; nothing here is a verdict on intent.",
+  "categories": {
+    "state_origin": {
+      "label": "State origin",
+      "definition": "Text written by an arm of the Chinese state and published essentially unchanged: Xinhua wire stories, CGTN release copy, China Daily and Global Times syndicated pieces, sponsored placements paid for by Chinese state entities, and opinion columns signed by Chinese diplomats. Nobody at the outlet that ran it formed their own editorial view of it."
+    },
+    "unchecked_state_sourcing": {
+      "label": "Unchecked state sourcing",
+      "definition": "An article written by the local newsroom's own staff, not copied from a Chinese source, that repeats an official Chinese claim (from a ministry spokesperson, an embassy, or Xinhua) without any independent check. This is a judgement made once by an AI model rather than a rule, and it has not yet been tested against a human or a second check, so every count of it is marked provisional."
+    },
+    "official_chinese_sourcing_verification_pending": {
+      "label": "Official Chinese sourcing, verification pending",
+      "proposed_clearer_label": "Flagged, not yet judged",
+      "definition": "Articles that mention a Chinese state source, such as Xinhua, an embassy, or a foreign ministry spokesperson, but have not yet been sent to the model for the unchecked-sourcing-versus-independent-journalism judgement. This is a waiting line, not a verdict, and these articles are never folded into unchecked state sourcing or independent journalism until they are judged.",
+      "distinction_note": "This is easy to confuse with unchecked state sourcing, and the site's own wording makes that worse: one is a completed (if provisional) judgement that a claim went unchecked, the other is a pile of articles nobody has judged yet. Read 'verification pending' as 'still in the queue' and 'unchecked state sourcing' as 'we looked, and it was not checked.'"
+    },
+    "independent_journalism": {
+      "label": "Independent journalism",
+      "definition": "The outlet's own reporting. This can include quoting Chinese officials, as long as the outlet also confirms, adds context to, or challenges what they said."
+    },
+    "not_relevant": {
+      "label": "Not relevant",
+      "proposed_clearer_label": "Not about China",
+      "definition": "The article has nothing to do with China. It exists in the data only to show what an outlet's full output looks like next to its China coverage; it is not meant to be read as a finding on its own."
+    },
+    "paywalled_unread_and_uncounted": {
+      "label": "Paywalled, unread and uncounted",
+      "definition": "The article sits behind a paywall the tracker could not get past, so it was never read and never sorted into any of the categories above. It does not count as state origin, unchecked sourcing, independent journalism, or not relevant. It is missing data, not a zero, and a country with a lot of it is not comparable to a country with little of it."
+    }
+  },
+  "routes": {
+    "wire_credit": {
+      "plain_name": "Wire credit",
+      "how_it_arrives": "The Chinese state outlet's name (Xinhua, CGTN, China Daily, Global Times, People's Daily, China News Service) appears as the story's byline, credit line, or dateline, the same way any wire service is credited when a newspaper runs its copy.",
+      "illustrative_line": "Illustrative only, not a quote from a real article: a byline reading '(Xinhua)' at the top of a short business story about a new trade route."
+    },
+    "distribution_stamp": {
+      "plain_name": "Press-release stamp",
+      "how_it_arrives": "The article carries the markings of a commercial press-release distribution service, the kind any company uses to push out an announcement, alongside the name of a Chinese state entity, showing it arrived as a distributed release rather than as staff reporting.",
+      "illustrative_line": "Illustrative only, not a quote from a real article: a story tagged '(via PR Newswire)' that repeats a Chinese state company's own announcement almost word for word."
+    },
+    "sponsored_disclosure": {
+      "plain_name": "Sponsored placement",
+      "how_it_arrives": "The outlet discloses, as it is required to for any advertiser, that the piece is sponsored content or a paid partner placement, and the sponsor is a Chinese state entity.",
+      "illustrative_line": "Illustrative only, not a quote from a real article: a page labelled 'Sponsored Content' carrying an upbeat feature about a Chinese province, paid for by a state agency."
+    },
+    "diplomatic_byline": {
+      "plain_name": "Diplomat's byline",
+      "how_it_arrives": "The piece is signed by a Chinese ambassador, embassy official, or other named Chinese diplomat, usually as an opinion column in a local paper.",
+      "illustrative_line": "Illustrative only, not a quote from a real article: an opinion piece bylined 'By [Name], Chinese Ambassador to [Country]', published in a newspaper's opinion section."
+    }
+  },
+  "faq": [
+    {
+      "question": "Why is Italy so high?",
+      "answer": "In the last 30 days, almost all of Italy's count comes from one outlet, Italpress, a national news agency that runs Xinhua-credited wire copy through a distribution channel called Immediapress, whose stamp our rules recognise. Italy's biggest newswire, ANSA, ran a formal Xinhua Italian-language news service from 2019 to 2022, then ended it. Xinhua text kept moving through Italian media anyway, just through a different outlet. Italy also has more monitored outlets than most countries, so more chances for this material to show up.",
+      "sources": [
+        "https://www.ansa.it/english/news/general_news/2019/03/22/ansa-xinhua-collaboration-accord-signed_aeba934e-af01-43a2-b5a3-cb90b4852fc4.html",
+        "https://decode39.com/3977/italy-media-broke-china-propaganda-ansa-xinhua/"
+      ]
+    },
+    {
+      "question": "Why is the United States zero?",
+      "answer": "The 45 US outlets we monitor show zero state-origin articles in this window. State-origin material does exist in America, in volume, but mostly through global press-release distribution services such as PR Newswire and GlobeNewswire. The tracker deliberately leaves those out of every country's count, because they are not national newsrooms; they are the same wire terminals used to push releases into dozens of countries at once, so crediting them to one country would be misleading.",
+      "sources": []
+    },
+    {
+      "question": "Why is China itself excluded?",
+      "answer": "China is the origin of the content this tracker measures, not a destination for it. Counting Chinese domestic media would mean counting the source as if it were a receiving newsroom. Chinese outlets appear in this project only as senders, as the Xinhua, CGTN or China Daily byline inside another country's coverage, never as a monitored country in their own right.",
+      "sources": []
+    },
+    {
+      "question": "Why is Taiwan zero?",
+      "answer": "Taiwan has one active monitored outlet in our registry right now, Taipei Times. Across its full history in our data it has produced no state-origin articles at all; its China coverage, 122 articles, is almost entirely its own reporting, with two pieces flagged as relaying an unchecked Chinese claim. A single outlet's record is a thin basis for drawing broad conclusions about a whole country.",
+      "sources": []
+    },
+    {
+      "question": "What does provisional mean?",
+      "answer": "Unchecked state sourcing is judged by an AI model, once, with no human check. Provisional means that judgement has not been tested yet, not that it is shaky or wrong. A reliability check will have the same model re-judge a sample of its own past calls; if it agrees with itself often enough, the provisional label comes off. If it does not, those counts are withheld, not merely flagged.",
+      "sources": []
+    },
+    {
+      "question": "Is a computer deciding this?",
+      "answer": "Mostly rules, sometimes a model, and so far no person. Clear-cut cases, like a Xinhua credit line, are caught by fixed pattern-matching rules with no AI involved. Only the harder call, whether a locally written article checked an official Chinese claim or just repeated it, goes to an AI model. So far no article has been checked and relabelled by a person; human review is counted on the site and stands at zero today.",
+      "sources": []
+    },
+    {
+      "question": "How new is the data?",
+      "answer": "The earliest article in this dataset was discovered on 2026-09-03. Everything here covers roughly the last month, not years of history. Treat any pattern you see as an early read, not an established trend.",
+      "sources": []
+    },
+    {
+      "question": "How often is it updated?",
+      "answer": "The tracker polls its outlets on an hourly schedule. In practice the interval varies, because the free scheduling service it runs on delays or skips runs when it is busy, so hourly is a target, not a guarantee. Every run's real start and finish time is written to a log.",
+      "sources": []
+    },
+    {
+      "question": "Why are so many outlets \"not assessed\" for political leaning?",
+      "answer": "Leaning is only assigned when a specific, named source says so: a Wikipedia media list, Media Bias/Fact Check, a press-freedom group's ownership monitor, or something similar. It is never guessed from an outlet's name, language, or country. Right now just over half of the outlets we monitor, most of them small or local, have no such source behind them, so they are marked not assessed rather than given a guess.",
+      "sources": []
+    },
+    {
+      "question": "Who made this and why?",
+      "answer": "The tracker's citation line credits Daniel Banin. The site does not say more than that about who made it or why, so neither do we.",
+      "sources": []
+    },
+    {
+      "question": "How do I report a mislabelled article?",
+      "answer": "Open an issue on the project's GitHub page and include the article's link and the category you think is correct.",
+      "sources": [
+        "https://github.com/dbanin/china-media-tracker/issues"
+      ]
+    }
+  ],
+  "country_notes": {
+    "ITA": "Almost all of Italy's state-origin count in the last 30 days comes from one outlet, Italpress, a national news agency, carrying Xinhua-credited wire copy through the Immediapress distribution channel, whose stamp our rules recognise, mostly recorded through the wire-credit route. Italy's largest newswire, ANSA, ran a formal Xinhua Italian-language news agreement from 2019 until ending it in 2022; Xinhua text has kept circulating through other Italian outlets since. Sources: https://www.ansa.it/english/news/general_news/2019/03/22/ansa-xinhua-collaboration-accord-signed_aeba934e-af01-43a2-b5a3-cb90b4852fc4.html, https://decode39.com/3977/italy-media-broke-china-propaganda-ansa-xinhua/",
+    "IDN": "Indonesia's count is carried mainly by the national news agency Antara and its English-language wire Antara English, mostly through the wire-credit route. Antara has run a news-exchange arrangement with Xinhua dating to 1957, expanded in 2025 with fresh cooperation agreements with Xinhua and China Media Group signed during a Chinese premier's state visit. Source: https://en.antaranews.com/news/356517/antara-establishes-cooperation-with-cmg-xinhua",
+    "MYS": "In our data, Malaysia's largest carrier is Utusan Malaysia, mostly through the press-release-stamp and unattributed routes, not the national wire Bernama. Bernama has its own long-running Xinhua news-exchange agreement, first signed in 1985 and renewed several times since, but that pipeline is not what shows up as the top source in this window. Source: https://www.bernama.com/en/news.php?id=2255080",
+    "LAO": "Nearly all of Laos's count comes from a single outlet, The Laotian Times, mostly through disclosed sponsored placements rather than a plain wire credit. Xinhua and the Lao News Agency signed a news-exchange agreement in 2018 covering text, photo, audio and video cooperation. Source: http://www.xinhuanet.com/english/2018-10/25/c_137555818.htm",
+    "ZAF": "South Africa's largest carrier is IOL, the website of Independent Media, in which two Chinese state-owned entities, China International Television Corporation and the China-Africa Development Fund, bought a 20 percent stake as part of a 2013 financing deal. Most of South Africa's labels arrive through the wire-credit route. Sources: https://en.wikipedia.org/wiki/Independent_Online, https://www.dailymaverick.co.za/article/2019-11-13-a-tangled-web-woven-the-pic-and-independent-media/",
+    "GUY": "Guyana's count is almost entirely one outlet, Village Voice News, mostly through the wire-credit route. We could not find a public agreement that explains this pipeline, so this is what the data shows and no more.",
+    "SGP": "Singapore's count is carried mainly by CNA (Channel News Asia), split between the press-release-stamp and unattributed routes. We found no public agreement to cite here; this is what the data shows.",
+    "TCD": "Chad's entire count in this window comes from one outlet, Alwihda Info, entirely through the unattributed route, meaning the model flagged it as state origin without a signature we can name. We found no public agreement to cite.",
+    "MLI": "Mali's count is carried mainly by Malijet, mostly through the wire-credit route. We found no public agreement to cite; this is what the data shows.",
+    "BRA": "Brazil's small count is led by the business outlet Exame, mostly through disclosed sponsored placements. We found no public agreement to cite.",
+    "PER": "Peru's count is led by La República, mostly through disclosed sponsored placements. We found no public agreement to cite.",
+    "IRN": "Iran's top carrier is Mehr News English, run by Mehr Media Group, which signed a media-cooperation memorandum of understanding with Xinhua in October 2024. Most of Iran's labels arrive through the wire-credit route. Source: https://www.tehrantimes.com/news/505051/Mehr-Media-Group-signs-MoU-with-Xinhua-News-Agency",
+    "HKG": "Hong Kong is a Chinese special administrative region; the tracker's own gate rules do not let its outlets pass simply for naming their own territory, so what is counted here concerns mainland China specifically. Its top carrier is RTHK English, the public broadcaster, split between the unattributed and disclosed-sponsored routes. We found no public agreement to cite beyond this.",
+    "GIN": "Guinea's count is led by Guinéenews, split between the unattributed and disclosed-sponsored routes. We found no public agreement to cite.",
+    "SEN": "Senegal's national news agency, APS, has one of the longest-running of these partnerships, a Xinhua content agreement dating to 1978 and renewed in 2019. In our sample the largest single carriers are actually two other outlets, Le Soleil and Dakaractu, with APS itself appearing too; most labels arrive through the wire-credit route. Source: http://www.xinhuanet.com/english/2019-07/19/c_138240476.htm"
+  },
+  "captions": {
+    "map_timeline_caption": "This strip shows the world's daily total for whichever measure and time window you have selected above. Moving it only changes the map; the theme section further down keeps its own separate timeline. Orange bars mark days when more candidate articles were waiting than the model's daily budget could judge, so those days are cut short, not actually quiet. Red ticks mark days when the volunteer-run collector for some outlets was offline for part of the day. A dashed line marks a change in the classification rules; a dotted gold line marks a change in which articles even enter the count in the first place.",
+    "notes_strip": "A single line above the map that surfaces only what would change how you should read today's numbers right now: for example, a batch of articles still waiting to be judged, a data collector that has gone quiet, or labels still running under an older rule version. Everything it mentions, and more besides, is written out in full under Methodology.",
+    "side_panel_labels": "Click a country, on the map or in the ranked list, and a panel opens with that country's numbers broken into six rows: state origin, unchecked state sourcing, official Chinese sourcing still waiting to be judged, independent journalism, not about China, and paywalled articles that were never read at all. Below that sit a time chart, a breakdown of how any state-origin material arrived, the list of monitored outlets, and the individual articles behind the count.",
+    "ranked_list": "Every monitored country, lined up from most to least by whatever measure and window you have chosen. A small triangle, on the map, or an exclamation mark, in this list, next to a country is not a rating of how much state media it has. It flags a data-quality problem specific to that country: for example, a large share of its articles were behind a paywall and never read, a chunk of its feed checks came back empty because items were missed in between, its volunteer-run collector went offline for part of the window, or it mostly publishes in a language our keyword lists do not cover yet. Open the country to read exactly which warning applies. A warning means the number is less certain, not that the country is worse.",
+    "theme_counter_intro": "Every article about China is tagged with any theme whose keywords show up in its headline, summary, or body: things like diplomacy, trade, Belt and Road investment, technology, military and security, Taiwan and Hong Kong, human rights, China's domestic politics, culture, and disasters or health. One article can carry several tags, or none, so the tags do not add up to the article count. These are keyword matches, not a person reading each piece, so a striking number here is worth checking against the actual articles before you repeat it.",
+    "leaning_chart_note": "Every outlet we monitor is sorted by two things, when a cited, named source lets us: its political leaning, judged against its own country's spectrum, and who owns it. Right now, outlets we can label state controlled, meaning state owned with no editorial independence, publish state-origin articles at close to 0.7 per outlet on average, about two and a half times the rate of any other group we could assess. More than half of all monitored outlets have no source backing either label yet and are marked not assessed rather than guessed at, so this chart describes the outlets we could check, not the whole registry."
+  },
+  "methodology_extra": {
+    "model_call_caps": "The model that makes the harder unchecked-sourcing-versus-independent-journalism call is capped at 4,000 calls a day and a 30 dollar monthly budget, whichever limit binds first. When more articles are waiting than the cap allows, the ones sent for judgement are a random draw that takes the same fraction from every country's backlog, so no single country is singled out for truncation.",
+    "ruleset_and_gate_versions": "The classification ruleset is currently version 2026.09.9. The relevance gate, which decides what enters the corpus at all rather than how an article already inside it is labelled, is a separate version, 2026.09.7, last changed 2026-09-22.",
+    "reclassification_status": "Labels currently in the database are split across ruleset versions: 2026.09.2 (94 labels), 2026.09.7 (23,106), 2026.09.8 (10,563), and 2026.09.9 (13,259). Reclassification of older labels under the newest ruleset is still in progress.",
+    "reliability_study": "No article has been checked by a human. A reliability study is queued instead: the model will re-judge a sample of its own earlier calls, and unchecked-state-sourcing counts are published only if the two rounds agree at a Cohen's kappa of at least 0.6, worked out separately per language. That study will not run before 2026-10-01.",
+    "feed_saturation": "8,490 of 210,757 feed checks in the dataset so far came back as a full window with nothing seen before it, meaning items were probably missed between checks; the estimated total of missed items is about 236,412.",
+    "relay_collector": "54 outlets are collected from the tracker owner's own machine rather than a hosted server. As of the last export its most recent successful pass was about 18.8 hours earlier, and it had 16 incomplete collection days on record.",
+    "release_section_search_coverage": "Of 1,615 active outlets, 1,447 have been searched for a press-release, sponsored, or partner section; 196 had one, 1,126 had none, 23 blocked the search, and 102 could not be reached. Where a section has not been searched yet, any state-origin material placed there cannot currently be found."
+  },
+  "findings_template": [
+    "About {state_share_of_china} of the China-related articles from monitored outlets since {since} came from the Chinese state itself, rather than from a local reporter.",
+    "{top_country} carried more than any other country in the last 30 days: {top_country_count} state-origin articles, {top_country_share} of the world's total, most of them through {top_carrier}.",
+    "{top_ownership_group} outlets publish state-origin articles at about {rate_ratio} the rate of {next_ownership_group} outlets, counted per outlet.",
+    "In absolute numbers most state-origin articles still appear in {largest_group} outlets ({largest_group_share} of those with a known owner), simply because there are far more of them."
+  ],
+  "cta": "Download the full daily counts as a CSV from the Methodology section to check any of this yourself, cite the tracker using the citation line at the bottom of that section, or, if you spot an article that looks mislabelled, open an issue on the project's GitHub page (https://github.com/dbanin/china-media-tracker/issues) with the article's link and the category you think is right."
+}

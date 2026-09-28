@@ -53,6 +53,72 @@ header.top .sub { color: var(--ash); max-width: 46rem; font-size: 1.02rem; margi
 #method-notes { list-style: none; padding: 0; margin: 0 0 1.8rem; max-width: 70rem; }
 #method-notes li { border-left: 2px solid var(--gold); padding: 0.25rem 0 0.25rem 0.9rem; margin: 0.55rem 0; color: var(--bone-soft); font-size: 0.9rem; line-height: 1.55; }
 
+/* "What we found", directly under the headline. */
+.findings-box { margin: 1.1rem 0 0.6rem; padding: 1rem 1.3rem; max-width: 46rem; border: 1px solid var(--rule-strong); border-left: 2px solid var(--gold); background: rgba(201, 169, 97, 0.05); }
+.findings-box .fb-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.5rem; }
+.findings-box p { color: var(--bone-soft); font-size: 0.98rem; line-height: 1.5; margin: 0 0 0.55rem; }
+.findings-box .fb-meta { color: var(--ash); font-size: 0.82rem; }
+.findings-box .fb-see { display: inline-block; font-size: 0.86rem; margin-top: 0.1rem; }
+
+/* Start here: a collapsible explainer, open on a first visit and remembered closed after that. */
+.start-here { margin: 1.2rem 3rem 0 3rem; padding: 1.1rem 1.4rem; border: 1px solid var(--rule); border-left: 2px solid var(--gold); max-width: 70rem; }
+.start-here summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+.start-here summary::-webkit-details-marker { display: none; }
+.start-here summary::before { content: "+"; color: var(--gold); font-family: var(--display); font-size: 1.2rem; margin-right: 0.2rem; }
+.start-here[open] summary::before { content: "\2212"; }
+.start-here .sh-title { font-family: var(--display); font-size: 1.35rem; color: var(--bone); }
+.start-here .sh-hint { font-size: 0.8rem; color: var(--ash); }
+.start-here .sh-body { padding-top: 1rem; }
+.sh-intro p { max-width: 62rem; color: var(--bone-soft); }
+.sh-categories { display: grid; grid-template-columns: 14rem 1fr; gap: 0.5rem 1.2rem; font-size: 0.88rem; margin: 1rem 0; }
+.sh-categories dt { color: var(--gold); font-family: var(--display); font-size: 1.02rem; padding-top: 0.1rem; }
+.sh-categories dd { margin: 0; color: var(--bone-soft); }
+.sh-routes-label { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ash); margin: 1.2rem 0 0.6rem; }
+.sh-routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.8rem; }
+.sh-route-card { text-align: left; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.8rem 0.9rem; background: var(--ink-2); border: 1px solid var(--rule-strong); border-radius: 2px; cursor: pointer; }
+.sh-route-card:hover { border-color: var(--gold); }
+.sh-route-name { font-family: var(--display); font-size: 1.1rem; color: var(--bone); }
+.sh-route-how { font-size: 0.78rem; color: var(--bone-soft); line-height: 1.4; }
+.sh-route-line { font-size: 0.72rem; color: var(--ash); line-height: 1.4; }
+.sh-badge { display: inline-block; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--rule-strong); color: var(--ash); padding: 0.05rem 0.35rem; border-radius: 2px; margin-right: 0.3rem; }
+
+/* A few examples: two or three rotating daily. */
+.examples { margin: 1.2rem 3rem 0 3rem; padding: 1.1rem 0 0.4rem; max-width: 70rem; border-top: 1px solid var(--rule); }
+.examples h2 { font-size: 1.6rem; margin: 0.2rem 0 0.8rem; }
+.ex-list { display: grid; gap: 1rem; }
+.ex-item { padding: 0.8rem 1rem; border: 1px solid var(--rule); border-left: 2px solid var(--gold-soft); }
+.ex-headline { display: block; font-family: var(--display); font-size: 1.15rem; color: var(--bone); border-bottom: none; }
+.ex-headline:hover { color: var(--gold); }
+.ex-meta { font-size: 0.76rem; color: var(--ash); margin: 0.3rem 0; }
+.ex-snippet { font-family: var(--display); font-style: italic; color: var(--bone-soft); font-size: 1rem; margin: 0.3rem 0 0; }
+.ex-hl { background: var(--gold-soft); color: var(--bone); font-style: normal; padding: 0 0.15em; border-radius: 2px; }
+
+/* Ranked list caption, above the bars. */
+.bars-caption { color: var(--ash); font-size: 0.8rem; max-width: 46rem; margin: 0.4rem 0 0.6rem; }
+
+/* Country panel: a shortcut to the top three, and the "why this number" country note. */
+.panel-shortcuts { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; margin: 0.8rem 0 1.2rem; }
+.ps-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ash); margin-right: 0.2rem; }
+.ps-btn { font-size: 0.82rem; padding: 0.3rem 0.7rem; }
+.panel-note-box { border-left: 2px solid var(--gold); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0.8rem 0 1.2rem; }
+.panel-note-box h3 { margin-bottom: 0.3rem; }
+.panel-note-box p { color: var(--bone-soft); font-size: 0.86rem; margin: 0; }
+
+/* FAQ, before the methodology section. */
+section.faq { padding: 2rem 3rem 0 3rem; max-width: 76rem; }
+.faq-list { display: grid; gap: 0.1rem; margin-top: 1rem; }
+.faq-item { border-bottom: 1px solid var(--rule); padding: 0.8rem 0; }
+.faq-item summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; color: var(--bone); list-style: none; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::before { content: "+"; color: var(--gold); margin-right: 0.5rem; }
+.faq-item[open] summary::before { content: "\2212"; }
+.faq-item p { color: var(--bone-soft); margin: 0.6rem 0 0.4rem; max-width: 60rem; }
+.faq-sources { margin: 0.2rem 0 0; padding-left: 1.1rem; font-size: 0.78rem; color: var(--ash); }
+.faq-sources a { word-break: break-all; }
+
+/* Call to action, beside the CSV export buttons. */
+.cta-line { color: var(--bone-soft); font-size: 0.86rem; max-width: 46rem; margin: 0.7rem 0 0; }
+
 .controls { display: flex; flex-wrap: wrap; gap: 1.1rem 2.6rem; padding: 1.2rem 3rem; border-bottom: 1px solid var(--rule); align-items: flex-end; }
 /* Every group of controls, above the map, the list and the theme counter as well as in the top bar, is a
    labelled column: the same small kicker over the same segment, so nothing repeats and nothing floats. */
@@ -227,8 +293,11 @@ footer { padding: 1.4rem 3rem 2.4rem 3rem; color: var(--ash-faint); font-size: 0
   h1 { font-size: 2.6rem; }
 }
 @media (max-width: 640px) {
-  header.top, .controls, #timeline, section.method, .notice, .notes-strip, footer { padding-left: 1.2rem; padding-right: 1.2rem; margin-left: 0; margin-right: 0; }
+  header.top, .controls, #timeline, section.method, .notice, .notes-strip, footer,
+  .start-here, .examples, section.faq { padding-left: 1.2rem; padding-right: 1.2rem; margin-left: 0; margin-right: 0; }
   h1 { font-size: 2.2rem; }
+  /* A fixed-width label column would force a horizontal scroll at phone width; stack instead. */
+  .sh-categories, .sh-routes { grid-template-columns: 1fr; }
 }
 body.force-list #map-wrap { display: none; }
 body.force-list #bars-wrap { display: block; }
@@ -325,3 +394,7 @@ body.map-failed.force-list #map-wrap { display: block; }
    follow it or the section lands on top of the theme counter. */
 @media (max-width: 1100px) { #leaning { grid-row: 5; padding-left: 1.6rem; } }
 @media (max-width: 700px) { #leaning .lean-body { grid-template-columns: 1fr; } #lean-pie { margin: 0 auto; } }
+
+/* On a phone the five basis buttons are wider than the screen; without wrapping they pushed the
+   ranked list 62px past the edge and the whole page scrolled sideways. */
+@media (max-width: 520px) { .segment { flex-wrap: wrap; max-width: 100%; } .segment button { flex: 1 1 auto; } }

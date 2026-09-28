@@ -196,4 +196,33 @@ assert(parts.measure === "target" && parts.basis === "share_of_output" && C.BASI
 var tsc = C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 1, 0, ["diplomacy", "culture"]);
 assert(tsc.values === 3 && tsc.max === 3 && Math.abs(tsc.cap - C.percentile([2, 1, 3], 0.95)) < 1e-9, "theme scale cap pools days");
 assert(C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 2, 2, null, "ITA").max === 1 && C.themeScaleCap({}, [], 1, 0).cap === null, "theme scale cap by slot and country");
+/* The "What we found" box: fills the four findings_template sentences from meta.findings. */
+var findingsTemplates = ["Share {state_share_of_china} since {since}.", "{top_country} led, carried by {top_carrier}.",
+  "State-controlled outlets published at roughly {rate_ratio} the rate.", "{top_ownership_group} outlets led."];
+var findings = {
+  since: "2026-09-03",
+  all_time: {state_origin: 100, unchecked: 20, independent: 300, china_total: 420, state_share_of_china: 0.2381},
+  top_country: {iso: "ITA", state_origin: 50, share_of_world: 0.5, top_outlet: {id: "italpress", name: "Italpress"}, top_route: "wire_credit"},
+  by_ownership: {groups: [{id: "state", articles: 40, outlets: 10, per_outlet_rate: 4}, {id: "private", articles: 10, outlets: 20, per_outlet_rate: 0.5},
+                           {id: "party", articles: 0, outlets: 2, per_outlet_rate: 0}], top: {id: "state", per_outlet_rate: 4}}
+};
+var filled = C.fillFindingsTemplate(findingsTemplates, findings, {ITA: "Italy"}, {state: "State", private: "Private", party: "Party"});
+assert(filled[0] === "Share 23.8% since 2026-09-03.", "findings box: percentage to one decimal");
+assert(filled[1] === "Italy led, carried by Italpress.", "findings box: country name from the lookup and top carrier");
+assert(filled[2] === "State-controlled outlets published at roughly 8.0 times the rate.", "findings box: ownership rate ratio to one decimal, in words");
+var filled2 = C.fillFindingsTemplate(["{top_country_count} ({top_country_share}); {next_ownership_group}; {largest_group} {largest_group_share}"], findings, {ITA: "Italy"}, {state: "State", private: "Private", party: "Party"});
+assert(filled2[0] === "50 (50%); private; state 80%", "findings box: country count and share, next group, and the largest group by articles, unassessed left out");
+assert(filled[3] === "State outlets led.", "findings box: top ownership group label");
+assert(C.fillFindingsTemplate(findingsTemplates, null, {}, {}) === null, "findings box hides cleanly with no meta.findings");
+assert(C.fillFindingsTemplate(findingsTemplates, {all_time: {state_share_of_china: null}}, {}, {})[0] === "Share n/a since the start of data collection.",
+  "findings box fills missing pieces without throwing");
+/* Example snippets are trimmed to whole words with the highlight kept on the same phrase. */
+var ww = C.wholeWordSnippet(", presidente del Zoo.\nFoto: Agencia NA (Xinhua).\nEstamos encantados de dar la bienv", 39, 47);
+assert(ww.snippet === "\u2026 presidente del Zoo. Foto: Agencia NA (Xinhua). Estamos encantados de dar la \u2026", "snippet trimmed to whole words with ellipses: " + ww.snippet);
+assert(ww.snippet.slice(ww.start, ww.end) === "(Xinhua)", "highlight offsets still point at the matched phrase");
+/* Route id to plain name, used by the findings box and the map tooltip. */
+var contentRoutes = {wire_credit: {plain_name: "Wire credit"}, distribution_stamp: {plain_name: "Press-release stamp"}};
+assert(C.contentRouteName(contentRoutes, "wire_credit") === "Wire credit", "route name lookup");
+assert(C.contentRouteName(contentRoutes, "unattributed") === "unattributed", "route name lookup falls back to the id when not named");
+assert(C.contentRouteName(null, "wire_credit") === "wire_credit", "route name lookup survives a missing routes object");
 console.log("frontend smoke ok");

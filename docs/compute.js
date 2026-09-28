@@ -476,6 +476,77 @@
       "Accessed " + accessDate + ".";
   }
 
+  /* ------------------------------------------------------- reader-facing content
+     The "What we found" box and the map/tooltip route naming both read content.json,
+     which carries the site's prose. These two helpers are pure so they can be tested
+     without a DOM, the same way every metric above is. */
+  function findingsPct1(v) { return v === null || v === undefined ? "n/a" : (v * 100).toFixed(1) + "%"; }
+  /* Fills the four findings_template sentences from meta.findings: percentages to one decimal,
+     the top country's name from the existing lookup, and the ownership rate ratio as the top
+     group's per-outlet rate over the next highest group's, rounded to one decimal. Returns null
+     when there is nothing to fill, so the caller hides the box instead of showing empty prose. */
+  function fillFindingsTemplate(templates, findings, names, ownershipLabels) {
+    if (!templates || !findings || !findings.all_time) return null;
+    var f = findings.all_time, tc = findings.top_country, own = findings.by_ownership || {};
+    var label = function (id) { return id ? ((ownershipLabels && ownershipLabels[id]) || id) : "No"; };
+    /* Outlets with no sourced owner are not a group anyone can compare against, so they stay out
+       of both the per outlet ranking and the largest share. */
+    var groups = (own.groups || []).filter(function (g) {
+      return g && g.id !== "unassessed" && g.per_outlet_rate !== null && g.per_outlet_rate !== undefined;
+    });
+    var sorted = groups.slice().sort(function (a, b) { return b.per_outlet_rate - a.per_outlet_rate; });
+    var rateRatio = sorted.length >= 2 && sorted[1].per_outlet_rate ? sorted[0].per_outlet_rate / sorted[1].per_outlet_rate : null;
+    var topGroupId = (own.top && own.top.id) || (sorted[0] && sorted[0].id);
+    var byArticles = groups.slice().sort(function (a, b) { return (b.articles || 0) - (a.articles || 0); });
+    var groupTotal = groups.reduce(function (t, g) { return t + (g.articles || 0); }, 0);
+    var largest = byArticles[0];
+    var vals = {
+      state_share_of_china: findingsPct1(f.state_share_of_china),
+      since: findings.since || "the start of data collection",
+      top_country: tc ? ((names && names[tc.iso]) || tc.iso) : "no country yet",
+      top_country_count: tc && tc.state_origin !== undefined ? Number(tc.state_origin).toLocaleString("en-US") : "n/a",
+      top_country_share: tc && tc.share_of_world !== undefined && tc.share_of_world !== null ? Math.round(tc.share_of_world * 100) + "%" : "n/a",
+      top_carrier: tc && tc.top_outlet ? tc.top_outlet.name : "no single outlet",
+      rate_ratio: rateRatio === null ? "an unmeasured multiple of" : rateRatio.toFixed(1) + " times",
+      top_ownership_group: label(topGroupId),
+      next_ownership_group: sorted[1] ? label(sorted[1].id).toLowerCase() : "other",
+      largest_group: largest ? label(largest.id).toLowerCase() : "no",
+      largest_group_share: largest && groupTotal ? Math.round(100 * largest.articles / groupTotal) + "%" : "n/a"
+    };
+    return templates.map(function (t) {
+      return String(t).replace(/\{(\w+)\}/g, function (whole, key) {
+        return Object.prototype.hasOwnProperty.call(vals, key) ? vals[key] : whole;
+      });
+    });
+  }
+  /* The stored tell is a character window, so it can start and end inside a word. Trim both ends
+     back to whole words, mark each cut with an ellipsis, and fold line breaks into spaces, keeping
+     the matched phrase's offsets pointing at the same text. */
+  function wholeWordSnippet(snippet, start, end) {
+    var s = String(snippet || ""), st = Math.max(0, Math.min(s.length, start || 0)), en = Math.max(st, Math.min(s.length, end || 0));
+    var tidy = function (t) { return t.replace(/\s+/g, " "); };
+    var pre = s.slice(0, st), mid = s.slice(st, en), post = s.slice(en), lead = false, trail = false;
+    if (pre && !/^[A-Z0-9"“(\[]/.test(pre)) {
+      var sp = pre.search(/\s/);
+      if (sp >= 0) { pre = pre.slice(sp); lead = true; }
+    }
+    if (post && !/[.!?"”)\]]\s*$/.test(post)) {
+      var last = post.search(/\s\S*$/);
+      if (last >= 0) { post = post.slice(0, last); trail = true; }
+    }
+    pre = tidy(pre).replace(/^\s+/, ""); mid = tidy(mid); post = tidy(post).replace(/\s+$/, "");
+    if (lead) pre = "\u2026 " + pre;
+    if (trail) post = post + " \u2026";
+    return {snippet: pre + mid + post, start: pre.length, end: pre.length + mid.length};
+  }
+  /* A route id to the plain name a reader recognises, read from content.routes. Falls back to the
+     id itself, so a route the content file has not named yet still shows something rather than
+     nothing. */
+  function contentRouteName(routes, id) {
+    var r = routes && routes[id];
+    return (r && r.plain_name) || id;
+  }
+
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
@@ -483,5 +554,6 @@
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
-          stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf};
+          stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
+          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, contentRouteName: contentRouteName};
 }));
