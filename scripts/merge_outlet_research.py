@@ -35,6 +35,9 @@ from pipeline import registry  # noqa: E402
 
 LEANINGS = {"left", "centre_left", "centre", "centre_right", "right", "state_controlled", "unassessed"}
 OWNERSHIP = {"private", "public_service", "state", "party", "unassessed"}
+STANCES = {"pro_government", "independent", "opposition", "unassessed"}
+# A stance is toward the government of the day; older sources may describe a government since replaced.
+STANCE_OLDEST_YEAR = 2023
 TIERS = {"national_daily", "agency", "broadcaster", "business", "regional", "aggregator"}
 # Project rule: Chinese-language outlets are registered but never monitored (see tw_udn_zh).
 EXCLUDED_LANGUAGES = {"zh": "publishes primarily in Chinese; excluded by project rule because the owner does not read "
@@ -142,6 +145,7 @@ def apply(outlets, blocks, today):
 ATTRIBUTES = (
     ("lean_*.yaml", "political_leaning", "leaning_source", LEANINGS),
     ("own_*.yaml", "ownership", "ownership_source", OWNERSHIP),
+    ("stance_*.yaml", "government_stance", "stance_source", STANCES),
 )
 
 
@@ -164,6 +168,10 @@ def apply_attributes(outlets, directory):
                         issues.append((country, oid, "unknown %s %r, skipped" % (field, value))); continue
                     if value != "unassessed" and not source:
                         issues.append((country, oid, "%s %s without a source, skipped" % (field, value))); continue
+                    if field == "government_stance" and value != "unassessed":
+                        year = e.get("as_of")
+                        if not isinstance(year, int) or year < STANCE_OLDEST_YEAR:
+                            issues.append((country, oid, "stance source dated %r, older than %d, skipped" % (year, STANCE_OLDEST_YEAR))); continue
                     current = target.get(field) or "unassessed"
                     if value == "unassessed":
                         target.setdefault(field, "unassessed")
@@ -171,6 +179,8 @@ def apply_attributes(outlets, directory):
                     elif current == "unassessed":
                         target[field] = value
                         target[source_field] = source
+                        if field == "government_stance":
+                            target["stance_as_of"] = e["as_of"]
                         report[field + "_filled"] += 1
                     elif current != value:
                         issues.append((country, oid, "%s disagreement: registry %s, research %s (%s); kept %s"
@@ -191,6 +201,10 @@ def derive_state_controlled(outlets):
             o["political_leaning"] = "state_controlled"
             o["leaning_source"] = o["ownership_source"]
             n += 1
+        # The same reasoning puts a state outlet's stance toward its government beyond question.
+        if o.get("ownership") == "state" and o.get("ownership_source") and (o.get("government_stance") or "unassessed") == "unassessed":
+            o["government_stance"] = "state_controlled"
+            o["stance_source"] = o["ownership_source"]
     return n
 
 

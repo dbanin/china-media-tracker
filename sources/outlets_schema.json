@@ -210,6 +210,19 @@
         "type": "string",
         "description": "URL of the source for ownership."
       },
+      "government_stance": {
+        "type": "string",
+        "enum": ["pro_government", "independent", "opposition", "state_controlled", "unassessed"],
+        "description": "Stance toward the government of the outlet's own country, from a dated third-party source (RSF, Freedom House, the Media Ownership Monitor, Media Landscapes, BBC media guides). state_controlled is derived from a sourced state ownership. An outlet's description of itself does not count; unassessed when no dated source describes it."
+      },
+      "stance_source": {
+        "type": "string",
+        "description": "URL of the source for government_stance."
+      },
+      "stance_as_of": {
+        "type": "integer",
+        "description": "The year the stance source describes. A stance is toward the government of the day, so a source older than a change of government is not used."
+      },
       "rank_source": {
         "type": "string",
         "description": "URL of the readership source behind audience_rank."

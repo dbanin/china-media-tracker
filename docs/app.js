@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "69";
+  var ASSET_VERSION = "70";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -893,7 +893,16 @@
               ["right", "Right", "var(--lean-right)"], ["state_controlled", "State controlled", "var(--lean-state)"],
               ["unassessed", "Not assessed", null]],
     ownership: [["private", "Private", "var(--own-private)"], ["public_service", "Public service", "var(--own-public)"],
-                ["state", "State", "var(--own-state)"], ["party", "Party", "var(--own-party)"], ["unassessed", "Not assessed", null]]
+                ["state", "State", "var(--own-state)"], ["party", "Party", "var(--own-party)"], ["unassessed", "Not assessed", null]],
+    stance: [["state_controlled", "State controlled", "var(--lean-state)"], ["pro_government", "Pro-government", "var(--stance-pro)"],
+             ["independent", "Independent", "var(--stance-ind)"], ["opposition", "Opposition", "var(--stance-opp)"],
+             ["unassessed", "Not assessed", null]]
+  };
+  var LEAN_AXIS = {
+    leaning: {key: "political_leaning", what: "political leaning", title: "Outlets by political leaning", noun: "leaning", head: "Leaning"},
+    ownership: {key: "ownership", what: "ownership", title: "Outlets by ownership", noun: "ownership type", head: "Ownership"},
+    stance: {key: "government_stance", what: "stance toward its own government", title: "Outlets by stance toward their government",
+             noun: "stance toward government", head: "Stance"}
   };
   state.leanAxis = "leaning";
   function leanValue(o) {
@@ -904,7 +913,7 @@
     return (c.A || 0) + (c.B || 0) + (c.C || 0) + (c.pending || 0);
   }
   function leanModel() {
-    var axis = state.leanAxis, key = axis === "leaning" ? "political_leaning" : "ownership";
+    var axis = state.leanAxis, key = (LEAN_AXIS[axis] || LEAN_AXIS.leaning).key;
     var iso = state.selected && String(state.selected).indexOf("name:") !== 0 ? state.selected : null;
     var outs = (state.outlets || []).filter(function (o) { return o.active && o.tier !== "distribution_wire" && (!iso || o.country === iso); });
     var rows = LEAN_GROUPS[axis].map(function (g) { return {id: g[0], label: g[1], color: g[2], articles: 0, outlets: 0}; });
@@ -922,15 +931,16 @@
     if (!el("leaning")) return;
     var md = leanModel(), relay = relayFor(null), noun = measureNoun();
     var marked = relay.provisional && (state.measure === "b" || state.measure === "target" || state.measure === "china");
-    var what = md.axis === "leaning" ? "political leaning" : "ownership";
-    el("leaning-title").textContent = md.axis === "leaning" ? "Outlets by political leaning" : "Outlets by ownership";
+    var ax = LEAN_AXIS[md.axis] || LEAN_AXIS.leaning, what = ax.what;
+    el("leaning-title").textContent = ax.title;
     el("leaning-sub").textContent = noun.charAt(0).toUpperCase() + noun.slice(1) + (marked ? " (provisional)" : "") +
       " by the " + what + " of the outlet that published them, " + (md.iso ? "in " + countryName(md.iso) : "in every monitored country") +
-      ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + (md.axis === "leaning" ? "leaning" : "ownership type") + ".";
-    var leanCap = caption("leaning_chart_note");
+      ", all time. " + md.assessed + " of " + md.outlets + " active outlets have a sourced " + ax.noun + ".";
+    var leanCap = caption(md.axis === "stance" ? "stance_chart_note" : "leaning_chart_note");
     el("lean-note").textContent = (leanCap ? leanCap + " " : "") +
       "A share of articles partly counts outlets: a group with more monitored outlets publishes more, so the per outlet column is the fairer comparison. " +
       (md.axis === "leaning" ? "Leaning is judged against each country's own political spectrum. State controlled means a state owned outlet without editorial independence, whose line is the government's rather than a left or right one. " : "") +
+      (md.axis === "stance" ? "Stance is toward the government of the outlet's own country, from a dated source such as Reporters Without Borders or Freedom House; a source older than a change of government is not used. " : "") +
       "Not assessed means no reliable source was found, never a guess.";
     var svg = d3.select("#lean-pie"); svg.selectAll("*").remove();
     var defs = svg.append("defs");
@@ -949,7 +959,7 @@
          finding. Say what is missing instead. */
       g.append("circle").attr("r", 87).attr("fill", "none").attr("stroke", "var(--rule-strong)").attr("stroke-width", 42).attr("stroke-dasharray", "2 5");
       g.append("text").attr("class", "lean-total-sub").attr("dy", "0.35em").text("Not assessed yet");
-      table.innerHTML = '<tbody><tr><td class="muted">No outlet has a sourced ' + (md.axis === "leaning" ? "political leaning" : "ownership type") +
+      table.innerHTML = '<tbody><tr><td class="muted">No outlet has a sourced ' + ax.what +
         ' yet. Each outlet is being researched against a cited source, and the chart fills in as that lands.</td></tr></tbody>';
       return;
     }
@@ -969,7 +979,7 @@
       g.append("text").attr("class", "lean-total-sub").attr("dy", "2.1em").text(state.measure === "china" ? "China articles" : "articles");
     }
     var fmtPer = function (v) { return v === null ? "n/a" : v.toFixed(v < 10 ? 2 : 1); };
-    table.innerHTML = '<thead><tr><th></th><th>' + (md.axis === "leaning" ? "Leaning" : "Ownership") + '</th><th class="num">Articles</th><th class="num">Share</th><th class="num">Outlets</th><th class="num">Per outlet</th></tr></thead><tbody>' +
+    table.innerHTML = '<thead><tr><th></th><th>' + ax.head + '</th><th class="num">Articles</th><th class="num">Share</th><th class="num">Outlets</th><th class="num">Per outlet</th></tr></thead><tbody>' +
       md.rows.map(function (r) {
         var sw = r.color ? "background:" + r.color : "background:var(--lean-hatch)";
         return '<tr data-id="' + esc(r.id) + '" class="' + (r.articles ? "" : "zero") + '" tabindex="0">' +
