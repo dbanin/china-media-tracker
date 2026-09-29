@@ -44,9 +44,14 @@ EXCLUDED_LANGUAGES = {"zh": "publishes primarily in Chinese; excluded by project
                             "Chinese and machine translation would miss the coding distinctions"}
 
 
+# Feed hosting services carry many unrelated outlets, so on them the full feed address is the identity.
+SHARED_FEED_HOSTS = {"feeds.feedburner.com", "feedproxy.google.com", "rss.app", "fetchrss.com"}
+
+
 def host(url):
     h = urlsplit(url or "").netloc.lower()
-    return h[4:] if h.startswith("www.") else h
+    h = h[4:] if h.startswith("www.") else h
+    return (url or "").strip().lower().rstrip("/") if h in SHARED_FEED_HOSTS else h
 
 
 def load_blocks(directory):
