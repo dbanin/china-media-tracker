@@ -539,6 +539,18 @@
     if (trail) post = post + " \u2026";
     return {snippet: pre + mid + post, start: pre.length, end: pre.length + mid.length};
   }
+  /* Translation is left to the reader's own translator: the site sends nothing anywhere. For an outlet that
+     does not publish in English, two links: the headline and quote as text, and the article page itself.
+     Returns null for English or unknown languages, so English items stay uncluttered. */
+  function translateLinks(lang, text, articleUrl) {
+    var l = String(lang || "").toLowerCase();
+    if (!l || l === "en" || l.indexOf("en-") === 0) return null;
+    var t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 4000);
+    var out = {};
+    if (t) out.text = "https://translate.google.com/?sl=auto&tl=en&op=translate&text=" + encodeURIComponent(t);
+    if (articleUrl && /^https?:\/\//i.test(articleUrl)) out.page = "https://translate.google.com/translate?sl=auto&tl=en&u=" + encodeURIComponent(articleUrl);
+    return (out.text || out.page) ? out : null;
+  }
   /* A route id to the plain name a reader recognises, read from content.routes. Falls back to the
      id itself, so a route the content file has not named yet still shows something rather than
      nothing. */
@@ -555,5 +567,5 @@
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, contentRouteName: contentRouteName};
+          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName};
 }));

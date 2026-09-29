@@ -573,3 +573,8 @@ section.sec.faq, section.sec.method { max-width: var(--page); padding-left: var(
   .segment { border-radius: 18px; }
   .segment button { border-radius: 14px; }
 }
+/* Translate links under non-English headlines. They open the reader's translator; the site sends nothing. */
+.tr-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.tr-links a { font-size: 0.78rem; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 3px 10px; color: var(--bone-soft); transition: border-color 180ms ease, color 180ms ease; }
+.tr-links a:hover { border-color: var(--gold); color: var(--gold); }
+.ex-lede { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
