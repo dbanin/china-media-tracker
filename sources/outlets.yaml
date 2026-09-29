@@ -3397,12 +3397,10 @@
   country: BGD
   language: bn
   feeds:
-  - https://samakal.com/feed
+  - https://samakal.com/rss
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-09-28: feed verified again.'
+  active: true
 - id: bd_somoy
   name: Somoy TV
   country: BGD
@@ -15161,8 +15159,7 @@
   notes: Verified 2026-09-02.
   audience_rank: 6
   political_leaning: unassessed
-  ownership: private
-  ownership_source: https://en.wikipedia.org/wiki/Kuwait_Times
+  ownership: unassessed
   active: true
 - id: kw_timeskuwait
   name: The Times Kuwait
@@ -15694,22 +15691,20 @@
   country: LKA
   language: en
   feeds:
-  - http://www.adaderana.lk/rss.php
   - https://www.adaderana.lk/rss.php
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-09-28: feed verified again, polled by the self-hosted collector because GitHub''s runner is refused.'
   audience_rank: 1
   rank_source: https://www.similarweb.com/website/adaderana.lk/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ada_Derana
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-08 (auto)
-  inactive_since: '2026-09-21'
+  collector: self_hosted
+  active: true
 - id: lk_ceylontoday
   name: Ceylon Today
   country: LKA
@@ -15726,12 +15721,11 @@
   country: LKA
   language: en
   feeds:
-  - https://www.dailymirror.lk/rss
+  - https://www.dailymirror.lk/rss/latest_news/155
+  - https://www.dailymirror.lk/rss/breaking_news/108
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-09-28: feed verified again.'
+  active: true
 - id: lk_dailynews
   name: Daily News Sri Lanka
   country: LKA
@@ -22840,7 +22834,7 @@
   name: Sudans Post
   country: SDN
   language: en
-  feeds:
+  feeds: &id001
   - https://www.sudanspost.com/feed/
   release_sections:
     searched_on: '2026-09-15'
@@ -22856,7 +22850,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Sudans_Post
-  active: true
+  active: false
+  inactive_reason: 'moved to ss_sudanspost: headquartered in Juba (Wikipedia)'
+  inactive_since: '2026-09-28'
 - id: sd_sudantribune
   name: Sudan Tribune
   country: SDN
@@ -23814,21 +23810,19 @@
   language: en
   feeds:
   - https://www.eyeradio.org/feed/
-  - https://eyeradio.org/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-09-28: feed verified again, polled by the self-hosted collector because GitHub''s runner is refused.'
   audience_rank: 1
   rank_source: https://medialandscapes.org/country/south-sudan/media/radio
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Eye_Radio
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-10 (auto)
-  inactive_since: '2026-09-21'
+  collector: self_hosted
+  active: true
 - id: ss_radiotamazuj
   name: Radio Tamazuj
   country: SSD
@@ -28799,7 +28793,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Samoa_News
-  active: true
+  active: false
+  inactive_reason: 'duplicate of as_samoanews: the same feed, published from Pago Pago, American Samoa'
+  inactive_since: '2026-09-28'
 - id: xk_gazetaexpress
   name: Gazeta Express
   country: XKX
@@ -30713,21 +30709,19 @@
   country: MCO
   language: fr
   feeds:
-  - https://www.monacomatin.mc/rss
+  - https://www.nicematin.com/monaco/rss
   release_sections:
     searched_on: '2026-09-15'
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-09-28: feed verified again.'
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Monaco
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Monaco-Matin
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-15 (auto)
-  inactive_since: '2026-09-28'
+  active: true
 - id: mc_monacotribune
   name: Monaco Tribune
   country: MCO
@@ -34237,4 +34231,1189 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Vanuatu_Daily_Post
+  active: true
+- id: cv_opais
+  name: O País
+  country: CPV
+  language: pt
+  feeds:
+  - https://opais.cv/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: cv_noticiasdonorte
+  name: Notícias do Norte
+  country: CPV
+  language: pt
+  feeds:
+  - https://noticiasdonorte.publ.cv/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: cv_crioulafm
+  name: Crioula FM
+  country: CPV
+  language: pt
+  feeds:
+  - https://www.crioulafm.cv/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_sps
+  name: Sahara Press Service (SPS)
+  country: ESH
+  language: ar
+  feeds:
+  - https://www.spsrasd.info/depeches/feed
+  tier: agency
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_akhbarlaayoune
+  name: Akhbar Laayoune
+  country: ESH
+  language: ar
+  feeds:
+  - https://akhbarlaayoune.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_laayounenow
+  name: Laayoune Now (Al-Ayoun Al-An)
+  country: ESH
+  language: ar
+  feeds:
+  - https://laayounenow.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_le68
+  name: Le68
+  country: ESH
+  language: ar
+  feeds:
+  - https://le68.ma/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_dakhla7
+  name: Dakhla 7
+  country: ESH
+  language: ar
+  feeds:
+  - https://www.dakhla7.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: eh_akhbardakhla
+  name: Akhbar Dakhla
+  country: ESH
+  language: ar
+  feeds:
+  - https://akhbardakhla.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: yt_info976
+  name: Info 976
+  country: MYT
+  language: fr
+  feeds:
+  - https://info976.yt/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: re_temoignages
+  name: Témoignages
+  country: REU
+  language: fr
+  feeds:
+  - https://www.temoignages.re/spip.php?page=backend
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: re_parallelesud
+  name: Parallèle Sud
+  country: REU
+  language: fr
+  feeds:
+  - https://www.parallelesud.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: re_ecoaustral
+  name: L'Éco austral
+  country: REU
+  language: fr
+  feeds:
+  - https://www.ecoaustral.com/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ao_makaangola
+  name: Maka Angola
+  country: AGO
+  language: pt
+  feeds:
+  - https://www.makaangola.org/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ao_folha8
+  name: Folha 8
+  country: AGO
+  language: pt
+  feeds:
+  - https://jornalf8.net/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mv_atolltimes
+  name: Atoll Times
+  country: MDV
+  language: en
+  feeds:
+  - https://atolltimes.mv/feed
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mv_corporatemaldives
+  name: Corporate Maldives
+  country: MDV
+  language: en
+  feeds:
+  - https://corporatemaldives.com/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mv_mfr
+  name: Maldives Financial Review
+  country: MDV
+  language: en
+  feeds:
+  - https://mfr.mv/feed
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bd_ajkerpatrika
+  name: Ajker Patrika
+  country: BGD
+  language: bn
+  feeds:
+  - https://www.ajkerpatrika.com/feed
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bd_channeli
+  name: Channel i Online
+  country: BGD
+  language: bn
+  feeds:
+  - https://www.channelionline.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bh_alwatan
+  name: Al Watan
+  country: BHR
+  language: ar
+  feeds:
+  - https://alwatannews.net/rssFeed/0
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bh_gulfinsider
+  name: Gulf Insider
+  country: BHR
+  language: en
+  feeds:
+  - https://www.gulf-insider.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: aw_solodipueblo
+  name: Solo di Pueblo
+  country: ABW
+  language: pap
+  feeds:
+  - https://solodipueblo.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: aw_eanews
+  name: EA News (Extra Aruba)
+  country: ABW
+  language: pap
+  feeds:
+  - https://www.eanews.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: aw_masnoticia
+  name: Masnoticia
+  country: ABW
+  language: pap
+  feeds:
+  - https://masnoticia.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ag_antiguanews
+  name: Antigua.news
+  country: ATG
+  language: en
+  feeds:
+  - https://antigua.news/rss.xml
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ag_nicefm
+  name: Nice FM
+  country: ATG
+  language: en
+  feeds:
+  - https://www.nicefmradio.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ag_radiozdk
+  name: Radio ZDK
+  country: ATG
+  language: en
+  feeds:
+  - https://radiozdk.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bm_royalgazette
+  name: The Royal Gazette
+  country: BMU
+  language: en
+  feeds:
+  - https://www.royalgazette.com/feeds
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ky_caymaniantimes
+  name: Caymanian Times
+  country: CYM
+  language: en
+  feeds:
+  - https://www.caymaniantimes.ky/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: dm_dbc
+  name: Dominica Broadcasting Corporation (DBC Radio)
+  country: DMA
+  language: en
+  feeds:
+  - https://dbcradio.net/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: dm_natureislenews
+  name: Nature Isle News
+  country: DMA
+  language: en
+  feeds:
+  - https://natureisle.news/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gd_weefm
+  name: WEE FM Grenada
+  country: GRD
+  language: en
+  feeds:
+  - https://weefmgrenada.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gd_realfm
+  name: Real FM Grenada
+  country: GRD
+  language: en
+  feeds:
+  - https://drealfmgrenada.com/index.php/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gl_sermitsiaq
+  name: Sermitsiaq.AG
+  country: GRL
+  language: da
+  feeds:
+  - https://www.sermitsiaq.ag/?lab_viewport=rss
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gp_guadeloupeactu
+  name: Guadeloupe Actu
+  country: GLP
+  language: fr
+  feeds:
+  - https://guadeloupe-actu.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gp_caraibcreolenews
+  name: Caraibe Creole News
+  country: GLP
+  language: fr
+  feeds:
+  - https://caraibcreolenews.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: bq_extraboneiru
+  name: Extra Boneiru
+  country: BES
+  language: pap
+  feeds:
+  - https://extraboneiru.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gf_guyane1ere
+  name: Guyane la 1ère
+  country: GUF
+  language: fr
+  feeds:
+  - https://la1ere.franceinfo.fr/guyane/societe/rss
+  - https://la1ere.franceinfo.fr/guyane/politique/rss
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gu_postguam
+  name: The Guam Daily Post
+  country: GUM
+  language: en
+  feeds:
+  - https://www.postguam.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gu_kanditnews
+  name: Kandit News
+  country: GUM
+  language: en
+  feeds:
+  - https://kanditnews.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lc_stluciachronicle
+  name: St. Lucia Chronicle
+  country: LCA
+  language: en
+  feeds:
+  - https://stluciachronicle.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mf_le97150
+  name: Le 97150
+  country: MAF
+  language: fr
+  feeds:
+  - https://www.le97150.fr/?format=feed&type=rss
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mq_martinique1ere
+  name: Martinique la 1ère
+  country: MTQ
+  language: fr
+  feeds:
+  - https://la1ere.franceinfo.fr/martinique/societe/rss
+  - https://la1ere.franceinfo.fr/martinique/politique/rss
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mq_madininart
+  name: Madinin'Art
+  country: MTQ
+  language: fr
+  feeds:
+  - https://www.madinin-art.net/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sx_dailyherald
+  name: The Daily Herald
+  country: SXM
+  language: en
+  feeds:
+  - https://www.thedailyherald.sx/islands?format=feed&type=rss
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sx_smnnews
+  name: St. Martin News Network (SMN News)
+  country: SXM
+  language: en
+  feeds:
+  - https://www.smn-news.com/st-maarten-st-martin-news.html?format=feed&type=rss
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sx_islandtime_es
+  name: SXM Island Time
+  country: SXM
+  language: es
+  feeds:
+  - https://sxmislandtime.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tc_rtc
+  name: Radio Turks and Caicos (RTC 89 FM)
+  country: TCA
+  language: en
+  feeds:
+  - https://www.rtc89fm.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: vc_onenews
+  name: One News St. Vincent
+  country: VCT
+  language: en
+  feeds:
+  - https://onenewsstvincent.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: vg_284media
+  name: 284 Media
+  country: VGB
+  language: en
+  feeds:
+  - https://www.284media.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: vi_dailynews
+  name: The Virgin Islands Daily News
+  country: VIR
+  language: en
+  feeds:
+  - https://www.virginislandsdailynews.com/search/?f=rss&t=article&l=50&s=start_time&sd=desc
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: vi_newsofstjohn
+  name: News of St. John
+  country: VIR
+  language: en
+  feeds:
+  - https://newsofstjohn.com/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: dj_humanvillage
+  name: Human Village
+  country: DJI
+  language: fr
+  feeds:
+  - https://www.human-village.org/spip.php?page=backend
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: er_adoulis
+  name: Adoulis
+  country: ERI
+  language: ar
+  feeds:
+  - https://adoulis.net/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: er_farajat
+  name: Farajat
+  country: ERI
+  language: ar
+  feeds:
+  - https://www.farajat.net/ar/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: et_ethiopianmonitor
+  name: Ethiopian Monitor
+  country: ETH
+  language: en
+  feeds:
+  - https://www.ethiopianmonitor.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: et_wazemaradio
+  name: Wazema Radio
+  country: ETH
+  language: am
+  feeds:
+  - https://wazemaradio.com/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: et_newbusinessethiopia
+  name: New Business Ethiopia
+  country: ETH
+  language: en
+  feeds:
+  - https://newbusinessethiopia.com/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ad_diariandorra
+  name: Diari d'Andorra
+  country: AND
+  language: ca
+  feeds:
+  - https://www.diariandorra.ad/rss/home.xml
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: fo_nordlysid
+  name: Nordlysid
+  country: FRO
+  language: fo
+  feeds:
+  - http://www.nordlysid.fo/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: li_1fltv
+  name: 1FLTV
+  country: LIE
+  language: de
+  feeds:
+  - https://1fl.li/wp/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mc_monacohebdo
+  name: Monaco Hebdo
+  country: MCO
+  language: fr
+  feeds:
+  - https://monaco-hebdo.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mt_independent
+  name: The Malta Independent
+  country: MLT
+  language: en
+  feeds:
+  - https://www.independent.com.mt/newsfeed
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mt_gozonews
+  name: Gozo News
+  country: MLT
+  language: en
+  feeds:
+  - https://gozo.news/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mt_businessnow
+  name: Business Now
+  country: MLT
+  language: en
+  feeds:
+  - https://businessnow.mt/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sm_rtv
+  name: San Marino RTV
+  country: SMR
+  language: it
+  feeds:
+  - https://www.sanmarinortv.sm/rss.xml
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sm_italica
+  name: Italica
+  country: SMR
+  language: en
+  feeds:
+  - http://www.italica.sm/rssfeed.php
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ga_lunion
+  name: L'Union
+  country: GAB
+  language: fr
+  feeds:
+  - https://www.union.sonapresse.com/rss.xml
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ga_directinfos
+  name: Direct Infos Gabon
+  country: GAB
+  language: fr
+  feeds:
+  - https://directinfosgabon.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gw_odemocrata
+  name: O Democrata
+  country: GNB
+  language: pt
+  feeds:
+  - https://www.odemocratagb.com/?feed=rss2
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gw_nopintcha
+  name: Nô Pintcha
+  country: GNB
+  language: pt
+  feeds:
+  - https://jornalnopintcha.gw/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gw_ultimahora
+  name: Jornal Última Hora
+  country: GNB
+  language: pt
+  feeds:
+  - https://ultimahoragb.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gq_lagaceta
+  name: La Gaceta de Guinea Ecuatorial
+  country: GNQ
+  language: es
+  feeds:
+  - https://lagdeguinea.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: gq_realeg
+  name: Revista Real Equatorial Guinea
+  country: GNQ
+  language: es
+  feeds:
+  - https://realequatorialguinea.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: jm_rjrnews
+  name: RJR News
+  country: JAM
+  language: en
+  feeds:
+  - https://radiojamaicanewsonline.com/feed/news
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: kw_kuwaittimes
+  name: Kuwait Times
+  country: KWT
+  language: en
+  feeds:
+  - https://kuwaittimes.com/rssFeed/0
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: kw_arabtimes
+  name: Arab Times
+  country: KWT
+  language: en
+  feeds:
+  - https://www.arabtimesonline.com/rssFeed/0/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: la_lnr
+  name: Lao National Radio
+  country: LAO
+  language: lo
+  feeds:
+  - https://lnr.org.la/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: la_laoedaily
+  name: Lao Economic Daily
+  country: LAO
+  language: lo
+  feeds:
+  - https://laoedaily.com.la/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lr_analyst
+  name: The Analyst
+  country: LBR
+  language: en
+  feeds:
+  - https://analystliberiaonline.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lr_gnnliberia
+  name: GNN Liberia (Global News Network Liberia)
+  country: LBR
+  language: en
+  feeds:
+  - https://gnnliberia.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lr_smartnewsliberia
+  name: Smart News Liberia
+  country: LBR
+  language: en
+  feeds:
+  - https://smartnewsliberia.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lk_lankadeepa
+  name: Lankadeepa
+  country: LKA
+  language: si
+  feeds:
+  - https://www.lankadeepa.lk/rss/latest_news/1
+  - https://www.lankadeepa.lk/rss/news/48
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lk_divaina
+  name: Divaina
+  country: LKA
+  language: si
+  feeds:
+  - https://www.divaina.lk/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lk_tamilmirror
+  name: Tamil Mirror
+  country: LKA
+  language: ta
+  feeds:
+  - https://www.tamilmirror.lk/rss/news/175
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lk_dailyft
+  name: Daily FT
+  country: LKA
+  language: en
+  feeds:
+  - https://www.ft.lk/rss/top-story/26
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: lk_srilankamirror
+  name: Sri Lanka Mirror
+  country: LKA
+  language: en
+  feeds:
+  - https://srilankamirror.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ls_lestimes
+  name: Lesotho Times
+  country: LSO
+  language: en
+  feeds:
+  - https://lestimes.com/?feed=rss2
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ls_sundayexpress
+  name: Sunday Express
+  country: LSO
+  language: en
+  feeds:
+  - https://sundayexpress.co.ls/?feed=rss2
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ls_maserumetro
+  name: Maseru Metro
+  country: LSO
+  language: en
+  feeds:
+  - https://maserumetro.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mg_lexpress
+  name: L'Express de Madagascar
+  country: MDG
+  language: fr
+  feeds:
+  - https://www.lexpress.mg/feeds/posts/default?alt=rss
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mm_myawady
+  name: Myawady
+  country: MMR
+  language: my
+  feeds:
+  - https://www.myawady.net.mm/rss.xml
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mm_karennews
+  name: Karen News
+  country: MMR
+  language: en
+  feeds:
+  - https://karennews.org/feed/
+  tier: regional
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mn_newsmn_en
+  name: News.MN (English)
+  country: MNG
+  language: en
+  feeds:
+  - https://news.mn/en/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mn_sonin
+  name: Sonin.mn
+  country: MNG
+  language: mn
+  feeds:
+  - https://sonin.mn/rss
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: mn_ugluu
+  name: Ugluu.mn
+  country: MNG
+  language: mn
+  feeds:
+  - https://ugluu.mn/feed
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: fj_fijione
+  name: Fiji One News
+  country: FJI
+  language: en
+  feeds:
+  - https://fijionenews.com.fj/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: fm_kpress
+  name: Kaselehlie Press
+  country: FSM
+  language: en
+  feeds:
+  - https://kpress.fm/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ki_bpa
+  name: Broadcasting and Publications Authority (Radio Kiribati)
+  country: KIR
+  language: en
+  feeds:
+  - https://bpa.org.ki/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: nc_caledosphere
+  name: Caledosphere
+  country: NCL
+  language: fr
+  feeds:
+  - https://caledosphere.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pf_tahitinews
+  name: Tahitinews.co
+  country: PYF
+  language: fr
+  feeds:
+  - https://www.tahitinews.co/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sb_sibc
+  name: SIBC News
+  country: SLB
+  language: en
+  feeds:
+  - https://www.sibconline.com.sb/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sb_solomontimes
+  name: Solomon Times Online
+  country: SLB
+  language: en
+  feeds:
+  - https://www.solomontimes.com/rss/latest-news.xml
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sb_indepth
+  name: In-depth Solomons
+  country: SLB
+  language: en
+  feeds:
+  - https://indepthsolomons.com.sb/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sb_sundayisles
+  name: Sunday Isles
+  country: SLB
+  language: en
+  feeds:
+  - https://sundayisles.islesmedia.net/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: to_tbc
+  name: Tonga Broadcasting Commission
+  country: TON
+  language: to
+  feeds:
+  - https://tbc.to/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pa_telemetro
+  name: Telemetro
+  country: PAN
+  language: es
+  feeds:
+  - https://www.telemetro.com/rss/pages/ultimas-noticias.xml
+  - https://www.telemetro.com/rss/pages/internacionales.xml
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pa_diaadia
+  name: Día a Día
+  country: PAN
+  language: es
+  feeds:
+  - https://www.diaadia.com.pa/rss.xml
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pa_newsroompanama
+  name: Newsroom Panama
+  country: PAN
+  language: en
+  feeds:
+  - https://newsroompanama.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pg_onepng
+  name: One PNG
+  country: PNG
+  language: en
+  feeds:
+  - https://www.onepng.com/feeds/posts/default
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: pg_pngtoday
+  name: Papua New Guinea Today (PNG Facts news)
+  country: PNG
+  language: en
+  feeds:
+  - https://news.pngfacts.com/feeds/posts/default
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: kp_chosonsinbo
+  name: Choson Sinbo
+  country: PRK
+  language: ko
+  feeds:
+  - https://chosonsinbo.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sd_alnilin
+  name: Al Nilin
+  country: SDN
+  language: ar
+  feeds:
+  - https://www.alnilin.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sd_bajnews
+  name: Baj News
+  country: SDN
+  language: ar
+  feeds:
+  - https://www.bajnews.net/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ss_catholicradio
+  name: Catholic Radio Network
+  country: SSD
+  language: en
+  feeds:
+  - https://catholicradionetwork.org/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ss_onecitizen
+  name: One Citizen Daily (No. 1 Citizen)
+  country: SSD
+  language: en
+  feeds:
+  - https://www.onecitizendaily.com/index.php/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sz_observer
+  name: Eswatini Observer
+  country: SWZ
+  language: en
+  feeds:
+  - https://www.eswatiniobserver.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sz_ebis
+  name: Eswatini Broadcasting and Information Service (EBIS)
+  country: SWZ
+  language: en
+  feeds:
+  - https://ebis.co.sz/feed/
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sz_eswatinidailynews
+  name: Eswatini Daily News
+  country: SWZ
+  language: en
+  feeds:
+  - https://swazidailynews.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: sz_swazi24
+  name: Swazi24
+  country: SWZ
+  language: en
+  feeds:
+  - https://swazi24.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tl_dili_weekly
+  name: The Dili Weekly
+  country: TLS
+  language: en
+  feeds:
+  - https://thediliweekly.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tl_diligente
+  name: Diligente
+  country: TLS
+  language: pt
+  feeds:
+  - https://www.diligenteonline.com/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tw_focustaiwan
+  name: Focus Taiwan (CNA English)
+  country: TWN
+  language: en
+  feeds:
+  - https://feeds.feedburner.com/rsscna/engnews/
+  tier: agency
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tw_rti_en
+  name: Radio Taiwan International (English)
+  country: TWN
+  language: en
+  feeds:
+  - https://www.rti.org.tw/en/rss
+  tier: broadcaster
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tw_digitimes
+  name: DIGITIMES
+  country: TWN
+  language: en
+  feeds:
+  - https://www.digitimes.com/rss/daily.xml
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tw_newbloom
+  name: New Bloom Magazine
+  country: TWN
+  language: en
+  feeds:
+  - https://newbloommag.net/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: tz_globalpublishers
+  name: Global Publishers
+  country: TZA
+  language: sw
+  feeds:
+  - https://globalpublishers.co.tz/feed/
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: vu_vbr
+  name: Vanuatu Business Review
+  country: VUT
+  language: en
+  feeds:
+  - https://www.vbr.vu/feed/
+  tier: business
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ws_talamua
+  name: Talamua Online
+  country: WSM
+  language: en
+  feeds:
+  - https://talamua.com/?feed=rss2
+  tier: national_daily
+  notes: Added 2026-09-28 from the readership research.
+  active: true
+- id: ss_sudanspost
+  name: Sudans Post
+  country: SSD
+  language: en
+  feeds: *id001
+  tier: national_daily
+  notes: Headquartered in Juba (Wikipedia). Moved from sd_sudanspost on 2026-09-28; articles collected before that stay where they were.
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Sudans_Post
   active: true

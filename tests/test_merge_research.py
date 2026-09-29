@@ -100,3 +100,17 @@ def test_stance_needs_a_recent_dated_source_and_state_outlets_are_derived(tmp_pa
     state = [{"id": "x_s", "country": "XXX", "ownership": "state", "ownership_source": "https://own/1"}]
     merge.derive_state_controlled(state)
     assert state[0]["government_stance"] == "state_controlled" and state[0]["stance_source"] == "https://own/1"
+
+
+def test_shared_feed_host_compares_full_address():
+    outlets = [{"id": "tw_cna_zh", "country": "TWN", "language": "zh", "tier": "agency", "active": False,
+                "feeds": ["https://feeds.feedburner.com/rsscna/politics"]}]
+    block = {"country": "TWN", "outlets": [{"id": "tw_focustaiwan", "new": True, "name": "Focus Taiwan", "language": "en",
+             "tier": "agency", "feeds": ["https://feeds.feedburner.com/rsscna/engnews/"], "feed_check": {"ok": True, "entries": 30}}]}
+    report, issues = merge.apply(outlets, [block], "2026-09-29")
+    assert report["added"] == 1 and not issues
+    # The same full address is still a clash.
+    block["outlets"][0]["id"] = "tw_again"
+    block["outlets"][0]["feeds"] = ["https://feeds.feedburner.com/rsscna/politics/"]
+    report, issues = merge.apply(outlets, [block], "2026-09-29")
+    assert report["added"] == 0 and "already used" in issues[0][2]
