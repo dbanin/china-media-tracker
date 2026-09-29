@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "73";
+  var ASSET_VERSION = "74";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -481,6 +481,17 @@
     if (en < s.length) frag.appendChild(document.createTextNode(s.slice(en)));
     return frag;
   }
+  function outletLang(id) {
+    var o = (state.outlets || []).find(function (x) { return x.id === id; });
+    return o ? o.language : null;
+  }
+  function translateHtml(lang, text, url) {
+    var t = C.translateLinks(lang, text, url);
+    if (!t) return "";
+    return '<span class="tr-links">' +
+      (t.text ? '<a href="' + esc(t.text) + '" target="_blank" rel="noopener" title="Opens Google Translate with this headline and quote">Translate</a>' : '') +
+      (t.page ? '<a href="' + esc(t.page) + '" target="_blank" rel="noopener" title="Opens the article through Google Translate">Read the article in English</a>' : '') + '</span>';
+  }
   function renderExamples() {
     var sec = el("examples"), list = el("examples-list");
     if (!sec || !list) return;
@@ -513,6 +524,8 @@
       meta.appendChild(document.createTextNode(" " + (item.outlet_name || item.outlet_id || "an unnamed outlet") + ", " +
         countryName(item.country) + ", " + (item.date || "date unknown") + (w.cat === "A" && item.route ? ", " + contentRouteName(item.route).toLowerCase() + " route" : "")));
       div.appendChild(meta);
+      var trEx = translateHtml(outletLang(item.outlet_id), (item.headline || "") + "\n\n" + (tell.snippet || ""), safeUrl(item.url));
+      if (trEx) { var trWrap = document.createElement("div"); trWrap.innerHTML = trEx; div.appendChild(trWrap.firstChild); }
       var q = document.createElement("p");
       q.className = "ex-snippet";
       q.appendChild(document.createTextNode("“"));
@@ -1515,6 +1528,7 @@
         var title = escText(a.title || a.url);
         return '<div class="article">' + (href ? '<a class="a-title" href="' + esc(href) + '" target="_blank" rel="noopener">' + title + '</a>' : '<span class="a-title">' + title + '</span>') +
           '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(catLabel) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
+          translateHtml(outletLang(a.outlet_id), decodeEntities(a.title || "") + (a.evidence_quote ? "\n\n" + decodeEntities(a.evidence_quote) : ""), href) +
           srcs + route + (a.evidence_quote ? '<p class="a-quote">' + escText(a.evidence_quote) + '</p>' : '') +
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + escText(a.signatures.join(", ")) + '</div>' : '') + '</div>';
       }).join("");

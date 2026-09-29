@@ -220,6 +220,13 @@ assert(C.fillFindingsTemplate(findingsTemplates, {all_time: {state_share_of_chin
 var ww = C.wholeWordSnippet(", presidente del Zoo.\nFoto: Agencia NA (Xinhua).\nEstamos encantados de dar la bienv", 39, 47);
 assert(ww.snippet === "\u2026 presidente del Zoo. Foto: Agencia NA (Xinhua). Estamos encantados de dar la \u2026", "snippet trimmed to whole words with ellipses: " + ww.snippet);
 assert(ww.snippet.slice(ww.start, ww.end) === "(Xinhua)", "highlight offsets still point at the matched phrase");
+/* Translate links: only for outlets that do not publish in English, and the text is URL-encoded. */
+assert(C.translateLinks("en", "Hello", "https://a.example/x") === null, "no translate links for English outlets");
+assert(C.translateLinks(null, "Hola", "https://a.example/x") === null, "no translate links when the language is unknown");
+var tl = C.translateLinks("es", "Dos pandas & más", "https://a.example/x?y=1");
+assert(tl.text.indexOf("text=Dos%20pandas%20%26%20m%C3%A1s") > 0, "headline text is encoded into the translate link");
+assert(tl.page.indexOf("u=https%3A%2F%2Fa.example%2Fx%3Fy%3D1") > 0, "article URL is encoded into the page translate link");
+assert(C.translateLinks("es", "Hola", "javascript:alert(1)").page === undefined, "only http(s) article URLs get a page link");
 /* Route id to plain name, used by the findings box and the map tooltip. */
 var contentRoutes = {wire_credit: {plain_name: "Wire credit"}, distribution_stamp: {plain_name: "Press-release stamp"}};
 assert(C.contentRouteName(contentRoutes, "wire_credit") === "Wire credit", "route name lookup");
