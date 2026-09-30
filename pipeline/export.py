@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from pipeline import classify_rules, config, extract, gate, llm_cost, registry, second_rater, store
+from pipeline import labels as labels_mod
 from pipeline import themes as themes_mod
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
@@ -1133,6 +1134,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "relay_withheld_languages": withheld_languages,
         "llm_calls_total": llm["calls"] or 0,
         "llm_labels_total": llm_labels,
+        # The part of llm_labels_total the same model gave outside the API, in an interactive session
+        # at no API cost, and imported by pipeline.labels. Included above, not added to it.
+        "session_labels": labels_mod.session_label_counts(conn),
         "llm_ceiling_days": ceiling_days,
         "llm_calls_by_day": calls_by_day,
         "llm_daily_ceiling": config.LLM_DAILY_CALL_CEILING,

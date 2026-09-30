@@ -107,6 +107,11 @@ jobs:
         # A bad bundle must never stop the daily update; the outlets it carries wait for the next run.
         continue-on-error: true
         run: python -m pipeline.relay ingest
+      - name: Ingest session labels, if any
+        # Labels the same model produced outside the API (data/labels/*.jsonl). Applied once to
+        # articles still waiting for the model; a bad file must never stop the daily update.
+        continue-on-error: true
+        run: python -m pipeline.labels ingest
       - name: Discover, fetch, classify
         run: |
           set -o pipefail
