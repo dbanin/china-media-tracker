@@ -4,6 +4,15 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Export: atomic file writes (2026-09-30)
+
+A local preview loaded docs/data/latest.json while an export was still writing it, got a
+half-written file, and rendered the whole map as not monitored. pipeline/export.py now writes
+every generated file (the docs/data JSON, the per-country article files and the audit jsonl
+lines) to a temp file in the same directory and renames it into place, so a page loaded mid
+export always reads either the old file or the new one, never a partial one. No label or figure
+changes.
+
 ## Crawler: robots.txt read as RFC 9309 defines it (2026-09-28)
 
 The weekly feed check on 2026-09-28 reported 47 feeds blocked by robots.txt. Thirteen of them,

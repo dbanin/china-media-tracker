@@ -120,6 +120,31 @@ def test_export_on_empty_database(tmp_path, monkeypatch):
     assert examples["A"] == []
 
 
+def test_write_json_atomic_leaves_no_temp_file(tmp_path):
+    """A browser reading docs/data/latest.json while an export runs must never see a half-written
+    file: write_json must land the file in one rename, with no .tmp left beside it afterward."""
+    path = tmp_path / "out" / "thing.json"
+    export.write_json(path, {"b": [1, 2, 3], "a": 1})
+    assert json.loads(path.read_text(encoding="utf-8")) == {"a": 1, "b": [1, 2, 3]}
+    assert list(path.parent.glob("*.tmp")) == []
+
+
+def test_write_json_failure_leaves_target_and_no_temp(tmp_path):
+    """If json serialisation blows up partway through, the previously published file must survive
+    untouched and no stray temp file should be left behind."""
+    path = tmp_path / "out" / "thing.json"
+    export.write_json(path, {"a": 1})
+    before = path.read_bytes()
+
+    class Unserialisable:
+        pass
+
+    with pytest.raises(TypeError):
+        export.write_json(path, {"bad": Unserialisable()})
+    assert path.read_bytes() == before
+    assert list(path.parent.glob("*.tmp")) == []
+
+
 def test_generated_files_stay_out_of_the_repository(tmp_path, monkeypatch):
     """A test run must never rewrite METHODOLOGY.md or data/export in the working tree."""
     before = (config.ROOT / "METHODOLOGY.md").read_bytes() if (config.ROOT / "METHODOLOGY.md").exists() else None

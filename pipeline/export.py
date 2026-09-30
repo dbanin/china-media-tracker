@@ -17,6 +17,7 @@ too few hours is marked so a sleeping laptop is never mistaken for a quiet count
 """
 import datetime as dt
 import json
+import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -1187,9 +1188,19 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
 
 
 def write_json(path: Path, data) -> None:
+    """Write via a same-directory temp file and rename onto path, so a reader never observes a
+    half-written file: os.replace is atomic on both POSIX and Windows, unlike a direct open("w")."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
@@ -1214,7 +1225,16 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
         # Only rewrite a day that changed. A month in one file meant a fresh multi megabyte blob in
         # every export commit, twice a day, and a repository that grew by that much each time.
         if not path.exists() or path.read_text(encoding="utf-8") != body:
-            path.write_text(body, encoding="utf-8")
+            tmp = path.with_name(path.name + ".tmp")
+            try:
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    fh.write(body)
+                    fh.flush()
+                    os.fsync(fh.fileno())
+                os.replace(tmp, path)
+            except BaseException:
+                tmp.unlink(missing_ok=True)
+                raise
         written[day] = len(items)
     # The monthly files this replaced would otherwise sit in the tree forever, stale.
     for old in audit_dir.glob("articles-[0-9][0-9][0-9][0-9]-[0-9][0-9].jsonl"):
