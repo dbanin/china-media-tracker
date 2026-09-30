@@ -16,6 +16,8 @@ def _env(name: str, default: str) -> str:
 DB_PATH = ROOT / _env("TRACKER_DB_PATH", "data/tracker.db")
 BODIES_DIR = ROOT / "data" / "bodies"
 RAW_HTML_DIR = ROOT / "data" / "raw_html"
+# Model labels produced outside the API and committed for the runner to import (pipeline.labels).
+LABELS_DIR = ROOT / "data" / "labels"
 OUTLETS_PATH = ROOT / "sources" / "outlets.yaml"
 OUTLETS_SCHEMA_PATH = ROOT / "sources" / "outlets_schema.json"
 GAPS_PATH = ROOT / "sources" / "gaps.yaml"

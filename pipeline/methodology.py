@@ -97,6 +97,16 @@ day. Drawn records the calls actually made, so a country's figure can be zero on
 a run that stopped at its time budget before working through its allocation;
 that is a run ending early, not a country left out by design.
 
+When the monthly budget is exhausted, waiting articles may be judged by the
+same model with the identical prompt through an interactive session on the
+owner's machine, at no API cost. The session is given the headline and body
+only, never the outlet, the country or the URL, exactly as the API is. These
+labels carry a distinct model version that names the session, are committed to
+the repository and imported once by the runner, only for articles still
+waiting and never over an existing label, and are subject to the same
+reliability study rules as every other model label.
+{session_labels_text}
+
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
 checking them. Ordinary China coverage is only the denominator. Articles whose
@@ -377,7 +387,15 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     if mix and not meta.get("reclassification_complete"):
         ruleset_mix_text += " (reclassification under %s in progress)" % meta["ruleset_version"]
 
+    sl = meta.get("session_labels") or {}
+    if sl.get("total"):
+        session_labels_text = ("At export time %d current model labels had come in this way (%s)."
+                               % (sl["total"], ", ".join("%s: %d" % (v, n) for v, n in sorted((sl.get("by_model_version") or {}).items()))))
+    else:
+        session_labels_text = "At export time no label had come in this way."
+
     text = TEMPLATE.format(
+        session_labels_text=session_labels_text,
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
         cat_a=meta["categories"]["A"], cat_b=meta["categories"]["B"], cat_c=meta["categories"]["C"], cat_n=meta["categories"]["not_relevant"],

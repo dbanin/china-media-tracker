@@ -4,6 +4,26 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Model stage: session labels imported by the runner (2026-09-30)
+
+The monthly API budget ran out on 2026-09-16 and 4,585 articles are waiting for the verification
+judgement. They may now be judged by the same model, with the identical system prompt and the
+headline and body only (never the outlet, the country or the URL), through an interactive session
+on the owner's machine at no API cost. The session's answers are committed as data/labels/*.jsonl,
+one JSON object per line, and the new pipeline/labels.py imports them on the hosted runner at the
+start of every run, right after the relay bundle (workflow step "Ingest session labels, if any").
+A label is applied only to an article still waiting for the model with no current classification,
+through classify_llm.store_result, the call the API path uses, so the label row, the route of a
+state origin label, the article status and the near-duplicate copies come out exactly as after an
+API reply. Everything else is counted and skipped, so the files can be ingested any number of
+times without inserting anything twice; each ingest records a run_log row (stage labels_ingest).
+These labels carry a model version that names the session, for example "claude-sonnet-5
+(session)", keep their own JSON line as the raw response, count as model labels in every figure
+and are sampled by the reliability study like any other. meta.json gains session_labels (total and
+by model version), a part of llm_labels_total rather than an addition to it, and METHODOLOGY.md
+says how these labels are produced. No ruleset or schema version change: what a label means is
+unchanged, and the new meta key is additive.
+
 ## Export: atomic file writes (2026-09-30)
 
 A local preview loaded docs/data/latest.json while an export was still writing it, got a
