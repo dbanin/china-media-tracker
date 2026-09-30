@@ -34329,7 +34329,8 @@
   feeds:
   - https://www.temoignages.re/spip.php?page=backend
   tier: national_daily
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: re_parallelesud
   name: Parallèle Sud
@@ -34347,7 +34348,8 @@
   feeds:
   - https://www.ecoaustral.com/feed/
   tier: business
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: ao_makaangola
   name: Maka Angola
@@ -34691,7 +34693,8 @@
   feeds:
   - https://www.284media.com/feed/
   tier: regional
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: vi_dailynews
   name: The Virgin Islands Daily News
@@ -34998,7 +35001,8 @@
   feeds:
   - https://www.divaina.lk/feed/
   tier: national_daily
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: lk_tamilmirror
   name: Tamil Mirror
@@ -35007,7 +35011,8 @@
   feeds:
   - https://www.tamilmirror.lk/rss/news/175
   tier: national_daily
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: lk_dailyft
   name: Daily FT
@@ -35025,7 +35030,8 @@
   feeds:
   - https://srilankamirror.com/feed/
   tier: national_daily
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: ls_lestimes
   name: Lesotho Times
@@ -35070,7 +35076,8 @@
   feeds:
   - https://www.myawady.net.mm/rss.xml
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: mm_karennews
   name: Karen News
@@ -35115,7 +35122,8 @@
   feeds:
   - https://fijionenews.com.fj/feed/
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: fm_kpress
   name: Kaselehlie Press
@@ -35133,7 +35141,8 @@
   feeds:
   - https://bpa.org.ki/feed/
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: nc_caledosphere
   name: Caledosphere
@@ -35160,7 +35169,8 @@
   feeds:
   - https://www.sibconline.com.sb/feed/
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: sb_solomontimes
   name: Solomon Times Online
@@ -35359,7 +35369,8 @@
   feeds:
   - https://www.rti.org.tw/en/rss
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research.
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  collector: self_hosted
   active: true
 - id: tw_digitimes
   name: DIGITIMES
