@@ -54,3 +54,11 @@ not consistent on it: some are state origin at low confidence, others not releva
 state origin labels carry a confidence under 0.6, and most of those are such releases. The
 distribution wires are outside every country figure, so the map is not affected; the wires'
 own state origin count is.
+
+## session-2026-10-01.jsonl
+
+239 labels for the articles that were waiting on 2026-10-01 and could be fetched on the owner's
+machine: 37 state origin, 35 unchecked state sourcing, 121 independent journalism and 46 not
+relevant. Same prompt, same checks; all 239 evidence quotes were found verbatim in their own
+article. 213 further articles in the queue refuse the fetch (HTTP 403, robots.txt, gone or
+paywalled) and can only be judged through the API from the runner's own copy of the text.
