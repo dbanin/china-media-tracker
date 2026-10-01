@@ -39,3 +39,18 @@ unchecked state sourcing, the session called 12 independent journalism, and the 
 twice. Session labels therefore undercount unchecked state sourcing relative to the API, and that
 category stays provisional. State origin agreed on 5 of 7; the other 2 were wire-credited items
 that are not about China, which the session called not relevant.
+
+## session-2026-09-30.jsonl, final contents
+
+4,355 labels: 301 state origin, 494 unchecked state sourcing, 2,015 independent journalism and
+1,545 not relevant. They cover the articles that were waiting for the model on 2026-09-30 and
+whose text could be fetched again on the owner's machine; 232 of the 4,585 could not (refused,
+gone or paywalled) and stay in the API queue. Every label's evidence quote was checked against its
+own article text (4,450 of 4,453 found verbatim, counting the control articles).
+
+Known weakness: press releases from Chinese companies on the distribution wires. The codebook does
+not say whether a state-owned enterprise's commercial release is state origin, and the labels are
+not consistent on it: some are state origin at low confidence, others not relevant. 55 of the 301
+state origin labels carry a confidence under 0.6, and most of those are such releases. The
+distribution wires are outside every country figure, so the map is not affected; the wires'
+own state origin count is.
