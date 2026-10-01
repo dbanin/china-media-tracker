@@ -29,3 +29,13 @@ classification, and it is stored exactly as an API reply would be. Everything el
 skipped, so the files are applied once and can be ingested any number of times without inserting
 anything twice. A malformed line is counted and skipped, never fatal. Keep the files committed:
 they are the record of where these labels came from.
+
+## Check against the API, 2026-09-30
+
+Before the first file was committed, 98 articles that already carried an API label were judged
+again in the session, from text fetched again on the owner's machine. The two agreed on 78 of 98
+(0.80), Cohen's kappa 0.71. The main difference runs one way: of 28 articles the API called
+unchecked state sourcing, the session called 12 independent journalism, and the reverse happened
+twice. Session labels therefore undercount unchecked state sourcing relative to the API, and that
+category stays provisional. State origin agreed on 5 of 7; the other 2 were wire-credited items
+that are not about China, which the session called not relevant.
