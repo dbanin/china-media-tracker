@@ -94,7 +94,9 @@
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Il_Fatto_Quotidiano
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: it_messaggero
   name: Il Messaggero
   country: ITA
@@ -170,7 +172,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Agenzia_Giornalistica_Italia
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: it_rainews
   name: Rai News
   country: ITA
@@ -324,7 +328,9 @@
   leaning_source: https://mediabiasfactcheck.com/il-tempo/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: it_secolo
   name: Secolo d'Italia
   country: ITA
@@ -534,7 +540,9 @@
   leaning_source: https://mediabiasfactcheck.com/toronto-star/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/toronto-star/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ca_nationalpost
   name: National Post
   country: CAN
@@ -2276,7 +2284,9 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-21 (auto)
+  inactive_since: '2026-10-05'
 - id: am_aravot
   name: Aravot
   country: ARM
@@ -2998,7 +3008,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: bf_burkina24
   name: Burkina 24
   country: BFA
@@ -3144,7 +3156,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-25 (auto)
+  inactive_since: '2026-10-05'
 - id: bf_sidwaya
   name: Sidwaya
   country: BFA
@@ -3494,7 +3508,9 @@
   leaning_source: https://reset-network.eu/independent-media-in-bulgaria-a-situation-about-to-improve/
   ownership: private
   ownership_source: https://voxeurop.eu/en/source/mediapool-bg-2/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-26 (auto)
+  inactive_since: '2026-10-05'
 - id: bg_offnews
   name: OFFNews
   country: BGR
@@ -4694,7 +4710,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: bt_businessbhutan
   name: Business Bhutan
   country: BTN
@@ -6510,7 +6528,9 @@
   leaning_source: https://www.eurotopics.net/en/148407/aktualn-cz
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Economia
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: cz_blesk
   name: Blesk
   country: CZE
@@ -6838,7 +6858,9 @@
   leaning_source: https://mediabiasfactcheck.com/frankfurter-rundschau-bias-and-credibility/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/frankfurter-rundschau-bias-and-credibility/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: de_handelsblatt
   name: Handelsblatt
   country: DEU
@@ -6873,7 +6895,9 @@
   leaning_source: https://mediabiasfactcheck.com/munchner-merkur-bias/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/munchner-merkur-bias/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: de_ntv
   name: n-tv
   country: DEU
@@ -8336,7 +8360,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/RTVE
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ee_aripaev
   name: Äripäev
   country: EST
@@ -9215,7 +9241,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Ouest-France
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ouest-France
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: fr_rfi
   name: RFI
   country: FRA
@@ -9720,7 +9748,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.ecoi.net/en/source/11045.html
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ge_jamnews
   name: JAMnews
   country: GEO
@@ -14383,7 +14413,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/AKIpress
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: kg_akipress_en
   name: AKIpress English
   country: KGZ
@@ -14477,7 +14509,9 @@
   government_stance: independent
   stance_source: https://freedomhouse.org/country/kyrgyzstan/freedom-net/2024
   stance_as_of: 2024
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: kg_kloop
   name: Kloop
   country: KGZ
@@ -14538,7 +14572,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/AKIpress
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: kg_vesti
   name: Vesti.kg
   country: KGZ
@@ -14873,7 +14909,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Korean_Broadcasting_System
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: kr_khan
   name: Kyunghyang Shinmun
   country: KOR
@@ -16284,7 +16322,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Macau_Daily_Times
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-21 (auto)
+  inactive_since: '2026-10-05'
 - id: mo_pontofinal
   name: Ponto Final
   country: MAC
@@ -17302,7 +17342,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://bamada.net/a-propos-de-nous
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ml_journaldumali
   name: Journal du Mali
   country: MLI
@@ -17648,7 +17690,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://montenegro.mom-gmr.org/en/media/detail/outlet/cdm/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: me_mina
   name: MINA
   country: MNE
@@ -18111,7 +18155,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Malawi
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: my_bharian
   name: Berita Harian
   country: MYS
@@ -19400,7 +19446,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Dagens_N%C3%A6ringsliv
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/DN_Media_Group
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: no_e24
   name: E24
   country: NOR
@@ -20738,7 +20786,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/People%27s_Journal
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ph_manilabulletin
   name: Manila Bulletin
   country: PHL
@@ -22487,7 +22537,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ru.wikipedia.org/wiki/URA.RU
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: ru_vedomosti
   name: Vedomosti
   country: RUS
@@ -23488,7 +23540,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.revistafactum.com/quienes-somos/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: so_goobjoog
   name: Goobjoog
   country: SOM
@@ -23965,7 +24019,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/De_Ware_Tijd
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: sr_gfc
   name: GFC Nieuws
   country: SUR
@@ -25231,7 +25287,9 @@
   leaning_source: https://mediabiasfactcheck.com/thairath-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Thai_Rath
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-23 (auto)
+  inactive_since: '2026-10-05'
 - id: th_thestandard
   name: The Standard
   country: THA
@@ -25316,7 +25374,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Khovar
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Khovar
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: tj_pressa
   name: Pressa.tj
   country: TJK
@@ -25379,7 +25439,9 @@
   rank_source: https://journalists.feedspot.com/tajikistan_news_websites/
   political_leaning: unassessed
   ownership: unassessed
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: tm_arzuw
   name: Arzuw News
   country: TKM
@@ -25652,7 +25714,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Newsday
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: tt_wired868
   name: Wired868
   country: TTO
@@ -26803,7 +26867,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Obozrevatel
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: ua_pravda
   name: Ukrainska Pravda
   country: UKR
@@ -27139,7 +27205,9 @@
   leaning_source: https://mediabiasfactcheck.com/axios/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/axios/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: us_baltimoresun
   name: The Baltimore Sun
   country: USA
@@ -29194,7 +29262,9 @@
   ownership_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: za_sanews
   name: SAnews
   country: ZAF
@@ -29293,7 +29363,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mwebantu
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: zm_newsdiggers
   name: News Diggers
   country: ZMB
@@ -29483,7 +29555,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Standard_(Zimbabwe)
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: zw_zbc
   name: ZBC News
   country: ZWE
@@ -29681,7 +29755,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/KKHJ-FM
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: tf_taaf
   name: TAAF
   country: ATF
@@ -29968,7 +30044,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Bernews
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: bv_bv
   name: Bouvet Island
   country: BVT
@@ -30664,7 +30742,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.hellomonaco.com/about-hellomonaco/welcome-hello-monaco-and-olga-taran/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: mc_monacoinfo
   name: Monaco Info
   country: MCO
@@ -30703,7 +30783,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.monacolife.net/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: mc_monacomatin
   name: Monaco-Matin
   country: MCO
@@ -30813,7 +30895,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Montserrat_Reporter
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_since: '2026-10-05'
 - id: yt_journal
   name: Le Journal de Mayotte
   country: MYT
@@ -32541,7 +32625,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Universal_(Mexico_City)
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-24 (auto)
+  inactive_since: '2026-10-05'
 - id: mx_tvazteca
   name: TV Azteca News
   country: MEX
@@ -32863,7 +32949,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_since: '2026-10-05'
 - id: tl_stl
   name: Suara Timor Lorosae
   country: TLS
