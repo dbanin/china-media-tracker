@@ -25,8 +25,10 @@ def run(out_dir: Path = None, keep: bool = False) -> dict:
     bodies = tmp / "bodies"
     raw = tmp / "raw_html"
     export_dir = out_dir or (tmp / "docs_data")
-    saved = (config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR)
-    config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR = db, bodies, raw
+    saved = (config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR, config.LLM_SESSION_GRACE_DAYS)
+    # Every fixture article is minutes old and a dry run has no session route, so nothing is held
+    # back for it: the model stage sees what it would see with the hold turned off.
+    config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR, config.LLM_SESSION_GRACE_DAYS = db, bodies, raw, 0
     try:
         conn = store.connect(db)
         outlet = {"id": "xx_fixture", "name": "Fixture Daily", "country": "ITA", "language": "en", "tier": "national_daily",
@@ -66,7 +68,7 @@ def run(out_dir: Path = None, keep: bool = False) -> dict:
         conn.close()
         return counts
     finally:
-        config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR = saved
+        config.DB_PATH, config.BODIES_DIR, config.RAW_HTML_DIR, config.LLM_SESSION_GRACE_DAYS = saved
         if not keep:
             shutil.rmtree(tmp, ignore_errors=True)
 

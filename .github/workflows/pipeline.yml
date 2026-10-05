@@ -55,6 +55,7 @@ jobs:
       TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
       TRACKER_LLM_DAILY_CEILING: ${{ vars.TRACKER_LLM_DAILY_CEILING }}
+      TRACKER_SESSION_GRACE_DAYS: ${{ vars.TRACKER_SESSION_GRACE_DAYS }}
       TRACKER_LLM_MONTHLY_BUDGET_USD: ${{ vars.TRACKER_LLM_MONTHLY_BUDGET_USD }}
       GH_TOKEN: ${{ github.token }}
       # Scheduled runs send the model stage through the Batches API at half price; the results come

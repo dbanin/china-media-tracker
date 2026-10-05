@@ -4,6 +4,25 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Model stage: API budget kept for what the session route cannot reach (2026-10-04)
+
+Since 2026-09-30 waiting articles are also judged by the session route (pipeline/labels.py),
+which refetches their text on the owner's machine at no API cost. Some sites refuse that fetch
+(HTTP 403, robots.txt, paywall, gone), so those articles can only be judged by the API from the
+runner's own copy of the text. The API budget is now kept for them. A new committed list,
+data/labels/api_first.jsonl (one object per line: url_hash, reason, listed_at, source), names
+them; pipeline.labels.load_api_first reads it, skipping and counting a malformed line, and the
+labels ingest never reads it as a labels file. classify_llm.run now splits the waiting articles
+after the near-duplicate collapse into two pools: the listed ones, drawn first, and the others
+discovered more than LLM_SESSION_GRACE_DAYS days ago (env TRACKER_SESSION_GRACE_DAYS, default 3;
+0 turns the hold off), drawn with what budget remains, each with the existing stratified draw.
+Younger articles are held for the session and not offered to the API on that run; being held is
+not a ceiling event. The stage's counts gain api_first_eligible, api_first_sent, grace_eligible,
+grace_sent and held_for_session (sent is calls made, or requests submitted in batch mode).
+With no list and every article past the grace period the stage draws exactly as before.
+METHODOLOGY.md says so in the model stage section. No ruleset, gate or schema version change:
+what a label means is unchanged; only which articles the API takes, and when, changes.
+
 ## Model stage: session labels imported by the runner (2026-09-30)
 
 The monthly API budget ran out on 2026-09-16 and 4,585 articles are waiting for the verification

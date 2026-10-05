@@ -164,3 +164,29 @@ def test_main_prints_counts(tmp_path, monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["applied"] == 1
     assert set(out) >= {"files", "lines", "malformed", "applied", "already_classified", "not_awaiting", "unknown", "by_category"}
+
+
+def test_api_first_loader_skips_malformed_lines(tmp_path):
+    good = {"url_hash": "a" * 32, "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}
+    lines = [
+        good,
+        "{not json",
+        {"url_hash": "b" * 32, "reason": "robots.txt", "source": "session"},          # no listed_at
+        dict(good, url_hash="c" * 32, listed_at="yesterday"),                           # not an ISO date
+        "",
+        dict(good, url_hash=" " + "d" * 32 + " ", reason="paywall", listed_at="2026-10-04T08:00:00Z"),
+    ]
+    d = _write(tmp_path, lines, name=labels.API_FIRST_FILE)
+    stats = {}
+    assert labels.load_api_first(d, stats=stats) == {"a" * 32: "HTTP 403", "d" * 32: "paywall"}
+    assert stats["lines"] == 5 and stats["malformed"] == 3 and len(stats["malformed_samples"]) == 3
+    assert labels.load_api_first(tmp_path / "absent") == {}
+
+
+def test_api_first_file_is_never_ingested_as_labels(tmp_path):
+    conn = _db()
+    _, h = _article(conn, 1)
+    d = _write(tmp_path, [{"url_hash": h, "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}],
+               name=labels.API_FIRST_FILE)
+    counts = labels.ingest(conn, d)
+    assert counts["files"] == 0 and counts["lines"] == 0 and counts["malformed"] == 0 and counts["applied"] == 0

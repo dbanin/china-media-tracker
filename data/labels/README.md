@@ -30,6 +30,21 @@ skipped, so the files are applied once and can be ingested any number of times w
 anything twice. A malformed line is counted and skipped, never fatal. Keep the files committed:
 they are the record of where these labels came from.
 
+## api_first.jsonl
+
+Not a labels file, and never ingested as one. It lists the waiting articles whose text the session
+could not fetch on the owner's machine (HTTP 403, robots.txt, paywall, gone), so only the API,
+which has the runner's own copy of the text, can judge them. One JSON object per line:
+
+```
+{"url_hash": "3f2a...", "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}
+```
+
+The API budget is for these articles: the model stage draws them first, then, if budget remains,
+the other waiting articles discovered more than `TRACKER_SESSION_GRACE_DAYS` days ago (default 3).
+Younger articles are held for the session and not offered to the API on that run. A malformed line
+is counted and skipped, never fatal; a missing file is an empty list.
+
 ## Check against the API, 2026-09-30
 
 Before the first file was committed, 98 articles that already carried an API label were judged

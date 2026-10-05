@@ -126,3 +126,118 @@ def test_migration_prices_days_recorded_before_cost_tracking():
     rows = {r["date"]: r["cost_usd"] for r in conn.execute("SELECT date, cost_usd FROM llm_usage")}
     assert abs(rows["2026-09-15"] - 1000 * config.LLM_MEASURED_COST_PER_CALL) < 1e-9
     assert abs(rows["2026-09-16"] - 200 * config.LLM_MEASURED_COST_PER_CALL) < 1e-9
+
+
+# The API budget is for what the session route cannot reach: articles listed in
+# data/labels/api_first.jsonl first, then articles older than the session grace period; younger
+# articles are held for the session.
+
+def _waiting(conn, n, days_old, country="ITA"):
+    url = "https://e.com/pool-%d" % n
+    aid = store.insert_discovered(conn, {"url": url, "outlet_id": "o", "country": country, "language": "it",
+                                         "title": "Title %d" % n, "status": "awaiting_llm", "gate_relevant": 1})
+    when = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days_old)).replace(microsecond=0).isoformat()
+    conn.execute("UPDATE articles SET discovered_at=? WHERE id=?", (when, aid))
+    conn.commit()
+    store.save_body(store.url_hash(url), "Body %d about China" % n)
+    return aid, store.url_hash(url)
+
+
+def _api_first(directory, hashes):
+    directory.mkdir(exist_ok=True)
+    (directory / "api_first.jsonl").write_text(
+        "".join(json.dumps({"url_hash": h, "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}) + "\n"
+                for h in hashes), encoding="utf-8")
+
+
+def _pools_env(monkeypatch, tmp_path, ceiling, grace=3):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    monkeypatch.setattr(config, "LABELS_DIR", tmp_path / "labels")
+    monkeypatch.setattr(config, "LLM_MONTHLY_BUDGET_USD", 100000.0)
+    monkeypatch.setattr(config, "LLM_DAILY_CALL_CEILING", ceiling)
+    monkeypatch.setattr(config, "LLM_SESSION_GRACE_DAYS", grace)
+
+
+def _status(conn, aid):
+    return conn.execute("SELECT status FROM articles WHERE id=?", (aid,)).fetchone()[0]
+
+
+def test_api_first_article_is_sent_before_an_older_grace_article(monkeypatch, tmp_path):
+    _pools_env(monkeypatch, tmp_path, ceiling=1)
+    conn = _db()
+    older, _ = _waiting(conn, 1, days_old=10)
+    listed, h = _waiting(conn, 2, days_old=4)
+    _api_first(tmp_path / "labels", [h])
+    counts = cl.run(conn, "t", client=cl.DryRunClient())
+    assert counts["calls"] == 1 and counts["ceiling_hit"] is True
+    assert _status(conn, listed) == "classified" and _status(conn, older) == "awaiting_llm"
+    assert (counts["api_first_eligible"], counts["api_first_sent"]) == (1, 1)
+    assert (counts["grace_eligible"], counts["grace_sent"]) == (1, 0)
+    assert counts["held_for_session"] == 0 and counts["draw"]["eligible"] == 2
+    logged = json.loads(conn.execute("SELECT counts FROM run_log WHERE stage='classify_llm'").fetchone()[0])
+    assert logged["api_first_sent"] == 1 and logged["grace_eligible"] == 1
+
+
+def test_listed_article_is_not_held_however_young(monkeypatch, tmp_path):
+    _pools_env(monkeypatch, tmp_path, ceiling=10)
+    conn = _db()
+    listed, h = _waiting(conn, 1, days_old=0)
+    _api_first(tmp_path / "labels", [h])
+    counts = cl.run(conn, "t", client=cl.DryRunClient())
+    assert _status(conn, listed) == "classified" and counts["held_for_session"] == 0
+
+
+def test_article_younger_than_grace_is_held_for_the_session(monkeypatch, tmp_path):
+    _pools_env(monkeypatch, tmp_path, ceiling=10)
+    conn = _db()
+    young, _ = _waiting(conn, 1, days_old=1)
+    old, _ = _waiting(conn, 2, days_old=10)
+    client = cl.DryRunClient()
+    counts = cl.run(conn, "t", client=client)
+    assert counts["held_for_session"] == 1 and counts["grace_eligible"] == 1 and counts["api_first_eligible"] == 0
+    assert counts["calls"] == 1 and counts["grace_sent"] == 1 and len(client.calls) == 1
+    assert _status(conn, young) == "awaiting_llm" and _status(conn, old) == "classified"
+    # Held articles are not truncated by the ceiling, so holding them is not a ceiling event.
+    assert counts["ceiling_hit"] is False
+    # Turning the hold off sends it.
+    monkeypatch.setattr(config, "LLM_SESSION_GRACE_DAYS", 0)
+    counts = cl.run(conn, "t2", client=client)
+    assert counts["held_for_session"] == 0 and _status(conn, young) == "classified"
+
+
+def test_no_list_and_all_articles_past_grace_behaves_as_before(monkeypatch, tmp_path):
+    _pools_env(monkeypatch, tmp_path, ceiling=3)
+    conn = _db()
+    for n in range(6):
+        _waiting(conn, n, days_old=10, country="ITA" if n % 2 else "FRA")
+    assert not (tmp_path / "labels" / "api_first.jsonl").exists()
+    # What the stage drew before the pools existed: one stratified draw over every waiting article.
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    expected, allocation = cl.draw(cl.pending_articles(conn, 100000), 3, "llm-draw-%s" % today)
+    counts = cl.run(conn, "t", client=cl.DryRunClient())
+    classified = {r[0] for r in conn.execute("SELECT id FROM articles WHERE status='classified'")}
+    assert classified == {r["id"] for r in expected}
+    assert counts["calls"] == 3 and counts["ceiling_hit"] is True
+    assert counts["draw"] == {"eligible": 6, "drawn": 3, "countries": 2}
+    assert (counts["api_first_eligible"], counts["grace_eligible"], counts["held_for_session"]) == (0, 6, 0)
+    assert counts["grace_sent"] == 3 and counts["api_first_sent"] == 0
+    sampled = {r["country"]: [r["eligible"], r["drawn"]] for r in conn.execute("SELECT * FROM llm_sampling")}
+    assert sampled == allocation
+
+
+def test_batch_submission_counts_each_pool(monkeypatch, tmp_path):
+    _pools_env(monkeypatch, tmp_path, ceiling=2)
+    from tests.test_classify_llm import _RecordingBatchApi
+    conn = _db()
+    _waiting(conn, 1, days_old=10)
+    _waiting(conn, 2, days_old=10)
+    listed, h = _waiting(conn, 3, days_old=5)
+    _waiting(conn, 4, days_old=1)
+    _api_first(tmp_path / "labels", [h])
+    recorder = _RecordingBatchApi()
+    client = type("C", (), {"messages": type("M", (), {"batches": recorder})()})()
+    counts = cl.run(conn, "t", client=client, batch=True)
+    submitted = {int(req["custom_id"]) for req in recorder.created[0]}
+    assert len(submitted) == 2 and listed in submitted
+    assert (counts["api_first_sent"], counts["grace_sent"], counts["held_for_session"]) == (1, 1, 1)
+    assert counts["batch_submitted"] == 2 and counts["ceiling_hit"] is True
