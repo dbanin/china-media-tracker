@@ -15,6 +15,11 @@ Modes:
 The daily call ceiling (config.LLM_DAILY_CALL_CEILING) stops the stage and
 records a ceiling event in llm_usage and run_log, so a truncated day is never
 mistaken for a quiet day.
+
+The API budget is kept for what the interactive session route (pipeline.labels) cannot reach. The
+articles listed in data/labels/api_first.jsonl, whose text the session could not fetch, are drawn
+first; other waiting articles are offered only once older than config.LLM_SESSION_GRACE_DAYS, and
+younger ones are held for the session (split_pools).
 """
 import datetime as dt
 import json
@@ -334,6 +339,44 @@ def draw(rows: List, k: int, seed: str) -> Tuple[List, Dict[str, List[int]]]:
     return chosen, {c: [len(by_country[c]), quota[c]] for c in sorted(by_country)}
 
 
+def _discovered(row) -> Optional[dt.datetime]:
+    """discovered_at as an aware UTC datetime, or None when it cannot be read."""
+    text = (row["discovered_at"] or "").strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        when = dt.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=dt.timezone.utc)
+
+
+def split_pools(rows: List, api_first: Dict[str, str], now: dt.datetime,
+                grace_days: Optional[int] = None) -> Tuple[List, List, int]:
+    """Split the to-do list for the API between the two routes that label waiting articles.
+
+    The interactive session (pipeline.labels) refetches article texts on the owner's machine at no
+    API cost, and the API budget is kept for what it cannot reach. Returns (api_first, grace, held):
+    the rows listed in data/labels/api_first.jsonl, whose text the session could not fetch; the
+    other rows discovered more than grace_days ago (config.LLM_SESSION_GRACE_DAYS by default); and
+    how many younger rows are held for the session and not offered to the API this run. A row whose
+    discovery time cannot be read is not held, so nothing can wait forever. grace_days 0 holds
+    nothing."""
+    grace_days = config.LLM_SESSION_GRACE_DAYS if grace_days is None else grace_days
+    cutoff = now - dt.timedelta(days=grace_days)
+    first, grace, held = [], [], 0
+    for r in rows:
+        if r["url_hash"] in api_first:
+            first.append(r)
+            continue
+        when = _discovered(r) if grace_days > 0 else None
+        if when is not None and when >= cutoff:
+            held += 1
+        else:
+            grace.append(r)
+    return first, grace, held
+
+
 def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False, dry_run: bool = False,
         client=None, max_consecutive_errors: int = 3) -> Dict:
     """Run one classify_llm stage.
@@ -409,26 +452,53 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     # Only one representative per group is offered to draw(); the rest stay at 'awaiting_llm' and
     # are settled for free by _settle_pending_dup_siblings once the representative has a label.
     todo = _collapse_dup_groups(todo)
-    # When the ceiling binds, the articles sent are a stratified random draw across countries and the
-    # allocation is recorded; otherwise every article is sent, in random order. In synchronous mode,
-    # later members of a near-duplicate group still copy from a member classified earlier in this run.
-    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
-    binding = remaining < len(todo)
-    chosen, allocation = draw(todo, remaining, "llm-draw-%s" % today)
+    # The API budget is for the articles the session route (pipeline.labels) cannot reach. Those
+    # listed in data/labels/api_first.jsonl, whose text the session could not fetch, are drawn
+    # first; then, if the budget allows, the others that have waited longer than the grace period.
+    # Younger articles are held for the session and not offered to the API at all this run.
+    from pipeline import labels as labels_mod
+    now = dt.datetime.now(dt.timezone.utc)
+    af_stats = {}
+    api_first = labels_mod.load_api_first(stats=af_stats)
+    if af_stats.get("malformed"):
+        counts["api_first_malformed"] = af_stats["malformed"]
+        counts["api_first_malformed_samples"] = af_stats["malformed_samples"]
+    first_pool, grace_pool, held = split_pools(todo, api_first, now)
+    eligible = len(first_pool) + len(grace_pool)
+    counts.update({"api_first_eligible": len(first_pool), "api_first_sent": 0,
+                   "grace_eligible": len(grace_pool), "grace_sent": 0, "held_for_session": held})
+    # When the ceiling binds, the articles sent are a stratified random draw across countries within
+    # each pool and the allocation is recorded; otherwise every eligible article is sent, in random
+    # order within its pool. In synchronous mode, later members of a near-duplicate group still copy
+    # from a member classified earlier in this run.
+    today = now.date().isoformat()
+    binding = remaining < eligible
+    chosen_first, alloc_first = draw(first_pool, remaining, "llm-draw-api-first-%s" % today)
+    chosen_grace, alloc_grace = draw(grace_pool, remaining - len(chosen_first), "llm-draw-%s" % today)
+    chosen = chosen_first + chosen_grace
+    allocation = {}
+    for alloc in (alloc_first, alloc_grace):
+        for c, (e, d) in alloc.items():
+            prev = allocation.get(c, [0, 0])
+            allocation[c] = [prev[0] + e, prev[1] + d]
+    first_ids = {r["id"] for r in chosen_first}
     if binding:
         counts["ceiling_hit"] = True
-        counts["draw"] = {"eligible": len(todo), "drawn": len(chosen), "countries": len(allocation)}
+        counts["draw"] = {"eligible": eligible, "drawn": len(chosen), "countries": len(allocation)}
 
     if batch and not dry_run:
-        n = _submit_batch(conn, client, chosen)
+        submitted = []
+        n = _submit_batch(conn, client, chosen, submitted_ids=submitted)
         counts["batch_submitted"] = n
+        counts["api_first_sent"] = sum(1 for aid in submitted if aid in first_ids)
+        counts["grace_sent"] = n - counts["api_first_sent"]
         store.record_llm_usage(conn, n, 0, 0, ceiling_hit=binding)
         if binding:
             store.record_llm_sampling(conn, today, allocation)
         conn.commit()
         store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
                            notes="%s %d reached; %d left pending after a stratified draw"
-                                 % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling, len(todo) - n) if binding else "")
+                                 % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling, eligible - n) if binding else "")
         return counts
 
     sent = defaultdict(int)
@@ -464,6 +534,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             continue
         remaining -= 1
         counts["calls"] += 1
+        counts["api_first_sent" if r["id"] in first_ids else "grace_sent"] += 1
         sent[r["country"]] += 1
         # Booked before the reply is inspected: the call is billed whether or not it parsed.
         book_usage(conn, message, calls=1)
@@ -510,7 +581,9 @@ def _record_draw(conn, today: str, binding: bool, allocation: Dict[str, List[int
 # Batch mode
 # ---------------------------------------------------------------------------
 
-def _submit_batch(conn, client, rows) -> int:
+def _submit_batch(conn, client, rows, submitted_ids: Optional[List[int]] = None) -> int:
+    """Submit rows with a body to the Batches API; returns how many. submitted_ids, when given, is
+    extended with their article ids."""
     if not rows:
         return 0
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
@@ -531,6 +604,8 @@ def _submit_batch(conn, client, rows) -> int:
                  (batch.id, store.utcnow(), "submitted", json.dumps(ids), config.LLM_MODEL))
     for aid in ids:
         store.update_article(conn, aid, status="llm_submitted")
+    if submitted_ids is not None:
+        submitted_ids.extend(ids)
     return len(ids)
 
 

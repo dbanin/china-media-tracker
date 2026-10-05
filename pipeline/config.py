@@ -67,6 +67,13 @@ LLM_BATCH_DISCOUNT = 0.5
 LLM_COST_PER_CALL_UNBATCHED = 0.0175
 LLM_MEASURED_COST_PER_CALL = 0.0096
 LLM_BODY_CHAR_LIMIT = 12000
+# Since 2026-09-30 waiting articles are also judged outside the API, in an interactive session on
+# the owner's machine (pipeline.labels), which refetches the text there. The API budget is kept for
+# what that route cannot reach: articles whose text the session could not fetch are listed in
+# data/labels/api_first.jsonl and are offered to the API first; any other waiting article is offered
+# only once it was discovered more than this many days ago, so the session gets the first chance at
+# it. Younger articles are not offered to the API at all on that run. 0 turns the hold off.
+LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "3"))
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6
 

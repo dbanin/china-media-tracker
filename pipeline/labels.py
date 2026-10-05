@@ -33,6 +33,14 @@ Line format (every field required):
    "model_version": "claude-sonnet-5 (session)", "labelled_at": "2026-09-30" or an ISO datetime,
    "source": "session"}
 
+The same directory holds api_first.jsonl, which is not a labels file and is never ingested. It
+lists the waiting articles whose text the session could not fetch on the owner's machine (HTTP 403,
+robots.txt, a paywall, a page that is gone), so they can only be judged by the API from the runner's
+own copy of the text. classify_llm.run offers these to the API first and holds back other articles
+younger than config.LLM_SESSION_GRACE_DAYS for the session route. load_api_first reads it.
+
+  {"url_hash": "...", "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}
+
 Usage:
   python -m pipeline.labels ingest
 """
@@ -51,6 +59,9 @@ FIELDS = ("url_hash", "category", "confidence", "evidence_quote", "reasoning", "
           "independent_confirmation_present", "confirmation_evidence", "model_version", "labelled_at", "source")
 # Enough examples of a bad line to diagnose a file without printing all of it.
 MALFORMED_SAMPLES = 5
+# The list of articles the API takes first; it lives beside the labels but holds none.
+API_FIRST_FILE = "api_first.jsonl"
+API_FIRST_FIELDS = ("url_hash", "reason", "listed_at", "source")
 
 
 def _parse_when(value) -> bool:
@@ -115,6 +126,8 @@ def load_files(directory: Optional[Path] = None) -> Tuple[List[Dict], Dict]:
     if not directory.is_dir():
         return labels, stats
     for path in sorted(directory.glob("*.jsonl")):
+        if path.name == API_FIRST_FILE:
+            continue
         stats["files"] += 1
         with open(path, encoding="utf-8", errors="replace") as fh:
             for n, line in enumerate(fh, 1):
@@ -139,6 +152,56 @@ def load_files(directory: Optional[Path] = None) -> Tuple[List[Dict], Dict]:
                 obj["_where"] = where
                 labels.append(obj)
     return labels, stats
+
+
+def _validate_api_first(obj) -> Optional[str]:
+    """Why a parsed api_first line is not usable, or None when it is."""
+    if not isinstance(obj, dict):
+        return "not a JSON object"
+    missing = [f for f in API_FIRST_FIELDS if f not in obj]
+    if missing:
+        return "missing " + ", ".join(missing)
+    if not isinstance(obj["url_hash"], str) or not obj["url_hash"].strip():
+        return "url_hash is not a non-empty string"
+    for f in ("reason", "source"):
+        if not isinstance(obj[f], str):
+            return "%s is not a string" % f
+    if not _parse_when(obj["listed_at"]):
+        return "listed_at is not an ISO date or datetime"
+    return None
+
+
+def load_api_first(directory: Optional[Path] = None, stats: Optional[Dict] = None) -> Dict[str, str]:
+    """The articles the API should take first, from directory/api_first.jsonl (config.LABELS_DIR by
+    default), as {url_hash: reason}; the first line for a url_hash wins. A missing file is an empty
+    list. Blank lines are ignored; a line that does not parse or does not validate is counted and
+    skipped, never fatal. When stats is given it is filled with lines, malformed and
+    malformed_samples."""
+    directory = Path(directory) if directory is not None else config.LABELS_DIR
+    st = stats if stats is not None else {}
+    st.update({"lines": 0, "malformed": 0, "malformed_samples": []})
+    out = {}
+    path = directory / API_FIRST_FILE
+    if not path.is_file():
+        return out
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for n, line in enumerate(fh, 1):
+            text = line.strip()
+            if not text:
+                continue
+            st["lines"] += 1
+            try:
+                obj = json.loads(text)
+                reason = _validate_api_first(obj)
+            except ValueError as exc:
+                reason = "invalid JSON (%s)" % exc
+            if reason:
+                st["malformed"] += 1
+                if len(st["malformed_samples"]) < MALFORMED_SAMPLES:
+                    st["malformed_samples"].append("%s:%d: %s" % (path.name, n, reason))
+                continue
+            out.setdefault(obj["url_hash"].strip(), obj["reason"])
+    return out
 
 
 def _data(label: Dict) -> Dict:

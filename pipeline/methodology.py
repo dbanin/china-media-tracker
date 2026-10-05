@@ -107,6 +107,13 @@ waiting and never over an existing label, and are subject to the same
 reliability study rules as every other model label.
 {session_labels_text}
 
+Since 4 October the API budget is kept for what the session cannot reach: the
+model stage first takes the articles whose text the session could not fetch
+on the owner's machine (refused, gone or paywalled), which only the API can
+judge from the runner's own copy, and then articles that have waited longer
+than {session_grace_days} days, drawing within each group as described above. Younger articles
+are held for the session and not offered to the API on that run.
+
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
 checking them. Ordinary China coverage is only the denominator. Articles whose
@@ -396,6 +403,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
 
     text = TEMPLATE.format(
         session_labels_text=session_labels_text,
+        session_grace_days=config.LLM_SESSION_GRACE_DAYS,
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
         cat_a=meta["categories"]["A"], cat_b=meta["categories"]["B"], cat_c=meta["categories"]["C"], cat_n=meta["categories"]["not_relevant"],
