@@ -1102,10 +1102,9 @@
   feeds:
   - https://www.ledevoir.com/rss/section/monde.xml
   tier: national_daily
-  notes: Feed returns 403 to the project user agent.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02; contact outlet before retrying
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns 403 to the project user agent. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: ca_montrealgazette
   name: Montreal Gazette
   country: CAN
@@ -2471,10 +2470,10 @@
   feeds:
   - https://kurier.at/politik/ausland/xml/rssd
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: at_orf
   name: ORF
   country: AUT
@@ -3870,10 +3869,9 @@
   feeds:
   - https://minsknews.by/rss
   tier: regional
-  notes: Verified 2026-09-02.
-  active: false
-  inactive_reason: every feed failed on every check since 2026-09-04 from the runner and again from a second network on 2026-09-07; deactivated 2026-09-07 (auto, reason corrected)
-  inactive_since: '2026-09-07'
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: by_reform
   name: Reform.news
   country: BLR
@@ -9640,10 +9638,10 @@
   feeds:
   - https://www.newstatesman.com/feed
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: gb_scotsman
   name: The Scotsman
   country: GBR
@@ -12001,12 +11999,12 @@
   feeds:
   - https://rss.tempo.co/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
   audience_rank: 9
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/indonesia
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  active: true
 - id: id_tempo_en
   name: Tempo English
   country: IDN
@@ -12941,10 +12939,10 @@
   feeds:
   - https://almadapaper.net/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: iq_alrafidain
   name: Al Rafidain
   country: IRQ
@@ -13486,10 +13484,10 @@
   feeds:
   - https://www.maariv.co.il/Rss/RssFeedsMivzakiChadashot
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: il_n12
   name: N12
   country: ISR
@@ -14092,10 +14090,9 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-07 (auto)
-  inactive_since: '2026-09-21'
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: kz_kursiv
   name: Kursiv
   country: KAZ
@@ -14682,15 +14679,15 @@
   feeds:
   - https://www.khmertimeskh.com/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
   audience_rank: 1
   rank_source: https://www.similarweb.com/website/khmertimeskh.com/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/the-khmer-times/
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  active: true
 - id: kh_koh
   name: Koh Santepheap
   country: KHM
@@ -15937,10 +15934,10 @@
   feeds:
   - https://www.baltictimes.com/rss/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: lt_delfi
   name: Delfi Lithuania
   country: LTU
@@ -16414,10 +16411,10 @@
   feeds:
   - https://www.challenge.ma/feed/
   tier: business
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: ma_h24
   name: H24info
   country: MAR
@@ -16886,10 +16883,10 @@
   feeds:
   - https://www.24-horas.mx/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: mx_eleconomista
   name: El Economista
   country: MEX
@@ -17599,10 +17596,10 @@
   feeds:
   - https://www.gnlm.com.mm/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: mm_irrawaddy
   name: The Irrawaddy
   country: MMR
@@ -18217,10 +18214,10 @@
   feeds:
   - https://www.freemalaysiatoday.com/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: my_focusmalaysia
   name: Focus Malaysia
   country: MYS
@@ -18645,10 +18642,9 @@
   feeds:
   - https://www.tamtaminfo.com/feed/
   tier: national_daily
-  notes: Verified 2026-09-02.
-  active: false
-  inactive_reason: every feed failed on every check since 2026-09-04 from the runner and again from a second network on 2026-09-07; deactivated 2026-09-07 (auto, reason corrected)
-  inactive_since: '2026-09-07'
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: ng_arise
   name: Arise News
   country: NGA
@@ -18867,16 +18863,16 @@
   feeds:
   - https://punchng.com/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
   audience_rank: 2
   rank_source: https://technext24.com/reviews/digital-media-squirrelpr-ranked-2026/
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/the-punch-nigeria/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/the-punch-nigeria/
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  active: true
 - id: ng_sun
   name: The Sun Nigeria
   country: NGA
@@ -20707,14 +20703,13 @@
     status: none_found
     sections: []
   tier: business
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/BusinessWorld
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/businessworld/
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-18 (auto)
-  inactive_since: '2026-09-28'
+  collector: self_hosted
+  active: true
 - id: ph_gma
   name: GMA News
   country: PHL
@@ -21139,12 +21134,12 @@
   feeds:
   - https://www.rp.pl/rss_main
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/fakt.pl/
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  active: true
 - id: pl_tvn24
   name: TVN24
   country: POL
@@ -24382,10 +24377,10 @@
   feeds:
   - https://vecer.com/rss
   tier: regional
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: se_aftonbladet
   name: Aftonbladet
   country: SWE
@@ -24702,10 +24697,10 @@
   feeds:
   - https://english.enabbaladi.net/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: sy_halabtoday
   name: Halab Today
   country: SYR
@@ -28097,10 +28092,10 @@
   feeds:
   - https://rss.upi.com/news/world_news.rss
   tier: agency
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
+    owner''s machine, so the self-hosted collector polls it.'
+  collector: self_hosted
+  active: true
 - id: us_vox
   name: Vox
   country: USA
