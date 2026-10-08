@@ -107,12 +107,7 @@ waiting and never over an existing label, and are subject to the same
 reliability study rules as every other model label.
 {session_labels_text}
 
-Since 4 October the API budget is kept for what the session cannot reach: the
-model stage first takes the articles whose text the session could not fetch
-on the owner's machine (refused, gone or paywalled), which only the API can
-judge from the runner's own copy, and then articles that have waited longer
-than {session_grace_days} days, drawing within each group as described above. Younger articles
-are held for the session and not offered to the API on that run.
+{session_order_text}
 
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
@@ -278,6 +273,21 @@ they have served the gate audit. They carry no classification.
 """
 
 
+def session_order_text(grace_days: int) -> str:
+    """The paragraph on which waiting articles the API takes first, for the grace period in force."""
+    head = ("The model stage first takes the articles whose text the session could not fetch on the "
+            "owner's machine (refused, gone or paywalled), which only the API can judge from the "
+            "runner's own copy, and then the other waiting articles, drawing within each group as "
+            "described above.")
+    if grace_days > 0:
+        return (head.replace("and then the other waiting articles,",
+                             "and then articles that have waited longer than %d days," % grace_days)
+                + " Younger articles are held for the session and not offered to the API on that run.")
+    return (head + " Since 8 October no article is held back for the session: the monthly budget is "
+            "sized for the API to judge every article the rules cannot settle, and the session route "
+            "is used only when the budget runs out.")
+
+
 def _fmt_kappa(v):
     return "n/a" if v is None else "%.2f" % v
 
@@ -403,7 +413,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
 
     text = TEMPLATE.format(
         session_labels_text=session_labels_text,
-        session_grace_days=config.LLM_SESSION_GRACE_DAYS,
+        session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
         cat_a=meta["categories"]["A"], cat_b=meta["categories"]["B"], cat_c=meta["categories"]["C"], cat_n=meta["categories"]["not_relevant"],

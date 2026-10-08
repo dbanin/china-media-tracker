@@ -4,6 +4,19 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Model stage: budget sized for the API to judge every waiting article (2026-10-08)
+
+The default monthly budget (TRACKER_LLM_MONTHLY_BUDGET_USD) rises from 30 to 110 dollars and the
+session hold (TRACKER_SESSION_GRACE_DAYS) defaults to 0 instead of 3, so every article the rules
+cannot settle is offered to the API on the day it is discovered. 110 dollars covers about 340 calls a
+day at the measured cost of a call, the intake seen in September across both routes. The session
+route stays as a fallback for when the budget is spent, and data/labels/api_first.jsonl still puts
+the articles it cannot fetch first. The daily cap now divides the budget by the measured average
+cost of a call over the current and previous month once at least 500 recorded calls exist
+(llm_cost.measured_per_call), instead of always by the full price constant, which would have
+allowed only about 200 calls a day; the cap reports per_call_measured. No ruleset, gate or schema
+version change: what a label means is unchanged; only how many articles the API takes, and when.
+
 ## Model stage: API budget kept for what the session route cannot reach (2026-10-04)
 
 Since 2026-09-30 waiting articles are also judged by the session route (pipeline/labels.py),

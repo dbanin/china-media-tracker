@@ -306,7 +306,7 @@ def study_plan(conn, today: dt.date, wanted: int) -> Dict:
     allowance, cap = _day_allowance(conn, today)
     day_share = int(allowance * RELIABILITY_DAY_SHARE)
     n = min(wanted, day_share)
-    per_call = llm_cost.per_call_estimate(True)
+    per_call = llm_cost.per_call_estimate(True, conn, today)
     if cap["cap"] is not None:
         affordable = int(config.RELIABILITY_MAX_BUDGET_SHARE * max(0.0, cap.get("left_usd", 0.0)) / per_call) if per_call else n
         n = min(n, affordable)

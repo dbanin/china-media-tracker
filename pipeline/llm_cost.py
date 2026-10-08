@@ -59,8 +59,29 @@ def outstanding(conn, since: str, before: str) -> int:
     return n
 
 
-def per_call_estimate(batched: bool) -> float:
-    return config.LLM_COST_PER_CALL_UNBATCHED * (config.LLM_BATCH_DISCOUNT if batched else 1.0)
+def measured_per_call(conn, today: Optional[dt.date] = None) -> Optional[float]:
+    """Average recorded cost of a call over the current and previous calendar month, or None when
+    fewer than config.LLM_MEASURED_MIN_CALLS calls carry a recorded cost. Rows priced by migration
+    (cost_usd set, no token breakdown) count too: they are the first month's measured average."""
+    today = today or dt.datetime.now(dt.timezone.utc).date()
+    first = today.replace(day=1)
+    prev = (first - dt.timedelta(days=1)).replace(day=1)
+    row = conn.execute("SELECT COALESCE(SUM(calls),0), COALESCE(SUM(cost_usd),0) FROM llm_usage "
+                       "WHERE date>=? AND date<? AND cost_usd>0",
+                       (prev.isoformat(), (today + dt.timedelta(days=1)).isoformat())).fetchone()
+    calls, cost = int(row[0] or 0), float(row[1] or 0.0)
+    if calls < config.LLM_MEASURED_MIN_CALLS or cost <= 0:
+        return None
+    return cost / calls
+
+
+def per_call_estimate(batched: bool, conn=None, today: Optional[dt.date] = None) -> float:
+    """Dollars one call is expected to cost: the measured average when the database has enough
+    recorded calls, otherwise the full price constant; halved for the Batches API."""
+    base = measured_per_call(conn, today) if conn is not None else None
+    if base is None:
+        base = config.LLM_COST_PER_CALL_UNBATCHED
+    return base * (config.LLM_BATCH_DISCOUNT if batched else 1.0)
 
 
 def month_to_date(conn, today: Optional[dt.date] = None) -> Dict:
@@ -71,7 +92,7 @@ def month_to_date(conn, today: Optional[dt.date] = None) -> Dict:
     pending = outstanding(conn, start, end)
     return {"month": today.strftime("%Y-%m"), "recorded_usd": round(recorded, 2),
             "outstanding_requests": pending,
-            "estimated_usd": round(recorded + pending * per_call_estimate(True), 2)}
+            "estimated_usd": round(recorded + pending * per_call_estimate(True, conn, today), 2)}
 
 
 def daily_cap(conn, today: Optional[dt.date] = None, batched: bool = False) -> Dict:
@@ -82,10 +103,11 @@ def daily_cap(conn, today: Optional[dt.date] = None, batched: bool = False) -> D
     if budget is None:
         return out
     start = today.replace(day=1).isoformat()
-    before = spent(conn, start, today.isoformat()) + outstanding(conn, start, today.isoformat()) * per_call_estimate(True)
+    before = spent(conn, start, today.isoformat()) + outstanding(conn, start, today.isoformat()) * per_call_estimate(True, conn, today)
     days_left = calendar.monthrange(today.year, today.month)[1] - today.day + 1
     left = budget - before
-    per_call = per_call_estimate(batched)
+    per_call = per_call_estimate(batched, conn, today)
     out.update({"spent_before_today_usd": round(before, 2), "left_usd": round(left, 2), "days_left": days_left,
-                "per_call_usd": round(per_call, 5), "cap": int(max(0.0, left) / days_left / per_call)})
+                "per_call_usd": round(per_call, 5), "per_call_measured": measured_per_call(conn, today) is not None,
+                "cap": int(max(0.0, left) / days_left / per_call)})
     return out

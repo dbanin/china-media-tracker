@@ -40,10 +40,12 @@ which has the runner's own copy of the text, can judge them. One JSON object per
 {"url_hash": "3f2a...", "reason": "HTTP 403", "listed_at": "2026-10-04", "source": "session"}
 ```
 
-The API budget is for these articles: the model stage draws them first, then, if budget remains,
-the other waiting articles discovered more than `TRACKER_SESSION_GRACE_DAYS` days ago (default 3).
-Younger articles are held for the session and not offered to the API on that run. A malformed line
-is counted and skipped, never fatal; a missing file is an empty list.
+The model stage draws these articles first, then the other waiting articles. With
+`TRACKER_SESSION_GRACE_DAYS` above 0 the second group is limited to articles discovered more than
+that many days ago and younger ones are held for the session; since 8 October the default is 0, the
+monthly budget is sized for the API to take everything, and the session route is a fallback for
+when the budget is spent. A malformed line is counted and skipped, never fatal; a missing file is
+an empty list.
 
 ## Check against the API, 2026-09-30
 

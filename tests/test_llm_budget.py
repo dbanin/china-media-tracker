@@ -241,3 +241,41 @@ def test_batch_submission_counts_each_pool(monkeypatch, tmp_path):
     assert len(submitted) == 2 and listed in submitted
     assert (counts["api_first_sent"], counts["grace_sent"], counts["held_for_session"]) == (1, 1, 1)
     assert counts["batch_submitted"] == 2 and counts["ceiling_hit"] is True
+
+
+def test_cap_uses_the_measured_cost_per_call_once_enough_calls_are_recorded(monkeypatch):
+    monkeypatch.setattr(config, "LLM_MONTHLY_BUDGET_USD", 110.0)
+    monkeypatch.setattr(config, "LLM_COST_PER_CALL_UNBATCHED", 0.0175)
+    monkeypatch.setattr(config, "LLM_BATCH_DISCOUNT", 0.5)
+    monkeypatch.setattr(config, "LLM_MEASURED_MIN_CALLS", 500)
+    conn = _db()
+    today = dt.date(2026, 10, 8)      # 24 days left including today
+    # Too few recorded calls: the full price constant sets the cap.
+    store.record_llm_usage(conn, 400, 0, 0, cost_usd=4.0, date="2026-09-20")
+    assert llm_cost.measured_per_call(conn, today) is None
+    cap = llm_cost.daily_cap(conn, today)
+    assert cap["per_call_measured"] is False and cap["per_call_usd"] == 0.0175
+    assert cap["cap"] == int(110 / 24 / 0.0175)
+    # Enough calls in the current and previous month: their average, a cent a call, sets it.
+    store.record_llm_usage(conn, 600, 0, 0, cost_usd=6.0, date="2026-10-02")
+    assert abs(llm_cost.measured_per_call(conn, today) - 0.01) < 1e-9
+    cap = llm_cost.daily_cap(conn, today)
+    assert cap["per_call_measured"] is True and cap["per_call_usd"] == 0.01
+    assert cap["cap"] == int((110 - 6.0) / 24 / 0.01)
+    assert llm_cost.daily_cap(conn, today, batched=True)["per_call_usd"] == 0.005
+    # Calls from two months back are not part of the measurement; rows without a cost are ignored.
+    store.record_llm_usage(conn, 5000, 0, 0, cost_usd=500.0, date="2026-08-15")
+    store.record_llm_usage(conn, 5000, 0, 0, cost_usd=0.0, date="2026-10-03")
+    assert abs(llm_cost.measured_per_call(conn, today) - 0.01) < 1e-9
+    # Without a connection the estimate is the constant.
+    assert llm_cost.per_call_estimate(False) == 0.0175
+
+
+def test_methodology_states_whether_articles_are_held_for_the_session():
+    from pipeline import methodology
+    held = methodology.session_order_text(3)
+    assert "longer than 3 days" in held and "held for the session" in held
+    off = methodology.session_order_text(0)
+    assert "no article is held back" in off and "held for the session" not in off
+    for text in (held, off):
+        assert "—" not in text and "–" not in text
