@@ -56,24 +56,31 @@ LLM_DAILY_CALL_CEILING = int(_env("TRACKER_LLM_DAILY_CEILING", "600"))
 # account so the tracker stops itself before the account does. pipeline.llm_cost spreads what is
 # left over the days remaining in the month and turns it into a second daily call cap; the lower of
 # the two caps binds. 0 stops model calls. Set it very high to rely on the call ceiling alone.
-LLM_MONTHLY_BUDGET_USD = float(_env("TRACKER_LLM_MONTHLY_BUDGET_USD", "30"))
+# Since 8 October the default is sized for the API to judge every article the rules cannot settle,
+# about 340 a day at September's intake (session route included), at the measured cost of a call.
+LLM_MONTHLY_BUDGET_USD = float(_env("TRACKER_LLM_MONTHLY_BUDGET_USD", "110"))
 # Published per million token prices for the classifier model, and the Batches API discount.
 LLM_PRICES_PER_MTOK = {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30}
 LLM_BATCH_DISCOUNT = 0.5
 # One synchronous call, from the first month's bill: 36 dollars for 3,733 calls of which about nine
 # in ten went through the Batches API at half price, so 0.0096 a call on average and about 0.0175
-# for a call at full price. The budget cap uses this before a month has recorded costs of its own;
-# usage rows written before cost tracking existed are priced at the average.
+# for a call at full price. The budget cap uses the full price only until the database holds enough
+# recorded calls to measure the real rate (pipeline.llm_cost.per_call_estimate); usage rows written
+# before cost tracking existed are priced at the average.
 LLM_COST_PER_CALL_UNBATCHED = 0.0175
 LLM_MEASURED_COST_PER_CALL = 0.0096
+# Recorded calls in the current and previous calendar month needed before their average replaces
+# the full price estimate in the daily cap. Fewer, and one unusual day would set the cap.
+LLM_MEASURED_MIN_CALLS = 500
 LLM_BODY_CHAR_LIMIT = 12000
 # Since 2026-09-30 waiting articles are also judged outside the API, in an interactive session on
-# the owner's machine (pipeline.labels), which refetches the text there. The API budget is kept for
-# what that route cannot reach: articles whose text the session could not fetch are listed in
-# data/labels/api_first.jsonl and are offered to the API first; any other waiting article is offered
-# only once it was discovered more than this many days ago, so the session gets the first chance at
-# it. Younger articles are not offered to the API at all on that run. 0 turns the hold off.
-LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "3"))
+# the owner's machine (pipeline.labels), which refetches the text there. Articles whose text the
+# session could not fetch are listed in data/labels/api_first.jsonl and are offered to the API
+# first. When this is above 0, any other waiting article is offered to the API only once it was
+# discovered more than this many days ago, so the session gets the first chance at it. Since 8
+# October the hold is off by default: the budget is sized for the API to take every waiting article,
+# and the session route is a fallback for when the budget is spent.
+LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "0"))
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6
 
