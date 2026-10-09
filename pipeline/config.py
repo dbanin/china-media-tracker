@@ -25,6 +25,9 @@ GAPS_SCHEMA_PATH = ROOT / "sources" / "gaps_schema.json"
 SIGNATURES_PATH = ROOT / "pipeline" / "signatures.yaml"
 KEYWORDS_PATH = ROOT / "pipeline" / "keywords.yaml"
 DIPLOMATS_PATH = ROOT / "pipeline" / "diplomats.yaml"
+# Personas and false fronts named in published investigations of planted contributions
+# (pipeline.planted). A missing file loads as an empty list, never as an error.
+PERSONAS_PATH = ROOT / "sources" / "personas.yaml"
 EXPORT_DIR = ROOT / "docs" / "data"
 
 PROJECT_NAME = "ChinaStateMediaTracker"
@@ -94,6 +97,10 @@ EXPORT_DIR_AUDIT = ROOT / "data" / "export"
 # Paywall threshold above which a country is flagged as not comparable
 PAYWALL_FLAG_SHARE = 0.33
 
+# Window of the recurring bylines diagnostic (pipeline.planted.recurring_bylines): authors with
+# China-relevant articles in several unrelated outlets and countries over this many days.
+PLANTED_RECURRING_DAYS = 30
+
 # Fraction of a country's feeds that may fail before the country gets a warning marker
 FEED_FAILURE_WARNING_SHARE = 0.5
 
@@ -144,4 +151,4 @@ RULESET_VERSION = "2026.09.9"
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
 GATE_VERSION = "2026.09.7"
-SCHEMA_VERSION = 8   # 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+SCHEMA_VERSION = 9   # 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

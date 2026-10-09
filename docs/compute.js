@@ -559,6 +559,54 @@
     return (r && r.plain_name) || id;
   }
 
+  /* Planted bylines: pure helpers for the section built from data/planted.json. A flag means the
+     byline, or an organisation the article cites, matches a persona or front named in a published
+     investigation. It never means the byline is proven fictitious, and absence of a match proves
+     nothing, so nothing here feeds a category count. */
+  var PLANTED_DETECTOR_LABELS = {
+    author_field: "byline in the author field",
+    byline_head: "byline at the top of the text",
+    front_cited: "names a front organisation"
+  };
+  function plantedDetectorLabel(detector) {
+    var d = String(detector || "");
+    return PLANTED_DETECTOR_LABELS[d] || d.replace(/_/g, " ");
+  }
+  /* Counts for the section: how many flags, personas, fronts and investigations the file holds,
+     and the flags by country as a list sorted by count then ISO code. The file's own by_country
+     tally is preferred, since the flags list is capped; when it is absent the flags are counted. */
+  function plantedSummarise(json) {
+    var j = json && typeof json === "object" ? json : {};
+    var flags = Array.isArray(j.flags) ? j.flags : [];
+    var tally = {};
+    var fromFile = j.by_country && typeof j.by_country === "object" && !Array.isArray(j.by_country) && Object.keys(j.by_country).length > 0;
+    if (fromFile) {
+      Object.keys(j.by_country).forEach(function (iso) { var n = Number(j.by_country[iso]); if (n > 0) tally[iso] = n; });
+    } else {
+      flags.forEach(function (f) { var iso = (f && f.country) || "unknown"; tally[iso] = (tally[iso] || 0) + 1; });
+    }
+    var byCountry = Object.keys(tally).map(function (iso) { return {iso: iso, n: tally[iso]}; });
+    byCountry.sort(function (a, b) { return b.n - a.n || (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0); });
+    var total = fromFile ? byCountry.reduce(function (acc, r) { return acc + r.n; }, 0) : flags.length;
+    return {
+      flags: total,
+      personas: Array.isArray(j.personas) ? j.personas.length : 0,
+      fronts: Array.isArray(j.fronts) ? j.fronts.length : 0,
+      operations: Array.isArray(j.operations) ? j.operations.length : 0,
+      by_country: byCountry,
+      list_version: j.list_version || null
+    };
+  }
+  function plantedPlural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  /* The sentence shown when no flag exists, including when the file has not been exported yet. */
+  function plantedEmptyState(json) {
+    var s = plantedSummarise(json);
+    return "No byline in the monitored outlets has matched a listed persona since monitoring began. The list holds " +
+      plantedPlural(s.personas, "persona", "personas") + " and " + plantedPlural(s.fronts, "front", "fronts") + " from " +
+      plantedPlural(s.operations, "investigation", "investigations") + ".";
+  }
+  var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
+
   return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
@@ -567,5 +615,5 @@
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName};
+          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, planted: planted};
 }));

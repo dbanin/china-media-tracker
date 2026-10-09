@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=74">
+<link rel="stylesheet" href="style.css?v=75">
 </head>
 <body>
 <header class="top">
@@ -15,7 +15,7 @@
   <h1>Chinese state media, <em>traced</em> through the world's newsrooms.</h1>
   <p class="sub">Counting, country by country and day by day, how often Chinese state text runs in the world's newspapers.</p>
   <nav class="top-nav" aria-label="Sections">
-    <a href="#map-card">Map</a><a href="#overview">What we found</a><a href="#start-here">Start here</a><a href="#examples">Examples</a>
+    <a href="#map-card">Map</a><a href="#overview">What we found</a><a href="#start-here">Start here</a><a href="#examples">Examples</a><a href="#planted">Planted bylines</a>
     <a href="#themes">Themes</a><a href="#leaning">Who publishes it</a><a href="#faq">Questions</a><a href="#method">Methodology</a>
   </nav>
 </header>
@@ -153,6 +153,18 @@
   <div id="examples-list" class="ex-list"></div>
 </section>
 
+<section id="planted" class="sec card-sec" aria-labelledby="planted-title">
+    <div class="th-kicker">Invented journalists and false fronts</div>
+    <h2 id="planted-title">Planted bylines</h2>
+    <p class="th-sub" id="planted-intro"></p>
+    <div id="planted-body"></div>
+    <details id="planted-recurring" class="pl-recurring">
+      <summary>Bylines that recur across outlets (diagnostic)</summary>
+      <p class="pl-caveat" id="planted-recurring-caveat">This table is for human review and is never a finding: a name that writes for several outlets in several countries may be a syndicated columnist, a correspondent or a common name, and wire reporters appear here when outlets print their names. Distinct pieces counts different headlines: the same piece printed by several outlets points to syndication, while a byline with as many pieces as articles is the pattern an invented journalist leaves.</p>
+      <div id="planted-recurring-body"></div>
+    </details>
+</section>
+
 <section id="themes" class="sec card-sec" aria-labelledby="themes-title">
     <div class="th-kicker">Theme counter</div>
     <h2 id="themes-title">What the coverage is about</h2>
@@ -280,7 +292,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=74"></script>
-<script src="app.js?v=74"></script>
+<script src="compute.js?v=75"></script>
+<script src="app.js?v=75"></script>
 </body>
 </html>

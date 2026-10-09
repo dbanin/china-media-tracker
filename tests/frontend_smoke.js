@@ -232,4 +232,35 @@ var contentRoutes = {wire_credit: {plain_name: "Wire credit"}, distribution_stam
 assert(C.contentRouteName(contentRoutes, "wire_credit") === "Wire credit", "route name lookup");
 assert(C.contentRouteName(contentRoutes, "unattributed") === "unattributed", "route name lookup falls back to the id when not named");
 assert(C.contentRouteName(null, "wire_credit") === "wire_credit", "route name lookup survives a missing routes object");
+/* Planted bylines: the helpers behind the section built from data/planted.json. */
+assert(C.planted.detectorLabel("author_field") === "byline in the author field", "planted: author_field in plain words");
+assert(C.planted.detectorLabel("byline_head") === "byline at the top of the text", "planted: byline_head in plain words");
+assert(C.planted.detectorLabel("front_cited") === "names a front organisation", "planted: front_cited in plain words");
+assert(C.planted.detectorLabel("some_new_detector") === "some new detector", "planted: an unknown detector still reads as words");
+var pEmpty = C.planted.summarise({});
+assert(pEmpty.flags === 0 && pEmpty.personas === 0 && pEmpty.fronts === 0 && pEmpty.operations === 0 && pEmpty.by_country.length === 0 && pEmpty.list_version === null, "planted: empty json summarises to zeros");
+assert(C.planted.summarise(null).flags === 0 && C.planted.summarise(undefined).by_country.length === 0, "planted: a missing file (null) summarises without throwing");
+assert(C.planted.emptyState({}) === "No byline in the monitored outlets has matched a listed persona since monitoring began. The list holds 0 personas and 0 fronts from 0 investigations.", "planted: empty state sentence with zeros");
+var pOne = {list_version: "2026.10.1",
+  operations: [{id: "openai_bogus_bylines_2026", name: "Bogus Bylines", flags: 1}],
+  personas: [{id: "ervin_b_hoskins", name: "Ervin B. Hoskins", operation: "openai_bogus_bylines_2026", flags: 1}],
+  fronts: [{id: "social_research_center", name: "Social Research Center", operation: "openai_dark_clark_2026", flags: 0}],
+  flags: [{article_id: 1, country: "USA", detector: "author_field", persona_id: "ervin_b_hoskins", operation_id: "openai_bogus_bylines_2026", published_at: "2026-10-01T08:00:00Z"}]};
+var pOneSum = C.planted.summarise(pOne);
+assert(pOneSum.flags === 1 && pOneSum.personas === 1 && pOneSum.fronts === 1 && pOneSum.operations === 1 && pOneSum.list_version === "2026.10.1", "planted: one flag counted");
+assert(pOneSum.by_country.length === 1 && pOneSum.by_country[0].iso === "USA" && pOneSum.by_country[0].n === 1, "planted: by_country derived from the flags when the file has no tally");
+assert(C.planted.emptyState(pOne) === "No byline in the monitored outlets has matched a listed persona since monitoring began. The list holds 1 persona and 1 front from 1 investigation.", "planted: empty state sentence in the singular");
+var pMany = {list_version: "2026.10.2",
+  operations: [{id: "op_a", name: "A"}, {id: "op_b", name: "B"}],
+  personas: [{id: "p1"}, {id: "p2"}, {id: "p3"}, {id: "p4"}, {id: "p5"}, {id: "p6"}, {id: "p7"}],
+  fronts: [{id: "f1"}, {id: "f2"}],
+  flags: [{country: "ITA", detector: "front_cited", front_id: "f1", operation_id: "op_b"}, {country: "USA", detector: "author_field", persona_id: "p1", operation_id: "op_a"},
+          {country: "USA", detector: "byline_head", persona_id: "p2", operation_id: "op_a"}, {country: "BRA", detector: "author_field", persona_id: "p3", operation_id: "op_a"}],
+  by_country: {USA: 2, ITA: 1, BRA: 1}};
+var pManySum = C.planted.summarise(pMany);
+assert(pManySum.flags === 4 && pManySum.personas === 7 && pManySum.fronts === 2 && pManySum.operations === 2, "planted: several flags counted");
+assert(pManySum.by_country.map(function (r) { return r.iso + ":" + r.n; }).join(",") === "USA:2,BRA:1,ITA:1", "planted: by_country sorted by count, then by code: " + JSON.stringify(pManySum.by_country));
+var pCapped = C.planted.summarise({flags: [{country: "USA"}], by_country: {USA: 3, ITA: 2}});
+assert(pCapped.flags === 5 && pCapped.by_country[0].iso === "USA" && pCapped.by_country[0].n === 3, "planted: the file's own tally wins over a capped flags list");
+assert(C.planted.emptyState(pMany) === "No byline in the monitored outlets has matched a listed persona since monitoring began. The list holds 7 personas and 2 fronts from 2 investigations.", "planted: empty state sentence with several of each");
 console.log("frontend smoke ok");

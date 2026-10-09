@@ -578,3 +578,31 @@ section.sec.faq, section.sec.method { max-width: var(--page); padding-left: var(
 .tr-links a { font-size: 0.78rem; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 3px 10px; color: var(--bone-soft); transition: border-color 180ms ease, color 180ms ease; }
 .tr-links a:hover { border-color: var(--gold); color: var(--gold); }
 .ex-lede { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
+/* Planted bylines: an intro, a flags table, a one-line count by country, and a closed diagnostic.
+   Tables scroll inside their own wrapper, so the card never widens the page on a phone. */
+#planted .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
+#planted .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s3); }
+.pl-empty { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
+.pl-line { color: var(--ash); font-size: 0.9rem; max-width: 70ch; margin: 0 0 var(--s2); }
+.pl-table-wrap { overflow-x: auto; max-width: 100%; margin: 0 0 var(--s2); -webkit-overflow-scrolling: touch; }
+.pl-table { width: 100%; min-width: 44rem; border-collapse: collapse; font-size: 0.9rem; }
+.pl-table th { color: var(--ash); font-weight: 400; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+.pl-table td { padding: 10px 8px; border-bottom: 1px solid var(--rule); color: var(--bone-soft); vertical-align: top; }
+.pl-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pl-table .pl-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pl-table .pl-outlet { color: var(--bone); }
+.pl-table .pl-title { display: block; font-size: 0.82rem; color: var(--ash); max-width: 26rem; margin-top: 2px; }
+.pl-table .pl-detector { color: var(--ash); }
+.pl-table .pl-titles span { display: block; font-size: 0.84rem; color: var(--ash); max-width: 26rem; }
+.pl-table .pl-titles span + span { margin-top: 4px; }
+.pl-toggle { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; font-size: 0.86rem; margin: 0 0 var(--s2); }
+.pl-recurring { margin-top: var(--s3); border-top: 1px solid var(--rule); padding-top: var(--s2); }
+.pl-recurring summary { cursor: pointer; list-style: none; font-family: var(--display); font-size: 1.2rem; color: var(--bone); }
+.pl-recurring summary::-webkit-details-marker { display: none; }
+.pl-recurring summary::before { content: "+"; color: var(--gold); margin-right: 0.5rem; }
+.pl-recurring[open] summary::before { content: "\2212"; }
+.pl-caveat { color: var(--ash); font-size: 0.9rem; max-width: 70ch; margin: var(--s1) 0 var(--s2); }
+@media (max-width: 700px) {
+  .pl-table { font-size: 0.84rem; min-width: 40rem; }
+  .pl-table th, .pl-table td { padding: 8px 4px; }
+}

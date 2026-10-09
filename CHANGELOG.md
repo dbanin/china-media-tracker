@@ -4,6 +4,28 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Planted bylines: matches against personas named in published investigations (2026-10-08)
+
+A new side channel, pipeline/planted.py, reads sources/personas.yaml (personas and false front
+organisations named in published investigations of planted contributions, each entry cited to a
+public report) and flags articles whose author field equals a listed name, whose body opens with a
+byline naming one, or whose title or body cites a listed front or one of its domains. Names are
+compared after normalisation (casefold, diacritics stripped, punctuation dropped, middle initials
+optional) and a single word never matches. The author field is checked on every discovered item,
+including those the relevance gate rejected, because a planted byline need not be about China; a
+flagged item is exempt from the gated out pruning so the row stays readable. Flags live in a new
+planted_flags table, are never deleted, and are written at the end of the discover and fetch
+stages and before the export; a failure there is recorded in the stage's counts and never stops
+a run. The export writes docs/data/planted.json (operations, personas, fronts, flags newest
+first and capped at 500, counts by country and outlet, and a diagnostic of bylines that recur
+across at least three outlets and two countries in 30 days, with generic bylines, outlet and wire
+names and pure wire copy left out) and meta.json gains a planted block. A flag means the byline
+matches a persona named in a published investigation, cited there; the tracker cannot prove a
+byline is fictitious, the recurring table is for human review, and absence of a match proves
+nothing. No category, count or ruleset change: no flagged article is folded into state origin,
+unchecked state sourcing or independent journalism, and no published figure moves. Schema
+version 9 for the new file and meta block only.
+
 ## Model stage: budget sized for the API to judge every waiting article (2026-10-08)
 
 The default monthly budget (TRACKER_LLM_MONTHLY_BUDGET_USD) rises from 30 to 110 dollars and the

@@ -6,12 +6,12 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "74";
+  var ASSET_VERSION = "75";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
-    content: null, examples: null,
+    content: null, examples: null, planted: null, plantedShowAll: false,
     articlesCache: {}, scaleCache: {}, loadFailures: [], mapped: null
   };
 
@@ -51,7 +51,8 @@
       soft("vendor/iso3166.json", []),
       soft("country-names.json", {names: {}}),
       quiet("content.json?v=" + ASSET_VERSION, null),
-      quiet("data/examples.json", null)
+      quiet("data/examples.json", null),
+      quiet("data/planted.json", null)
     ]).then(function (res) {
       state.meta = res[0]; state.latest = res[1] || {countries: {}, totals: {}};
       state.series = res[2] || []; state.outlets = (res[3] && res[3].outlets) || [];
@@ -62,6 +63,7 @@
       Object.keys(common).forEach(function (iso) { state.names[iso] = common[iso]; });
       state.content = res[7] || null;
       state.examples = res[8] || null;
+      state.planted = res[9] || null;
       var monthsWanted = {};
       state.series.forEach(function (d) { monthsWanted[d.date.slice(0, 7)] = true; });
       return Promise.all(Object.keys(monthsWanted).map(function (m) {
@@ -535,6 +537,77 @@
       div.appendChild(q);
       list.appendChild(div);
     });
+  }
+
+  /* Planted bylines, from data/planted.json. A flag says only that a byline or a cited organisation
+     matches a persona or front named in a published investigation; the paragraph says what it does
+     not mean. The file is written by the export, so before the first export, and whenever it is
+     missing, the section shows the empty state rather than an error, and the section is never
+     hidden: a reader should see that the check runs and has found nothing. */
+  var PLANTED_ROWS = 20;
+  function plantedDate(f) { return String((f && (f.published_at || f.discovered_at)) || "").slice(0, 10); }
+  function plantedSortKey(f) { return String((f && (f.published_at || f.discovered_at)) || ""); }
+  function renderPlanted() {
+    var sec = el("planted"), intro = el("planted-intro"), body = el("planted-body"), rec = el("planted-recurring-body");
+    if (!sec || !intro || !body || !rec) return;
+    var j = state.planted && typeof state.planted === "object" ? state.planted : {};
+    var sum = C.planted.summarise(j);
+    var byId = function (list) { var m = {}; (list || []).forEach(function (x) { if (x && x.id) m[x.id] = x; }); return m; };
+    var ops = byId(j.operations), personas = byId(j.personas), fronts = byId(j.fronts);
+    intro.textContent = "A flag here means that an article's byline, or an organisation it cites, matches a persona or false front named in a published investigation, linked in the table's last column. " +
+      "It does not mean the byline is fictitious: the tracker cannot prove that, and the absence of a match proves nothing. " +
+      "Flagged articles are listed here only and are never counted as state origin, unchecked state sourcing or independent journalism. " +
+      "The list holds " + plural(sum.personas, "persona") + " and " + plural(sum.fronts, "front") + " from " + plural(sum.operations, "investigation") +
+      (sum.list_version ? ", list version " + sum.list_version : "") + ".";
+
+    var flags = (Array.isArray(j.flags) ? j.flags : []).filter(function (f) { return f && typeof f === "object"; });
+    flags = flags.slice().sort(function (a, b) { var ka = plantedSortKey(a), kb = plantedSortKey(b); return ka < kb ? 1 : ka > kb ? -1 : 0; });
+    if (!flags.length) {
+      body.innerHTML = '<p class="pl-empty">' + esc(C.planted.emptyState(j)) + '</p>';
+    } else {
+      var shown = state.plantedShowAll ? flags : flags.slice(0, PLANTED_ROWS);
+      var rows = shown.map(function (f) {
+        var who = f.persona_id && personas[f.persona_id] ? personas[f.persona_id].name : (f.front_id && fronts[f.front_id] ? fronts[f.front_id].name : (f.evidence || f.persona_id || f.front_id || ""));
+        var op = f.operation_id && ops[f.operation_id] ? ops[f.operation_id] : null;
+        var opName = op ? op.name : (f.operation_id || "");
+        var opUrl = op ? safeUrl(op.report_url) : "";
+        var href = safeUrl(f.url);
+        var title = escText(f.title || "");
+        return '<tr><td class="pl-date">' + esc(plantedDate(f)) + '</td>' +
+          '<td class="pl-outlet">' + escText(f.outlet || f.outlet_id || "") + (title ? '<span class="pl-title">' + (href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</span>' : '') + '</td>' +
+          '<td>' + esc(countryName(f.country || "")) + '</td>' +
+          '<td>' + escText(who) + '</td>' +
+          '<td class="pl-detector">' + esc(C.planted.detectorLabel(f.detector)) + '</td>' +
+          '<td>' + (opUrl ? '<a href="' + esc(opUrl) + '" target="_blank" rel="noopener">' + esc(opName) + '</a>' : esc(opName)) + '</td></tr>';
+      }).join("");
+      var line = sum.by_country.map(function (r) { return esc(countryName(r.iso)) + " " + r.n; }).join(", ");
+      body.innerHTML = '<p class="pl-line">' + plural(sum.flags, "flagged article") + ' by country: ' + line + '.</p>' +
+        '<div class="pl-table-wrap"><table class="pl-table"><thead><tr><th scope="col">Date</th><th scope="col">Outlet</th><th scope="col">Country</th><th scope="col">Byline or front</th><th scope="col">Detector</th><th scope="col">Investigation</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        (flags.length > PLANTED_ROWS ? '<p class="pl-toggle"><button type="button" id="planted-toggle">' + (state.plantedShowAll ? 'Show the newest ' + PLANTED_ROWS : 'Show all ' + flags.length) + '</button>' +
+          (state.plantedShowAll ? '' : ' <span class="muted">Newest ' + Math.min(PLANTED_ROWS, flags.length) + ' of ' + flags.length + '.</span>') + '</p>' : '');
+      var toggle = el("planted-toggle");
+      if (toggle) toggle.addEventListener("click", function () { state.plantedShowAll = !state.plantedShowAll; renderPlanted(); });
+    }
+
+    var recur = j.recurring_bylines && typeof j.recurring_bylines === "object" ? j.recurring_bylines : {};
+    var rrows = (Array.isArray(recur.rows) ? recur.rows : []).filter(function (r) { return r && typeof r === "object"; });
+    var windowDays = Number(recur.window_days) > 0 ? Number(recur.window_days) : 30;
+    if (!rrows.length) {
+      rec.innerHTML = '<p class="pl-empty">No byline with China-related articles in at least three outlets and two countries in the last ' + plural(windowDays, "day") + '.</p>';
+    } else {
+      rec.innerHTML = '<div class="pl-table-wrap"><table class="pl-table pl-recurring-table"><thead><tr><th scope="col">Byline</th><th scope="col" class="num">Outlets</th><th scope="col" class="num">Countries</th><th scope="col" class="num">Articles</th><th scope="col" class="num">Distinct pieces</th><th scope="col">Sample headlines</th><th scope="col">Chinese wire credit</th></tr></thead><tbody>' +
+        rrows.map(function (r) {
+          var outlets = Array.isArray(r.outlets) ? r.outlets : [], countries = Array.isArray(r.countries) ? r.countries : [], titles = Array.isArray(r.titles) ? r.titles : [];
+          return '<tr><td>' + escText(r.name || "") + '</td>' +
+            '<td class="num" title="' + esc(outlets.join(", ")) + '">' + outlets.length + '</td>' +
+            '<td class="num" title="' + esc(countries.map(function (c) { return countryName(c); }).join(", ")) + '">' + countries.length + '</td>' +
+            '<td class="num">' + (Number(r.n) || 0) + '</td>' +
+            '<td class="num">' + (r.pieces === null || r.pieces === undefined ? "n/a" : Number(r.pieces) || 0) + '</td>' +
+            '<td class="pl-titles">' + titles.slice(0, 3).map(function (t) { return '<span>' + escText(t) + '</span>'; }).join("") + '</td>' +
+            '<td>' + (r.wire_credit ? "yes" : "no") + '</td></tr>';
+        }).join("") + '</tbody></table></div>' +
+        '<p class="pl-line">Last ' + plural(windowDays, "day") + ', ' + plural(rrows.length, "byline") + ' in at least three outlets and two countries.</p>';
+    }
   }
 
   function renderFaq() {
@@ -1926,6 +1999,7 @@
       renderFindings();
       renderStartHere();
       renderExamples();
+      renderPlanted();
       renderFaq();
       renderCta();
       renderLoadFailures();

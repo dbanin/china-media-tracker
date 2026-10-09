@@ -279,6 +279,32 @@ CREATE TABLE IF NOT EXISTS relay_runs (
     finished_at TEXT,
     ok INTEGER
 );
+
+-- Articles whose byline, or whose cited organisation, matches a persona or false front named in a
+-- published investigation (sources/personas.yaml, read by pipeline.planted). A flag means the name
+-- matches a listed persona, cited there; it is never a finding, never a category and never changes
+-- a count. The one of persona_id and front_id that does not apply is stored as '' rather than NULL
+-- so that the UNIQUE constraint holds: SQLite treats two NULLs as distinct.
+CREATE TABLE IF NOT EXISTS planted_flags (
+    id INTEGER PRIMARY KEY,
+    article_id INTEGER NOT NULL,
+    detector TEXT NOT NULL,           -- author_field | byline_head | front_cited
+    persona_id TEXT,
+    front_id TEXT,
+    operation_id TEXT NOT NULL,
+    evidence TEXT,
+    flagged_at TEXT NOT NULL,
+    list_version TEXT NOT NULL,
+    UNIQUE(article_id, detector, persona_id, front_id)
+);
+CREATE INDEX IF NOT EXISTS idx_planted_article ON planted_flags(article_id);
+
+-- Where the planted scan got to: the last article id and fetch time it looked at and the persona
+-- list version it looked with, so a changed list triggers a full rescan.
+CREATE TABLE IF NOT EXISTS planted_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -363,6 +389,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
             priced = max(0, r["calls"] - outstanding.get(r["date"], 0))
             conn.execute("UPDATE llm_usage SET cost_usd=? WHERE date=?", (priced * config.LLM_MEASURED_COST_PER_CALL, r["date"]))
         conn.commit()
+    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "planted_flags" not in tables or "planted_state" not in tables:
+        # Databases opened without the schema script. Both statements are CREATE IF NOT EXISTS.
+        start = SCHEMA.index("CREATE TABLE IF NOT EXISTS planted_flags")
+        conn.executescript(SCHEMA[start:])
     if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
             conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
         # Seed from whatever rows survive. Days already pruned are undercounted and stay so.
@@ -705,9 +736,13 @@ def latest_model_agreement(conn: sqlite3.Connection) -> Optional[sqlite3.Row]:
 
 
 def prune_gated_out(conn: sqlite3.Connection, days: int = config.GATED_OUT_RETENTION_DAYS) -> int:
-    """Delete items the gate rejected more than `days` ago. Relevant items are never deleted."""
+    """Delete items the gate rejected more than `days` ago. Relevant items are never deleted, and
+    neither is a rejected item that carries a planted byline flag: the flag is about the byline,
+    not about China, and the row it points at has to stay readable."""
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).isoformat()
-    cur = conn.execute("DELETE FROM articles WHERE gate_relevant=0 AND status='gated_out' AND discovered_at<?", (cutoff,))
+    cur = conn.execute(
+        """DELETE FROM articles WHERE gate_relevant=0 AND status='gated_out' AND discovered_at<?
+           AND id NOT IN (SELECT article_id FROM planted_flags)""", (cutoff,))
     conn.commit()
     return cur.rowcount
 

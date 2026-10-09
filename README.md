@@ -173,6 +173,29 @@ keyword matches, not a reading of the article; about a quarter of articles
 match no theme, most often in languages with short term lists such as
 Bulgarian and Greek.
 
+## Planted bylines
+
+Below the examples, the site keeps a watchlist of fictitious journalist and
+expert personas, and of false front organisations and outlets, that published
+investigations have named as placing or pitching articles in real news outlets.
+The list is `sources/personas.yaml`; every entry cites the report that exposed
+it, and `version` must be bumped on any change, which makes the next run scan
+every stored item again. The matcher in `pipeline/planted.py` compares the
+author field of every discovered item (China gate or not) with the list after
+normalising names and deriving initial-less forms, and for items with a body
+also looks for a listed name after a byline word at the top of the text and
+for a listed front or its domains anywhere in the text. Matches are stored in
+`planted_flags`, exported to `docs/data/planted.json`, and shown in the
+Planted bylines section with the detector, the investigation and a link to its
+report. A flag says only that the byline matches an exposed persona; the
+tracker cannot prove a byline is fictitious, absence of a match proves
+nothing, and flags never enter the three categories or change a count. The
+same section carries a diagnostic, closed by default, of bylines that recur in
+three or more outlets and two or more countries within thirty days; it is for
+human review, and syndicated agency reporters appear there whenever outlets
+print their names. `python -m pipeline.planted scan --full` rescans
+everything; `python -m pipeline.planted recurring` prints the diagnostic.
+
 ## Changing the ruleset
 
 Edit `pipeline/signatures.yaml`, add fixtures for every new pattern, bump

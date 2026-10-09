@@ -21,11 +21,23 @@ def _run_id() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
 
 
+def _planted_scan(conn, counts):
+    """Flag new rows against the persona list (pipeline.planted) after a stage that added rows or
+    bodies. A failure is recorded in the stage's counts and never stops the run."""
+    try:
+        from pipeline import planted
+        counts["planted"] = planted.scan_quietly(conn)
+    except Exception as exc:  # noqa: BLE001  the detector is a side channel, never a reason to stop
+        counts["planted"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
+        print("planted scan failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+
+
 def cmd_discover(conn, run_id, args, deadline):
     from pipeline import fetch_feeds
     pruned = store.prune_gated_out(conn)
     counts = fetch_feeds.run(conn, run_id, deadline=deadline)
     counts["pruned_gated_out"] = pruned
+    _planted_scan(conn, counts)
     print("discover:", json.dumps(counts))
     return counts
 
@@ -33,6 +45,7 @@ def cmd_discover(conn, run_id, args, deadline):
 def cmd_fetch(conn, run_id, args, deadline):
     from pipeline import fetch_articles
     counts = fetch_articles.run(conn, run_id, deadline=deadline, limit=args.limit)
+    _planted_scan(conn, counts)
     print("fetch:", json.dumps(counts))
     return counts
 
