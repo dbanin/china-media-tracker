@@ -1,0 +1,426 @@
+# Personas and false fronts named in published investigations as having placed or pitched
+# articles in real news outlets. Every entry carries the public report URL that names it.
+# A match in the tracker means only that a byline or cited organisation matches a name on
+# this list. The tracker cannot prove a byline is fictitious. Nothing here comes from memory.
+# Bump version on every change; the pipeline rescans everything when it changes.
+version: "2026.10.1"
+
+operations:
+  - id: openai_bogus_bylines_2026
+    name: Bogus Bylines
+    origin: IR
+    reported_by: OpenAI
+    report_url: https://openai.com/index/disrupting-ai-enabled-false-front-operations/
+    reported_on: "2026-10-08"
+    summary: >-
+      Iran-origin operation that used seven invented journalist bylines to pitch long-form
+      articles about the US-Iran conflict to small and medium online outlets. OpenAI identified
+      almost 100 articles published or syndicated under the bylines across roughly a dozen
+      outlets between July 2025 and October 2026 and assessed the activity as consistent with a
+      for-hire commercial actor. NPR, citing NBC News, reported that Middle East Monitor
+      published at least 21 articles by four of the personas and that one persona posted in the
+      Daily Kos community section. The outlets were deceived and are not fronts.
+
+  - id: openai_dark_clark_2026
+    name: Dark Clark
+    origin: RU
+    reported_by: OpenAI
+    report_url: https://openai.com/index/disrupting-ai-enabled-false-front-operations/
+    reported_on: "2026-10-08"
+    summary: >-
+      Russia-origin operation targeting Latin America that controlled a self-styled research
+      platform, the Social Research Center, through a fake persona named Mia Clark, and
+      claimed to have planted fake stories in Peruvian, Polish, Ecuadorian and Bolivian media.
+      OpenAI assessed it at Category 5 on the IO Breakout Scale and tied parts of it to reporting
+      on the Russian entity known as Politology or La Compania.
+
+  - id: openai_precedent_alice_donovan_2017
+    name: Alice Donovan (precedent)
+    origin: RU
+    reported_by: OpenAI
+    report_url: https://openai.com/index/disrupting-ai-enabled-false-front-operations/
+    reported_on: "2026-10-08"
+    summary: >-
+      Precedent named in the OpenAI report of 8 October 2026: the fake journalist Alice Donovan,
+      a front for Russian military intelligence whose articles were published by a range of
+      Western outlets in 2016 and 2017. The persona ceased activity after exposure.
+
+  - id: peacedata_2020
+    name: PeaceData
+    origin: RU
+    reported_by: NBC News, citing Facebook and Graphika
+    report_url: https://nbcnews.com/tech/tech-news/russian-internet-trolls-hired-u-s-journalists-push-their-news-n1239000
+    reported_on: "2020-09-01"
+    summary: >-
+      Fake news outlet Peace Data, run by people formerly associated with the Russian Internet
+      Research Agency according to Facebook, which recruited unwitting freelance writers through
+      fictional editor personas. Also named as a precedent in the OpenAI report of 8 October 2026.
+
+  - id: daily_beast_iran_arabic_bylines_2021
+    name: Iran-linked Arabic bylines
+    origin: IR
+    reported_by: The Daily Beast
+    report_url: https://www.thedailybeast.com/pro-iran-trolls-planted-dozens-of-bogus-stories-on-legit-news-sites/
+    reported_on: "2021-01-12"
+    summary: >-
+      The Daily Beast reported that three fictitious journalists published articles in dozens of
+      periodicals and news websites since May 2019, and that Facebook attributed the amplification
+      to trolls based in Iran using fake accounts. Meta's December 2020 Coordinated Inauthentic
+      Behavior report (https://about.fb.com/news/2021/01/december-2020-coordinated-inauthentic-behavior-report/)
+      lists a small Iran network found after reviewing information from FireEye and The Daily
+      Beast and notes networks that targeted traditional media to place stories under fictitious bylines.
+
+  - id: mandiant_haienergy_2022
+    name: HaiEnergy
+    origin: CN
+    reported_by: Mandiant
+    report_url: https://cloud.google.com/blog/topics/threat-intelligence/pro-prc-information-operations-campaign-haienergy
+    reported_on: "2022-08-04"
+    summary: >-
+      Pro-PRC information operation using at least 72 suspected inauthentic news sites, which
+      Mandiant linked by technical indicators to Shanghai Haixun Technology Co., Ltd, a Chinese
+      public relations firm. Mandiant did not establish the extent of Haixun's knowledge of the
+      campaign and did not attribute it directly to the PRC government.
+
+  - id: mandiant_haienergy_2023
+    name: HaiEnergy newswires and US news subdomains
+    origin: CN
+    reported_by: Mandiant
+    report_url: https://cloud.google.com/blog/topics/threat-intelligence/pro-prc-haienergy-us-news
+    reported_on: "2023-07-24"
+    summary: >-
+      Follow-up report finding HaiEnergy content distributed through two self-described press
+      release services, Times Newswire and World Newswire, and placed on at least 32 subdomains
+      of legitimate US news outlets that resolved to infrastructure of FinancialContent, Inc.
+      Mandiant saw no evidence that the affected outlets were compromised and did not establish
+      a technical connection between Haixun and the newswires.
+
+  - id: citizenlab_paperwall_2024
+    name: Paperwall
+    origin: CN
+    reported_by: Citizen Lab
+    report_url: https://citizenlab.ca/2024/02/paperwall-chinese-websites-posing-as-local-news-outlets-with-pro-beijing-content/
+    reported_on: "2024-02-07"
+    summary: >-
+      Network of at least 123 websites in 30 countries posing as local news outlets and mixing
+      pro-Beijing content and attacks on critics into commercial press releases. Citizen Lab
+      attributed the network to Shenzhen Haimaiyunxiang Media Co., Ltd., known as Haimai, on the
+      basis of infrastructure links, and published the full list of 123 domains.
+
+  - id: google_glassbridge_2024
+    name: GlassBridge
+    origin: CN
+    reported_by: Google Threat Intelligence Group
+    report_url: https://cloud.google.com/blog/topics/threat-intelligence/glassbridge-pro-prc-influence-operations/
+    reported_on: "2024-11-22"
+    summary: >-
+      Google described four China-based public relations and marketing firms, Shanghai Haixun
+      Technology, Shenzhen Haimai Yunxiang Media, DURINBRIDGE and Shenzhen Bowen Media, running
+      inauthentic news sites and newswire services that spread pro-PRC content. Google blocked
+      more than a thousand of their sites from Google News and Discover since 2022 and assessed
+      that the firms may take direction from a shared customer it could not identify.
+
+  - id: meta_wilson_edwards_2021
+    name: The Swiss biologist that never was
+    origin: CN
+    reported_by: Meta
+    report_url: https://about.fb.com/wp-content/uploads/2021/12/November-2021-CIB-Report-UPDATED-stats.pdf
+    reported_on: "2021-12-01"
+    summary: >-
+      A fake persona called Wilson Edwards, claiming to be a Swiss biologist, posted on 24 July
+      2021 that the United States was pressuring WHO scientists over COVID-19 origins. Within a
+      week Chinese state media including the Global Times and People's Daily ran headlines on the
+      claim; the Swiss embassy in Beijing said no such citizen existed. Meta linked the operation
+      to individuals in mainland China including employees of Sichuan Silence Information
+      Technology Co, Ltd and to employees of Chinese state infrastructure companies abroad.
+
+personas:
+  - id: ervin_b_hoskins
+    name: Ervin B. Hoskins
+    variants: ["Ervin Hoskins"]
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: American freelance writer
+    note: >-
+      Named in the Bogus Bylines section; bio claimed "an American freelance writer" while
+      social media transparency settings located the accounts in Iran.
+  - id: noah_lamington
+    name: Noah Lamington
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Journalist based in New Zealand
+    note: Named in the Bogus Bylines section; the persona's bio claimed to be in New Zealand.
+  - id: sophia_gonzalez
+    name: Sophia Gonzalez
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Western journalist
+    note: >-
+      Named in the Bogus Bylines section. Meta's H1 2026 Iran indicator file lists the X handle
+      SophiaGnzlz but gives no byline name (https://github.com/facebook/threat-research/blob/main/indicators/meta-h1-2026-iran-based-cib-network-1.md).
+  - id: michael_harrison
+    name: Michael Harrison
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Western journalist
+    note: >-
+      Named in the Bogus Bylines section; OpenAI says the operators asked the model to write
+      this persona's bio and that it was backstopped on Medium, X and Facebook.
+  - id: ericka_feusier
+    name: Ericka Feusier
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Western journalist
+    note: Named in the Bogus Bylines section; listed an X handle in published bios, suspended by August 2026.
+  - id: jenny_williams
+    name: Jenny Williams
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Western journalist
+    note: Named in the Bogus Bylines section; listed an X handle in published bios, suspended by August 2026.
+  - id: alice_johnson
+    name: Alice Johnson
+    operation: openai_bogus_bylines_2026
+    kind: journalist
+    claimed: Western journalist
+    note: >-
+      Named in the Bogus Bylines section. Meta's H1 2026 Iran indicator file lists the X handle
+      ImAliceJohnson but gives no byline name.
+  - id: mia_clark
+    name: Mia Clark
+    operation: openai_dark_clark_2026
+    kind: official
+    claimed: Social Research Center representative
+    note: >-
+      Fake persona created to run the Social Research Center's social media activity and engage
+      with staff on the ground in Latin America, per the Dark Clark section.
+  - id: alice_donovan
+    name: Alice Donovan
+    operation: openai_precedent_alice_donovan_2017
+    kind: journalist
+    claimed: Journalist
+    note: Named in the OpenAI report introduction as a precedent from 2016 and 2017.
+  - id: alex_lacusta
+    name: Alex Lacusta
+    operation: peacedata_2020
+    kind: journalist
+    claimed: Peace Data editor
+    note: Fictional editor persona of Peace Data named in the NBC News report.
+  - id: shadia_ben_yousef
+    name: Shadia Ben Yousef
+    operation: daily_beast_iran_arabic_bylines_2021
+    kind: journalist
+    claimed: Journalist
+    note: One of three fictitious journalists named by The Daily Beast.
+  - id: rumaisa_hanaoui
+    name: Rumaisa Hanaoui
+    operation: daily_beast_iran_arabic_bylines_2021
+    kind: journalist
+    claimed: Journalist
+    note: One of three fictitious journalists named by The Daily Beast.
+  - id: ahlam_al_shumayli
+    name: Ahlam al-Shumayli
+    variants: ["Ahlam al Shumayli", "Ahlam Al-Shumayli"]
+    operation: daily_beast_iran_arabic_bylines_2021
+    kind: journalist
+    claimed: Journalist
+    note: One of three fictitious journalists named by The Daily Beast.
+  - id: wilson_edwards
+    name: Wilson Edwards
+    operation: meta_wilson_edwards_2021
+    kind: expert
+    claimed: Swiss biologist
+    note: >-
+      Named in the Meta November 2021 CIB report section "The Swiss biologist that never was";
+      his claims were carried by Chinese state media as if made by a real scientist.
+fronts:
+  - id: social_research_center
+    name: Social Research Center
+    variants: ["Центр социологических исследований"]
+    operation: openai_dark_clark_2026
+    kind: think_tank
+    note: >-
+      Self-styled research platform in Latin America focused on the Indian diaspora and
+      India-region relations, controlled by Russian operators per the Dark Clark section.
+  - id: peacedata
+    name: PeaceData
+    variants: ["Peace Data"]
+    operation: peacedata_2020
+    kind: outlet
+    domains: ["peacedata.net"]
+    note: Domain shown in the NBC News report screenshot caption.
+  - id: shanghai_haixun_technology
+    name: Shanghai Haixun Technology
+    variants: ["Shanghai Haixun Technology Co., Ltd", "Haixun", "上海海讯社科技有限公司"]
+    operation: mandiant_haienergy_2022
+    kind: pr_firm
+    domains: ["haixunpr.org", "haipress.com", "02100.vip"]
+    note: >-
+      Chinese PR firm whose infrastructure hosted the HaiEnergy sites per Mandiant 2022; the 2023
+      Mandiant report names haixunpr.org, haipress.com and the 02100.vip server, and Google's
+      GlassBridge report says it removed more than 600 Haixun domains.
+  - id: haienergy_inauthentic_news_sites
+    name: HaiEnergy inauthentic news sites
+    operation: mandiant_haienergy_2022
+    kind: outlet
+    domains:
+      - 24usnews.com
+      - aisakorea.com
+      - allcitytimes.com
+      - annatimes.com
+      - austriaweekly.com
+      - caifutw.com
+      - charmdaily.com
+      - czechweekly.com
+      - directortimes.com
+      - dongadaily.com
+      - egyptdaily.org
+      - elecdaily.com
+      - espanadaily.com
+      - eutimes.fr
+      - exactlynews.com
+      - finlandweekly.com
+      - hanidaily.com
+      - hannapress.com
+      - hkdaily.net
+      - hotintaiwan.com
+      - hurriyetbusiness.com
+      - inspectnews.com
+      - jakartaglobe.org
+      - kreconomy.com
+      - krpopstar.com
+      - lehuatimes.com
+      - loritimes.com
+      - mechatimes.com
+      - moscowtv.vip
+      - nanyangdaily.com
+    note: >-
+      First 30 of the 72 sites (59 domains and 13 subdomains) listed in Table 2 of the Mandiant
+      HaiEnergy report of 4 August 2022.
+  - id: times_newswire
+    name: Times Newswire
+    operation: mandiant_haienergy_2023
+    kind: newswire
+    domains: ["timesnewswire.com"]
+    note: >-
+      Self-described press release service that distributed HaiEnergy content per Mandiant 2023.
+      Google's GlassBridge report assesses it is operated by Shenzhen Haimai Yunxiang Media.
+  - id: world_newswire
+    name: World Newswire
+    operation: mandiant_haienergy_2023
+    kind: newswire
+    domains: ["wdwire.com"]
+    note: Self-described press release service that distributed HaiEnergy content per Mandiant 2023.
+  - id: shenzhen_haimai_yunxiang_media
+    name: Shenzhen Haimai Yunxiang Media
+    variants: ["Shenzhen Haimaiyunxiang Media Co., Ltd.", "Shenzhen Haimai Yunxiang Media Co., Ltd.", "Haimai"]
+    operation: citizenlab_paperwall_2024
+    kind: pr_firm
+    note: >-
+      PR firm to which Citizen Lab attributed the Paperwall network through links between its
+      official website and the network's infrastructure. Also one of the four GlassBridge firms.
+  - id: paperwall_network
+    name: Paperwall network
+    operation: citizenlab_paperwall_2024
+    kind: outlet
+    domains:
+      - usa-aa.com
+      - doloreshoy.co
+      - splinsider.com
+      - garagumsowda.com
+      - laplatapost.com
+      - lujanexpresar.com
+      - wienbuzz.com
+      - boicpost.com
+      - brasilindustry.com
+      - brmingpao.com
+      - financeiropost.com
+      - goiasmine.com
+      - pauloexpressar.com
+      - pernambucostar.com
+      - rioninepage.com
+      - swisshubnews.com
+      - sanrafaelscoop.com
+      - martapost.com
+      - bohemiadaily.com
+      - frankfurtsta.com
+      - munichnp.com
+      - dkindustry.co
+      - lguazu.com
+      - andregaceta.com
+      - cordovapress.org
+      - sevillatimes.com
+      - tarragonapost.com
+      - guellherald.com
+      - suomiexpress.com
+      - frnewsfeed.com
+    note: >-
+      First 30 of the 123 confirmed domains in the appendix of the Citizen Lab Paperwall report.
+      Sites pose as local outlets such as Roma Journal, Eiffel Post, BritishFT and Seoul PR.
+  - id: durinbridge
+    name: DURINBRIDGE
+    variants: ["Durinbridge"]
+    operation: google_glassbridge_2024
+    kind: pr_firm
+    domains:
+      - dailydispatcher.com
+      - easterntribunal.com
+      - suratkhabar.com
+      - buzzingasia.com
+      - internasionalkini.com
+      - thinkbusinesstoday.com
+      - stargazersarchive.com
+      - starsgazette.com
+      - glamorousnews.com
+      - lifevoyageurs.com
+      - heartofmalaysia.com
+    note: >-
+      Alias Google uses for a technology and marketing company with multiple subsidiaries that
+      ran a network of over 200 websites; Google says it is not itself an IO actor and likely
+      published the content for a customer. Domains from the GlassBridge indicators table.
+  - id: shenzhen_bowen_media
+    name: Shenzhen Bowen Media
+    variants: ["Shenzhen Bowen Media Information Technology Co., Ltd.", "Shenzhen Bowen"]
+    operation: google_glassbridge_2024
+    kind: pr_firm
+    domains:
+      - pollandobserver.com
+      - japandigest.net
+      - melbournenews.org
+      - japanheadline.com
+      - voiceofthailand.com
+      - dailybangkokpost.com
+      - kolnerzeitschrift.de
+      - italiannotizie.com
+      - macaoposts.com
+      - dailysydney.net
+      - bitcoinnewstokyo.com
+    note: Network of over 100 domains per Google; domains from the GlassBridge indicators table.
+  - id: haixun_glassbridge_sites
+    name: Haixun GlassBridge sites
+    operation: google_glassbridge_2024
+    kind: outlet
+    domains:
+      - eutimes.fr
+      - hurriyetbusiness.com
+      - saudiweekly.com
+      - newzealandgazette.com
+      - macaomorning.com
+      - technologykr.com
+      - thaicitynews.com
+      - taiwanweekly.com
+      - malaysiaunion.com
+      - bitcherrynet.cn
+      - qichetimes.com
+      - digitaljapan.info
+      - baobeimama.com.cn
+      - moderntimes.com.cn
+      - jakartapost.org
+      - uscitynews.com
+      - russiabbs.com
+      - turkishdaily.org
+      - dertagesspiegel.com
+      - spaintour.club
+    note: >-
+      Shanghai Haixun Technology domains from the GlassBridge indicators table; three overlap
+      with the Mandiant 2022 list.

@@ -182,6 +182,10 @@ rather than by the country alone.
 
 {relay_text}
 
+## Planted bylines
+
+{planted_text}
+
 ## What the numbers mean
 
 The default measure is state origin only, because it is the one label decided
@@ -271,6 +275,34 @@ plus the site data under docs/data. One deliberate exception to the never-delete
 rule: items the relevance gate rejected are pruned after {retention} days, once
 they have served the gate audit. They carry no classification.
 """
+
+
+def planted_text(meta: Dict) -> str:
+    """The planted bylines section: what a flag is and is not, and the current count."""
+    p = meta.get("planted") or {}
+    head = ("Since 8 October 2026 the pipeline also keeps a watchlist of fictitious journalist and expert "
+            "personas, and of false front organisations and outlets, that published investigations have "
+            "named as having placed or pitched articles in real news outlets (sources/personas.yaml, "
+            "every entry citing its report). Every discovered item, including those the China gate "
+            "rejected, has its author field compared with the list after names are normalised and "
+            "initial-less forms are derived; items with a body are also checked for a listed name after a "
+            "byline word at the top of the text and for a listed front organisation or domain anywhere in "
+            "the text. A match is recorded as a flag with the detector, the persona or front, the "
+            "investigation and the matching span, and the item is kept past the usual retention window. "
+            "A flag means only that the byline or citation matches a name a published investigation has "
+            "exposed; the tracker cannot prove a byline is fictitious, and the absence of a match proves "
+            "nothing. Flags never enter the three categories and never change a count. The site also "
+            "shows, as a diagnostic for human review and not as a finding, bylines that recur in at "
+            "least three outlets and two countries within thirty days, after generic desk bylines, "
+            "outlet and wire names and wire copy carrying a reporter's name are excluded; syndicated "
+            "agency reporters still appear there whenever outlets print their names.")
+    if not p:
+        return head
+    tail = (" At export time the list held %d personas and %d fronts from %d investigations (list version %s), "
+            "and %d flags had been recorded in all, %d of them on articles discovered in the last thirty days."
+            % (p.get("personas", 0), p.get("fronts", 0), p.get("operations", 0), p.get("list_version") or "none",
+               p.get("flags_total", 0), p.get("flags_30d", 0)))
+    return head + tail
 
 
 def session_order_text(grace_days: int) -> str:
@@ -414,6 +446,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     text = TEMPLATE.format(
         session_labels_text=session_labels_text,
         session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
+        planted_text=planted_text(meta),
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
         cat_a=meta["categories"]["A"], cat_b=meta["categories"]["B"], cat_c=meta["categories"]["C"], cat_n=meta["categories"]["not_relevant"],
