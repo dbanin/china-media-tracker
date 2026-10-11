@@ -211,6 +211,20 @@ different phenomena. Near-duplicate titles within a country are linked as one
 underlying item; the interface shows both the number of placements and the
 number of underlying items.
 
+Global press release distribution services ({wire_outlets}) are not national
+newsrooms: their releases are written by their issuers and pushed to
+subscribers everywhere at once. They are polled and classified like any
+outlet, and they are counted as a stratum of their own, "Worldwide
+distribution", under the code WLD in the data files. The stratum appears in
+the ranked list, the country search and the CSV exports beside the countries,
+and nowhere on the map, because it has no territory to draw. It is never
+attributed to the United States, where the services are registered, and never
+added into any individual country's numbers: a release reaches audiences in
+every monitored country, and adding it to each would count it once per
+country. World totals include it. Its share of monitored output divides by
+everything the wires themselves published, and no per capita value exists for
+it. {wire_counts_text}
+
 The color scale is fixed for a measure and window across every date on the
 timeline: the darkest step starts at the 95th percentile of the values of all
 dates, not of the day shown, so a color means the same number on every date and
@@ -434,6 +448,16 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     if mix and not meta.get("reclassification_complete"):
         ruleset_mix_text += " (reclassification under %s in progress)" % meta["ruleset_version"]
 
+    dw = meta.get("distribution_wires") or {}
+    wire_outlets = ", ".join(dw.get("outlets") or []) or "none registered"
+    wc = dw.get("counts") or {}
+    if wc.get("articles"):
+        wire_counts_text = ("At export time the stratum held %d gated articles: %d state origin, %d unchecked state "
+                            "sourcing, %d independent journalism, %d not relevant and %d awaiting the verification judgement."
+                            % (wc["articles"], wc.get("A", 0), wc.get("B", 0), wc.get("C", 0), wc.get("not_relevant", 0), wc.get("pending", 0)))
+    else:
+        wire_counts_text = "At export time the stratum held no gated article."
+
     sl = meta.get("session_labels") or {}
     if sl.get("total"):
         session_labels_text = ("At export time %d current model labels had come in this way (%s)."
@@ -477,6 +501,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))
         if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the measure is labelled a share of monitored output rather than of the largest publications.",
         relay_min_hours=config.RELAY_DAY_MIN_HOURS,
+        wire_outlets=wire_outlets, wire_counts_text=wire_counts_text,
         kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, release_text=release_text,
         saturation_text=saturation_text, relay_collector_text=relay_collector_text, ruleset_mix_text=ruleset_mix_text,
     )

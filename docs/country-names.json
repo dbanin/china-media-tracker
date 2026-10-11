@@ -1,5 +1,5 @@
 {
- "_note": "Common English display names for ISO 3166 alpha-3 codes whose ISO short name is a formal or inverted form. Every other country uses its ISO name.",
+ "_note": "Common English display names for ISO 3166 alpha-3 codes whose ISO short name is a formal or inverted form. Every other country uses its ISO name. WLD is not a country: it is the World Bank's code for the world, used here for the worldwide distribution stratum (press release wires), which reaches every country and is drawn in none.",
  "names": {
   "ALA": "Åland Islands",
   "ATF": "French Southern Territories",
@@ -40,6 +40,7 @@
   "VGB": "British Virgin Islands",
   "VIR": "U.S. Virgin Islands",
   "VNM": "Vietnam",
-  "XKX": "Kosovo"
+  "XKX": "Kosovo",
+  "WLD": "Worldwide distribution"
  }
 }

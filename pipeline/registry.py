@@ -134,8 +134,14 @@ def feed_entries(outlet: Dict) -> List[Dict]:
 # by their issuers and pushed worldwide, so counting them against the country the service is
 # registered in says nothing about that country's media: 118 of the United States' 122 state origin
 # labels came from one such service, in several languages, none of them placed in a US newsroom.
-# They are still collected and still classified, but they are counted as their own stratum.
+# They are still collected and still classified, and they are counted as a stratum of their own,
+# "Worldwide distribution", under the pseudo country code WLD (the World Bank's code for the world):
+# a release reaches audiences in every country, so it is never attributed to the United States and
+# never added into any individual country's numbers, which would count it once per country.
+# The export groups every wire under WLD; sources/outlets.yaml keeps the registry country.
 DISTRIBUTION_WIRE = "distribution_wire"
+WORLDWIDE = "WLD"
+WORLDWIDE_NAME = "Worldwide distribution"
 
 
 def is_distribution_wire(outlet: Dict) -> bool:
@@ -147,9 +153,20 @@ def distribution_wire_ids(outlets: List[Dict]) -> set:
 
 
 def active_outlets(outlets: List[Dict]) -> List[Dict]:
-    """Active outlets that stand for a country. Distribution wires are excluded: they are counted
-    on their own, never inside a country's numerator or denominator."""
+    """Active outlets that stand for a country. Distribution wires are excluded: they form the
+    worldwide distribution stratum, never a country's numerator or denominator."""
     return [o for o in outlets if o.get("active") and not is_distribution_wire(o)]
+
+
+def active_wires(outlets: List[Dict]) -> List[Dict]:
+    """The active distribution wires: the outlets behind the worldwide distribution stratum."""
+    return [o for o in outlets if o.get("active") and is_distribution_wire(o)]
+
+
+def export_country(outlet: Dict) -> str:
+    """The country an outlet is counted under in the export: WLD for a distribution wire, the
+    registry country for everything else."""
+    return WORLDWIDE if is_distribution_wire(outlet) else outlet["country"]
 
 
 def active_including_wires(outlets: List[Dict]) -> List[Dict]:
@@ -232,9 +249,9 @@ def top_outlets(outlets):
     country carries a rank, otherwise every active outlet. Returns (ids_by_country, ranked_countries)."""
     by_country = {}
     for o in outlets:
-        if is_distribution_wire(o):
-            continue   # a release wire is no country's output, so it is in no country's denominator
-        by_country.setdefault(o["country"], []).append(o)
+        # A release wire is no country's output, so it is in no country's denominator. The wires
+        # together are the denominator of the worldwide distribution stratum.
+        by_country.setdefault(export_country(o), []).append(o)
     ids = {}
     ranked = []
     for country, os_ in by_country.items():

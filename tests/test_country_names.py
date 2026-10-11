@@ -13,7 +13,9 @@ def test_overrides_are_valid_codes():
     with open(config.ROOT / "docs" / "country-names.json", encoding="utf-8") as fh:
         names = json.load(fh)["names"]
     iso = _iso()
-    assert all(code in iso or code == "XKX" for code in names)
+    # XKX is Kosovo, which ISO 3166 has no code for; WLD is the World Bank's code for the world, the
+    # worldwide distribution stratum, which is listed beside the countries and is not one.
+    assert all(code in iso or code in ("XKX", "WLD") for code in names)
 
 
 def test_no_inverted_or_formal_names():

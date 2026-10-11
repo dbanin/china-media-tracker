@@ -253,6 +253,21 @@ capita is offered last as the least defensible denominator. Unchecked state sour
 is shown as not yet measured until the model stage has run, and withheld until
 an agreement study settles it.
 
+Press release distribution wires. PR Newswire and GlobeNewswire are
+registered as outlets with the tier `distribution_wire` and polled like any
+other, but a release pushed through them is not a placement in a national
+newsroom: the same wire terminal delivers it to subscribers in every country
+at once. The export counts them as a stratum of their own, "Worldwide
+distribution", under the pseudo country code WLD (the World Bank's code for
+the world) in latest.json, the daily files, outlets.json and
+articles/WLD.json. The stratum is listed in the ranked list and the country
+search beside the countries and is drawn nowhere on the map; it is never
+attributed to the United States and never added into any individual country's
+numbers, which would count one release once per country. World totals include
+it, and `meta.distribution_wires` carries the same figures under their old
+name. Earlier exports left these releases out of every total, which hid 179
+state origin items in one 30 day window.
+
 Methodology review, September 2026. The changes it prompted are listed in
 CHANGELOG.md under 2026-09-15: province terms and a state origin signature
 exemption in the relevance gate, community phrases for Singapore and Malaysia,
