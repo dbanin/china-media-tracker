@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "75";
+  var ASSET_VERSION = "76";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -541,73 +541,65 @@
 
   /* Planted bylines, from data/planted.json. A flag says only that a byline or a cited organisation
      matches a persona or front named in a published investigation; the paragraph says what it does
-     not mean. The file is written by the export, so before the first export, and whenever it is
-     missing, the section shows the empty state rather than an error, and the section is never
-     hidden: a reader should see that the check runs and has found nothing. */
+     not mean. The file is written by the export. When it has not loaded the section says so and
+     nothing else, since a missing file is not a finding; when it has loaded and holds no flag, the
+     section shows the empty state. The section is never hidden: a reader should see that the check
+     runs and has found nothing. */
   var PLANTED_ROWS = 20;
   function plantedDate(f) { return String((f && (f.published_at || f.discovered_at)) || "").slice(0, 10); }
   function plantedSortKey(f) { return String((f && (f.published_at || f.discovered_at)) || ""); }
   function renderPlanted() {
-    var sec = el("planted"), intro = el("planted-intro"), body = el("planted-body"), rec = el("planted-recurring-body");
-    if (!sec || !intro || !body || !rec) return;
-    var j = state.planted && typeof state.planted === "object" ? state.planted : {};
+    var sec = el("planted"), intro = el("planted-intro"), body = el("planted-body");
+    if (!sec || !intro || !body) return;
+    var loaded = !!(state.planted && typeof state.planted === "object");
+    var j = loaded ? state.planted : {};
     var sum = C.planted.summarise(j);
     var byId = function (list) { var m = {}; (list || []).forEach(function (x) { if (x && x.id) m[x.id] = x; }); return m; };
     var ops = byId(j.operations), personas = byId(j.personas), fronts = byId(j.fronts);
     intro.textContent = "A flag here means that an article's byline, or an organisation it cites, matches a persona or false front named in a published investigation, linked in the table's last column. " +
       "It does not mean the byline is fictitious: the tracker cannot prove that, and the absence of a match proves nothing. " +
-      "Flagged articles are listed here only and are never counted as state origin, unchecked state sourcing or independent journalism. " +
-      "The list holds " + plural(sum.personas, "persona") + " and " + plural(sum.fronts, "front") + " from " + plural(sum.operations, "investigation") +
-      (sum.list_version ? ", list version " + sum.list_version : "") + ".";
+      "Flagged articles are listed here only and are never counted as state origin, unchecked state sourcing or independent journalism." +
+      (loaded ? " The list holds " + plural(sum.personas, "persona") + " and " + plural(sum.fronts, "front") + " from " + plural(sum.operations, "investigation") +
+        (sum.list_version ? ", list version " + sum.list_version : "") + "." : "");
+    if (!loaded) {
+      body.innerHTML = '<p class="pl-empty">The planted bylines file did not load. Reload the page, or check whether the last export ran.</p>';
+      return;
+    }
 
     var flags = (Array.isArray(j.flags) ? j.flags : []).filter(function (f) { return f && typeof f === "object"; });
     flags = flags.slice().sort(function (a, b) { var ka = plantedSortKey(a), kb = plantedSortKey(b); return ka < kb ? 1 : ka > kb ? -1 : 0; });
     if (!flags.length) {
       body.innerHTML = '<p class="pl-empty">' + esc(C.planted.emptyState(j)) + '</p>';
-    } else {
-      var shown = state.plantedShowAll ? flags : flags.slice(0, PLANTED_ROWS);
-      var rows = shown.map(function (f) {
-        var who = f.persona_id && personas[f.persona_id] ? personas[f.persona_id].name : (f.front_id && fronts[f.front_id] ? fronts[f.front_id].name : (f.evidence || f.persona_id || f.front_id || ""));
-        var op = f.operation_id && ops[f.operation_id] ? ops[f.operation_id] : null;
-        var opName = op ? op.name : (f.operation_id || "");
-        var opUrl = op ? safeUrl(op.report_url) : "";
-        var href = safeUrl(f.url);
-        var title = escText(f.title || "");
-        return '<tr><td class="pl-date">' + esc(plantedDate(f)) + '</td>' +
-          '<td class="pl-outlet">' + escText(f.outlet || f.outlet_id || "") + (title ? '<span class="pl-title">' + (href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</span>' : '') + '</td>' +
-          '<td>' + esc(countryName(f.country || "")) + '</td>' +
-          '<td>' + escText(who) + '</td>' +
-          '<td class="pl-detector">' + esc(C.planted.detectorLabel(f.detector)) + '</td>' +
-          '<td>' + (opUrl ? '<a href="' + esc(opUrl) + '" target="_blank" rel="noopener">' + esc(opName) + '</a>' : esc(opName)) + '</td></tr>';
-      }).join("");
-      var line = sum.by_country.map(function (r) { return esc(countryName(r.iso)) + " " + r.n; }).join(", ");
-      body.innerHTML = '<p class="pl-line">' + plural(sum.flags, "flagged article") + ' by country: ' + line + '.</p>' +
-        '<div class="pl-table-wrap"><table class="pl-table"><thead><tr><th scope="col">Date</th><th scope="col">Outlet</th><th scope="col">Country</th><th scope="col">Byline or front</th><th scope="col">Detector</th><th scope="col">Investigation</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-        (flags.length > PLANTED_ROWS ? '<p class="pl-toggle"><button type="button" id="planted-toggle">' + (state.plantedShowAll ? 'Show the newest ' + PLANTED_ROWS : 'Show all ' + flags.length) + '</button>' +
-          (state.plantedShowAll ? '' : ' <span class="muted">Newest ' + Math.min(PLANTED_ROWS, flags.length) + ' of ' + flags.length + '.</span>') + '</p>' : '');
-      var toggle = el("planted-toggle");
-      if (toggle) toggle.addEventListener("click", function () { state.plantedShowAll = !state.plantedShowAll; renderPlanted(); });
+      return;
     }
-
-    var recur = j.recurring_bylines && typeof j.recurring_bylines === "object" ? j.recurring_bylines : {};
-    var rrows = (Array.isArray(recur.rows) ? recur.rows : []).filter(function (r) { return r && typeof r === "object"; });
-    var windowDays = Number(recur.window_days) > 0 ? Number(recur.window_days) : 30;
-    if (!rrows.length) {
-      rec.innerHTML = '<p class="pl-empty">No byline with China-related articles in at least three outlets and two countries in the last ' + plural(windowDays, "day") + '.</p>';
-    } else {
-      rec.innerHTML = '<div class="pl-table-wrap"><table class="pl-table pl-recurring-table"><thead><tr><th scope="col">Byline</th><th scope="col" class="num">Outlets</th><th scope="col" class="num">Countries</th><th scope="col" class="num">Articles</th><th scope="col" class="num">Distinct pieces</th><th scope="col">Sample headlines</th><th scope="col">Chinese wire credit</th></tr></thead><tbody>' +
-        rrows.map(function (r) {
-          var outlets = Array.isArray(r.outlets) ? r.outlets : [], countries = Array.isArray(r.countries) ? r.countries : [], titles = Array.isArray(r.titles) ? r.titles : [];
-          return '<tr><td>' + escText(r.name || "") + '</td>' +
-            '<td class="num" title="' + esc(outlets.join(", ")) + '">' + outlets.length + '</td>' +
-            '<td class="num" title="' + esc(countries.map(function (c) { return countryName(c); }).join(", ")) + '">' + countries.length + '</td>' +
-            '<td class="num">' + (Number(r.n) || 0) + '</td>' +
-            '<td class="num">' + (r.pieces === null || r.pieces === undefined ? "n/a" : Number(r.pieces) || 0) + '</td>' +
-            '<td class="pl-titles">' + titles.slice(0, 3).map(function (t) { return '<span>' + escText(t) + '</span>'; }).join("") + '</td>' +
-            '<td>' + (r.wire_credit ? "yes" : "no") + '</td></tr>';
-        }).join("") + '</tbody></table></div>' +
-        '<p class="pl-line">Last ' + plural(windowDays, "day") + ', ' + plural(rrows.length, "byline") + ' in at least three outlets and two countries.</p>';
-    }
+    var shown = state.plantedShowAll ? flags : flags.slice(0, PLANTED_ROWS);
+    var rows = shown.map(function (f) {
+      var who = f.persona_id && personas[f.persona_id] ? personas[f.persona_id].name : (f.front_id && fronts[f.front_id] ? fronts[f.front_id].name : (f.evidence || f.persona_id || f.front_id || ""));
+      var op = f.operation_id && ops[f.operation_id] ? ops[f.operation_id] : null;
+      var opName = op ? op.name : (f.operation_id || "");
+      var opUrl = op ? safeUrl(op.report_url) : "";
+      var href = safeUrl(f.url);
+      var title = escText(f.title || "");
+      return '<tr><td class="pl-date">' + esc(plantedDate(f)) + '</td>' +
+        '<td class="pl-outlet">' + escText(f.outlet || f.outlet_id || "") + (title ? '<span class="pl-title">' + (href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + title + '</a>' : title) + '</span>' : '') + '</td>' +
+        '<td>' + esc(countryName(f.country || "")) + '</td>' +
+        '<td>' + escText(who) + '</td>' +
+        '<td class="pl-detector">' + esc(C.planted.detectorLabel(f.detector)) + '</td>' +
+        '<td>' + (opUrl ? '<a href="' + esc(opUrl) + '" target="_blank" rel="noopener">' + esc(opName) + '</a>' : esc(opName)) + '</td></tr>';
+    }).join("");
+    var line = sum.by_country.map(function (r) { return esc(countryName(r.iso)) + " " + r.n; }).join(", ");
+    body.innerHTML = '<p class="pl-line">' + plural(sum.flags, "flagged article") + ' by country: ' + line + '.</p>' +
+      '<div class="pl-table-wrap"><table class="pl-table"><thead><tr><th scope="col">Date</th><th scope="col">Outlet</th><th scope="col">Country</th><th scope="col">Byline or front</th><th scope="col">Detector</th><th scope="col">Investigation</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      (flags.length > PLANTED_ROWS ? '<p class="pl-toggle"><button type="button" id="planted-toggle">' + (state.plantedShowAll ? 'Show the newest ' + PLANTED_ROWS : 'Show all ' + flags.length) + '</button>' +
+        (state.plantedShowAll ? '' : ' <span class="muted">Newest ' + Math.min(PLANTED_ROWS, flags.length) + ' of ' + flags.length + '.</span>') + '</p>' : '');
+    var toggle = el("planted-toggle");
+    if (toggle) toggle.addEventListener("click", function () {
+      state.plantedShowAll = !state.plantedShowAll;
+      renderPlanted();
+      var again = el("planted-toggle");
+      if (again) again.focus();
+      if (!state.plantedShowAll && sec.scrollIntoView) sec.scrollIntoView({block: "start"});
+    });
   }
 
   function renderFaq() {
@@ -1689,6 +1681,7 @@
           Object.keys(src || {}).forEach(function (c) { tot += (src[c] || {})[state.route.id] || 0; });
         } else Object.keys(e.countries || {}).forEach(function (c) {
           var k = e.countries[c];
+          k = k || {};
           tot += state.measure === "a" ? (k.A || 0) : state.measure === "b" ? (relayFor(null).visible ? (k.B || 0) : 0) : (k.A || 0) + (k.B || 0) + (k.pending || 0) + (state.measure === "china" ? (k.C || 0) : 0);
         });
       }
@@ -1985,29 +1978,34 @@
       try { setupMap(); } catch (e) { console.error("map setup failed", e); mapFallback("The map could not be drawn: " + (e && e.message ? e.message : e)); }
       if (!window.d3) mapFallback("The map library did not load.");
       else if (!state.topo) mapFallback("The world outline data did not load.");
-      bindControls();
-      setupCountryPicks();
-      setupTimeline();
-      setupThemeTimeline();
-      setupStartHere();
-      renderNotices();
-      renderMap();
-      renderThemes(); renderLeaning();
-      renderPanel();
-      renderMethod();
-      renderTechnicalNotes();
-      renderFindings();
-      renderStartHere();
-      renderExamples();
-      renderPlanted();
-      renderFaq();
-      renderCta();
-      renderLoadFailures();
+      /* Each step runs on its own so that one failure leaves the rest of the page standing, and the
+         notice names the step rather than the bare error type. */
+      var steps = [
+        ["bindControls", bindControls], ["setupCountryPicks", setupCountryPicks], ["setupTimeline", setupTimeline],
+        ["setupThemeTimeline", setupThemeTimeline], ["setupStartHere", setupStartHere], ["renderNotices", renderNotices],
+        ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
+        ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderFindings", renderFindings],
+        ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted],
+        ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures]
+      ];
+      var failed = [];
+      steps.forEach(function (step) {
+        try { step[1](); } catch (e) { console.error(step[0] + " failed", e); failed.push(step[0] + (e && e.message ? " (" + e.message + ")" : "")); }
+      });
+      if (failed.length) {
+        var n = el("data-notice");
+        if (n) {
+          n.textContent = "Part of the page could not be drawn. " + (failed.length === 1 ? "This step failed: " : "These steps failed: ") + failed.join("; ") + ". Reload the page; if it happens again, the last export may be incomplete.";
+          n.classList.remove("hidden");
+        }
+      }
     }).catch(function (e) {
-      console.error(e);
-      el("data-notice").textContent = "Data could not be loaded: " + e.message;
+      console.error("data load failed", e);
+      el("data-notice").textContent = "Data could not be loaded: " + (e && e.message ? e.message : e);
       el("data-notice").classList.remove("hidden");
-      try { setupMap(); bindControls(); setupTimeline(); setupThemeTimeline(); renderMap(); renderThemes(); renderLeaning(); renderPanel(); renderMethod(); } catch (e2) { console.error(e2); }
+      /* Draw what can be drawn from empty state. Nothing here binds a listener: the controls are
+         bound only in the success path, so a failure can never attach them twice. */
+      try { setupMap(); renderMap(); renderThemes(); renderLeaning(); renderPanel(); renderMethod(); } catch (e2) { console.error("fallback render failed", e2); }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

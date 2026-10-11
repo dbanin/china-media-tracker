@@ -7,13 +7,13 @@
     },
     "unchecked_state_sourcing": {
       "label": "Unchecked state sourcing",
-      "definition": "An article written by the local newsroom's own staff, not copied from a Chinese source, that repeats an official Chinese claim (from a ministry spokesperson, an embassy, or Xinhua) without any independent check. This is a judgement made once by an AI model rather than a rule, and it has not yet been tested against a human or a second check, so every count of it is marked provisional."
+      "definition": "An article written by the local newsroom's own staff, not copied from a Chinese source, that repeats an official Chinese claim (from a ministry spokesperson, an embassy, or Xinhua) without any independent check. This is a judgement made once by an AI model rather than a rule. A reliability check had the same model re-judge a sample of 250 of its own past calls and it agreed with itself often enough to publish, so the counts are shown with one qualifier: the check used the same model, not a second opinion, and it has not been tested against a human coder."
     },
     "official_chinese_sourcing_verification_pending": {
       "label": "Official Chinese sourcing, verification pending",
       "proposed_clearer_label": "Flagged, not yet judged",
       "definition": "Articles that mention a Chinese state source, such as Xinhua, an embassy, or a foreign ministry spokesperson, but have not yet been sent to the model for the unchecked-sourcing-versus-independent-journalism judgement. This is a waiting line, not a verdict, and these articles are never folded into unchecked state sourcing or independent journalism until they are judged.",
-      "distinction_note": "This is easy to confuse with unchecked state sourcing, and the site's own wording makes that worse: one is a completed (if provisional) judgement that a claim went unchecked, the other is a pile of articles nobody has judged yet. Read 'verification pending' as 'still in the queue' and 'unchecked state sourcing' as 'we looked, and it was not checked.'"
+      "distinction_note": "This is easy to confuse with unchecked state sourcing, and the site's own wording makes that worse: one is a completed (if machine-made) judgement that a claim went unchecked, the other is a pile of articles nobody has judged yet. Read 'verification pending' as 'still in the queue' and 'unchecked state sourcing' as 'we looked, and it was not checked.'"
     },
     "independent_journalism": {
       "label": "Independent journalism",
@@ -76,8 +76,8 @@
       "sources": []
     },
     {
-      "question": "What does provisional mean?",
-      "answer": "Unchecked state sourcing is judged by an AI model, once, with no human check. Provisional means that judgement has not been tested yet, not that it is shaky or wrong. A reliability check will have the same model re-judge a sample of its own past calls; if it agrees with itself often enough, the provisional label comes off. If it does not, those counts are withheld, not merely flagged.",
+      "question": "How reliable is the unchecked state sourcing count?",
+      "answer": "Unchecked state sourcing is judged by an AI model, once, with no human check. A reliability check had the same model re-judge a sample of 250 of its own past calls, and it agreed with itself often enough for the counts to be published. That check caught randomness in the model's own judgement and nothing else: it used the same model, not a second opinion or a human coder, so a bias the model holds every time would pass it. The counts therefore carry that qualifier. Had the model disagreed with itself too often, the counts would have been withheld, not merely flagged.",
       "sources": []
     },
     {

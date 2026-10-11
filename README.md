@@ -189,12 +189,12 @@ for a listed front or its domains anywhere in the text. Matches are stored in
 Planted bylines section with the detector, the investigation and a link to its
 report. A flag says only that the byline matches an exposed persona; the
 tracker cannot prove a byline is fictitious, absence of a match proves
-nothing, and flags never enter the three categories or change a count. The
-same section carries a diagnostic, closed by default, of bylines that recur in
-three or more outlets and two or more countries within thirty days; it is for
-human review, and syndicated agency reporters appear there whenever outlets
-print their names. `python -m pipeline.planted scan --full` rescans
-everything; `python -m pipeline.planted recurring` prints the diagnostic.
+nothing, and flags never enter the three categories or change a count. A
+recurring bylines diagnostic exists on the command line only
+(`python -m pipeline.planted recurring`) and is never published, because it
+lists syndicated agency reporters. `python -m pipeline.planted scan --full`
+rescans everything; `--budget-seconds N` stops a scan cleanly and the next
+scan resumes where it stopped.
 
 ## Changing the ruleset
 

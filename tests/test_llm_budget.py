@@ -243,32 +243,160 @@ def test_batch_submission_counts_each_pool(monkeypatch, tmp_path):
     assert counts["batch_submitted"] == 2 and counts["ceiling_hit"] is True
 
 
-def test_cap_uses_the_measured_cost_per_call_once_enough_calls_are_recorded(monkeypatch):
+def _prices(monkeypatch, min_calls=500):
     monkeypatch.setattr(config, "LLM_MONTHLY_BUDGET_USD", 110.0)
+    monkeypatch.setattr(config, "LLM_PRICES_PER_MTOK", {"input": 3.0, "output": 15.0, "cache_write": 3.75, "cache_read": 0.30})
     monkeypatch.setattr(config, "LLM_COST_PER_CALL_UNBATCHED", 0.0175)
     monkeypatch.setattr(config, "LLM_BATCH_DISCOUNT", 0.5)
-    monkeypatch.setattr(config, "LLM_MEASURED_MIN_CALLS", 500)
+    monkeypatch.setattr(config, "LLM_MEASURED_MIN_CALLS", min_calls)
+
+
+# One call of the cached classifier prompt: 1,500 fresh input tokens, 500 output, 2,000 of prompt
+# written to the cache and 2,000 read back. At the published prices that is 2.01 cents at full
+# price and half that through the Batches API.
+_CALL = {"input": 1500, "output": 500, "cache_write": 2000, "cache_read": 2000}
+_FULL = (1500 * 3.0 + 500 * 15.0 + 2000 * 3.75 + 2000 * 0.30) / 1e6      # 0.0201
+
+
+def _booked(conn, calls, date, batched=True, tokens=_CALL):
+    """What book_usage leaves on a day's row after `calls` calls: full token counts, cost at the
+    batch price when they went through the Batches API."""
+    cost = llm_cost.call_cost(calls * tokens["input"], calls * tokens["output"], calls * tokens["cache_write"],
+                              calls * tokens["cache_read"], batched=batched)
+    store.record_llm_usage(conn, calls, calls * tokens["input"], calls * tokens["output"],
+                           cache_creation_tokens=calls * tokens["cache_write"], cache_read_tokens=calls * tokens["cache_read"],
+                           cost_usd=cost, date=date)
+
+
+def _submitted_batch(conn, batch_id, submitted_at, n, status="submitted"):
+    conn.execute("INSERT INTO llm_batches(batch_id, submitted_at, status, article_ids, model_version) VALUES (?,?,?,?,?)",
+                 (batch_id, submitted_at, status, json.dumps(list(range(n))), "m"))
+
+
+def test_cap_uses_the_measured_cost_per_call_once_enough_calls_are_recorded(monkeypatch):
+    _prices(monkeypatch)
     conn = _db()
     today = dt.date(2026, 10, 8)      # 24 days left including today
     # Too few recorded calls: the full price constant sets the cap.
-    store.record_llm_usage(conn, 400, 0, 0, cost_usd=4.0, date="2026-09-20")
+    _booked(conn, 400, "2026-09-20")
     assert llm_cost.measured_per_call(conn, today) is None
     cap = llm_cost.daily_cap(conn, today)
-    assert cap["per_call_measured"] is False and cap["per_call_usd"] == 0.0175
+    assert cap["per_call_measured"] is False and cap["per_call_usd"] == 0.0175 and cap["per_call_full_usd"] == 0.0175
     assert cap["cap"] == int(110 / 24 / 0.0175)
-    # Enough calls in the current and previous month: their average, a cent a call, sets it.
-    store.record_llm_usage(conn, 600, 0, 0, cost_usd=6.0, date="2026-10-02")
-    assert abs(llm_cost.measured_per_call(conn, today) - 0.01) < 1e-9
+    # Enough calls in the current and previous month: the full price of their tokens, about 2
+    # cents a call, sets it, even though every one of them was booked at the batch price.
+    _booked(conn, 600, "2026-10-02")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
     cap = llm_cost.daily_cap(conn, today)
-    assert cap["per_call_measured"] is True and cap["per_call_usd"] == 0.01
-    assert cap["cap"] == int((110 - 6.0) / 24 / 0.01)
-    assert llm_cost.daily_cap(conn, today, batched=True)["per_call_usd"] == 0.005
-    # Calls from two months back are not part of the measurement; rows without a cost are ignored.
-    store.record_llm_usage(conn, 5000, 0, 0, cost_usd=500.0, date="2026-08-15")
-    store.record_llm_usage(conn, 5000, 0, 0, cost_usd=0.0, date="2026-10-03")
-    assert abs(llm_cost.measured_per_call(conn, today) - 0.01) < 1e-9
+    assert cap["per_call_measured"] is True and cap["per_call_usd"] == round(_FULL, 5) and cap["per_call_full_usd"] == round(_FULL, 5)
+    spent = 600 * _FULL * 0.5
+    assert cap["cap"] == int((110 - spent) / 24 / _FULL)
+    batched = llm_cost.daily_cap(conn, today, batched=True)
+    assert batched["per_call_usd"] == round(_FULL * 0.5, 5) and batched["per_call_full_usd"] == round(_FULL, 5)
+    assert batched["cap"] == int((110 - spent) / 24 / (_FULL * 0.5))
+    # Calls from two months back are not part of the measurement.
+    _booked(conn, 5000, "2026-08-15", tokens={"input": 10000, "output": 10000, "cache_write": 1, "cache_read": 1})
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
     # Without a connection the estimate is the constant.
     assert llm_cost.per_call_estimate(False) == 0.0175
+    assert llm_cost.per_call_estimate(True) == 0.0175 * 0.5
+
+
+def test_batched_history_does_not_discount_the_estimate_twice(monkeypatch):
+    """Every recorded call went through the Batches API, so cost_usd sits at half price. The
+    batched estimate must be the full token rate times the discount, and the synchronous estimate
+    the full rate itself: a factor of two apart, not four."""
+    _prices(monkeypatch)
+    conn = _db()
+    today = dt.date(2026, 10, 11)
+    for day in range(1, 11):
+        _booked(conn, 120, "2026-10-%02d" % day, batched=True)
+    row = conn.execute("SELECT SUM(calls), SUM(cost_usd) FROM llm_usage").fetchone()
+    assert abs(row[1] / row[0] - _FULL * 0.5) < 1e-9, "the stored cost is the batch price"
+    full = llm_cost.measured_per_call(conn, today)
+    assert abs(full - _FULL) < 1e-9
+    assert abs(llm_cost.per_call_estimate(False, conn, today) - _FULL) < 1e-9
+    assert abs(llm_cost.per_call_estimate(True, conn, today) - _FULL * 0.5) < 1e-9
+    assert abs(llm_cost.per_call_estimate(False, conn, today) / llm_cost.per_call_estimate(True, conn, today) - 2.0) < 1e-9
+    cap = llm_cost.daily_cap(conn, today, batched=True)
+    assert cap["per_call_usd"] == round(_FULL * 0.5, 5) and cap["per_call_full_usd"] == round(_FULL, 5)
+    assert cap["per_call_measured"] is True
+    assert cap["cap"] == int((110 - 1200 * _FULL * 0.5) / 21 / (_FULL * 0.5))
+
+
+def test_measurement_skips_a_day_whose_batch_is_still_submitted(monkeypatch):
+    """A batch's calls are booked on its submission day when it is submitted; its tokens and cost
+    land on the same row only when it is collected. Until then the day has calls with no tokens
+    behind them, and would drag the rate down."""
+    _prices(monkeypatch)
+    conn = _db()
+    today = dt.date(2026, 10, 11)
+    _booked(conn, 600, "2026-10-05")
+    # 10-09: 300 calls submitted (calls only, as classify_llm books them), batch still outstanding.
+    store.record_llm_usage(conn, 300, 0, 0, date="2026-10-09")
+    _submitted_batch(conn, "b-out", "2026-10-09T05:00:00+00:00", 300)
+    # And on top, 10 calls of a batch from the same day that was collected: tokens for 10, calls 310.
+    _booked(conn, 10, "2026-10-09")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+    # Once collected, the day counts: the tokens arrive and the rate holds.
+    _booked(conn, 300, "2026-10-09")
+    conn.execute("UPDATE llm_usage SET calls=calls-300 WHERE date='2026-10-09'")   # collection books tokens, not calls
+    conn.execute("UPDATE llm_batches SET status='collected' WHERE batch_id='b-out'")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+    # A batch that expired uncollected leaves calls whose tokens never arrive: that day stays out.
+    store.record_llm_usage(conn, 400, 0, 0, date="2026-10-07")
+    _submitted_batch(conn, "b-dead", "2026-10-07T05:00:00+00:00", 400, status="failed")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+
+
+def test_measurement_skips_today(monkeypatch):
+    """Today's calls are booked as the day goes on, so its row is half collected until tomorrow;
+    leaving it out keeps the cap the same for every run within a day."""
+    _prices(monkeypatch)
+    conn = _db()
+    today = dt.date(2026, 10, 11)
+    _booked(conn, 600, "2026-10-05")
+    store.record_llm_usage(conn, 500, 0, 0, date="2026-10-11")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+    cap_morning = llm_cost.daily_cap(conn, today, batched=True)["cap"]
+    _booked(conn, 50, "2026-10-11", tokens={"input": 100, "output": 10, "cache_write": 10, "cache_read": 10})
+    assert llm_cost.daily_cap(conn, today, batched=True)["cap"] == cap_morning
+    # Yesterday with the same half booked row would have moved it, which is why today is excluded.
+    assert llm_cost.measured_per_call(conn, dt.date(2026, 10, 12)) < _FULL
+
+
+def test_measurement_ignores_rows_priced_by_migration(monkeypatch):
+    """Rows written before cost tracking carry a cost from the migration and no cached prompt token
+    counts (some carry none at all); their tokens cannot give the full price, so they are ignored."""
+    _prices(monkeypatch)
+    conn = _db()
+    today = dt.date(2026, 10, 11)
+    # Migration priced: tokens absent.
+    store.record_llm_usage(conn, 3000, 0, 0, cost_usd=3000 * 0.0096, date="2026-09-16")
+    # Migration priced: input and output recorded but the cache columns at their default of zero.
+    store.record_llm_usage(conn, 3000, 3000 * 1500, 3000 * 500, cost_usd=3000 * 0.0096, date="2026-09-17")
+    assert llm_cost.measured_per_call(conn, today) is None
+    cap = llm_cost.daily_cap(conn, today)
+    assert cap["per_call_measured"] is False and cap["per_call_full_usd"] == 0.0175
+    _booked(conn, 600, "2026-10-05")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+    # Rows with cost but no calls are ignored too.
+    store.record_llm_usage(conn, 0, 10, 10, cache_read_tokens=10, cost_usd=5.0, date="2026-10-06")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
+
+
+def test_fewer_than_the_minimum_calls_falls_back_to_the_constant(monkeypatch):
+    _prices(monkeypatch, min_calls=500)
+    conn = _db()
+    today = dt.date(2026, 10, 11)
+    _booked(conn, 499, "2026-10-05")
+    assert llm_cost.measured_per_call(conn, today) is None
+    assert llm_cost.per_call_estimate(False, conn, today) == 0.0175
+    assert llm_cost.per_call_estimate(True, conn, today) == 0.0175 * 0.5
+    cap = llm_cost.daily_cap(conn, today, batched=True)
+    assert cap["per_call_measured"] is False and cap["per_call_full_usd"] == 0.0175 and cap["per_call_usd"] == 0.00875
+    _booked(conn, 1, "2026-10-06")
+    assert abs(llm_cost.measured_per_call(conn, today) - _FULL) < 1e-9
 
 
 def test_methodology_states_whether_articles_are_held_for_the_session():
@@ -278,4 +406,4 @@ def test_methodology_states_whether_articles_are_held_for_the_session():
     off = methodology.session_order_text(0)
     assert "no article is held back" in off and "held for the session" not in off
     for text in (held, off):
-        assert "—" not in text and "–" not in text
+        assert "\u2014" not in text and "\u2013" not in text

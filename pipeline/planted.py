@@ -2,36 +2,51 @@
 
 Flags articles in the monitored outlets whose byline, or whose cited organisation, matches a
 persona or false front named in a published investigation (sources/personas.yaml), and computes a
-diagnostic of bylines that recur across unrelated outlets.
+command line diagnostic of bylines that recur across unrelated outlets.
 
 What a flag is and is not. The tracker cannot prove a byline is fictitious. A flag means "the byline
 matches a persona named in a published investigation, cited here". The recurring bylines table is a
-diagnostic for human review, never a finding. Absence of a match proves nothing. No article flagged
-here is ever folded into the existing categories (state origin, unchecked state sourcing,
-independent journalism) and nothing here changes a category count.
+diagnostic for human review on the command line, never a finding and never published. Absence of a
+match proves nothing. No article flagged here is ever folded into the existing categories (state
+origin, unchecked state sourcing, independent journalism) and nothing here changes a category count.
 
 Detectors (the detector field of a flag):
-  author_field  the article's author field equals a persona name or variant after normalisation.
-                Runs on every discovered item, including those the China gate rejected, because
-                planted bylines are not only about China.
-  byline_head   a persona name preceded by a byline word (by, por, par, von, di, de, door) within the
-                first HEAD_CHARS characters of the body.
+  author_field  one name in the article's author field equals a persona name or variant after
+                normalisation. The raw field is first split on , ; | / & and the words and, y, e,
+                et, und, en; honorifics at the start of a segment (dr, prof, mr, ms, mrs, by) and
+                credentials at its end (phd, md) are dropped; a two part comma field is also read as
+                "Last, First"; a segment with an @ in it is dropped. Runs on every discovered item,
+                including those the China gate rejected, because planted bylines are not only
+                about China.
+  byline_head   a persona name preceded by a byline word (by, por, par, von, door, av, af, di) that
+                stands at the start of a line or right after "written", "escrito" or "ecrit",
+                within the first HEAD_CHARS characters of the body. A byline word in the middle of
+                a sentence ("announced by ...", "una declaracion de ...") never counts.
   front_cited   a front organisation's name, or one of its domains, appears anywhere in the title or
-                body. A front with a one word name is never matched.
+                body. Names match as whole phrases of two tokens or more and never when the word
+                before them is a capitalised word that extends the name ("the National Social
+                Research Center" does not cite the "Social Research Center"). Domains match as whole
+                hostnames, a subdomain of a listed domain included.
 
 Names are normalised before comparison: casefold, diacritics stripped, punctuation dropped,
 whitespace collapsed, and initial-less variants derived ("Ervin B. Hoskins" also matches "Ervin
 Hoskins"). A single word never matches.
 
+The scan is incremental and resumable: it commits every COMMIT_EVERY rows, writing where it got to,
+and stops cleanly at a deadline (time.monotonic based) so a cancelled run carries on next time.
+
 Usage:
-  python -m pipeline.planted scan [--full]
+  python -m pipeline.planted scan [--full] [--budget-seconds N]
   python -m pipeline.planted recurring [--days N]
 """
 import argparse
+import bisect
 import datetime as dt
 import json
 import re
 import sqlite3
+import sys
+import time
 import unicodedata
 from collections import defaultdict
 from pathlib import Path
@@ -42,9 +57,13 @@ import yaml
 from pipeline import config, store
 
 HEAD_CHARS = 400
-BYLINE_WORDS = ("by", "por", "par", "von", "di", "de", "door")
+BYLINE_WORDS = ("by", "por", "par", "von", "door", "av", "af", "di")
+BYLINE_LEAD_WORDS = ("written", "escrito", "ecrit")
+HONORIFICS = {"dr", "prof", "mr", "ms", "mrs", "by"}
+CREDENTIALS = {"phd", "md"}
 EVIDENCE_CONTEXT = 60
 FLAGS_EXPORT_CAP = 500
+COMMIT_EVERY = 2000
 RECURRING_MAX_ROWS = 50
 RECURRING_MIN_OUTLETS = 3
 RECURRING_MIN_COUNTRIES = 2
@@ -76,18 +95,38 @@ BYLINE_STOP_TOKENS = {
     "contributors", "news", "press", "sponsored", "advertorial", "wire", "network", "media",
 }
 
+# Capitalised words that may stand right before a front's name without extending it: articles,
+# prepositions and reporting verbs that open a sentence or a clause in the tracked languages.
+NAME_LEAD_STOP = {
+    "the", "a", "an", "of", "and", "or", "by", "at", "in", "on", "to", "from", "with", "for", "as", "per", "via",
+    "according", "says", "said", "that", "this", "which", "its", "their", "our", "his", "her", "called", "named",
+    "el", "la", "los", "las", "un", "una", "del", "de", "y", "o", "en", "por", "para", "con", "segun",
+    "le", "les", "l", "du", "des", "d", "et", "au", "aux", "sur", "dans", "pour", "avec", "selon",
+    "der", "die", "das", "den", "dem", "ein", "eine", "und", "von", "vom", "im", "am", "bei", "mit", "nach", "laut",
+    "il", "lo", "gli", "i", "uno", "dello", "della", "dei", "degli", "delle", "e", "ed", "nel", "nella", "al",
+    "alla", "secondo", "os", "um", "uma", "do", "da", "dos", "das", "no", "na", "nos", "nas", "segundo",
+    "het", "een", "van", "op", "bij", "volgens", "met",
+}
+
+
+def _warn(msg: str) -> None:
+    print("planted: %s" % msg, file=sys.stderr)
+
 
 # ---------------------------------------------------------------------------
 # Normalisation
 # ---------------------------------------------------------------------------
 
+def _strip_marks(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    return "".join(ch for ch in text if not unicodedata.combining(ch))
+
+
 def normalise(text: Optional[str]) -> str:
     """Casefold, strip diacritics, drop punctuation, collapse whitespace."""
     if not text:
         return ""
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    text = text.casefold()
+    text = _strip_marks(text).casefold()
     text = re.sub(r"[^\w\s]|_", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -125,38 +164,96 @@ def _empty_list() -> Dict:
     return {"version": "", "operations": [], "personas": [], "fronts": []}
 
 
+def _string_list(value, what: str, entry_id: str) -> List[str]:
+    """A list of strings; a bare string is one entry; anything else is dropped with a warning."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        out = []
+        for v in value:
+            if isinstance(v, str):
+                out.append(v)
+            else:
+                _warn("%s: %s entry %r is not a string, dropped" % (entry_id, what, v))
+        return out
+    _warn("%s: %s is not a list, ignored" % (entry_id, what))
+    return []
+
+
+def _entries(data: Dict, key: str, op_ids: set) -> List[Dict]:
+    """Personas or fronts validated: a dict with a string name, an id unique within the section and
+    an operation that resolves. Anything else is dropped with a one line warning."""
+    out, seen = [], set()
+    for e in data.get(key) or []:
+        if not isinstance(e, dict) or not e.get("id"):
+            _warn("%s entry without an id dropped: %r" % (key, e))
+            continue
+        eid = str(e["id"])
+        if eid in seen:
+            _warn("duplicate %s id %s: later entry dropped" % (key, eid))
+            continue
+        if not isinstance(e.get("name"), str):
+            _warn("%s %s: name is not a string, dropped" % (key, eid))
+            continue
+        op = e.get("operation")
+        if not isinstance(op, str) or op not in op_ids:
+            _warn("%s %s: operation %r does not resolve, dropped" % (key, eid, op))
+            continue
+        seen.add(eid)
+        e = dict(e, id=eid)
+        e["variants"] = _string_list(e.get("variants"), "variants", eid)
+        e["variants_n"] = name_variants(e["name"], e["variants"])
+        if key == "fronts":
+            e["domains"] = _string_list(e.get("domains"), "domains", eid)
+            e["domains_n"] = sorted({d.strip().casefold() for d in e["domains"] if d.strip()})
+        out.append(e)
+    return out
+
+
 def load_personas(path: Optional[Path] = None) -> Dict:
-    """sources/personas.yaml compiled for matching. A missing or empty file loads as empty lists,
-    never as an error: the detector is optional and must not stop a run. Each persona gains a
-    `variants_n` list of normalised forms; each front gains `variants_n` and `domains_n`. Entries
-    without a usable name (fewer than two tokens) are kept for the export but match nothing."""
+    """sources/personas.yaml compiled for matching. A missing, empty or broken file loads as empty
+    lists, never as an error: the detector is optional and must not stop a run. Every parse or
+    validation problem is one warning line on stderr. Each persona gains a `variants_n` list of
+    normalised forms; each front gains `variants_n` and `domains_n`. Entries without a usable name
+    (fewer than two tokens) are kept for the export but match nothing."""
     p = Path(path) if path is not None else config.PERSONAS_PATH
     data = None
     try:
         with open(p, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
-    except (OSError, yaml.YAMLError):
-        data = None
+    except FileNotFoundError:
+        return _empty_list()
+    except (OSError, yaml.YAMLError) as exc:
+        _warn("%s could not be read: %s: %s" % (p, type(exc).__name__, re.sub(r"\s+", " ", str(exc))))
+        return _empty_list()
+    if data is None:
+        return _empty_list()
     if not isinstance(data, dict):
+        _warn("%s is not a mapping, loaded as empty" % p)
+        return _empty_list()
+    if "version" not in data:
+        _warn("%s has no version, loaded as empty" % p)
+        return _empty_list()
+    if not isinstance(data["version"], str):
+        _warn("%s: version %r is not a string (quote it), loaded as empty" % (p, data["version"]))
         return _empty_list()
     out = _empty_list()
-    out["version"] = str(data.get("version") or "")
+    out["version"] = data["version"]
+    seen = set()
     for op in data.get("operations") or []:
-        if isinstance(op, dict) and op.get("id"):
-            out["operations"].append(dict(op, id=str(op["id"])))
-    for ps in data.get("personas") or []:
-        if not isinstance(ps, dict) or not ps.get("id"):
+        if not isinstance(op, dict) or not op.get("id"):
+            _warn("operations entry without an id dropped: %r" % (op,))
             continue
-        ps = dict(ps, id=str(ps["id"]))
-        ps["variants_n"] = name_variants(ps.get("name"), ps.get("variants") or [])
-        out["personas"].append(ps)
-    for fr in data.get("fronts") or []:
-        if not isinstance(fr, dict) or not fr.get("id"):
+        oid = str(op["id"])
+        if oid in seen:
+            _warn("duplicate operations id %s: later entry dropped" % oid)
             continue
-        fr = dict(fr, id=str(fr["id"]))
-        fr["variants_n"] = name_variants(fr.get("name"), fr.get("variants") or [])
-        fr["domains_n"] = sorted({str(d).strip().casefold() for d in (fr.get("domains") or []) if str(d).strip()})
-        out["fronts"].append(fr)
+        seen.add(oid)
+        out["operations"].append(dict(op, id=oid))
+    out["personas"] = _entries(data, "personas", seen)
+    out["fronts"] = _entries(data, "fronts", seen)
     return out
 
 
@@ -164,19 +261,56 @@ def load_personas(path: Optional[Path] = None) -> Dict:
 # Matching
 # ---------------------------------------------------------------------------
 
-_SEGMENT_RE = re.compile(r"\s*(?:,|;|\||/|&|\band\b|\by\b|\be\b|\bet\b|\bund\b|\ben\b)\s*")
+_AUTHOR_SPLIT_RE = re.compile(r"\s*(?:[,;|/&]|\b(?:and|y|e|et|und|en)\b)\s*", re.IGNORECASE)
+_RE_CACHE: Dict = {}
+_RE_CACHE_MAX = 64
+
+
+def _cached(key, build):
+    """One compiled alternation per distinct list, built on first use."""
+    hit = _RE_CACHE.get(key)
+    if hit is None:
+        if len(_RE_CACHE) >= _RE_CACHE_MAX:
+            _RE_CACHE.clear()
+        hit = _RE_CACHE[key] = build()
+    return hit
+
+
+def _alternation(forms: Iterable[str]) -> str:
+    return "|".join(re.escape(f) for f in sorted(set(forms), key=lambda f: (-len(f), f)))
+
+
+def _clean_segment(seg: str) -> str:
+    """A normalised author segment without its honorifics and credentials."""
+    toks = normalise(seg).split()
+    while toks and toks[0] in HONORIFICS:
+        toks.pop(0)
+    while toks and toks[-1] in CREDENTIALS:
+        toks.pop()
+    return " ".join(toks)
 
 
 def _author_segments(author: str) -> List[str]:
-    """The normalised author field as a whole and each name in it when it lists several."""
-    n = strip_byline_word(normalise(author))
-    if not n:
+    """The names an author field may hold: the whole field, each name in a list of several, and the
+    reversed reading of a two part comma field ("Williams, Jenny"). Each form is normalised and
+    stripped of honorifics and credentials; a segment with an @ in it (an email) is dropped; a form
+    shorter than two tokens can never match and is left out."""
+    raw = author or ""
+    if not raw.strip():
         return []
-    segs = [n]
-    for s in _SEGMENT_RE.split(n):
-        s = strip_byline_word(s.strip())
-        if s and s not in segs:
+    parts = [p for p in _AUTHOR_SPLIT_RE.split(raw) if p and p.strip() and "@" not in p]
+    segs: List[str] = []
+
+    def add(s: str) -> None:
+        if s and len(s.split()) >= 2 and s not in segs:
             segs.append(s)
+
+    cleaned = [_clean_segment(p) for p in parts]
+    add(_clean_segment(" ".join(parts)))
+    for c in cleaned:
+        add(c)
+    if len(parts) == 2 and raw.count(",") == 1:
+        add(" ".join(c for c in reversed(cleaned) if c))
     return segs
 
 
@@ -195,48 +329,129 @@ def match_author(author: Optional[str], personas: List[Dict]) -> List[Tuple[Dict
     return out
 
 
+def _head_text(body: Optional[str]) -> str:
+    """The first HEAD_CHARS characters normalised line by line, line breaks kept, so a byline word
+    can be told at the start of a line from one in the middle of a sentence."""
+    lines = [normalise(line) for line in (body or "")[:HEAD_CHARS].splitlines()]
+    return "\n".join(line for line in lines if line)
+
+
+def _head_matcher(personas: List[Dict]):
+    key = ("head",) + tuple((p["id"], tuple(p.get("variants_n") or ())) for p in personas)
+
+    def build():
+        lookup: Dict[str, List[Dict]] = defaultdict(list)
+        for p in personas:
+            for v in p.get("variants_n") or []:
+                lookup[v].append(p)
+        if not lookup:
+            return None, lookup
+        pat = r"(?:^|(?:^|\s)(?:%s)\s)(?:%s)\s(%s)(?!\S)" % (
+            "|".join(BYLINE_LEAD_WORDS), "|".join(BYLINE_WORDS), _alternation(lookup))
+        return re.compile(pat, re.MULTILINE), lookup
+    return _cached(key, build)
+
+
 def match_head(body: Optional[str], personas: List[Dict]) -> List[Tuple[Dict, str]]:
-    """Personas whose name follows a byline word within the first HEAD_CHARS characters of the body.
-    Returns (persona, evidence), the evidence being the normalised byline with its context."""
-    head = normalise((body or "")[:HEAD_CHARS])
+    """Personas whose name follows a byline word that opens a line, or follows "written" and its
+    translations, within the first HEAD_CHARS characters of the body. Returns (persona, evidence),
+    the evidence being the normalised byline with its context."""
+    head = _head_text(body)
     if not head:
         return []
-    out = []
-    words = "|".join(BYLINE_WORDS)
-    for ps in personas:
-        for v in ps.get("variants_n") or []:
-            m = re.search(r"(?:^|(?<=\s))(?:%s) %s(?=\s|$)" % (words, re.escape(v)), head)
-            if m:
-                out.append((ps, _context(head, m.start(), m.end())))
-                break
-    return out
+    rx, lookup = _head_matcher(personas)
+    if rx is None:
+        return []
+    hits: Dict[str, str] = {}
+    for m in rx.finditer(head):
+        for p in lookup.get(m.group(1), ()):
+            hits.setdefault(p["id"], _context(head, m.start(), m.end()))
+    return [(p, hits[p["id"]]) for p in personas if p["id"] in hits]
+
+
+def _front_matchers(fronts: List[Dict]):
+    key = ("front",) + tuple((f["id"], tuple(f.get("variants_n") or ()), tuple(f.get("domains_n") or ())) for f in fronts)
+
+    def build():
+        names: Dict[str, List[Dict]] = defaultdict(list)
+        domains: Dict[str, List[Dict]] = defaultdict(list)
+        for f in fronts:
+            for v in f.get("variants_n") or []:
+                names[v].append(f)
+            for d in f.get("domains_n") or []:
+                domains[d].append(f)
+        name_rx = re.compile(r"(?<!\S)(%s)(?!\S)" % _alternation(names)) if names else None
+        domain_rx = re.compile(r"(?<![\w-])(%s)(?![\w-])(?!\.[\w-])" % _alternation(domains)) if domains else None
+        return name_rx, names, domain_rx, domains
+    return _cached(key, build)
+
+
+_TOKEN_RE = re.compile(r"[^\W_]+")
+_CLAUSE_BREAK_RE = re.compile(r"[.!?:;,()\[\]\"'«»“”„\n\r|]")
+
+
+class _CasedText:
+    """The title and body tokenised with case kept, built only once a phrase has matched, to tell
+    "the Social Research Center" (cited) from "the National Social Research Center" (another body)."""
+
+    def __init__(self, raw: str):
+        stripped = _strip_marks(raw)
+        self.spans = [(m.start(), m.end(), m.group()) for m in _TOKEN_RE.finditer(stripped)]
+        self.raw = stripped
+        low = [t.casefold() for _, _, t in self.spans]
+        self.text = " ".join(low)
+        self.starts, pos = [], 0
+        for t in low:
+            self.starts.append(pos)
+            pos += len(t) + 1
+
+    def first_clean(self, rx) -> Optional[Tuple[int, int]]:
+        """The first occurrence of the phrase not preceded by a capitalised word of the same name."""
+        for m in rx.finditer(self.text):
+            i = bisect.bisect_left(self.starts, m.start())
+            if i == 0 or i >= len(self.spans):
+                return m.start(), m.end()
+            _, prev_end, prev_tok = self.spans[i - 1]
+            between = self.raw[prev_end:self.spans[i][0]]
+            if _CLAUSE_BREAK_RE.search(between):
+                return m.start(), m.end()
+            if prev_tok[0].isupper() and prev_tok.casefold() not in NAME_LEAD_STOP:
+                continue
+            return m.start(), m.end()
+        return None
 
 
 def match_fronts(title: Optional[str], body: Optional[str], fronts: List[Dict]) -> List[Tuple[Dict, str]]:
-    """Fronts whose name (two tokens or more) or one of whose domains appears anywhere in the title or
-    body. Returns (front, evidence)."""
+    """Fronts whose name (two tokens or more, as a whole phrase not extended by a capitalised word
+    before it) or one of whose domains (as a whole hostname) appears anywhere in the title or body.
+    Returns (front, evidence)."""
     raw = "%s\n%s" % (title or "", body or "")
     if not raw.strip():
         return []
-    text = normalise(raw)
-    low = raw.casefold()
-    out = []
-    for fr in fronts:
-        hit = None
-        for v in fr.get("variants_n") or []:
-            m = re.search(r"(?:^|(?<=\s))%s(?=\s|$)" % re.escape(v), text)
-            if m:
-                hit = _context(text, m.start(), m.end())
-                break
-        if hit is None:
-            for d in fr.get("domains_n") or []:
-                m = re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(d), low)
-                if m:
-                    hit = _context(low, m.start(), m.end())
-                    break
-        if hit is not None:
-            out.append((fr, hit))
-    return out
+    name_rx, names, domain_rx, domains = _front_matchers(fronts)
+    hits: Dict[str, str] = {}
+    if name_rx is not None:
+        text = normalise(raw)
+        cased = None
+        checked: Dict[str, Optional[str]] = {}
+        for m in name_rx.finditer(text):
+            phrase = m.group(1)
+            if phrase not in checked:
+                if cased is None:
+                    cased = _CasedText(raw)
+                span = cased.first_clean(re.compile(r"(?<!\S)%s(?!\S)" % re.escape(phrase)))
+                checked[phrase] = _context(cased.text, *span) if span else None
+            ev = checked[phrase]
+            if ev is None:
+                continue
+            for f in names.get(phrase, ()):
+                hits.setdefault(f["id"], ev)
+    if domain_rx is not None:
+        low = raw.casefold()
+        for m in domain_rx.finditer(low):
+            for f in domains.get(m.group(1), ()):
+                hits.setdefault(f["id"], _context(low, m.start(), m.end()))
+    return [(f, hits[f["id"]]) for f in fronts if f["id"] in hits]
 
 
 def _context(text: str, start: int, end: int) -> str:
@@ -269,11 +484,15 @@ def _flag(conn: sqlite3.Connection, article_id: int, detector: str, persona_id: 
     return cur.rowcount
 
 
-def scan(conn: sqlite3.Connection, full: bool = False, personas: Optional[Dict] = None) -> Dict:
+def scan(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float] = None,
+         personas: Optional[Dict] = None) -> Dict:
     """Flag articles against the persona list. Incremental by default: rows discovered since the
     last scanned id, plus rows fetched since the last scan so a body that arrived later still gets
     the body detectors. Everything is rescanned when the list version changed or full is True.
-    Flags are never deleted; a rescan adds what is new and the UNIQUE constraint ignores the rest."""
+    Flags are never deleted; a rescan adds what is new and the UNIQUE constraint ignores the rest.
+    Where the scan got to is committed every COMMIT_EVERY rows, and once time.monotonic() passes
+    the deadline the scan commits and returns with stopped_at_deadline True, so the next call
+    carries on from the last row done."""
     plist = personas if personas is not None else load_personas()
     version = plist["version"]
     state = _state(conn)
@@ -284,7 +503,7 @@ def scan(conn: sqlite3.Connection, full: bool = False, personas: Optional[Dict] 
     fronts_l = [f for f in plist["fronts"] if f.get("variants_n") or f.get("domains_n")]
     now = store.utcnow()
     counts = {"scanned": 0, "bodies": 0, "flagged": 0, "full": bool(rescan), "list_version": version,
-              "personas": len(personas_l), "fronts": len(fronts_l)}
+              "personas": len(personas_l), "fronts": len(fronts_l), "stopped_at_deadline": False}
     max_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM articles").fetchone()[0]
     max_fetched = conn.execute("SELECT COALESCE(MAX(fetched_at), '') FROM articles").fetchone()[0]
     if not personas_l and not fronts_l:
@@ -295,7 +514,11 @@ def scan(conn: sqlite3.Connection, full: bool = False, personas: Optional[Dict] 
         """SELECT id, url_hash, author, title, body_hash, fetched_at FROM articles
            WHERE id > ? OR (fetched_at IS NOT NULL AND fetched_at > ?) ORDER BY id""",
         (last_id, last_fetched)).fetchall()
+    done_id = last_id
     for r in rows:
+        if deadline is not None and time.monotonic() > deadline:
+            counts["stopped_at_deadline"] = True
+            break
         counts["scanned"] += 1
         for ps, form in match_author(r["author"], personas_l):
             counts["flagged"] += _flag(conn, r["id"], "author_field", ps["id"], "", ps.get("operation"),
@@ -308,18 +531,25 @@ def scan(conn: sqlite3.Connection, full: bool = False, personas: Optional[Dict] 
                     counts["flagged"] += _flag(conn, r["id"], "byline_head", ps["id"], "", ps.get("operation"), ev, now, version)
                 for fr, ev in match_fronts(r["title"], body, fronts_l):
                     counts["flagged"] += _flag(conn, r["id"], "front_cited", "", fr["id"], fr.get("operation"), ev, now, version)
-        if counts["scanned"] % 2000 == 0:
+        done_id = r["id"]
+        if counts["scanned"] % COMMIT_EVERY == 0:
+            _set_state(conn, last_scanned_id=done_id, last_fetched_at=max_fetched, list_version=version)
             conn.commit()
-    _set_state(conn, last_scanned_id=max_id, last_fetched_at=max_fetched, list_version=version, scanned_at=now)
+    if counts["stopped_at_deadline"]:
+        # Rows up to done_id are done; rows after it are caught next time by id, and a body fetched
+        # for an earlier row after this run is caught by its fetch time.
+        _set_state(conn, last_scanned_id=done_id, last_fetched_at=max_fetched, list_version=version)
+    else:
+        _set_state(conn, last_scanned_id=max_id, last_fetched_at=max_fetched, list_version=version, scanned_at=now)
     conn.commit()
     return counts
 
 
-def scan_quietly(conn: sqlite3.Connection, full: bool = False) -> Dict:
+def scan_quietly(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float] = None) -> Dict:
     """scan for the stages: an exception becomes a count, never a stop. The detector is a side
     channel and a broken persona file must not cost a discovery, fetch or export run."""
     try:
-        return scan(conn, full=full)
+        return scan(conn, full=full, deadline=deadline)
     except Exception as exc:  # noqa: BLE001  anything at all is logged and swallowed here
         try:
             conn.rollback()
@@ -330,7 +560,7 @@ def scan_quietly(conn: sqlite3.Connection, full: bool = False) -> Dict:
 
 
 # ---------------------------------------------------------------------------
-# Recurring bylines diagnostic
+# Recurring bylines diagnostic (command line only, never exported)
 # ---------------------------------------------------------------------------
 
 def _is_generic(name: str) -> bool:
@@ -361,8 +591,9 @@ def recurring_bylines(conn: sqlite3.Connection, days: int = config.PLANTED_RECUR
     (BYLINE_STOPLIST), single word bylines, names equal to an outlet or wire name in the outlets table
     (the distribution wire tier included), and authors whose every article in the window is wire
     copy with a reporter name (a current state origin label from a wire credit). A diagnostic for
-    human review: wire reporters appear here whenever outlets print their names. pieces counts
-    distinct headlines, so the same piece printed by several outlets (syndication) reads as one."""
+    human review on the command line, never published: wire reporters appear here whenever outlets
+    print their names. pieces counts distinct headlines, so the same piece printed by several
+    outlets (syndication) reads as one."""
     since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).replace(microsecond=0).isoformat()
     outlet_names = {normalise(r["name"]) for r in conn.execute("SELECT name FROM outlets")}
     outlet_names |= {normalise(r["id"]) for r in conn.execute("SELECT id FROM outlets")}
@@ -429,9 +660,21 @@ def _flag_rows(conn: sqlite3.Connection, plist: Dict) -> List[Dict]:
     return out
 
 
-def build_export(conn: sqlite3.Connection, personas: Optional[Dict] = None, days: int = config.PLANTED_RECURRING_DAYS) -> Dict:
+def empty_export() -> Dict:
+    """The docs/data/planted.json structure with nothing in it, written when the export fails."""
+    return {"generated": store.utcnow(), "list_version": "", "operations": [], "personas": [], "fronts": [],
+            "flags": [], "flags_total": 0, "articles_total": 0, "by_country": {}, "by_outlet": {}}
+
+
+def empty_meta_block() -> Dict:
+    return {"flags_total": 0, "articles_total": 0, "flags_30d": 0, "list_version": "", "personas": 0, "fronts": 0,
+            "operations": 0}
+
+
+def build_export(conn: sqlite3.Connection, personas: Optional[Dict] = None) -> Dict:
     """The docs/data/planted.json structure. Flags are newest first and capped at FLAGS_EXPORT_CAP;
-    the counts by operation, persona, front, country and outlet are over every flag."""
+    the counts by operation, persona, front, country and outlet are over every flag. The recurring
+    bylines diagnostic is not part of it: it stays on the command line."""
     plist = personas if personas is not None else load_personas()
     flags = _flag_rows(conn, plist)
     by_op, by_persona, by_front = defaultdict(int), defaultdict(int), defaultdict(int)
@@ -456,9 +699,10 @@ def build_export(conn: sqlite3.Connection, personas: Optional[Dict] = None, days
                     "flags": by_front.get(f["id"], 0)} for f in plist["fronts"]],
         "flags": [{k: v for k, v in f.items() if k != "flagged_at"} for f in flags[:FLAGS_EXPORT_CAP]],
         "flags_total": len(flags),
-        "by_country": dict(sorted(by_country.items())),
-        "by_outlet": dict(sorted(by_outlet.items())),
-        "recurring_bylines": {"window_days": days, "rows": recurring_bylines(conn, days)},
+        "articles_total": len({f["article_id"] for f in flags}),
+        # A null country must not stop the export: keys are sorted by their string form.
+        "by_country": dict(sorted(by_country.items(), key=lambda kv: str(kv[0]))),
+        "by_outlet": dict(sorted(by_outlet.items(), key=lambda kv: str(kv[0]))),
     }
 
 
@@ -469,9 +713,29 @@ def meta_block(conn: sqlite3.Connection, personas: Optional[Dict] = None) -> Dic
     plist = personas if personas is not None else load_personas()
     flags = _flag_rows(conn, plist)
     since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).replace(microsecond=0).isoformat()
-    return {"flags_total": len(flags), "flags_30d": sum(1 for f in flags if (f["discovered_at"] or "") >= since),
+    return {"flags_total": len(flags), "articles_total": len({f["article_id"] for f in flags}),
+            "flags_30d": sum(1 for f in flags if (f["discovered_at"] or "") >= since),
             "list_version": plist["version"], "personas": len(plist["personas"]), "fronts": len(plist["fronts"]),
             "operations": len(plist["operations"])}
+
+
+def build_export_quietly(conn: sqlite3.Connection) -> Dict:
+    """build_export for the export stage: a failure is printed and becomes an empty structure,
+    never a stop, in the spirit of scan_quietly."""
+    try:
+        return build_export(conn)
+    except Exception as exc:  # noqa: BLE001
+        _warn("planted export failed: %s: %s" % (type(exc).__name__, exc))
+        return empty_export()
+
+
+def meta_block_quietly(conn: sqlite3.Connection) -> Dict:
+    """meta_block for the export stage: a failure is printed and becomes an empty block."""
+    try:
+        return meta_block(conn)
+    except Exception as exc:  # noqa: BLE001
+        _warn("planted meta block failed: %s: %s" % (type(exc).__name__, exc))
+        return empty_meta_block()
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +747,8 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd")
     s = sub.add_parser("scan", help="flag new articles against sources/personas.yaml")
     s.add_argument("--full", action="store_true", help="rescan every article")
-    r = sub.add_parser("recurring", help="bylines recurring across unrelated outlets")
+    s.add_argument("--budget-seconds", type=float, default=None, help="stop cleanly after this long; the next scan resumes")
+    r = sub.add_parser("recurring", help="bylines recurring across unrelated outlets (a diagnostic, never published)")
     r.add_argument("--days", type=int, default=config.PLANTED_RECURRING_DAYS)
     args = ap.parse_args(argv)
     if not args.cmd:
@@ -491,7 +756,8 @@ def main(argv=None):
         return 2
     conn = store.connect()
     if args.cmd == "scan":
-        print(json.dumps(scan(conn, full=args.full)))
+        deadline = time.monotonic() + args.budget_seconds if args.budget_seconds else None
+        print(json.dumps(scan(conn, full=args.full, deadline=deadline)))
     else:
         print(json.dumps({"window_days": args.days, "rows": recurring_bylines(conn, args.days)}, ensure_ascii=False, indent=1))
     conn.close()

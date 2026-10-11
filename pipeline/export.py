@@ -1186,8 +1186,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
                             "warning_share": config.FEED_SATURATION_WARNING_SHARE},
         "release_sections": release_summary(outlets),
         # Byline flags against the persona list. A match, cited to a published report, never a
-        # finding, and nothing in the categories or counts above depends on it.
-        "planted": planted.meta_block(conn),
+        # finding, and nothing in the categories or counts above depends on it. A failure there is
+        # printed and becomes an empty block; it never stops the export.
+        "planted": planted.meta_block_quietly(conn),
         "categories": {
             "A": "State origin. Text written by an entity of the Chinese state and published essentially unaltered.",
             "B": "Unchecked state sourcing. Written by the local outlet but passes on official Chinese sourcing without independent confirmation.",
@@ -1300,7 +1301,8 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         write_json(export_dir / "articles" / ("%s.json" % country), articles.get(country, []))
     write_json(export_dir / "meta.json", meta)
     write_json(export_dir / "examples.json", examples)
-    write_json(export_dir / "planted.json", planted.build_export(conn))
+    # A failure in the planted export is printed and leaves an empty planted.json, never a stop.
+    write_json(export_dir / "planted.json", planted.build_export_quietly(conn))
     counts = {"planted": planted_counts,"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
               "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)

@@ -4,6 +4,26 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Stress test before the 12 October presentation (2026-10-11)
+
+Two audits of the 8 and 9 October changes, and the fixes. The recurring bylines diagnostic no longer
+leaves the command line (`python -m pipeline.planted recurring`): on the site it listed syndicated
+agency reporters under a heading about invented journalists, so planted.json drops it and the section
+shows only matches against the published watchlist. The daily model cap no longer discounts batched
+calls twice: llm_cost.measured_per_call now measures the full price of a call from the stored token
+counts and the batch discount is applied once, and days with an uncollected batch, and today, are left
+out of the measurement; the live cap of about 900 calls a day was roughly double what 110 dollars buys.
+The persona matcher splits multi-author fields on punctuation and "and" before normalising, tries the
+reversed "Last, First" order, strips honorifics, accepts a byline word only at the start of a line or
+after "written", and matches front names as whole phrases, so "una declaracion de Alice Johnson" and
+"National Social Research Center" no longer flag. The scan compiles one alternation for all front names
+and domains, stops at the stage deadline and checkpoints every commit; load_personas validates types,
+ids and operation references and warns instead of failing; the export never stops on a bad watchlist;
+flags_total gains articles_total. On the site, each render step is isolated so one failure cannot skip
+the rest or bind every control twice, a missing planted.json says so instead of reading as a finding,
+the Start here and FAQ text describe the reliability check as done, and theme data tolerates nulls.
+No category, count, ruleset, gate or schema version change.
+
 ## Planted bylines: matches against personas named in published investigations (2026-10-08)
 
 A new side channel, pipeline/planted.py, reads sources/personas.yaml (personas and false front

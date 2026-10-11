@@ -291,11 +291,9 @@ def planted_text(meta: Dict) -> str:
             "investigation and the matching span, and the item is kept past the usual retention window. "
             "A flag means only that the byline or citation matches a name a published investigation has "
             "exposed; the tracker cannot prove a byline is fictitious, and the absence of a match proves "
-            "nothing. Flags never enter the three categories and never change a count. The site also "
-            "shows, as a diagnostic for human review and not as a finding, bylines that recur in at "
-            "least three outlets and two countries within thirty days, after generic desk bylines, "
-            "outlet and wire names and wire copy carrying a reporter's name are excluded; syndicated "
-            "agency reporters still appear there whenever outlets print their names.")
+            "nothing. Flags never enter the three categories and never change a count. A recurring "
+            "bylines diagnostic exists on the command line only (python -m pipeline.planted recurring) "
+            "and is never published, because it lists syndicated agency reporters.")
     if not p:
         return head
     tail = (" At export time the list held %d personas and %d fronts from %d investigations (list version %s), "
