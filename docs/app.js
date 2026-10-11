@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "76";
+  var ASSET_VERSION = "77";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -316,7 +316,7 @@
       var nk = document.createElement("span"); nk.className = "nk"; nk.textContent = "Notes"; strip.appendChild(nk);
       strip.appendChild(document.createTextNode(short.join("; ") + ". "));
       var link = document.createElement("a"); link.href = "#method-notes-title";
-      link.textContent = full.length > short.length ? "All " + full.length + " notes" : "Read in full";
+      link.textContent = full.length > short.length ? "All " + full.length + " notes above" : "Read in full above";
       strip.appendChild(link);
     }
     strip.hidden = !short.length;
