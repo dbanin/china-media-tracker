@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "77";
+  var ASSET_VERSION = "78";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -238,7 +238,8 @@
   function ctxFor(iso, entry, agg) {
     return {population: entry.population, topOutlets: entry.top_outlets, relay: relayFor(entry),
             noRelayOutput: ((state.meta && state.meta.schema_version) || 0) < 6,
-            routeCount: routeActive() ? C.routeCount(agg, iso, state.route) : null};
+            routeCount: routeActive() ? C.routeCount(agg, iso, state.route) : null,
+            worldwide: iso === C.WORLDWIDE_ISO};
   }
 
   /* --------------------------------------------------------------- notices */
@@ -379,8 +380,11 @@
     var countries = {}; outs.forEach(function (o) { countries[o.country] = true; });
     var nCountries = Object.keys(countries).length;
     var share = at.state_share_of_china === null || at.state_share_of_china === undefined ? "n/a" : (at.state_share_of_china * 100).toFixed(1) + "%";
+    /* The total includes the worldwide distribution stratum, so the note says how much of it arrived that way. */
+    var wld = (state.latest && state.latest.countries && state.latest.countries[C.WORLDWIDE_ISO]) || null;
+    var wldA = (wld && wld.all_time && wld.all_time.A) || 0;
     var cards = [
-      {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + (f.since || "the start") + "."},
+      {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + (f.since || "the start") + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."},
       {label: "Share of China coverage", value: share, note: "Of every China-related article the monitored outlets published.", accent: true},
       tc ? {label: "Top country, last 30 days", value: esc(countryName(tc.iso)) + (tc.share_of_world ? " <em>" + Math.round(tc.share_of_world * 100) + "%</em>" : ""),
             note: intComma(tc.state_origin) + " articles" + (tc.top_outlet ? ", mostly through " + tc.top_outlet.name : "") + ".", html: true} : null,
@@ -708,7 +712,8 @@
     if (!drawn || !Object.keys(drawn).length) return [];
     var countries = (state.latest && state.latest.countries) || {};
     return Object.keys(countries).filter(function (iso) {
-      return (countries[iso].outlets_active || 0) > 0 && !drawn[iso];
+      /* The worldwide distribution stratum has its own line under the legend. */
+      return iso !== C.WORLDWIDE_ISO && (countries[iso].outlets_active || 0) > 0 && !drawn[iso];
     }).sort(function (x, y) {
       var px = (state._perIso || {})[x], py = (state._perIso || {})[y];
       return ((py && py.mv.value) || 0) - ((px && px.mv.value) || 0) || countryName(x).localeCompare(countryName(y));
@@ -879,6 +884,8 @@
       : null;
     var relay = relayFor(null);
     var offMap = offMapCountries();
+    var wld = state._perIso && state._perIso[C.WORLDWIDE_ISO];
+    var worldwideLine = wld ? C.worldwideLegendLine(wld.mv, state.metric) : null;
     el("legend").innerHTML =
       '<div class="lg-group">' +
         '<div class="lg-kicker">Color scale</div>' +
@@ -909,6 +916,7 @@
         (offMap.length ? '<p class="lg-note">' + plural(offMap.length, "monitored country", "monitored countries") + ' with active outlets have no outline at this map\u2019s scale and are missing from it altogether, not hatched: ' +
           esc(offMap.slice(0, 4).map(countryName).join(", ")) + (offMap.length > 4 ? ' and ' + plural(offMap.length - 4, "other") : '') +
           '. Their figures are in the ranked list, the Country search and both CSV exports.</p>' : '') +
+        (worldwideLine ? '<p class="lg-note" id="legend-worldwide">' + esc(worldwideLine) + '</p>' : '') +
       '</div>';
   }
 
@@ -1388,7 +1396,8 @@
   var COUNTRY_ALIASES = {USA: "usa us america united states", GBR: "uk britain great britain england", KOR: "south korea", PRK: "north korea",
     RUS: "russia", VNM: "vietnam", IRN: "iran", TWN: "taiwan", CZE: "czech republic czechia", TUR: "turkey turkiye", BOL: "bolivia",
     VEN: "venezuela", TZA: "tanzania", SYR: "syria", LAO: "laos", MDA: "moldova", COD: "drc congo kinshasa", COG: "congo brazzaville",
-    CIV: "ivory coast", ARE: "uae emirates", HKG: "hong kong", MAC: "macau macao", PSE: "palestine", MMR: "burma myanmar", SWZ: "swaziland eswatini"};
+    CIV: "ivory coast", ARE: "uae emirates", HKG: "hong kong", MAC: "macau macao", PSE: "palestine", MMR: "burma myanmar", SWZ: "swaziland eswatini",
+    WLD: "worldwide distribution press release wires pr newswire globenewswire world"};
   function foldText(t) { return String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
   function setupCountryPicks() {
     var entries = Object.keys((state.latest && state.latest.countries) || {}).map(function (iso) {

@@ -4,6 +4,19 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Worldwide distribution stratum for the press release wires (2026-10-11)
+
+Press release distribution wires (PR Newswire, GlobeNewswire) were counted on their own and appeared
+in no total: in the last 30 days that left 179 state origin releases off the map and the country
+list. They are now counted as a stratum of their own, "Worldwide distribution", under the code WLD in
+latest.json, the daily files, outlets.json (the wires carry country WLD in the export only) and
+articles/WLD.json. Country counts are unchanged: the stratum is never attributed to the United States
+and never added into any country's numbers. World totals, the global series and the findings totals
+now include the worldwide stratum; the top country card never names it. The site lists it in the
+ranked list and the country search, adds one line under the map legend, and says in the state origin
+card how many arrived through the wires. meta.distribution_wires keeps its old name and equals the
+stratum. Schema version 10. No category, ruleset or gate change.
+
 ## Stress test before the 12 October presentation (2026-10-11)
 
 Two audits of the 8 and 9 October changes, and the fixes. The recurring bylines diagnostic no longer

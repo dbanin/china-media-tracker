@@ -76,6 +76,12 @@
     return out;
   }
 
+  /* The worldwide distribution stratum: the press release wires, whose releases reach audiences in every
+     country. It is listed beside the countries under the World Bank's code for the world, is never added
+     into any country, has no population and no outline on the map. */
+  var WORLDWIDE_ISO = "WLD";
+  var WORLDWIDE_NAME = "Worldwide distribution";
+
   /* Share metrics are undefined on tiny denominators: two A items out of two is not a 100 percent country. */
   var MIN_SHARE_DENOMINATOR = 5;
   /* A share of monitored output needs a real stream of items behind it. */
@@ -122,7 +128,10 @@
        topOutlets    outlets behind the published-items denominator
        relay         {measured, publishable, provisional} for this country; absent means publishable
        noRelayOutput the data predates the relay count among published items (schema 5), so that share is unknown
-       routeCount    state origin in the selected route or arrival, replacing the state origin count */
+       routeCount    state origin in the selected route or arrival, replacing the state origin count
+       worldwide     the row is the worldwide distribution stratum: its share of output divides by everything the
+                     wires themselves published, so the minimum outlet count, which guards against a handful of
+                     feeds standing for a country, does not apply */
   function metricValue(counts, metric, outletsActive, mode, reviewedCounts, ctx) {
     ctx = ctx || {};
     var a, b, c, p;
@@ -167,7 +176,7 @@
           if (metric === "share_of_output_b" && ctx.noRelayOutput) { sparse = true; note = "This share needs data from a newer export, which counts unchecked state sourcing among the published items."; }
           else if (mode === "reviewed") { sparse = true; note = "The share of monitored output is not available for human-reviewed labels only."; }
           else if (byRoute) { sparse = true; note = "The share of monitored output is not available by route, because the published items are not split by route."; }
-          else if (ctx.topOutlets !== undefined && ctx.topOutlets !== null && ctx.topOutlets < MIN_OUTLETS_FOR_OUTPUT_SHARE) {
+          else if (!ctx.worldwide && ctx.topOutlets !== undefined && ctx.topOutlets !== null && ctx.topOutlets < MIN_OUTLETS_FOR_OUTPUT_SHARE) {
             sparse = allItems > 0 || china > 0;
             note = "Fewer than " + MIN_OUTLETS_FOR_OUTPUT_SHARE + " monitored outlets, so a share of their output would describe a handful of feeds, not a country.";
           } else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) {
@@ -277,6 +286,7 @@
     pick.forEach(function (d) {
       var agg = aggregateWindow(months, d, windowDays);
       Object.keys(countries).forEach(function (iso) {
+        if (iso === WORLDWIDE_ISO) return;   /* the scale colors the map, and the stratum is drawn nowhere on it */
         var entry = countries[iso];
         var ctx = ctxFor ? ctxFor(iso, entry, agg) : {population: entry.population};
         var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
@@ -466,6 +476,31 @@
     return rows;
   }
 
+  /* The one line under the map legend for the worldwide distribution stratum, which the map cannot draw.
+     mv is the stratum's metricValue for the view shown, so N follows the measure, basis, window, day and
+     route exactly as a country's figure does; the noun follows the measure. Returns null when the stratum
+     holds nothing in the window, or is absent, so the caller hides the line. A per capita basis has no
+     meaning for a stratum with no population and says so. */
+  var WORLDWIDE_NOUNS = {a: "state-origin articles", b: "unchecked state sourcing articles", target: "state-linked articles", china: "China-related articles"};
+  function worldwideLegendLine(mv, metric) {
+    if (!mv) return null;
+    var def = METRICS[metric] || {}, parts = metricParts(metric), measure = parts.measure || def.measure || "a";
+    var count = measure === "a" ? mv.a : measure === "b" ? mv.b : measure === "china" ? mv.chinaTotal : mv.target;
+    if (!count || mv.withheld) return null;
+    var noun = WORLDWIDE_NOUNS[measure] || "articles";
+    var head = "Worldwide distribution via press release wires: ";
+    var tail = " in this window, reaching every country and drawn in none.";
+    var n = formatValue(mv.value, def.format);
+    var body;
+    if (def.population) body = noun + " per million people not applicable, since the stratum has no population; " + count.toLocaleString("en-US") + " " + noun;
+    else if (mv.value === null || mv.value === undefined) body = count.toLocaleString("en-US") + " " + noun + ", with no " + (BASIS_NAMES[parts.basis] || "rate").toLowerCase() + " shown" + (mv.note ? " (" + mv.note.replace(/\.$/, "") + ")" : "");
+    else if (parts.basis === "per_outlet") body = n + " " + noun + " per wire monitored";
+    else if (parts.basis === "share_of_china") body = noun + " at " + n + " of its China coverage";
+    else if (parts.basis === "share_of_output") body = noun + " at " + n + " of every release the wires published";
+    else body = n + (mv.provisional ? " (provisional)" : "") + " " + noun;
+    return head + body + tail;
+  }
+
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
   var NAMES = {A: "State origin", B: "Unchecked state sourcing", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
                pending: "Official Chinese sourcing, verification pending"};
@@ -609,7 +644,7 @@
   }
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
-  return {EMPTY: EMPTY, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+  return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,

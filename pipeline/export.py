@@ -8,7 +8,8 @@ Outputs in docs/data/:
   outlets.json         registry with coverage metadata, feed health and release section status
   meta.json            last run, kappa, review coverage, ruleset and schema versions, gaps, and
                        the gates that decide what the interface may publish
-  articles/ISO3.json   most recent classified articles per country for the country panel
+  articles/ISO3.json   most recent classified articles per country for the country panel;
+                       articles/WLD.json holds the worldwide distribution stratum (press release wires)
   global_series.json   per-day global totals for the sparkline
   planted.json         articles whose byline or cited organisation matches a persona or front named
                        in a published investigation, and the recurring bylines diagnostic; never a
@@ -117,19 +118,21 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
                                     "top_discovered": 0, "top_target": 0, "top_china": 0, "top_a": 0, "top_b": 0})
     for r in rows:
         d = _day(r)
-        # A global release service is not a national newsroom, so its items are counted on their own
-        # and never inside a country's numerator or denominator.
+        # A global release service is not a national newsroom, so its items are never inside a
+        # country's numerator or denominator. They are counted under the worldwide distribution
+        # stratum, WLD, which the interface lists beside the countries and draws nowhere on the map.
+        country = r["country"]
         if r["outlet_id"] in wire_ids:
+            country = registry.WORLDWIDE
             wires["articles"] += 1
             if r["status"] in ("awaiting_llm", "llm_submitted"):
                 wires["pending"] += 1
             elif r["m_cat"]:
                 wires[r["m_cat"]] += 1
-            continue
-        cov = coverage[(d, r["country"])]
+        cov = coverage[(d, country)]
         cov["gate_relevant"] += 1
         st = r["status"]
-        if r["outlet_id"] in top_ids.get(r["country"], set()):
+        if r["outlet_id"] in top_ids.get(country, set()):
             pending = st in ("awaiting_llm", "llm_submitted")
             if pending or r["m_cat"] in ("A", "B"):
                 cov["top_target"] += 1
@@ -151,14 +154,14 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
             cov["llm_pending"] += 1
         if r["m_cat"]:
             cov["classified"] += 1
-            key = (d, r["country"], r["m_cat"], "all")
+            key = (d, country, r["m_cat"], "all")
             c = counts[key]
             c["n"] += 1
             c["n_rules" if r["m_method"] == "rules" else "n_llm"] += 1
             c["groups"].add(r["dup_group_id"] or r["id"])
             if r["h_cat"]:
                 c["n_reviewed"] += 1
-                key2 = (d, r["country"], r["h_cat"], "reviewed")
+                key2 = (d, country, r["h_cat"], "reviewed")
                 c2 = counts[key2]
                 c2["n"] += 1
                 c2["n_reviewed"] += 1
@@ -166,13 +169,14 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     # discovered totals per day and country include gated-out items. They come from the
     # permanent daily_discovery table, because gated-out rows are pruned from articles.
     # A distribution wire's releases are not part of any country's output, so they are left out of the
-    # discovery denominators as well as the numerators; counting them understated every US share.
+    # discovery denominators as well as the numerators; counting them understated every US share. The
+    # per outlet table is keyed by the registry country, so the stratum's own denominator, everything
+    # the wires themselves published, is derived here from the wire outlet ids rather than in the store.
     for r in conn.execute("SELECT date, outlet_id, country, discovered FROM daily_outlet_discovery"):
-        if r["outlet_id"] in wire_ids:
-            continue
-        coverage[(r["date"], r["country"])]["discovered"] += r["discovered"]
-        if r["outlet_id"] in top_ids.get(r["country"], set()):
-            coverage[(r["date"], r["country"])]["top_discovered"] += r["discovered"]
+        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
+        coverage[(r["date"], country)]["discovered"] += r["discovered"]
+        if r["outlet_id"] in top_ids.get(country, set()):
+            coverage[(r["date"], country)]["top_discovered"] += r["discovered"]
 
     conn.execute("DELETE FROM daily_counts")
     conn.execute("DELETE FROM daily_coverage")
@@ -192,6 +196,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
              cov["top_discovered"], cov["top_target"], cov["top_china"], cov["top_a"], cov["top_b"]),
         )
     conn.commit()
+    # The wires block equals the WLD stratum's totals: it is kept under its old name so nothing that
+    # reads it changes, and the stratum is the same figure placed beside the countries.
     return {"daily_counts": len(counts), "daily_coverage": len(coverage), "articles": len(rows),
             "distribution_wire_articles": wires["articles"], "distribution_wires": wires}
 
@@ -350,9 +356,11 @@ def language_support(languages, supported) -> str:
     return "full" if n == len(langs) else ("partial" if n else "none")
 
 
-def release_summary(outlets: List[Dict]) -> Dict:
-    """Active outlets by the status of the search for press release, sponsored and partner sections."""
-    active = registry.active_outlets(outlets)
+def release_summary(outlets: List[Dict], active: Optional[List[Dict]] = None) -> Dict:
+    """Active outlets by the status of the search for press release, sponsored and partner sections.
+    `active` is the list to summarise when it is not the registry's own idea of active, as for the
+    worldwide distribution stratum, whose outlets are the wires."""
+    active = registry.active_outlets(outlets) if active is None else active
     out = {s: 0 for s in RELEASE_STATUSES}
     out["not_searched"] = 0
     for o in active:
@@ -396,22 +404,19 @@ def gate_changes(path: Path = None) -> List[Dict]:
 def _country_top_carriers(conn, outlets: List[Dict], since30: str) -> Dict[str, Dict]:
     """Per country, the outlet and the route that carried most of its state origin count in the
     last 30 days, so a map tooltip can say what carried the number. Distribution wires are
-    excluded, exactly as every country figure excludes them. A route with no signature at all is
-    not a route (see route_signature_totals in build_meta) and is never reported here as one."""
+    counted under the worldwide distribution stratum, exactly as every country figure places them.
+    A route with no signature at all is not a route (see route_signature_totals in build_meta) and
+    is never reported here as one."""
     wire_ids = registry.distribution_wire_ids(outlets)
-    where = ""
-    params: List = [since30]
-    if wire_ids:
-        where = " AND a.outlet_id NOT IN (%s)" % ",".join("?" * len(wire_ids))
-        params += sorted(wire_ids)
     outlet_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     route_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for r in conn.execute(
             """SELECT a.country, a.outlet_id, c.route FROM articles a JOIN classifications c
                ON c.article_id=a.id AND c.is_current=1
-               WHERE c.category='A' AND a.discovered_at>=?%s""" % where, params):
-        outlet_counts[r["country"]][r["outlet_id"]] += 1
-        route_counts[r["country"]][r["route"] or "unattributed"] += 1
+               WHERE c.category='A' AND a.discovered_at>=?""", (since30,)):
+        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
+        outlet_counts[country][r["outlet_id"]] += 1
+        route_counts[country][r["route"] or "unattributed"] += 1
     names = {o["id"]: o["name"] for o in outlets}
     out = {}
     for country in set(outlet_counts) | set(route_counts):
@@ -433,9 +438,11 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
     top_ids, ranked = registry.top_outlets(outlets)
     today = dt.datetime.now(dt.timezone.utc).date()
     since30 = (today - dt.timedelta(days=30)).isoformat()
+    # Distribution wires are grouped under WLD, the worldwide distribution stratum, never under the
+    # country they are registered in.
     by_country_outlets = defaultdict(list)
     for o in outlets:
-        by_country_outlets[o["country"]].append(o)
+        by_country_outlets[registry.export_country(o)].append(o)
     feed_health = {r["feed_url"]: dict(r) for r in conn.execute("SELECT * FROM feed_health")}
     gate_langs = gate.supported_languages()
     theme_langs = themes_mod.languages()
@@ -466,7 +473,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
 
     countries = {}
     for country, os_ in by_country_outlets.items():
-        active = registry.active_outlets(os_)
+        worldwide = country == registry.WORLDWIDE
+        active = registry.active_wires(os_) if worldwide else registry.active_outlets(os_)
         # Feed health counts editorial feeds only. A quiet or unreadable sponsored section is not a failing feed,
         # so section feeds are reported beside them and never trip the failing feeds warning.
         entries = [f for o in active for f in registry.feed_entries(o)]
@@ -481,13 +489,16 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             "feeds_total": len(feeds), "feeds_ok": feeds_ok,
             "section_feeds_total": len(section_urls),
             "section_feeds_ok": sum(1 for f in section_urls if feed_health.get(f) and feed_health[f]["consecutive_failures"] == 0),
-            "population": population.get(country),
+            # The stratum has no population: a per million value is not applicable to it.
+            "population": None if worldwide else population.get(country),
             "top_outlets": len(top_ids.get(country, ())), "top_outlets_ranked": country in ranked,
             "languages": languages,
-            "language_support": language_support(languages, gate_langs),
-            "theme_language_support": language_support(languages, theme_langs),
+            # Every release is matched on its own language and on English, and the stratum is not a
+            # country whose press could be unreadable, so its support is recorded as full.
+            "language_support": "full" if worldwide else language_support(languages, gate_langs),
+            "theme_language_support": "full" if worldwide else language_support(languages, theme_langs),
             "relay_outlets": relayed,
-            "release_sections": release_summary(os_),
+            "release_sections": release_summary(os_, active if worldwide else None),
             "top_carrier": carriers.get(country, {}).get("top_carrier"),
             "top_route": carriers.get(country, {}).get("top_route"),
             "all_time": _derive(dict(all_time[country]), len(active), visible),
@@ -535,6 +546,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                                        "top_carrier": None, "top_route": None,
                                        "all_time": _derive(_empty_country(), 0, visible), "last_30d": _derive(_empty_country(), 0, visible), "warnings": []}
 
+    # World totals include the worldwide distribution stratum: its items reached audiences. Its
+    # outlets are not in the per outlet denominator, which counts the newsrooms monitored.
     n_active = len(registry.active_outlets(outlets))
     totals = {"all_time": _derive(_empty_country(), n_active, visible), "last_30d": _derive(_empty_country(), n_active, visible)}
     for scope_key, src in (("all_time", all_time), ("last_30d", last30)):
@@ -582,20 +595,20 @@ def build_daily(conn, outlets: Optional[List[Dict]] = None) -> Dict[str, Dict]:
     older_ruleset = defaultdict(int)
     wire_ids = registry.distribution_wire_ids(outlets if outlets is not None else registry.load_outlets())
     for r in article_rows(conn):
-        if r["outlet_id"] in wire_ids:
-            continue   # counted as their own stratum, never inside a country
+        # A wire's items are the worldwide distribution stratum, never a country's.
+        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
         pending = r["status"] in ("awaiting_llm", "llm_submitted")
         cat = r["m_cat"]
         d = _day(r)
         if cat and r["ruleset_version"] and r["ruleset_version"] != config.RULESET_VERSION:
             older_ruleset[d] += 1
         if cat == "A":
-            routes[d][r["country"]][r["route"] or "unattributed"] += 1
-            arrivals[d][r["country"]][classify_rules.arrival_of(r["gate_terms"])] += 1
+            routes[d][country][r["route"] or "unattributed"] += 1
+            arrivals[d][country][classify_rules.arrival_of(r["gate_terms"])] += 1
         if not (pending or cat in ("A", "B", "C")):
             continue
         for t in themes_mod.themes_of(r["themes"]):
-            v = theme_counts[d][r["country"]][t]
+            v = theme_counts[d][country][t]
             v[0] += 1
             if pending or cat in ("A", "B"):
                 v[1] += 1
@@ -632,9 +645,11 @@ def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
                    "relay_incomplete": day.get("relay_incomplete", False),
                    "labels_on_older_ruleset": day.get("labels_on_older_ruleset", 0)}
             for c, v in day["countries"].items():
+                # World totals include the worldwide distribution stratum; the count of countries
+                # with state origin does not, because the stratum is not a country.
                 for k in ("A", "B", "C", "N", "rel", "paywalled", "pending"):
                     tot[k] += v[k]
-                if v["A"]:
+                if v["A"] and c != registry.WORLDWIDE:
                     tot["countries_with_A"] += 1
             series.append(tot)
     return series
@@ -678,7 +693,9 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
             feeds.append({"url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL), "ok": bool(h and h["consecutive_failures"] == 0),
                           "last_ok": h["last_ok"] if h else None, "last_error": h["last_error"] if h else None,
                           "consecutive_failures": h["consecutive_failures"] if h else None})
-        out.append({"id": o["id"], "name": o["name"], "country": o["country"], "language": o["language"],
+        # A wire carries country WLD in the export only: it is listed and counted under the worldwide
+        # distribution stratum, while sources/outlets.yaml keeps the country it is registered in.
+        out.append({"id": o["id"], "name": o["name"], "country": registry.export_country(o), "language": o["language"],
                     "tier": o["tier"], "active": o["active"], "notes": o.get("notes"),
                     "audience_rank": o.get("audience_rank"),
                     "political_leaning": o.get("political_leaning") or "unassessed", "leaning_source": o.get("leaning_source"),
@@ -730,8 +747,8 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
     out = defaultdict(list)
     wire_ids = registry.distribution_wire_ids(outlets if outlets is not None else registry.load_outlets())
     for r in rows:
-        if r["outlet_id"] in wire_ids:
-            continue   # a release wire's items are not a country's articles
+        # A release wire's items are not a country's articles: they are listed under WLD.
+        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
         pending = r["category"] is None
         cat = "pending" if pending else r["category"]
         entry = {
@@ -756,7 +773,7 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
             entry["signatures"] = trig.get("a_candidate", [])
             entry["reasoning"] = ("Carries official Chinese sourcing. Whether the claim is independently checked is the "
                                   "verification judgement, which has not run yet.")
-        out[r["country"]].append(entry)
+        out[country].append(entry)
     for country in out:
         # Newest first inside each category, categories in ORDER. Two stable sorts.
         out[country].sort(key=lambda e: e["date"] or "", reverse=True)
@@ -861,7 +878,8 @@ def build_examples(conn, outlets: Optional[List[Dict]] = None, limit: int = 6) -
     sourcing when it may be shown: different countries and different outlets, most recent first,
     current ruleset labels only. Paywalled articles are never classified, so they are absent here in
     any case; the status check guards that directly rather than relying on it. Distribution wires
-    are excluded, as everywhere."""
+    are excluded: the examples show placements in newsrooms, and the worldwide distribution stratum
+    is not one."""
     outlets = outlets if outlets is not None else registry.load_outlets()
     wire_ids = registry.distribution_wire_ids(outlets)
     names = {o["id"]: o["name"] for o in outlets}
@@ -935,15 +953,17 @@ def by_ownership_findings(outlets_json: Dict) -> Dict:
 def _top_country_last30(conn, outlets: List[Dict], latest: Dict, since30: str) -> Optional[Dict]:
     """The country with the most state origin articles in the last 30 days: its share of the
     world's state origin in that window, the outlet that carried most of it, and the route that
-    carried most of it. Distribution wires are excluded, exactly as every country figure excludes
-    them, and a route with no signature at all is not counted as a route, matching
-    route_signature_totals in build_meta."""
+    carried most of it. The worldwide distribution stratum (WLD) is part of the world total, since
+    its releases reached audiences, but it is not a country and is never the top country. The wire
+    exclusion below guards the article query, whose rows still carry the wires' registry country.
+    A route with no signature at all is not counted as a route, matching route_signature_totals in
+    build_meta."""
     world = 0
     by_country = {}
     for iso, c in latest["countries"].items():
         a = (c.get("last_30d") or {}).get("A", 0)
         world += a
-        if a:
+        if a and iso != registry.WORLDWIDE:
             by_country[iso] = a
     if not by_country:
         return None
@@ -981,8 +1001,8 @@ def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, 
     the publishing outlet's ownership."""
     visible = relay_visible(conn)
     tot = latest["totals"]["all_time"]
-    # china_total is A + B + C across every country, distribution wires excluded: the same
-    # denominator the interface already uses for "share of its China coverage" (_derive above).
+    # china_total is A + B + C across every country and the worldwide distribution stratum: the
+    # same denominator the interface already uses for "share of its China coverage" (_derive above).
     china_total = tot["china_total"]
     return {
         "since": first_discovered,
@@ -1074,11 +1094,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         (config.RULESET_VERSION, REFETCH_ATTEMPT_LIMIT),
     ).fetchone()[0]
     mix = {r[0]: r[1] for r in conn.execute("SELECT ruleset_version, COUNT(*) FROM classifications WHERE is_current=1 GROUP BY ruleset_version")}
-    wires = sorted(registry.distribution_wire_ids(outlets))
+    # World totals by route, the worldwide distribution stratum included, so a route filtered world
+    # figure on the site and this table are the same sum.
     route_totals = {r[0] or "unattributed": r[1] for r in conn.execute(
-        """SELECT c.route, COUNT(*) FROM classifications c JOIN articles a ON a.id=c.article_id
-           WHERE c.is_current=1 AND c.category='A' AND a.outlet_id NOT IN (%s) GROUP BY c.route""" % ",".join("?" * len(wires)),
-        tuple(wires))} if wires else {r[0] or "unattributed": r[1] for r in conn.execute(
         "SELECT route, COUNT(*) FROM classifications WHERE is_current=1 AND category='A' GROUP BY route")}
     sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), COALESCE(SUM(missed_estimate), 0) FROM feed_polls").fetchone()
     first_discovered = (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None
@@ -1146,11 +1164,14 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         # Spending, estimated from recorded token usage at published prices, and the calls today's
         # share of the monthly budget pays for at the batch price the scheduled runs use.
         # Global release distribution services, counted apart from every country. They are polled and
-        # classified like any outlet; what they are not is a national media market.
+        # classified like any outlet; what they are not is a national media market. These counts
+        # equal the worldwide distribution stratum, WLD, in latest.json: the block keeps its name so
+        # nothing that reads it changes.
         "distribution_wires": {
             "outlets": sorted(registry.distribution_wire_ids(outlets)),
+            "stratum": registry.WORLDWIDE,
             "counts": _wire_counts(conn, outlets),
-            "note": "Global press release distribution services. Their releases are written by their issuers and pushed worldwide, so they are counted here and never inside a country.",
+            "note": "Global press release distribution services. Their releases are written by their issuers and pushed worldwide, so they are counted as the worldwide distribution stratum (WLD in latest.json), never attributed to the United States and never added into any country.",
         },
         "llm_budget": dict(llm_cost.month_to_date(conn),
                            budget_usd=config.LLM_MONTHLY_BUDGET_USD,

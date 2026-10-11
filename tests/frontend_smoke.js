@@ -271,4 +271,39 @@ assert(C.planted.summarise({flags: [{country: "USA"}], some_future_key: {rows: [
 var nullTheme = {"2026-09": {days: {"2026-09-01": {countries: {ITA: null}, reviewed: {}, themes: {ITA: null, USA: {diplomacy: null, culture: [1, 0, 0, 0]}}}}}};
 var thNull = C.aggregateThemes(nullTheme, "2026-09-01", 1);
 assert(thNull.USA.culture[0] === 1 && thNull.USA.diplomacy[0] === 0 && Object.keys(thNull.ITA).length === 0, "aggregateThemes tolerates a null country or theme entry");
+/* The worldwide distribution stratum: listed beside the countries under WLD, named, never on the map. */
+assert(C.WORLDWIDE_ISO === "WLD" && C.WORLDWIDE_NAME === "Worldwide distribution", "worldwide stratum code and name");
+var wMonths = {"2026-09": {days: {"2026-09-01": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 2, C: 3, tdisc: 100, ta: 2}),
+                                                            WLD: Object.assign(C.emptyCounts(), {A: 5, C: 1, tdisc: 900, ta: 5, tchina: 6, ttarget: 5})},
+                                                reviewed: {}, llm_ceiling_hit: false, routes: {ITA: {wire_credit: 2}, WLD: {distribution_stamp: 5}}}}}};
+var wLatest = {countries: {ITA: {coverage: "monitored", outlets_active: 10, population: 59000000, top_outlets: 10, language_support: "full"},
+                           WLD: {coverage: "monitored", outlets_active: 2, population: null, top_outlets: 2, language_support: "full"}}};
+var wNames = {ITA: "Italy", WLD: "Worldwide distribution"};
+var wAgg = C.aggregateWindow(wMonths, "2026-09-01", 30);
+var wCtx = function (iso, entry, agg) { return {population: entry.population, topOutlets: entry.top_outlets, worldwide: iso === C.WORLDWIDE_ISO}; };
+var wRows = C.rankCountries(wAgg, wLatest, "count_a", "all", wNames, wCtx);
+assert(wRows.length === 2 && wRows[0].iso === "WLD" && wRows[0].name === "Worldwide distribution" && wRows[0].value === 5 && wRows[0].population === "", "rankCountries lists the stratum by name with its own count");
+assert(wRows[1].iso === "ITA" && wRows[1].value === 2, "and the country keeps its own count, with nothing from the wires added");
+var wPm = C.metricValue(wAgg.countries.WLD, "per_million_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
+assert(wPm.value === null && wPm.sparse && /population/.test(wPm.note), "per million is null for the stratum, with a note");
+assert(C.fillClass(wLatest.countries.WLD, wPm) === "sparse", "a stratum with no population is sparse under per million, never an observed zero");
+var wShare = C.metricValue(wAgg.countries.WLD, "share_of_output_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
+assert(Math.abs(wShare.value - 5 / 900) < 1e-9, "the stratum's share of output divides by what the wires published, two outlets notwithstanding");
+var wShareCountry = C.metricValue(wAgg.countries.WLD, "share_of_output_a", 2, "all", undefined, {population: null, topOutlets: 2});
+assert(wShareCountry.value === null && wShareCountry.sparse, "a real country with two outlets still gets no share of output");
+var wCap = C.scaleCap(wMonths, ["2026-09-01"], wLatest, "count_a", 30, "all", wCtx);
+assert(wCap.max === 2 && wCap.values === 1, "the map's color scale ignores the stratum, which it cannot draw");
+var wCount = C.metricValue(wAgg.countries.WLD, "count_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
+var wLine = C.worldwideLegendLine(wCount, "count_a");
+assert(wLine === "Worldwide distribution via press release wires: 5 state-origin articles in this window, reaching every country and drawn in none.", "legend line for a count: " + wLine);
+assert(/not applicable/.test(C.worldwideLegendLine(wPm, "per_million_a")) && /5 state-origin articles/.test(C.worldwideLegendLine(wPm, "per_million_a")), "legend line says per million is not applicable and still gives the count");
+assert(/0\.6% of every release the wires published/.test(C.worldwideLegendLine(wShare, "share_of_output_a")), "legend line follows the share of output basis: " + C.worldwideLegendLine(wShare, "share_of_output_a"));
+assert(/2\.50 state-origin articles per wire monitored/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "per_outlet_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "per_outlet_a")), "legend line follows the per outlet basis");
+assert(/China-related articles/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "count_china", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "count_china")), "legend line follows the measure");
+assert(C.worldwideLegendLine(C.metricValue(C.emptyCounts(), "count_a", 2, "all", undefined, {worldwide: true}), "count_a") === null, "legend line hidden when the stratum holds nothing");
+assert(C.worldwideLegendLine(null, "count_a") === null, "legend line hidden when the stratum is absent");
+var wB = C.metricValue(wAgg.countries.WLD, "count_b", 2, "all", undefined, {worldwide: true, relay: {measured: true, publishable: false, provisional: false}});
+assert(C.worldwideLegendLine(wB, "count_b") === null, "legend line hidden when the measure is withheld");
+var wCsv = C.toCSV(wRows, ["iso", "name", "value", "population"]);
+assert(wCsv.indexOf("WLD,Worldwide distribution,5,") !== -1, "the view CSV carries the stratum with its name");
 console.log("frontend smoke ok");
