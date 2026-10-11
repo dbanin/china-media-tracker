@@ -207,8 +207,8 @@
       Object.keys(e.themes).forEach(function (iso) {
         var src = e.themes[iso];
         var dst = out[iso] || (out[iso] = {});
-        Object.keys(src).forEach(function (t) {
-          var v = src[t], cur = dst[t] || (dst[t] = [0, 0, 0, 0]);
+        Object.keys(src || {}).forEach(function (t) {
+          var v = src[t] || [], cur = dst[t] || (dst[t] = [0, 0, 0, 0]);
           cur[0] += v[0] || 0; cur[1] += v[1] || 0; cur[2] += v[2] || 0; cur[3] += v[3] || 0;
         });
       });
@@ -574,20 +574,24 @@
   }
   /* Counts for the section: how many flags, personas, fronts and investigations the file holds,
      and the flags by country as a list sorted by count then ISO code. The file's own by_country
-     tally is preferred, since the flags list is capped; when it is absent the flags are counted. */
+     tally is preferred, since the flags list is capped; when it is absent, or adds up to nothing
+     while the flags list has entries, the flags are counted instead. The file's flags_total, when
+     present, is the headline count. */
   function plantedSummarise(json) {
     var j = json && typeof json === "object" ? json : {};
     var flags = Array.isArray(j.flags) ? j.flags : [];
     var tally = {};
-    var fromFile = j.by_country && typeof j.by_country === "object" && !Array.isArray(j.by_country) && Object.keys(j.by_country).length > 0;
-    if (fromFile) {
-      Object.keys(j.by_country).forEach(function (iso) { var n = Number(j.by_country[iso]); if (n > 0) tally[iso] = n; });
-    } else {
+    var fileTally = j.by_country && typeof j.by_country === "object" && !Array.isArray(j.by_country) ? j.by_country : {};
+    Object.keys(fileTally).forEach(function (iso) { var n = Number(fileTally[iso]); if (n > 0) tally[iso] = n; });
+    var fromFile = Object.keys(tally).length > 0;
+    if (!fromFile) {
       flags.forEach(function (f) { var iso = (f && f.country) || "unknown"; tally[iso] = (tally[iso] || 0) + 1; });
     }
     var byCountry = Object.keys(tally).map(function (iso) { return {iso: iso, n: tally[iso]}; });
     byCountry.sort(function (a, b) { return b.n - a.n || (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0); });
     var total = fromFile ? byCountry.reduce(function (acc, r) { return acc + r.n; }, 0) : flags.length;
+    var fileTotal = Number(j.flags_total);
+    if (j.flags_total !== undefined && j.flags_total !== null && isFinite(fileTotal) && fileTotal >= 0) total = Math.max(fileTotal, 0);
     return {
       flags: total,
       personas: Array.isArray(j.personas) ? j.personas.length : 0,
@@ -598,12 +602,10 @@
     };
   }
   function plantedPlural(n, one, many) { return n + " " + (n === 1 ? one : many); }
-  /* The sentence shown when no flag exists, including when the file has not been exported yet. */
-  function plantedEmptyState(json) {
-    var s = plantedSummarise(json);
-    return "No byline in the monitored outlets has matched a listed persona since monitoring began. The list holds " +
-      plantedPlural(s.personas, "persona", "personas") + " and " + plantedPlural(s.fronts, "front", "fronts") + " from " +
-      plantedPlural(s.operations, "investigation", "investigations") + ".";
+  /* The sentence shown when no flag exists, including when the file has not been exported yet.
+     The counts are left to the section's intro paragraph, which already states them. */
+  function plantedEmptyState() {
+    return "No byline in the monitored outlets has matched a listed persona since monitoring began.";
   }
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 

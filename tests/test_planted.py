@@ -1,5 +1,6 @@
-"""Planted bylines detector: normalisation, the three detectors, storage, pruning, the recurring
-bylines diagnostic and the export. Temporary databases and temporary YAML only."""
+"""Planted bylines detector: normalisation, the list and its validation, the three detectors,
+storage, pruning, the deadline and resume, the recurring bylines diagnostic (command line only)
+and the export. Temporary databases and temporary YAML only."""
 import json
 
 import pytest
@@ -300,7 +301,7 @@ def test_build_export_shape_and_ordering(plist, tmp_path):
     planted.scan(conn)
     data = planted.build_export(conn)
     assert set(data) == {"generated", "list_version", "operations", "personas", "fronts", "flags", "flags_total",
-                         "by_country", "by_outlet", "recurring_bylines"}
+                         "articles_total", "by_country", "by_outlet"}
     assert data["list_version"] == "2026.10.1"
     assert [f["article_id"] for f in data["flags"]] == [newer, older]
     f = data["flags"][1]
@@ -316,8 +317,8 @@ def test_build_export_shape_and_ordering(plist, tmp_path):
     assert personas["ervin_b_hoskins"]["flags"] == 1 and personas["lonely"]["flags"] == 0
     fronts = {x["id"]: x for x in data["fronts"]}
     assert set(fronts["oneword"]) == {"id", "name", "operation", "kind", "flags"}
-    assert data["recurring_bylines"] == {"window_days": config.PLANTED_RECURRING_DAYS, "rows": []}
-    assert planted.meta_block(conn) == {"flags_total": 2, "flags_30d": 0, "list_version": "2026.10.1",
+    assert data["flags_total"] == 2 and data["articles_total"] == 2
+    assert planted.meta_block(conn) == {"flags_total": 2, "articles_total": 2, "flags_30d": 0, "list_version": "2026.10.1",
                                         "personas": 4, "fronts": 2, "operations": 2}
 
 
@@ -349,7 +350,8 @@ def test_export_run_writes_planted_json_and_meta(plist, tmp_path, monkeypatch):
     assert data["list_version"] == "2026.10.1" and len(data["flags"]) == 1
     assert data["flags"][0]["detector"] == "author_field"
     meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
-    assert meta["planted"] == {"flags_total": 1, "flags_30d": 1, "list_version": "2026.10.1", "personas": 4, "fronts": 2, "operations": 2}
+    assert meta["planted"] == {"flags_total": 1, "articles_total": 1, "flags_30d": 1, "list_version": "2026.10.1",
+                               "personas": 4, "fronts": 2, "operations": 2}
     assert meta["schema_version"] == config.SCHEMA_VERSION
     # no category count moved: the flagged item is gated out and stays uncounted
     assert meta["articles_classified"] == 0
@@ -380,3 +382,364 @@ def test_cli_scan_and_recurring(plist, tmp_path, monkeypatch, capsys):
     assert planted.main(["recurring", "--days", "7"]) == 0
     assert json.loads(capsys.readouterr().out)["window_days"] == 7
     assert planted.main([]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Author field splitting
+# ---------------------------------------------------------------------------
+
+def _personas(*names):
+    return [{"id": n.lower().replace(" ", "_"), "name": n, "operation": "op_bogus", "variants_n": planted.name_variants(n)}
+            for n in names]
+
+
+NAMED = _personas("Jenny Williams", "Alice Johnson", "Michael Harrison")
+
+
+@pytest.mark.parametrize("field, expected", [
+    ("Jenny Williams, Alice Johnson", ["jenny_williams", "alice_johnson"]),
+    ("Alice Johnson; Bob Lee", ["alice_johnson"]),
+    ("Michael Harrison, PhD", ["michael_harrison"]),
+    ("Michael Harrison | Contributor", ["michael_harrison"]),
+    ("email@x | Michael Harrison", ["michael_harrison"]),
+    ("Williams, Jenny", ["jenny_williams"]),
+    ("Dr. Michael Harrison", ["michael_harrison"]),
+    # hits come back in persona list order, Jenny Williams before Michael Harrison in NAMED
+    ("Michael Harrison and Jenny Williams", ["jenny_williams", "michael_harrison"]),
+    ("Prof. Alice Johnson, MD", ["alice_johnson"]),
+    ("Jenny Williams y Alice Johnson", ["jenny_williams", "alice_johnson"]),
+    ("Jenny Williams / Alice Johnson & Michael Harrison", ["jenny_williams", "alice_johnson", "michael_harrison"]),
+    ("michael.harrison@example.test", []),
+    ("Michael Harrison in Beijing", []),
+    ("Harrison", []),
+])
+def test_author_field_is_split_and_cleaned_before_matching(field, expected):
+    assert [p["id"] for p, _ in planted.match_author(field, NAMED)] == expected
+
+
+def test_author_segments_drop_emails_and_single_words():
+    segs = planted._author_segments("email@x | Michael Harrison, PhD")
+    assert "michael harrison" in segs and not any("@" in s for s in segs)
+    assert all(len(s.split()) >= 2 for s in segs)
+    assert planted._author_segments("   ") == []
+
+
+# ---------------------------------------------------------------------------
+# Byline head precision
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("body, expected", [
+    ("una declaración de Alice Johnson\n\nEl acuerdo.", []),
+    ("The port deal was announced by Alice Johnson on Monday.", []),
+    ("Opinion\n\nBy Alice Johnson\n\nThe port deal.", ["alice_johnson"]),
+    ("Opinion. Written by Alice Johnson\n\nThe port deal.", ["alice_johnson"]),
+    ("Escrito por Alice Johnson. Lima.", ["alice_johnson"]),
+    ("Texte écrit par Alice Johnson.", ["alice_johnson"]),
+    ("Von Michael Harrison\n\nBerlin.", ["michael_harrison"]),
+    ("Un articolo di Alice Johnson sul porto.", []),
+    ("Di Alice Johnson\n\nRoma.", ["alice_johnson"]),
+    ("Byline\nBy Jenny Williams, Alice Johnson\n\ntext", ["jenny_williams"]),
+])
+def test_byline_head_only_at_line_start_or_after_written(body, expected):
+    assert [p["id"] for p, _ in planted.match_head(body, NAMED)] == expected
+
+
+def test_byline_words_no_longer_include_de():
+    assert "de" not in planted.BYLINE_WORDS and "di" in planted.BYLINE_WORDS
+
+
+# ---------------------------------------------------------------------------
+# Front phrases and domains
+# ---------------------------------------------------------------------------
+
+def _fronts(*specs):
+    out = []
+    for name, domains in specs:
+        out.append({"id": name.lower().replace(" ", "_"), "name": name, "operation": "op_front",
+                    "variants_n": planted.name_variants(name), "domains_n": sorted(domains)})
+    return out
+
+
+FRONTS = _fronts(("Social Research Center", ["srcenter.example"]), ("Times Newswire", ["timesnewswire.example"]),
+                 ("Monolith", []))
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("the National Social Research Center of Kazakhstan published a poll", []),
+    ("New York Times Newswire reported the deal", []),
+    ("according to the Social Research Center, the deal is done", ["social_research_center"]),
+    ("The Social Research Center said so.", ["social_research_center"]),
+    ("Analysts in Lima. Social Research Center figures show", ["social_research_center"]),
+    ("Lima Social Research Center figures show", []),
+    ("A social research centre in Oslo.", []),
+    ("Monolith Monolith Monolith", []),
+    ("(Times Newswire) The deal", ["times_newswire"]),
+])
+def test_front_names_match_whole_phrases_not_extended_by_a_capitalised_word(text, expected):
+    assert [f["id"] for f, _ in planted.match_fronts("t", text, FRONTS)] == expected
+
+
+def test_front_name_in_title_is_bounded_by_the_title_line():
+    hits = planted.match_fronts("Kazakhstan Social Research Center", "A body with nothing.", FRONTS)
+    assert hits == []
+    hits = planted.match_fronts("Kazakhstan", "Social Research Center polled voters.", FRONTS)
+    assert [f["id"] for f, _ in hits] == ["social_research_center"]
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("See https://www.srcenter.example/report for more.", ["social_research_center"]),
+    ("Read it at srcenter.example.", ["social_research_center"]),
+    ("Read it at notsrcenter.example.", []),
+    ("Read it at srcenter.example.evil.test now.", []),
+    ("Read it at srcenter.examples now.", []),
+    ("Mail: info@srcenter.example", ["social_research_center"]),
+])
+def test_front_domains_match_whole_hostnames(text, expected):
+    assert [f["id"] for f, _ in planted.match_fronts("t", text, FRONTS)] == expected
+
+
+def test_one_alternation_regex_per_list_is_compiled_once(monkeypatch):
+    planted._RE_CACHE.clear()
+    calls = []
+    real_compile = planted.re.compile
+    monkeypatch.setattr(planted.re, "compile", lambda *a, **k: calls.append(a[0]) or real_compile(*a, **k))
+    for _ in range(3):
+        planted.match_fronts("t", "nothing here", FRONTS)
+        planted.match_head("nothing here", NAMED)
+    # one name pattern and one domain pattern for the fronts, one pattern for the head, built once
+    assert len(calls) == 3
+    assert all("|" in c for c in calls)
+
+
+# ---------------------------------------------------------------------------
+# The list: validation
+# ---------------------------------------------------------------------------
+
+def _load(tmp_path, data, capsys, name="p.yaml"):
+    p = tmp_path / name
+    p.write_text(yaml.safe_dump(data, allow_unicode=True) if not isinstance(data, str) else data, encoding="utf-8")
+    out = planted.load_personas(p)
+    return out, capsys.readouterr().err
+
+
+def test_load_personas_missing_version_warns_and_loads_empty(tmp_path, capsys):
+    data = {k: v for k, v in PERSONAS.items() if k != "version"}
+    out, err = _load(tmp_path, data, capsys)
+    assert out == {"version": "", "operations": [], "personas": [], "fronts": []}
+    assert "version" in err and err.count("\n") == 1
+
+
+def test_load_personas_non_string_version_warns_and_loads_empty(tmp_path, capsys):
+    out, err = _load(tmp_path, dict(PERSONAS, version=2026.1), capsys)
+    assert out["personas"] == [] and "version" in err
+
+
+def test_load_personas_parse_failure_is_one_warning_line(tmp_path, capsys):
+    out, err = _load(tmp_path, "version: '1'\npersonas: [unclosed\n", capsys)
+    assert out == {"version": "", "operations": [], "personas": [], "fronts": []}
+    assert err.count("\n") == 1 and "could not be read" in err
+    out, err = _load(tmp_path, "just a string", capsys, name="s.yaml")
+    assert out["personas"] == [] and "not a mapping" in err
+
+
+def test_load_personas_missing_file_is_silent(tmp_path, capsys):
+    assert planted.load_personas(tmp_path / "absent.yaml")["version"] == ""
+    assert capsys.readouterr().err == ""
+
+
+def test_load_personas_name_must_be_a_string(tmp_path, capsys):
+    data = dict(PERSONAS, personas=[{"id": "x", "name": ["Not", "A", "String"], "operation": "op_bogus"},
+                                    {"id": "y", "name": "Real Name", "operation": "op_bogus"}])
+    out, err = _load(tmp_path, data, capsys)
+    assert [p["id"] for p in out["personas"]] == ["y"] and "name is not a string" in err
+
+
+def test_load_personas_bare_string_variants_and_domains_become_lists(tmp_path, capsys):
+    data = dict(PERSONAS, personas=[{"id": "x", "name": "Some Body", "variants": "Some B. Body", "operation": "op_bogus"}],
+                fronts=[{"id": "f", "name": "Front Org", "domains": "front.example", "variants": ["Front Organisation", 7],
+                         "operation": "op_front"}])
+    out, err = _load(tmp_path, data, capsys)
+    assert out["personas"][0]["variants"] == ["Some B. Body"]
+    assert "some b body" in out["personas"][0]["variants_n"]
+    assert out["fronts"][0]["domains"] == ["front.example"] and out["fronts"][0]["domains_n"] == ["front.example"]
+    assert out["fronts"][0]["variants"] == ["Front Organisation"] and "7" in err
+
+
+def test_load_personas_duplicate_ids_drop_the_later_entry(tmp_path, capsys):
+    data = dict(PERSONAS, personas=[{"id": "dup", "name": "First Entry", "operation": "op_bogus"},
+                                    {"id": "dup", "name": "Second Entry", "operation": "op_bogus"}],
+                fronts=[{"id": "fd", "name": "First Front", "operation": "op_front"},
+                        {"id": "fd", "name": "Second Front", "operation": "op_front"}],
+                operations=PERSONAS["operations"] + [dict(PERSONAS["operations"][0], name="Again")])
+    out, err = _load(tmp_path, data, capsys)
+    assert [p["name"] for p in out["personas"]] == ["First Entry"]
+    assert [f["name"] for f in out["fronts"]] == ["First Front"]
+    assert [o["name"] for o in out["operations"]] == ["Bogus Bylines", "Dark Front"]
+    assert err.count("duplicate") == 3
+
+
+def test_load_personas_unresolved_operation_drops_the_entry(tmp_path, capsys):
+    data = dict(PERSONAS, personas=[{"id": "x", "name": "Some Body", "operation": "op_unknown"},
+                                    {"id": "y", "name": "No Operation"},
+                                    {"id": "z", "name": "Fine Person", "operation": "op_bogus"}],
+                fronts=[{"id": "f", "name": "Front Org", "operation": "op_unknown"}])
+    out, err = _load(tmp_path, data, capsys)
+    assert [p["id"] for p in out["personas"]] == ["z"] and out["fronts"] == []
+    assert err.count("does not resolve") == 3
+
+
+def test_real_persona_file_loads_without_warnings(capsys):
+    lst = planted.load_personas(config.ROOT / "sources" / "personas.yaml")
+    assert lst["version"] and lst["personas"] and lst["fronts"]
+    assert capsys.readouterr().err == ""
+
+
+# ---------------------------------------------------------------------------
+# Deadline and resume
+# ---------------------------------------------------------------------------
+
+def test_scan_stops_at_deadline_and_resumes_where_it_stopped(plist, tmp_path, monkeypatch):
+    conn = _db(tmp_path)
+    ids = [_article(conn, i, author="Nobody %d" % i) for i in range(3)]
+    last = _article(conn, 9, author="Mia Clark")
+    ticks = iter(range(100))
+    monkeypatch.setattr(planted.time, "monotonic", lambda: next(ticks))
+    # the clock reads 0, 1, 2, ... once per row: rows 1 and 2 pass, the third check stops the scan
+    counts = planted.scan(conn, deadline=1.5)
+    assert counts["stopped_at_deadline"] is True and counts["scanned"] == 2 and counts["flagged"] == 0
+    state = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM planted_state")}
+    assert state["last_scanned_id"] == str(ids[1]) and state["list_version"] == "2026.10.1"
+    assert "last_fetched_at" in state and "scanned_at" not in state
+    # the next scan is incremental, not a fresh full rescan, and carries on from the third row
+    counts = planted.scan(conn)
+    assert counts["full"] is False and counts["stopped_at_deadline"] is False
+    assert counts["scanned"] == 2 and counts["flagged"] == 1
+    assert _flags(conn)[0]["article_id"] == last
+    state = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM planted_state")}
+    assert state["last_scanned_id"] == str(last) and "scanned_at" in state
+
+
+def test_scan_with_an_expired_deadline_scans_nothing_and_keeps_its_place(plist, tmp_path):
+    conn = _db(tmp_path)
+    _article(conn, 1, author="Mia Clark")
+    import time
+    counts = planted.scan(conn, deadline=time.monotonic() - 1)
+    assert counts["scanned"] == 0 and counts["stopped_at_deadline"] is True
+    state = {r["key"]: r["value"] for r in conn.execute("SELECT key, value FROM planted_state")}
+    assert state["last_scanned_id"] == "0"
+    assert planted.scan(conn)["flagged"] == 1
+
+
+def test_scan_writes_its_place_at_every_periodic_commit(plist, tmp_path, monkeypatch):
+    conn = _db(tmp_path)
+    monkeypatch.setattr(planted, "COMMIT_EVERY", 2)
+    ids = [_article(conn, i, author="Nobody %d" % i) for i in range(5)]
+    writes = []
+    real_set_state = planted._set_state
+
+    def spy(c, **values):
+        writes.append(dict(values))
+        real_set_state(c, **values)
+    monkeypatch.setattr(planted, "_set_state", spy)
+    planted.scan(conn)
+    assert [w["last_scanned_id"] for w in writes] == [ids[1], ids[3], ids[4]]
+    assert all(w["list_version"] == "2026.10.1" and "last_fetched_at" in w for w in writes)
+    assert "scanned_at" not in writes[0] and "scanned_at" in writes[-1]
+
+
+def test_scan_quietly_passes_the_deadline(plist, tmp_path):
+    conn = _db(tmp_path)
+    _article(conn, 1, author="Mia Clark")
+    import time
+    out = planted.scan_quietly(conn, deadline=time.monotonic() - 1)
+    assert out["stopped_at_deadline"] is True and out["scanned"] == 0
+
+
+def test_cli_scan_budget(plist, tmp_path, monkeypatch, capsys):
+    db = tmp_path / "b.db"
+    conn = store.connect(db)
+    _article(conn, 1, author="Ervin Hoskins")
+    conn.close()
+    real_connect = store.connect
+    monkeypatch.setattr(store, "connect", lambda path=db: real_connect(path))
+    assert planted.main(["scan", "--budget-seconds", "30"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["flagged"] == 1 and out["stopped_at_deadline"] is False
+
+
+# ---------------------------------------------------------------------------
+# Export guards
+# ---------------------------------------------------------------------------
+
+def test_build_export_survives_a_null_country_and_outlet(plist, tmp_path, monkeypatch):
+    """articles.country is NOT NULL today, so the null reaches build_export through the flag rows
+    (an older database or a future column change), where sorting None against str used to raise."""
+    conn = _db(tmp_path)
+    _article(conn, 1, author="Ervin Hoskins")
+    _article(conn, 2, author="Mia Clark", country="USA", outlet="us_x")
+    planted.scan(conn)
+    real_rows = planted._flag_rows
+
+    def null_rows(c, plist_):
+        rows = real_rows(c, plist_)
+        rows[-1]["country"] = None
+        rows[-1]["outlet_id"] = None
+        return rows
+    monkeypatch.setattr(planted, "_flag_rows", null_rows)
+    data = planted.build_export(conn)
+    assert data["by_country"] == {None: 1, "USA": 1} and data["by_outlet"] == {None: 1, "us_x": 1}
+    assert json.loads(json.dumps(data))["by_country"] == {"null": 1, "USA": 1}
+    assert planted.meta_block(conn)["flags_total"] == 2
+
+
+def test_articles_total_counts_distinct_articles(plist, tmp_path):
+    conn = _db(tmp_path)
+    _article(conn, 1, author="Ervin Hoskins", body="By Ervin Hoskins\n\nA piece citing the Social Research Center.")
+    _article(conn, 2, author="Mia Clark")
+    planted.scan(conn)
+    data = planted.build_export(conn)
+    assert data["flags_total"] == 4 and data["articles_total"] == 2
+    meta = planted.meta_block(conn)
+    assert meta["flags_total"] == 4 and meta["articles_total"] == 2
+
+
+def test_build_export_has_no_recurring_bylines_but_the_cli_still_does(plist, tmp_path, monkeypatch, capsys):
+    conn = _db(tmp_path)
+    assert "recurring_bylines" not in planted.build_export(conn)
+    assert planted.recurring_bylines(conn) == []
+    db = tmp_path / "r.db"
+    real_connect = store.connect
+    monkeypatch.setattr(store, "connect", lambda path=db: real_connect(path))
+    assert planted.main(["recurring"]) == 0
+    assert "rows" in json.loads(capsys.readouterr().out)
+
+
+def test_export_run_degrades_when_the_planted_export_fails(plist, tmp_path, monkeypatch, capsys):
+    db = tmp_path / "f.db"
+    conn = store.connect(db)
+    monkeypatch.setattr(config, "DB_PATH", db)
+    _article(conn, 1, author="Ervin Hoskins")
+
+    def boom(*a, **k):
+        raise RuntimeError("broken export")
+    monkeypatch.setattr(planted, "build_export", boom)
+    monkeypatch.setattr(planted, "meta_block", boom)
+    out = tmp_path / "out"
+    counts = export.run(conn, "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
+    assert counts["planted"]["flagged"] == 1
+    data = json.loads((out / "planted.json").read_text(encoding="utf-8"))
+    assert data["flags"] == [] and data["flags_total"] == 0 and data["articles_total"] == 0 and data["list_version"] == ""
+    assert set(data) == {"generated", "list_version", "operations", "personas", "fronts", "flags", "flags_total",
+                         "articles_total", "by_country", "by_outlet"}
+    meta = json.loads((out / "meta.json").read_text(encoding="utf-8"))
+    assert meta["planted"] == planted.empty_meta_block()
+    err = capsys.readouterr().err
+    assert "planted export failed: RuntimeError: broken export" in err and "planted meta block failed" in err
+
+
+def test_methodology_text_names_the_command_line_diagnostic_only():
+    from pipeline import methodology
+    text = methodology.planted_text({"planted": {"flags_total": 1, "flags_30d": 0, "personas": 1, "fronts": 1, "operations": 1,
+                                                 "list_version": "v"}})
+    assert "python -m pipeline.planted recurring" in text and "never published" in text
+    assert "site also shows" not in text
