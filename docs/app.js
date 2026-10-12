@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "80";
+  var ASSET_VERSION = "81";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -376,8 +376,9 @@
     }
   }
 
-  /* Four headline numbers above the findings sentences: how much, what share, where, and how wide
-     the net is. Built from meta.findings and the outlet registry; hidden when findings are missing. */
+  /* Twelve headline numbers above the findings sentences, read as a funnel in three rows of four: the
+     screening (how much was read and how much of it concerned China), the judgements, and the reach.
+     Built from meta, meta.findings, the daily files and the outlet registry; hidden when findings are missing. */
   /* findings.all_time with its worldwide wires parts filled in from latest.json when the export predates
      them, then read under the Distribution toggle. */
   function findingsForMode(f) {
@@ -388,34 +389,45 @@
       at.china_total_wires = wld.all_time.china_total || 0;
       at.unchecked_wires = at.unchecked === null || at.unchecked === undefined ? null : (wld.all_time.B || 0);
     }
+    return C.distributionFindings(at, last30ForFindings(f), f && f.top_country, state.distribution);
+  }
+  /* findings.last_30d, or the same two numbers from latest.json when the export predates it. */
+  function last30ForFindings(f) {
+    var wld = (state.latest && state.latest.countries && state.latest.countries[C.WORLDWIDE_ISO]) || null;
     var last30 = (f && f.last_30d) || null;
     if (!last30 && wld && wld.last_30d && state.latest.totals && state.latest.totals.last_30d) {
       last30 = {state_origin: state.latest.totals.last_30d.A || 0, state_origin_wires: wld.last_30d.A || 0};
     }
-    return C.distributionFindings(at, last30, f && f.top_country, state.distribution);
+    return last30;
   }
   function renderKpis(f) {
     var wrap = el("kpis");
     if (!wrap) return;
     if (!f || !f.all_time) { wrap.hidden = true; return; }
+    var m = state.meta || {};
     var at = findingsForMode(f), tc = f.top_country;
     /* Outlets monitored counts newsrooms, so the wires are never in it, whatever the toggle says. */
     var outs = (state.outlets || []).filter(function (o) { return o.active && o.tier !== "distribution_wire"; });
-    var countries = {}; outs.forEach(function (o) { countries[o.country] = true; });
-    var nCountries = Object.keys(countries).length;
     var share = at.state_share_of_china === null || at.state_share_of_china === undefined ? "n/a" : (at.state_share_of_china * 100).toFixed(1) + "%";
     var wldA = at.wires_all_time || 0;
     var since = f.since || "the start";
+    var has = function (v) { return v !== null && v !== undefined; };
+    /* The words a toggled card adds so the reader knows which part of the dataset it counts. */
+    var modeTail = wiresOnly() ? ", on the worldwide wires alone" : countryOnly() ? ", in the country outlets alone" : "";
     var firstCard = wiresOnly()
       ? {label: "State-origin releases on the wires", value: intComma(at.state_origin), note: "Text placed by the Chinese state and pushed through the worldwide distribution wires to every country at once, since " + since + "."}
       : countryOnly()
       ? {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered by the country outlets, since " + since + (wldA > 0 ? "; " + intComma(wldA) + " more arrived through the worldwide wires" : "") + "."}
       : {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + since + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."};
-    /* The wires' 30 days are counted from the daily files over the same complete days the map opens on, so
-       the card and the legend line under the map give one number. The export's last_30d also counts the
-       day the export ran, which is partial. Falls back to the export figure when the daily files are absent. */
-    var wires30 = at.wires_last_30d;
+    /* The 30 day state-origin counts come from the daily files over the same complete days the map opens on,
+       so the cards, the ranked list and the legend line under the map give one number. The export's last_30d
+       also counts the day the export ran, which is partial, so it is only the fallback when the daily files
+       are absent. */
     var lastDay = lastCompleteDay();
+    var last30 = last30ForFindings(f);
+    var aggMode = lastDay ? C.aggregateWindow(state.months, lastDay, 30, state.distribution) : null;
+    var origin30 = C.stateOriginInWindow(aggMode, last30, state.distribution);
+    var wires30 = at.wires_last_30d;
     if (wiresOnly() && lastDay) {
       var aggW = C.aggregateWindow(state.months, lastDay, 30, "wires");
       if (aggW.countries[C.WORLDWIDE_ISO]) wires30 = aggW.countries[C.WORLDWIDE_ISO].A || 0;
@@ -424,14 +436,51 @@
       ? (wires30 !== null && wires30 !== undefined ? {label: "Worldwide wires, last 30 days", value: intComma(wires30), note: "State-origin releases on the wires. They reach every country at once, so no country is ranked in this mode."} : null)
       : tc ? {label: "Top country, last 30 days", value: esc(countryName(tc.iso)) + (at.top_share_of_world ? " <em>" + Math.round(at.top_share_of_world * 100) + "%</em>" : ""),
               note: intComma(tc.state_origin) + " articles" + (tc.top_outlet ? ", mostly through " + tc.top_outlet.name : "") + (countryOnly() ? ", share of the country outlets' total" : "") + ".", html: true} : null;
+    /* Unchecked state sourcing is shown only when the relay helpers say it may be: withheld after a failed
+       study, not yet measured before the model has run, marked when provisional. Its note always says who
+       made the judgement and what checked it, because no person has. */
+    var relay = relayFor(null);
+    var basis = relayBasis();
+    var checkedBy = basis === "human_coding" ? "Judged by the model and checked against hand coding of a random sample."
+      : basis === "model_vs_model" ? "Judged by the model and checked by a second model, not by a person."
+      : "Judged by the model and checked by a same-model rerun, not by a person.";
+    var uncheckedCard;
+    if (!relay.measured) {
+      uncheckedCard = {label: "Unchecked state sourcing", value: "not yet measured", note: "Local reporting that repeats an official Chinese claim without an independent check. The model has not judged these articles yet.", small: true};
+    } else if (!relay.visible) {
+      uncheckedCard = {label: "Unchecked state sourcing", value: "withheld", note: "Local reporting that repeats an official Chinese claim without an independent check. Withheld: " + relayStudyText() + ".", small: true};
+    } else {
+      uncheckedCard = {label: "Unchecked state sourcing", value: has(at.unchecked) ? intComma(at.unchecked) : "n/a",
+        note: "Local reporting that repeats an official Chinese claim without an independent check, since " + since + modeTail + ". " +
+              (relay.provisional ? "Provisional: judged by the model, not yet checked by any reliability study." : checkedBy)};
+    }
     var cards = [
+      /* Row 1, the screening: how much was read, how much concerned China, how much of that the state placed. */
+      has(m.articles_discovered) ? {label: "Articles screened", value: intComma(m.articles_discovered),
+        note: "Every item the monitored feeds and wires published since " + since + ", each checked against the China keyword list."} : null,
+      has(at.china_total) ? {label: "China-related articles", value: intComma(at.china_total),
+        note: "Articles that substantively concern China after the full text was read, since " + since + modeTail + "."} : null,
       firstCard,
       {label: "Share of China coverage", value: share, note: wiresOnly() ? "Of every China-related release the wires carried." : "Of every China-related article the " + (countryOnly() ? "country outlets" : "monitored outlets") + " published.", accent: true},
+      /* Row 2, the judgements. */
+      has(m.articles_classified) ? {label: "Articles classified", value: intComma(m.articles_classified),
+        note: "China-relevant items from the feeds and wires whose full text was read and labelled by the rules or the model, including those found not to concern China."} : null,
+      has(origin30) ? {label: "State origin, last 30 days", value: intComma(origin30),
+        note: (aggMode ? "Placed by the Chinese state, in the 30 complete days ending " + lastDay : "Placed by the Chinese state, in the 30 days to the last export") +
+              (wiresOnly() ? ", on the worldwide wires alone." : countryOnly() ? ", in the country outlets alone." : ", in the monitored outlets and on the worldwide wires.")} : null,
+      uncheckedCard,
+      has(at.independent) ? {label: "Independent journalism", value: intComma(at.independent),
+        note: "The outlets' own reporting on China, including quotes from Chinese officials that they confirm, add context to or challenge, since " + since + modeTail + "."} : null,
+      /* Row 3, the reach. */
       topCard,
-      {label: "Outlets monitored", value: intComma(outs.length), note: "In " + nCountries + " countries and territories, read every day. Newsrooms only; the wires are not counted here."}
+      {label: "Outlets monitored", value: intComma(outs.length), note: "Read every day. Newsrooms only; the wires are not counted here."},
+      has(m.countries_monitored) ? {label: "Countries monitored", value: intComma(m.countries_monitored),
+        note: "Countries and territories with at least one active newsroom."} : null,
+      has(m.countries_in_gaps) ? {label: "Countries with coverage gaps", value: intComma(m.countries_in_gaps),
+        note: "Each recorded with a stated reason, such as no working feed or no news outlet at all."} : null
     ].filter(Boolean);
     wrap.innerHTML = cards.map(function (c) {
-      return '<div class="kpi' + (c.accent ? ' accent' : '') + '"><div class="k-label">' + esc(c.label) + '</div><div class="k-value">' +
+      return '<div class="kpi' + (c.accent ? ' accent' : '') + '"><div class="k-label">' + esc(c.label) + '</div><div class="k-value' + (c.small ? ' k-word' : '') + '">' +
         (c.html ? c.value : esc(c.value)) + '</div><div class="k-note">' + esc(c.note) + '</div></div>';
     }).join("");
     wrap.hidden = false;

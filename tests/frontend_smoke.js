@@ -359,4 +359,29 @@ assert(kBoth.state_origin + 0 === kCountry.state_origin + kWires.state_origin, "
 var kOld = C.distributionFindings({state_origin: 1361, unchecked: null, independent: 35608, china_total: 38666}, null, dTop, "country");
 assert(kOld.state_origin === 1361 && kOld.unchecked === null && Math.abs(kOld.top_share_of_world - 400 / 1200) < 1e-9 && kOld.wires_last_30d === null, "an export without the wires fields reads as zero wires, with the share of the world kept");
 assert(C.distributionFindings({state_origin: 1361, china_total: 0}, null, null, "both").state_share_of_china === null, "no share over an empty denominator");
+/* The "State origin, last 30 days" card: A summed over the window under each mode, equal to the ranked
+   list's sum, with findings.last_30d as the fallback when the daily files are absent. */
+var sMonths = {"2026-08": {days: {"2026-08-31": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 9}), WLD: Object.assign(C.emptyCounts(), {A: 50})}, reviewed: {}}}},
+  "2026-09": {days: {
+  "2026-09-10": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 4, C: 2}), FRA: Object.assign(C.emptyCounts(), {A: 3}), WLD: Object.assign(C.emptyCounts(), {A: 5})}, reviewed: {}},
+  "2026-09-30": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 1}), WLD: Object.assign(C.emptyCounts(), {A: 2})}, reviewed: {}}}}};
+var sLatest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}, FRA: {coverage: "monitored", outlets_active: 5}, WLD: {coverage: "monitored", outlets_active: 2}}};
+var sCtx = function () { return {relay: {measured: true, publishable: true}}; };
+["both", "country", "wires"].forEach(function (mode) {
+  var sAgg = C.aggregateWindow(sMonths, "2026-09-30", 30, mode);
+  var expect = {both: 15, country: 8, wires: 7}[mode];
+  var got = C.stateOriginInWindow(sAgg, {state_origin: 999, state_origin_wires: 99}, mode);
+  assert(got === expect, "stateOriginInWindow under " + mode + " sums the window, not the fallback: " + got);
+  var rankedSum = C.rankCountries(sAgg, sLatest, "count_a", "all", {}, sCtx, mode).reduce(function (t, r) { return t + (r.value || 0); }, 0);
+  assert(got === rankedSum, "stateOriginInWindow under " + mode + " equals the ranked list's sum: " + rankedSum);
+});
+var sBothAgg = C.aggregateWindow(sMonths, "2026-09-30", 30);
+assert(C.stateOriginInWindow(sBothAgg, null, "country") === 8 && C.stateOriginInWindow(sBothAgg, null, "wires") === 7, "stateOriginInWindow filters an unfiltered aggregate by the mode itself");
+assert(C.stateOriginInWindow(C.aggregateWindow({}, "2026-09-30", 30, "both"), null, "both") === 0, "an empty window is zero, not the fallback");
+var s30 = {state_origin: 1328, state_origin_wires: 177};
+assert(C.stateOriginInWindow(null, s30, "both") === 1328, "fallback under both is findings.last_30d");
+assert(C.stateOriginInWindow(null, s30, "country") === 1151, "fallback under country outlets subtracts the wires");
+assert(C.stateOriginInWindow(null, s30, "wires") === 177, "fallback under worldwide wires is the wires alone");
+assert(C.stateOriginInWindow(null, {state_origin: 1328}, "country") === 1328 && C.stateOriginInWindow(null, {state_origin: 1328}, "wires") === 0, "a last_30d without the wires field reads as zero wires");
+assert(C.stateOriginInWindow(null, null, "both") === null && C.stateOriginInWindow(null, {}, "wires") === null, "no source gives null");
 console.log("frontend smoke ok");
