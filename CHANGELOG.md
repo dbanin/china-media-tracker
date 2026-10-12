@@ -4,6 +4,22 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Collector: five registered section feeds were desks or site-wide feeds (2026-10-12)
+
+Five section feeds in sources/outlets.yaml were never sections. Index.hr's sport desk was registered as
+sponsored because its header reads "Sport sponsored by" (3,650 items, 2 relevant). The other four are
+site-wide feeds that a section page declared as its alternate: the Mirror's rss.xml as partner (3,070
+items, 13 relevant), LIGA.net's /ua/all/rss.xml as press release (721, 9), Novaya Gazeta Europe's
+/feed/rss as sponsored (498, 9) and Asia-Plus's asiaplus.news/feed/ as sponsored (398, 2). Nearly every item
+from them carried a section arrival tag and covered every desk. They are removed, the outlets and their
+editorial feeds stay, each outlet's notes say why, and release_sections keeps the section with feed null
+and readable false. Discovery now reads only the words before a sponsor credit ("Sport sponsored by",
+"Weather presented by") as the section name, never takes a feed whose path is only feed words and a
+language edition (/rss.xml, /feed, /feed/rss, /ua/all/rss.xml, /rss) as a section's feed, and applies
+both rules again to earlier probe results. Articles already collected keep their rows, tags and
+verdicts. The registry's section feed total in the export falls from 136 to 131. No category, article
+count, ruleset or gate change; collection only.
+
 ## Collector: section feeds that flood the queue lose the gate exemption (2026-10-12)
 
 Press release, sponsored and partner section feeds skip the keyword gate because that is where

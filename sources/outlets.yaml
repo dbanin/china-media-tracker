@@ -9622,22 +9622,18 @@
   language: en
   feeds:
   - https://www.mirror.co.uk/news/world-news/?service=rss
-  section_feeds:
-  - url: https://www.mirror.co.uk/rss.xml
-    kind: partner
-    section: https://www.mirror.co.uk/partner-stories
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://www.mirror.co.uk/partner-stories
       kind: partner
-      feed: https://www.mirror.co.uk/rss.xml
+      feed: null
       label: Partner Stories
-      readable: true
+      readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Partner section feed https://www.mirror.co.uk/rss.xml removed 2026-10-12: it is the site-wide feed (news, sport, TV, 3am, money), not the Partner Stories section, and of 3,070
+    items it carried 13 were relevant.'
   political_leaning: centre_left
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_the_United_Kingdom
   ownership: private
@@ -11161,11 +11157,6 @@
   feeds:
   - https://www.index.hr/rss
   - https://www.index.hr/rss/vijesti-svijet
-  section_feeds:
-  - url: https://www.index.hr/sport
-    kind: sponsored
-    section: https://www.index.hr/sport
-    type: page
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -11174,9 +11165,10 @@
       kind: sponsored
       feed: null
       label: Sport sponsored by
-      readable: true
+      readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Sponsored section feed https://www.index.hr/sport removed 2026-10-12: it is the sport desk, registered only because its header reads "Sport sponsored by", and of 3,650 items
+    it carried 2 were relevant.'
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/hr/all
   political_leaning: centre_left
@@ -22307,22 +22299,18 @@
   language: en
   feeds:
   - https://novayagazeta.eu/feed/rss/en
-  section_feeds:
-  - url: https://novayagazeta.eu/feed/rss
-    kind: sponsored
-    section: https://novayagazeta.eu/spec
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://novayagazeta.eu/spec
       kind: sponsored
-      feed: https://novayagazeta.eu/feed/rss
+      feed: null
       label: Спецпроекты
-      readable: true
+      readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Sponsored section feed https://novayagazeta.eu/feed/rss removed 2026-10-12: it is the site-wide feed of every article, not the special projects section, and of 498 items it
+    carried 9 were relevant.'
   political_leaning: centre_left
   leaning_source: https://en.wikipedia.org/wiki/Novaya_Gazeta
   ownership: private
@@ -25341,22 +25329,18 @@
   language: en
   feeds:
   - https://asiaplustj.info/en/rss.xml
-  section_feeds:
-  - url: https://asiaplus.news/feed/
-    kind: sponsored
-    section: https://asiaplus.news/speczproekty
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://asiaplus.news/speczproekty
       kind: sponsored
-      feed: https://asiaplus.news/feed/
+      feed: null
       label: Спецпроекты
-      readable: true
+      readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Sponsored section feed https://asiaplus.news/feed/ removed 2026-10-12: it is the Russian site''s site-wide news feed, not the special projects section, and of 398 items it
+    carried 2 were relevant.'
   audience_rank: 1
   rank_source: https://journalists.feedspot.com/tajikistan_news_websites/
   political_leaning: centre
@@ -26826,22 +26810,18 @@
   language: uk
   feeds:
   - https://news.liga.net/all/rss.xml
-  section_feeds:
-  - url: https://news.liga.net/ua/all/rss.xml
-    kind: press_release
-    section: https://biz.liga.net/ua/press-release
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://biz.liga.net/ua/press-release
       kind: press_release
-      feed: https://news.liga.net/ua/all/rss.xml
+      feed: null
       label: Новини компаній
-      readable: true
+      readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Press release section feed https://news.liga.net/ua/all/rss.xml removed 2026-10-12: it is the site-wide Ukrainian news feed (politics, war, world, society), not the company
+    news section, and of 721 items it carried 9 were relevant.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://uk.wikipedia.org/wiki/LIGA.net

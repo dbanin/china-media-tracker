@@ -22,7 +22,7 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qsl, urljoin, urlsplit
 
 from pipeline import config, registry, store
 
@@ -51,13 +51,33 @@ KIND_PATTERNS: List[Tuple[str, re.Pattern]] = [
         r"media partner|studio partners?)\b", re.I)),
 ]
 
+# A desk crediting its sponsor ("Sport sponsored by", "Weather presented by") is editorial, not a
+# sponsored section: Index.hr's sport desk was registered as sponsored on its header. Only the words
+# before the credit name the section.
+_SPONSOR_CREDIT = re.compile(r"^(.*?\S)\s+(sponsored|presented|powered|supported|brought to you)\s+by\b.*$", re.I | re.S)
+
+# A feed whose path and query hold nothing but feed words and a language edition carries every desk,
+# so it is never a section's feed: section pages often declare the site-wide feed as their alternate,
+# which registered the Mirror's rss.xml as partner and LIGA.net's /ua/all/rss.xml as press release.
+_SITE_FEED_PART = re.compile(r"^((feeds?|rss\d?|atom|all|index)(\.(xml|rss|atom|php|aspx))?|"
+                             r"(en|fr|es|pt|de|it|nl|ru|ua|uk|ar|tr|fa|id|ms|zh|ja|ko|hi|bn|ur|sw|pl|cs|ro|hu|el|bg|"
+                             r"sr|hr|sq|ka|hy|az|kk|uz|ky|tg|mn|vi|th)(-[a-z]{2})?)$", re.I)
+
 _lock = threading.Lock()
+
+
+def site_wide_feed(url: str) -> bool:
+    """Whether a feed is the whole site's or a whole language edition's (/rss.xml, /feed, /feed/rss,
+    /ua/all/rss.xml, /rss, /?service=rss) rather than a section's."""
+    parts = urlsplit(url)
+    rest = [s for s in parts.path.split("/") if s and s != "."] + [v for _, v in parse_qsl(parts.query)]
+    return all(_SITE_FEED_PART.match(s) for s in rest)
 
 
 def classify_link(text: str, href: str) -> Optional[str]:
     """The section kind a link names, or None. Press release beats sponsored beats partner."""
     path = urlsplit(href).path
-    haystack = "%s %s" % (text or "", re.sub(r"[-_/.]+", " ", path))
+    haystack = "%s %s" % (_SPONSOR_CREDIT.sub(r"\1", text or ""), re.sub(r"[-_/.]+", " ", path))
     for kind, rx in KIND_PATTERNS:
         if rx.search(haystack):
             return kind
@@ -198,7 +218,7 @@ def probe_outlet(outlet: Dict, homepage: Optional[str]) -> Dict:
                 root = sec["url"].rstrip("/") + "/"
                 candidates = [root + s for s in FEED_SUFFIXES[:2]]
             for c in candidates[:3]:
-                if c in existing:
+                if c in existing or site_wide_feed(c):
                     continue
                 if _feed_ok(c):
                     feed = c
@@ -270,9 +290,10 @@ def apply(out_path) -> Dict:
         rec = results.get(o["id"])
         if not rec:
             continue
-        # Results from an earlier probe version are filtered again, so single stories and advertising
-        # sales pages recorded then never become sections.
-        rec = dict(rec, sections=[s for s in rec["sections"] if plausible_section(s["url"])])
+        # Results from an earlier probe version are filtered again, so single stories, advertising sales
+        # pages, desks crediting a sponsor and site-wide feeds recorded then never become sections.
+        rec = dict(rec, sections=[dict(s, feed=None if s.get("feed") and site_wide_feed(s["feed"]) else s.get("feed"))
+                                  for s in rec["sections"] if plausible_section(s["url"]) and classify_link(s.get("label") or "", s["url"])])
         if rec["status"] == "found" and not any(s.get("reachable", True) for s in rec["sections"]):
             rec["status"] = "none_found"
         o["release_sections"] = {
