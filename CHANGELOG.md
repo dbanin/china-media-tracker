@@ -4,6 +4,22 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Distribution toggle: country outlets and worldwide wires apart (2026-10-11)
+
+The map card gains a Distribution toggle beside Measure, with Both (the default, today's figures),
+Country outlets and Worldwide wires. It drives every figure that sums across countries: the map, the
+ranked list and the legend line, the timeline sparkline, the "What we found" cards, the theme
+counter's world totals, the panel's world table and both CSV exports, which gain a distribution
+column. Under Country outlets the worldwide stratum leaves every sum; under Worldwide wires only it
+remains, the map is left unfilled with a caption saying the wires are not drawn by country, and the
+top country card becomes the wires' own 30 day count. Outlets monitored and the leaning chart count
+newsrooms only and never include the wires. Opening a row the mode hides, from the search, the list
+or a link, puts the toggle back to Both. The export writes, beside each world figure, the stratum's
+own part: a per day `wld` block in global_series.json and `state_origin_wires`, `unchecked_wires`,
+`independent_wires` and `china_total_wires` under meta.findings.all_time, plus a `last_30d` block
+with the world's and the wires' state origin; files without them read as zero wires. Schema version
+11. No count changes: interface and export fields only. No category, ruleset or gate change.
+
 ## Worldwide distribution stratum for the press release wires (2026-10-11)
 
 Press release distribution wires (PR Newswire, GlobeNewswire) were counted on their own and appeared

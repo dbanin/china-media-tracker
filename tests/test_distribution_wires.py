@@ -129,7 +129,7 @@ def test_export_writes_the_stratum_articles_file(tmp_path, monkeypatch):
     export.run(conn, "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
     arts = json.loads((out / "articles" / "WLD.json").read_text(encoding="utf-8"))
     assert len(arts) == 5 and all(a["outlet_id"] == "us_wire" for a in arts)
-    assert json.loads((out / "meta.json").read_text(encoding="utf-8"))["schema_version"] == config.SCHEMA_VERSION == 10
+    assert json.loads((out / "meta.json").read_text(encoding="utf-8"))["schema_version"] == config.SCHEMA_VERSION == 11
     text = (tmp_path / "M.md").read_text(encoding="utf-8")
     assert "Worldwide\ndistribution" in text or "Worldwide distribution" in text
     assert "never\nadded into any individual country's numbers" in text or "never added into any individual country's numbers" in text
@@ -142,3 +142,76 @@ def test_methodology_names_the_stratum():
     assert '"Worldwide\ndistribution"' in t or '"Worldwide distribution"' in t
     assert "counted on their own" not in t
     assert "never\nattributed to the United States" in t or "never attributed to the United States" in t
+
+
+# ---------------------------------------------------------------------------
+# The site's Distribution toggle (both, country outlets, worldwide wires) reads the stratum's part
+# of every world figure from the export, so it can subtract without a second export.
+# ---------------------------------------------------------------------------
+
+def test_global_series_carries_the_stratum_per_day(tmp_path):
+    conn = _seed(tmp_path)
+    export.rebuild_rollups(conn, OUTLETS)
+    series = export.build_global_series(export.build_daily(conn, OUTLETS))
+    day = [s for s in series if s["date"] == "2026-09-10"][0]
+    assert day["A"] == 6, "the world total keeps the stratum"
+    assert day["wld"] == {"A": 5, "B": 0, "C": 0, "N": 0, "rel": 5, "paywalled": 0, "pending": 0}
+    assert day["A"] - day["wld"]["A"] == 1, "the country outlets alone are the difference"
+    assert set(day["wld"]) == set(export.SERIES_KEYS)
+
+
+def test_global_series_wld_is_zeros_without_the_stratum(tmp_path):
+    conn = _seed(tmp_path)
+    no_wires = [o for o in OUTLETS if o["tier"] != "distribution_wire"]
+    export.rebuild_rollups(conn, no_wires)
+    series = export.build_global_series(export.build_daily(conn, no_wires))
+    day = [s for s in series if s["date"] == "2026-09-10"][0]
+    assert "WLD" not in export.build_daily(conn, no_wires)["2026-09"]["days"]["2026-09-10"]["countries"]
+    assert day["wld"] == {k: 0 for k in export.SERIES_KEYS}
+
+
+def test_findings_carry_the_wires_part_of_every_total(tmp_path):
+    today = export._today()
+    conn = _seed(tmp_path, today)
+    export.rebuild_rollups(conn, OUTLETS)
+    latest = export.build_latest(conn, OUTLETS, [], population={})
+    f = export.build_meta(conn, OUTLETS, [], latest)["findings"]
+    at = f["all_time"]
+    assert at["state_origin"] == 6 and at["state_origin_wires"] == 5
+    assert at["independent"] == 0 and at["independent_wires"] == 0
+    assert at["china_total"] == 6 and at["china_total_wires"] == 5
+    assert at["unchecked"] is None and at["unchecked_wires"] is None, "the model stage has not run, so unchecked is withheld on both sides"
+    assert f["last_30d"] == {"state_origin": 6, "state_origin_wires": 5}
+    # what the toggle shows: country outlets is the difference, worldwide wires is the part
+    assert at["state_origin"] - at["state_origin_wires"] == 1
+    assert f["top_country"]["share_of_world"] == round(1 / 6, 4)
+    assert round(f["top_country"]["state_origin"] / (f["last_30d"]["state_origin"] - f["last_30d"]["state_origin_wires"]), 4) == 1.0
+
+
+def test_findings_wires_fields_are_zero_without_the_stratum(tmp_path):
+    conn = _seed(tmp_path)
+    no_wires = [o for o in OUTLETS if o["tier"] != "distribution_wire"]
+    export.rebuild_rollups(conn, no_wires)
+    latest = export.build_latest(conn, no_wires, [], population={})
+    f = export.build_meta(conn, no_wires, [], latest)["findings"]
+    assert "WLD" not in latest["countries"]
+    assert f["all_time"]["state_origin_wires"] == 0 and f["all_time"]["china_total_wires"] == 0 and f["all_time"]["independent_wires"] == 0
+    assert f["last_30d"]["state_origin_wires"] == 0
+
+
+def test_findings_unchecked_wires_is_null_when_relay_not_visible(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "RELAY_PROVISIONAL_DISPLAY", False)
+    conn = _seed(tmp_path)
+    aid = store.insert_discovered(conn, {"url": "https://wire.test/b", "outlet_id": "us_wire", "country": "USA", "language": "en",
+                                         "title": "China relay", "status": "fetched", "gate_relevant": 1})
+    store.insert_classification(conn, aid, "llm", "B", 0.7, evidence_quote="Xinhua said so.", model_version="test-model")
+    conn.commit()
+    export.rebuild_rollups(conn, OUTLETS)
+    latest = export.build_latest(conn, OUTLETS, [], population={})
+    f = export.build_meta(conn, OUTLETS, [], latest)["findings"]
+    assert export.relay_visible(conn) is False
+    assert f["all_time"]["unchecked"] is None and f["all_time"]["unchecked_wires"] is None, "a withheld total is withheld on the wires' side too, or subtraction gives it back"
+
+
+def test_schema_bump_names_the_toggle_fields():
+    assert config.SCHEMA_VERSION == 11

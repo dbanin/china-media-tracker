@@ -34,9 +34,11 @@ DAILY_SCHEMA = {
                                       "llm_ceiling_hit": {"type": "boolean"}}}}}},
 }
 FINDINGS_SCHEMA = {
-    "type": "object", "required": ["since", "all_time", "top_country", "by_ownership", "generated_at"],
+    "type": "object", "required": ["since", "all_time", "last_30d", "top_country", "by_ownership", "generated_at"],
     "properties": {
-        "all_time": {"type": "object", "required": ["state_origin", "unchecked", "independent", "china_total", "state_share_of_china"]},
+        "all_time": {"type": "object", "required": ["state_origin", "unchecked", "independent", "china_total", "state_share_of_china",
+                                                    "state_origin_wires", "unchecked_wires", "independent_wires", "china_total_wires"]},
+        "last_30d": {"type": "object", "required": ["state_origin", "state_origin_wires"]},
         "by_ownership": {"type": "object", "required": ["groups", "top"],
                          "properties": {"groups": {"type": "array", "items": {"type": "object",
                                         "required": ["id", "articles", "outlets", "per_outlet_rate"]}}}},
@@ -94,7 +96,8 @@ def test_committed_export_validates():
     jsonschema.validate(_load(d / "examples.json"), EXAMPLES_SCHEMA)
     series = _load(d / "global_series.json")
     assert isinstance(series, list)
-    assert all(set(["date", "A", "B", "C", "llm_ceiling_hit"]) <= set(s) for s in series)
+    assert all(set(["date", "A", "B", "C", "llm_ceiling_hit", "wld"]) <= set(s) for s in series)
+    assert all(set(s["wld"]) == set(export.SERIES_KEYS) for s in series)
 
 
 def test_export_on_empty_database(tmp_path, monkeypatch):

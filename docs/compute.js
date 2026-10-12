@@ -47,12 +47,38 @@
     return d.toISOString().slice(0, 10);
   }
 
+  /* The worldwide distribution stratum: the press release wires, whose releases reach audiences in every
+     country. It is listed beside the countries under the World Bank's code for the world, is never added
+     into any country, has no population and no outline on the map. */
+  var WORLDWIDE_ISO = "WLD";
+  var WORLDWIDE_NAME = "Worldwide distribution";
+
+  /* The Distribution toggle. Every figure that sums across countries follows it:
+       both     the country outlets and the worldwide wires together, which is the whole dataset
+       country  the country outlets alone: the stratum is dropped from every sum, row and line
+       wires    the worldwide wires alone: only the stratum remains
+     The stratum's own figures never change under it; the toggle decides whether they are in the sum. */
+  var DISTRIBUTIONS = ["both", "country", "wires"];
+  var DISTRIBUTION_NAMES = {both: "Both", country: "Country outlets", wires: "Worldwide wires"};
+  function distributionKeeps(distribution, iso) {
+    if (distribution === "country") return iso !== WORLDWIDE_ISO;
+    if (distribution === "wires") return iso === WORLDWIDE_ISO;
+    return true;
+  }
+  /* The keys of a per country object, or of a list of codes, that the distribution keeps. */
+  function distributionIsos(countries, distribution) {
+    var isos = Array.isArray(countries) ? countries : Object.keys(countries || {});
+    return isos.filter(function (iso) { return distributionKeeps(distribution, iso); });
+  }
+
   /* Sum per-country counts over the window ending at endDate.
-     windowDays null means all time up to and including endDate. */
-  function aggregateWindow(months, endDate, windowDays) {
+     windowDays null means all time up to and including endDate.
+     distribution (optional) drops the countries the Distribution toggle hides; absent means both. */
+  function aggregateWindow(months, endDate, windowDays, distribution) {
     var out = {countries: {}, reviewed: {}, routes: {}, arrivals: {}, ceilingDays: [], relayIncompleteDays: [], olderRulesetDays: []};
     if (!endDate) return out;
     var start = windowDays ? shiftDate(endDate, -(windowDays - 1)) : null;
+    var keep = function (iso) { return distributionKeeps(distribution, iso); };
     listDays(months).forEach(function (d) {
       if (d > endDate) return;
       if (start && d < start) return;
@@ -61,26 +87,25 @@
       if (e.llm_ceiling_hit) out.ceilingDays.push(d);
       if (e.relay_incomplete) out.relayIncompleteDays.push(d);
       if (e.labels_on_older_ruleset) out.olderRulesetDays.push(d);
-      Object.keys(e.countries || {}).forEach(function (c) {
+      Object.keys(e.countries || {}).filter(keep).forEach(function (c) {
         if (!out.countries[c]) out.countries[c] = emptyCounts();
         addInto(out.countries[c], e.countries[c]);
       });
-      Object.keys(e.reviewed || {}).forEach(function (c) {
+      Object.keys(e.reviewed || {}).filter(keep).forEach(function (c) {
         if (!out.reviewed[c]) out.reviewed[c] = {A: 0, B: 0, C: 0, N: 0};
         var r = e.reviewed[c];
         out.reviewed[c].A += r.A || 0; out.reviewed[c].B += r.B || 0; out.reviewed[c].C += r.C || 0; out.reviewed[c].N += r.N || 0;
       });
-      addNested(out.routes, e.routes);
-      addNested(out.arrivals, e.arrivals);
+      addNested(out.routes, pickKeys(e.routes, keep));
+      addNested(out.arrivals, pickKeys(e.arrivals, keep));
     });
     return out;
   }
-
-  /* The worldwide distribution stratum: the press release wires, whose releases reach audiences in every
-     country. It is listed beside the countries under the World Bank's code for the world, is never added
-     into any country, has no population and no outline on the map. */
-  var WORLDWIDE_ISO = "WLD";
-  var WORLDWIDE_NAME = "Worldwide distribution";
+  function pickKeys(obj, keep) {
+    var out = {};
+    Object.keys(obj || {}).forEach(function (k) { if (keep(k)) out[k] = obj[k]; });
+    return out;
+  }
 
   /* Share metrics are undefined on tiny denominators: two A items out of two is not a 100 percent country. */
   var MIN_SHARE_DENOMINATOR = 5;
@@ -205,7 +230,7 @@
   /* Theme counts over the same window as aggregateWindow.
      Returns {iso: {themeId: [all China coverage, state-linked articles, state origin, unchecked state sourcing]}}.
      Files written before the fourth slot existed carry three; the relay slot then reads zero. */
-  function aggregateThemes(months, endDate, windowDays) {
+  function aggregateThemes(months, endDate, windowDays, distribution) {
     var out = {};
     if (!endDate) return out;
     var start = windowDays ? shiftDate(endDate, -(windowDays - 1)) : null;
@@ -213,7 +238,7 @@
       if (d > endDate || (start && d < start)) return;
       var e = dayEntry(months, d);
       if (!e || !e.themes) return;
-      Object.keys(e.themes).forEach(function (iso) {
+      distributionIsos(e.themes, distribution).forEach(function (iso) {
         var src = e.themes[iso];
         var dst = out[iso] || (out[iso] = {});
         Object.keys(src || {}).forEach(function (t) {
@@ -445,12 +470,12 @@
 
      A route filter narrows state origin and nothing else, so under one the counts that are not split by
      route are left blank rather than written beside a filtered figure as though they described it. */
-  function rankCountries(agg, latest, metric, mode, names, ctxFor) {
+  function rankCountries(agg, latest, metric, mode, names, ctxFor, distribution) {
     var rows = [];
     var def = METRICS[metric] || {};
     var carriesRelay = !!(def.relay || def.relayInside);
     var countries = (latest && latest.countries) || {};
-    Object.keys(countries).forEach(function (iso) {
+    distributionIsos(countries, distribution).forEach(function (iso) {
       var entry = countries[iso];
       var ctx = ctxFor ? ctxFor(iso, entry, agg) : {population: entry.population};
       var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
@@ -499,6 +524,56 @@
     else if (parts.basis === "share_of_output") body = noun + " at " + n + " of every release the wires published";
     else body = n + (mv.provisional ? " (provisional)" : "") + " " + noun;
     return head + body + tail;
+  }
+
+  /* World totals under the Distribution toggle. totals is a block of sums over every country and the
+     stratum (latest.json totals, or a global_series day); wld is the stratum's own block of the same
+     shape, absent or null when the data predates it, which means zero. Country outlets subtracts the
+     stratum from every numeric key the two share; worldwide wires returns the stratum alone, with every
+     key of totals present so a reader of the result finds the same fields in every mode. */
+  function distributionTotals(totals, wld, distribution) {
+    if (!totals) return totals;
+    if (distribution !== "country" && distribution !== "wires") return totals;
+    var out = {};
+    Object.keys(totals).forEach(function (k) {
+      var t = totals[k], w = wld ? wld[k] : undefined;
+      if (typeof t !== "number") { out[k] = t; return; }
+      var wv = typeof w === "number" ? w : 0;
+      out[k] = distribution === "country" ? t - wv : wv;
+    });
+    return out;
+  }
+
+  /* The findings block under the Distribution toggle. at is findings.all_time from meta.json, where the
+     export writes beside each total its worldwide wires part (state_origin_wires and so on); last30 is
+     findings.last_30d, {state_origin, state_origin_wires}; top is findings.top_country. Files written
+     before the wires fields existed carry none, which reads as zero, so Country outlets then equals Both.
+     Returns the four totals for the mode, the state share of China coverage recomputed over them (null
+     when either side is missing or the denominator is zero), the top country's share of the world that
+     the mode leaves (null under worldwide wires, where no country is ranked) and the wires' own count
+     for the last 30 days. */
+  function distributionFindings(at, last30, top, distribution) {
+    at = at || {}; last30 = last30 || {};
+    var part = function (key) {
+      var total = at[key], wires = at[key + "_wires"];
+      if (total === null || total === undefined) return null;
+      var w = typeof wires === "number" ? wires : 0;
+      if (distribution === "country") return total - w;
+      if (distribution === "wires") return w;
+      return total;
+    };
+    var stateOrigin = part("state_origin"), unchecked = part("unchecked"), independent = part("independent"), china = part("china_total");
+    var share = stateOrigin === null || !china ? null : stateOrigin / china;
+    var world30 = last30.state_origin, wires30 = typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : 0;
+    var topShare = null;
+    if (top && distribution !== "wires") {
+      if (distribution === "country" && typeof world30 === "number") topShare = world30 - wires30 > 0 ? top.state_origin / (world30 - wires30) : null;
+      else topShare = top.share_of_world === undefined ? null : top.share_of_world;
+    }
+    return {state_origin: stateOrigin, unchecked: unchecked, independent: independent, china_total: china,
+            state_share_of_china: share, top_share_of_world: topShare,
+            wires_last_30d: typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : null,
+            wires_all_time: typeof at.state_origin_wires === "number" ? at.state_origin_wires : null};
   }
 
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
@@ -644,7 +719,9 @@
   }
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
-  return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+  return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
+          DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
+          distributionTotals: distributionTotals, distributionFindings: distributionFindings, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,

@@ -223,7 +223,12 @@ added into any individual country's numbers: a release reaches audiences in
 every monitored country, and adding it to each would count it once per
 country. World totals include it. Its share of monitored output divides by
 everything the wires themselves published, and no per capita value exists for
-it. {wire_counts_text}
+it. {wire_counts_text} A Distribution toggle beside the Measure control shows
+the two apart: Both is the whole dataset, Country outlets leaves the wires out
+of every figure that sums across countries, and Worldwide wires shows the
+stratum alone, with the map left unfilled because a release reaches every
+country at once; the count of outlets monitored and the leaning chart count
+newsrooms only and never include the wires in any mode.
 
 The color scale is fixed for a measure and window across every date on the
 timeline: the darkest step starts at the 95th percentile of the values of all
