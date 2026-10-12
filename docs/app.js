@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "79";
+  var ASSET_VERSION = "80";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -411,8 +411,17 @@
       : countryOnly()
       ? {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered by the country outlets, since " + since + (wldA > 0 ? "; " + intComma(wldA) + " more arrived through the worldwide wires" : "") + "."}
       : {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + since + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."};
+    /* The wires' 30 days are counted from the daily files over the same complete days the map opens on, so
+       the card and the legend line under the map give one number. The export's last_30d also counts the
+       day the export ran, which is partial. Falls back to the export figure when the daily files are absent. */
+    var wires30 = at.wires_last_30d;
+    var lastDay = lastCompleteDay();
+    if (wiresOnly() && lastDay) {
+      var aggW = C.aggregateWindow(state.months, lastDay, 30, "wires");
+      if (aggW.countries[C.WORLDWIDE_ISO]) wires30 = aggW.countries[C.WORLDWIDE_ISO].A || 0;
+    }
     var topCard = wiresOnly()
-      ? (at.wires_last_30d !== null ? {label: "Worldwide wires, last 30 days", value: intComma(at.wires_last_30d), note: "State-origin releases on the wires. They reach every country at once, so no country is ranked in this mode."} : null)
+      ? (wires30 !== null && wires30 !== undefined ? {label: "Worldwide wires, last 30 days", value: intComma(wires30), note: "State-origin releases on the wires. They reach every country at once, so no country is ranked in this mode."} : null)
       : tc ? {label: "Top country, last 30 days", value: esc(countryName(tc.iso)) + (at.top_share_of_world ? " <em>" + Math.round(at.top_share_of_world * 100) + "%</em>" : ""),
               note: intComma(tc.state_origin) + " articles" + (tc.top_outlet ? ", mostly through " + tc.top_outlet.name : "") + (countryOnly() ? ", share of the country outlets' total" : "") + ".", html: true} : null;
     var cards = [
@@ -1678,6 +1687,17 @@
 
   /* -------------------------------------------------------------- timeline */
   var tlDays = [];
+  /* The last day the export saw in full: the export day itself is partial. The timeline opens here and the
+     KPI cards that count a 30 day window end here too. */
+  function lastCompleteDay() {
+    var all = days(), first = state.meta && state.meta.first_discovered;
+    all = all.filter(function (d) { return !first || d >= first; });
+    if (!all.length) return null;
+    var gen = state.meta && state.meta.generated_at ? state.meta.generated_at.slice(0, 10) : null;
+    var i = all.length - 1;
+    if (i > 0 && gen && all[i] >= gen) i -= 1;
+    return all[i];
+  }
   function setupTimeline() {
     var first = state.meta && state.meta.first_discovered;
     tlDays = days().filter(function (d) { return !first || d >= first; });
