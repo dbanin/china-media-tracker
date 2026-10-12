@@ -7,7 +7,7 @@
     },
     "unchecked_state_sourcing": {
       "label": "Unchecked state sourcing",
-      "definition": "An article written by the local newsroom's own staff, not copied from a Chinese source, that repeats an official Chinese claim (from a ministry spokesperson, an embassy, or Xinhua) without any independent check. This is a judgement made once by an AI model rather than a rule. A reliability check had the same model re-judge a sample of 250 of its own past calls and it agreed with itself often enough to publish, so the counts are shown with one qualifier: the check used the same model, not a second opinion, and it has not been tested against a human coder."
+      "definition": "An article written by the local newsroom's own staff, not copied from a Chinese source, that repeats an official Chinese claim (from a ministry spokesperson, an embassy, or Xinhua) without any independent check. This is the harder call, so an AI model makes it once, following the author's written codebook, rather than a fixed rule. A reliability check had the same model re-judge a sample of 250 of its own past calls and it agreed with itself often enough to publish, so the counts are shown with one qualifier: the check used the same model, not a second opinion, and it has not been tested against a human coder."
     },
     "official_chinese_sourcing_verification_pending": {
       "label": "Official Chinese sourcing, verification pending",
@@ -77,12 +77,12 @@
     },
     {
       "question": "How reliable is the unchecked state sourcing count?",
-      "answer": "Unchecked state sourcing is judged by an AI model, once, with no human check. A reliability check had the same model re-judge a sample of 250 of its own past calls, and it agreed with itself often enough for the counts to be published. That check caught randomness in the model's own judgement and nothing else: it used the same model, not a second opinion or a human coder, so a bias the model holds every time would pass it. The counts therefore carry that qualifier. Had the model disagreed with itself too often, the counts would have been withheld, not merely flagged.",
+      "answer": "Unchecked state sourcing is judged once by an AI model applying the author's written codebook, with no human check of individual articles. A reliability check had the same model re-judge a sample of 250 of its own past calls, and it agreed with itself often enough for the counts to be published. That check caught randomness in the model's own judgement and nothing else: it used the same model, not a second opinion or a human coder, so a bias the model holds every time would pass it. The counts therefore carry that qualifier. Had the model disagreed with itself too often, the counts would have been withheld, not merely flagged.",
       "sources": []
     },
     {
       "question": "Is a computer deciding this?",
-      "answer": "Mostly rules, sometimes a model, and so far no person. Clear-cut cases, like a Xinhua credit line, are caught by fixed pattern-matching rules with no AI involved. Only the harder call, whether a locally written article checked an official Chinese claim or just repeated it, goes to an AI model. So far no article has been checked and relabelled by a person; human review is counted on the site and stands at zero today.",
+      "answer": "No. The author decided what counts and how to find it: which outlets to read, the China keyword lists, the credit lines and datelines that mark state text, and a written codebook for the harder cases. The computer carries out that procedure every hour, the same way each time. Clear-cut cases, like a Xinhua credit line, are matched by the author's fixed rules with no AI involved. The harder call, whether a locally written article checked an official Chinese claim or just repeated it, is made by an AI model that is given the author's codebook word for word and nothing about the outlet or the country. It applies those instructions; it does not set its own. What the site does not have yet is a second reader: no article has been re-read and relabelled by a person, and that count, shown on the site, stands at zero today.",
       "sources": []
     },
     {
