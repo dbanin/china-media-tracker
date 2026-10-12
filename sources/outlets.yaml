@@ -2059,7 +2059,9 @@
   leaning_source: https://mediabiasfactcheck.com/chequeado-bias-and-credibility/
   ownership: private
   ownership_source: https://chequeado.com/funding/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ar_clarin
   name: Clarín
   country: ARG
@@ -2100,7 +2102,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.infobae.com/economia/2021/07/14/el-grupo-america-compro-el-100-del-paquete-accionario-del-diario-el-cronista/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ar_eldia
   name: El Día La Plata
   country: ARG
@@ -3413,7 +3417,9 @@
   - https://samakal.com/rss
   tier: national_daily
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-09-28: feed verified again.'
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
+  inactive_since: '2026-10-12'
 - id: bd_somoy
   name: Somoy TV
   country: BGD
@@ -4847,7 +4853,9 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-02 (auto)
+  inactive_since: '2026-10-12'
 - id: cf_ndjoni
   name: Ndjoni Sango
   country: CAF
@@ -7454,7 +7462,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://eldia.com.do/quienes-somos/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: do_elnuevodiario
   name: El Nuevo Diario
   country: DOM
@@ -7726,7 +7736,9 @@
   leaning_source: https://es.wikipedia.org/wiki/El_Universo_(diario)
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_Universo_(diario)
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ec_expreso
   name: Expreso
   country: ECU
@@ -9826,7 +9838,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Asaase_Radio
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
+  inactive_since: '2026-10-12'
 - id: gh_gbc
   name: GBC
   country: GHA
@@ -10952,7 +10966,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Criterio.hn
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: hn_elheraldo
   name: El Heraldo
   country: HND
@@ -12655,7 +12671,9 @@
   leaning_source: https://mediabiasfactcheck.com/thejournal-ie/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Journal_(Ireland)
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ir_bbcpersian
   name: BBC Persian
   country: IRN
@@ -15103,7 +15121,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Seoul_Shinmun
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: kr_yonhap
   name: Yonhap News
   country: KOR
@@ -16519,7 +16539,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/la-vie-eco/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ma_lebrief
   name: LeBrief
   country: MAR
@@ -19191,7 +19213,9 @@
   leaning_source: https://mediabiasfactcheck.com/dutch-news-bias-and-credibility/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/dutch-news-bias-and-credibility/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: nl_nltimes
   name: NL Times
   country: NLD
@@ -19689,7 +19713,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.ratopati.com/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-01 (auto)
+  inactive_since: '2026-10-12'
 - id: np_republica
   name: myRepublica
   country: NPL
@@ -19923,7 +19949,9 @@
   leaning_source: https://en.wikipedia.org/wiki/The_Spinoff
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Spinoff
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-04 (auto)
+  inactive_since: '2026-10-12'
 - id: nz_waikatotimes
   name: Waikato Times
   country: NZL
@@ -20063,7 +20091,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
+  inactive_since: '2026-10-12'
 - id: pk_ary
   name: ARY News
   country: PAK
@@ -21600,7 +21630,9 @@
   political_leaning: left
   leaning_source: https://mediabiasfactcheck.com/pnn-palestine-news-network-bias-and-credibility/
   ownership: unassessed
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ps_ultrapalestine
   name: Ultra Palestine
   country: PSE
@@ -24915,7 +24947,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.journaldutchad.com/mentions-legales/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: td_lepays
   name: Le Pays Tchad
   country: TCD
@@ -25454,7 +25488,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://arzuw.news/about
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: tm_bt
   name: Business Turkmenistan
   country: TKM
@@ -28412,7 +28448,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://eldiario.com/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ve_elestimulo
   name: El Estímulo
   country: VEN
@@ -28917,7 +28955,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kallxo
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: xk_koha
   name: Koha Ditore
   country: XKX
@@ -30172,7 +30212,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://emonewsdm.com/emonews-launch/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
+  inactive_since: '2026-10-12'
 - id: er_awate
   name: Awate
   country: ERI
@@ -30571,7 +30613,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.caribjournal.com/about/
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
+  inactive_since: '2026-10-12'
 - id: kn_timescaribbean
   name: Times Caribbean
   country: KNA
@@ -32124,7 +32168,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Rwanda
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: rw_imvahonshya
   name: Imvaho Nshya
   country: RWA
@@ -33007,7 +33053,9 @@
   government_stance: independent
   stance_source: https://rsf.org/en/country/armenia
   stance_as_of: 2026
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: am_168am
   name: 168.am
   country: ARM
@@ -33553,7 +33601,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.noticiasaominuto.com/ficha-tecnica
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: pt_cnnportugal
   name: CNN Portugal
   country: PRT
@@ -34116,7 +34166,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: ve_telesur
   name: teleSUR
   country: VEN
@@ -34173,7 +34225,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_since: '2026-10-12'
 - id: by_belapan
   name: BelaPAN
   country: BLR
@@ -34199,7 +34253,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Current_Time_TV
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
+  inactive_since: '2026-10-12'
 - id: ie_dublinlive
   name: Dublin Live
   country: IRL
