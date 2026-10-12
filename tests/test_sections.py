@@ -152,3 +152,79 @@ def test_saving_the_registry_never_drops_a_schema_field(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         registry.save_outlets([dict(outs[0], not_a_field=1)], tmp_path / "bad.yaml")
+
+
+def test_desk_crediting_a_sponsor_is_not_a_sponsored_section():
+    assert ds.classify_link("Sport sponsored by", "https://www.index.hr/sport") is None
+    assert ds.classify_link("Weather presented by Acme", "https://x.com/weather") is None
+    assert ds.classify_link("Podcasts powered by", "https://x.com/podcasts") is None
+    html = '<a href="/sport">Sport sponsored by</a><a href="/sponsored">Sponsored</a>'
+    assert [(l["kind"], l["url"]) for l in ds.section_links(html, "https://www.example.com/")] == [
+        ("sponsored", "https://www.example.com/sponsored")]
+
+
+def test_genuine_sections_still_classify():
+    assert ds.classify_link("", "https://x.com/sponsored") == "sponsored"
+    assert ds.classify_link("", "https://x.com/advertorial") == "sponsored"
+    assert ds.classify_link("", "https://x.com/category/press-releases") == "press_release"
+    assert ds.classify_link("", "https://x.com/globenewswire") == "press_release"
+    assert ds.classify_link("Partner content", "https://x.com/p") == "partner"
+    assert ds.classify_link("Sponsored", "https://x.com/s") == "sponsored"
+    assert ds.classify_link("Sponsored content presented by Acme", "https://x.com/s") == "sponsored"
+    assert ds.classify_link("Partner content sponsored by Acme", "https://x.com/p") == "partner"
+    # A desk credit on a link whose path is itself a section still counts by the path.
+    assert ds.classify_link("Sport sponsored by", "https://x.com/sponsored") == "sponsored"
+
+
+def test_site_wide_feeds():
+    for url in ("https://www.mirror.co.uk/rss.xml", "https://news.liga.net/ua/all/rss.xml", "https://novayagazeta.eu/feed/rss",
+                "https://asiaplus.news/feed/", "https://www.interfax.ru/rss", "https://x.com/feed", "https://x.com/feeds/feed.xml",
+                "https://x.com/feed/atom/", "https://www.uzdaily.uz/ru/rss/", "https://novayagazeta.eu/feed/rss/en",
+                "https://x.com/?service=rss"):
+        assert ds.site_wide_feed(url), url
+    for url in ("https://nationalpost.com/category/sponsored/feed", "https://www.sudouest.fr/contenu-partenaire/rss.xml",
+                "https://www.mirror.co.uk/news/world-news/?service=rss", "https://www.europapress.es/rss/rss.aspx?ch=137",
+                "https://www.reviewjournal.com/pc/feed", "https://www.srherald.com/./advertorial/feed/",
+                "https://www.japantimes.co.jp/feed/topstories/", "https://x.com/feed/?cat=12"):
+        assert not ds.site_wide_feed(url), url
+
+
+def test_probe_skips_a_site_wide_alternate_and_falls_back_to_the_page(monkeypatch):
+    from pipeline import fetch_articles
+    pages = {"https://www.example.com/": '<a href="/partner-stories">Partner Stories</a>',
+             "https://www.example.com/partner-stories": '<link rel="alternate" type="application/rss+xml" href="/rss.xml">'}
+    monkeypatch.setattr(fetch_articles, "can_fetch", lambda u: (True, None))
+    monkeypatch.setattr(fetch_articles, "get_page", lambda u: (pages.get(u), 200 if u in pages else 404, None))
+    monkeypatch.setattr(ds, "_feed_ok", lambda u: True)
+    rec = ds.probe_outlet({"id": "gb_x", "feeds": []}, "https://www.example.com/")
+    sec = rec["sections"][0]
+    assert sec["url"] == "https://www.example.com/partner-stories" and sec["kind"] == "partner"
+    assert sec["feed"] is None and sec["reachable"]   # apply registers the section index page instead
+
+
+def test_apply_drops_sponsor_credits_and_site_wide_feeds_from_old_probe_results(tmp_path, monkeypatch):
+    import json
+    outlets = [{"id": "hr_x", "name": "X", "country": "HRV", "language": "hr", "feeds": ["https://x.com/rss"], "tier": "national_daily", "active": True}]
+    saved = {}
+    monkeypatch.setattr(registry, "load_outlets", lambda: [dict(o) for o in outlets])
+    monkeypatch.setattr(registry, "save_outlets", lambda os_: saved.setdefault("o", os_))
+    probe = {"hr_x": {"id": "hr_x", "searched_on": "2026-09-15", "status": "found", "sections": [
+        {"url": "https://x.com/sport", "kind": "sponsored", "label": "Sport sponsored by", "feed": None, "reachable": True},
+        {"url": "https://x.com/partner-stories", "kind": "partner", "label": "Partner Stories", "feed": "https://x.com/rss.xml", "reachable": True},
+        {"url": "https://x.com/advertorial", "kind": "sponsored", "label": "/advertorial", "feed": "https://x.com/advertorial/feed", "reachable": True}]}}
+    p = tmp_path / "probe.json"
+    p.write_text(json.dumps(probe))
+    ds.apply(p)
+    o = saved["o"][0]
+    assert [s["url"] for s in o["release_sections"]["sections"]] == ["https://x.com/partner-stories", "https://x.com/advertorial"]
+    assert o["section_feeds"] == [
+        {"url": "https://x.com/partner-stories", "kind": "partner", "section": "https://x.com/partner-stories", "type": "page"},
+        {"url": "https://x.com/advertorial/feed", "kind": "sponsored", "section": "https://x.com/advertorial", "type": "rss"}]
+
+
+def test_registry_has_no_site_wide_or_sponsor_credit_section_feeds():
+    for o in registry.load_outlets():
+        labels = {s["url"]: s.get("label") or "" for s in (o.get("release_sections") or {}).get("sections", [])}
+        for f in o.get("section_feeds") or []:
+            assert not (f.get("type", "rss") == "rss" and ds.site_wide_feed(f["url"])), (o["id"], f["url"])
+            assert ds.classify_link(labels.get(f["section"], ""), f["section"]), (o["id"], f["section"])
