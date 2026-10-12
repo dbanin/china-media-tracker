@@ -5,7 +5,9 @@ feed's window reached back to the previous poll.
 An outlet is polled on its editorial feeds and on the press release, sponsored and
 partner sections found by pipeline/discover_sections.py (registry.feed_entries). Items
 from those sections skip the relevance gate, because that is where paid state placements
-sit and they often name no China term in the headline; classification decides.
+sit and they often name no China term in the headline; classification decides. A section feed
+that floods the queue with items classification keeps rejecting loses the exemption until it
+earns it back (section_feed_flooding).
 """
 import datetime as dt
 import json
@@ -21,6 +23,30 @@ TITLE_JACCARD_THRESHOLD = 0.7
 # One poll's estimate of items lost between polls is capped, so a feed with nonsense dates cannot
 # dominate a country's total.
 MAX_MISSED_ESTIMATE = 500.0
+
+# Per section feed relevance guard. The gate exemption assumes a section feed is small and that what
+# it carries is placements. Discovery sometimes registers a whole editorial desk instead: Index.hr's
+# sport section was recorded as "sponsored" because its header reads "Sport sponsored by", and the
+# Mirror's site-wide rss.xml as "partner". In the 30 days to 2026-10-11 the Index.hr sport page alone
+# admitted 3,650 items, 4.5% of every article fetched, and classification found 2 of them relevant
+# (both residual_c sports stories, no state origin, no official sourcing). Ten section feeds carried
+# more than 500 items each with under 2% relevant; together they were a sixth of all fetches.
+# When a section feed's resolved items over the trailing window exceed SECTION_GUARD_MIN_ITEMS and
+# fewer than SECTION_GUARD_MAX_RELEVANT_SHARE of them were classified anything other than
+# not_relevant, the keyword gate applies to that feed again: an item naming a China term in its
+# headline or summary is still admitted, the rest is gated out like an editorial item, and nothing
+# already queued is touched. Delivered items are the larger of two counts: the feed_polls ledger
+# (every new item the feed delivered, which survives the pruning of gated out rows, so a guarded
+# feed stays guarded while it stays busy) and the article rows still present for the feed (which
+# include items re-admitted from an editorial feed, never in the ledger, and cover feeds the ledger
+# has no rows for). Items still awaiting a fetch or a verdict are subtracted, so a backlog is never
+# read as irrelevance. A feed that quietens below the threshold is exempt again; a quiet feed cannot
+# flood.
+SECTION_GUARD_DAYS = 30
+SECTION_GUARD_MIN_ITEMS = 500
+SECTION_GUARD_MAX_RELEVANT_SHARE = 0.02
+# Statuses with no verdict yet: not fetched, or fetched and waiting for the model.
+SECTION_GUARD_PENDING = ("discovered", "queued", "fetched", "awaiting_llm", "llm_submitted")
 
 
 def _entry_time(entry) -> Optional[str]:
@@ -146,6 +172,31 @@ def readmit_gated_out(conn, item: Dict) -> Optional[int]:
     return row["id"]
 
 
+def section_feed_flooding(conn, feed_url: str, now: Optional[dt.datetime] = None) -> Optional[Dict]:
+    """Whether a section feed has lost the gate exemption: {resolved, relevant} when its resolved items
+    over the trailing SECTION_GUARD_DAYS exceed SECTION_GUARD_MIN_ITEMS and under
+    SECTION_GUARD_MAX_RELEVANT_SHARE of them were classified anything other than not_relevant,
+    otherwise None. See the note above the constants."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    since = (now - dt.timedelta(days=SECTION_GUARD_DAYS)).isoformat()
+    ledger = conn.execute("SELECT COALESCE(SUM(new_items), 0) FROM feed_polls WHERE feed_url=? AND date>=?",
+                          (feed_url, since[:10])).fetchone()[0]
+    marks = ",".join("?" * len(SECTION_GUARD_PENDING))
+    present, pending = conn.execute(
+        "SELECT COUNT(*), COALESCE(SUM(status IN (%s)), 0) FROM articles WHERE feed_url=? AND discovered_at>=?" % marks,
+        tuple(SECTION_GUARD_PENDING) + (feed_url, since)).fetchone()
+    resolved = max(0, max(ledger, present) - pending)
+    if resolved <= SECTION_GUARD_MIN_ITEMS:
+        return None
+    relevant = conn.execute(
+        """SELECT COUNT(*) FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+           WHERE a.feed_url=? AND a.discovered_at>=? AND c.category!='not_relevant'""",
+        (feed_url, since)).fetchone()[0]
+    if relevant >= resolved * SECTION_GUARD_MAX_RELEVANT_SHARE:
+        return None
+    return {"resolved": resolved, "relevant": relevant}
+
+
 def poll_outlet(outlet: Dict) -> List[Dict]:
     out = []
     for fe in registry.feed_entries(outlet):
@@ -166,7 +217,8 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     store.sync_outlets(conn, registry.load_outlets())
     counts = {"feeds": 0, "feeds_ok": 0, "items_seen": 0, "items_new": 0,
               "gate_relevant": 0, "near_duplicates": 0, "feeds_saturated": 0, "section_items": 0,
-              "outlets": len(outlets), "outlets_polled": 0, "readmitted_section": 0}
+              "outlets": len(outlets), "outlets_polled": 0, "readmitted_section": 0,
+              "section_feeds_guarded": 0}
     # ThreadPoolExecutor.map submits every outlet up front and the with block joins on exit, so
     # breaking out of the consumer loop at the deadline stopped the database writes but not the
     # polling: a run given 35 minutes could overshoot into the job's 55 minute timeout and be
@@ -192,6 +244,10 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     continue
                 counts["feeds_ok"] += 1
                 section = kind in registry.GATE_EXEMPT_KINDS
+                if section and section_feed_flooding(conn, feed_url):
+                    # Flooding: the keyword gate applies to this feed until it earns the exemption back.
+                    section = False
+                    counts["section_feeds_guarded"] += 1
                 linked, new_here, times = 0, 0, []
                 for entry in r["entries"]:
                     link = entry.get("link")
