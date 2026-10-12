@@ -306,4 +306,57 @@ var wB = C.metricValue(wAgg.countries.WLD, "count_b", 2, "all", undefined, {worl
 assert(C.worldwideLegendLine(wB, "count_b") === null, "legend line hidden when the measure is withheld");
 var wCsv = C.toCSV(wRows, ["iso", "name", "value", "population"]);
 assert(wCsv.indexOf("WLD,Worldwide distribution,5,") !== -1, "the view CSV carries the stratum with its name");
+/* The Distribution toggle: both keeps the stratum, country drops it, wires keeps nothing else. */
+assert(C.DISTRIBUTIONS.join(",") === "both,country,wires" && C.DISTRIBUTION_NAMES.wires === "Worldwide wires", "distribution modes and names");
+assert(C.distributionKeeps("both", "WLD") && C.distributionKeeps("both", "ITA"), "both keeps every row");
+assert(!C.distributionKeeps("country", "WLD") && C.distributionKeeps("country", "ITA"), "country outlets drops the stratum");
+assert(C.distributionKeeps("wires", "WLD") && !C.distributionKeeps("wires", "ITA"), "worldwide wires keeps only the stratum");
+assert(C.distributionKeeps(undefined, "WLD"), "an absent mode is both");
+assert(C.distributionIsos({ITA: 1, WLD: 1, FRA: 1}, "country").join(",") === "ITA,FRA" && C.distributionIsos(["WLD", "ITA"], "wires").join(",") === "WLD", "distributionIsos filters keys and lists");
+var dBoth = C.aggregateWindow(wMonths, "2026-09-01", 30, "both"), dCountry = C.aggregateWindow(wMonths, "2026-09-01", 30, "country"), dWires = C.aggregateWindow(wMonths, "2026-09-01", 30, "wires");
+assert(dBoth.countries.WLD.A === 5 && dBoth.countries.ITA.A === 2 && dBoth.routes.WLD.distribution_stamp === 5, "both: the stratum and the country are both summed");
+assert(dBoth.countries.ITA.A === wAgg.countries.ITA.A && Object.keys(dBoth.countries).length === Object.keys(wAgg.countries).length, "both equals the unfiltered aggregate");
+assert(!dCountry.countries.WLD && dCountry.countries.ITA.A === 2 && !dCountry.routes.WLD && dCountry.routes.ITA.wire_credit === 2, "country outlets: the stratum is gone from the counts and the routes");
+assert(dWires.countries.WLD.A === 5 && !dWires.countries.ITA && !dWires.routes.ITA && dWires.routes.WLD.distribution_stamp === 5, "worldwide wires: only the stratum remains");
+var dRows = C.rankCountries(dCountry, wLatest, "count_a", "all", wNames, wCtx, "country");
+assert(dRows.length === 1 && dRows[0].iso === "ITA", "rankCountries under country outlets has no stratum row");
+dRows = C.rankCountries(dWires, wLatest, "count_a", "all", wNames, wCtx, "wires");
+assert(dRows.length === 1 && dRows[0].iso === "WLD" && dRows[0].value === 5, "rankCountries under worldwide wires is the stratum row alone");
+assert(C.rankCountries(dBoth, wLatest, "count_a", "all", wNames, wCtx, "both").length === 2 && C.rankCountries(dBoth, wLatest, "count_a", "all", wNames, wCtx).length === 2, "rankCountries under both, or with no mode, lists every row");
+/* The legend line exists exactly when the mode keeps the stratum and it holds something. */
+function legendLineFor(agg, mode) {
+  var isos = C.distributionIsos(wLatest.countries, mode);
+  if (isos.indexOf(C.WORLDWIDE_ISO) === -1) return null;
+  return C.worldwideLegendLine(C.metricValue(agg.countries.WLD, "count_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, agg)), "count_a");
+}
+assert(/5 state-origin articles/.test(legendLineFor(dBoth, "both")), "legend line present under both");
+assert(legendLineFor(dCountry, "country") === null, "legend line absent under country outlets");
+assert(/5 state-origin articles/.test(legendLineFor(dWires, "wires")), "legend line present under worldwide wires");
+/* The theme counter's window follows the toggle too. */
+var tMonths = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {trade: [2, 1, 1, 0]}, WLD: {trade: [5, 5, 5, 0]}}}}}};
+assert(C.aggregateThemes(tMonths, "2026-09-01", 1, "country").ITA.trade[2] === 1 && !C.aggregateThemes(tMonths, "2026-09-01", 1, "country").WLD, "aggregateThemes drops the stratum under country outlets");
+assert(C.aggregateThemes(tMonths, "2026-09-01", 1, "wires").WLD.trade[2] === 5 && !C.aggregateThemes(tMonths, "2026-09-01", 1, "wires").ITA, "aggregateThemes keeps only the stratum under worldwide wires");
+/* The panel's world table: totals minus the stratum, or the stratum alone, key by key. */
+var dTot = {A: 100, B: 20, C: 300, N: 50, pending: 4, paywalled: 7, share_a: 0.2, note: "x"};
+var dWld = {A: 30, B: 0, C: 10, N: 5, pending: 1, paywalled: 0, share_a: 0.7};
+var dc = C.distributionTotals(dTot, dWld, "country");
+assert(dc.A === 70 && dc.C === 290 && dc.N === 45 && dc.pending === 3 && dc.paywalled === 7 && dc.note === "x", "distributionTotals subtracts the stratum under country outlets: " + JSON.stringify(dc));
+var dw = C.distributionTotals(dTot, dWld, "wires");
+assert(dw.A === 30 && dw.C === 10 && dw.B === 0 && dw.paywalled === 0, "distributionTotals keeps the stratum alone under worldwide wires");
+assert(C.distributionTotals(dTot, dWld, "both") === dTot && C.distributionTotals(dTot, null, "country").A === 100, "both returns the totals; a missing stratum means zero");
+/* The KPI arithmetic: country outlets is total minus wires, worldwide wires is the wires' part. */
+var dAt = {state_origin: 1591, unchecked: 1697, independent: 35700, china_total: 38988, state_share_of_china: 0.0408,
+           state_origin_wires: 230, unchecked_wires: 0, independent_wires: 90, china_total_wires: 320};
+var d30 = {state_origin: 1200, state_origin_wires: 200};
+var dTop = {iso: "ITA", state_origin: 400, share_of_world: 400 / 1200};
+var kBoth = C.distributionFindings(dAt, d30, dTop, "both"), kCountry = C.distributionFindings(dAt, d30, dTop, "country"), kWires = C.distributionFindings(dAt, d30, dTop, "wires");
+assert(kBoth.state_origin === 1591 && kBoth.china_total === 38988 && Math.abs(kBoth.top_share_of_world - 400 / 1200) < 1e-9, "findings under both are the export's totals");
+assert(kCountry.state_origin === 1361 && kCountry.independent === 35610 && kCountry.china_total === 38668 && Math.abs(kCountry.state_share_of_china - 1361 / 38668) < 1e-9, "findings under country outlets subtract the wires: " + JSON.stringify(kCountry));
+assert(Math.abs(kCountry.top_share_of_world - 400 / 1000) < 1e-9, "the top country's share of the world is retaken over the country outlets' total");
+assert(kWires.state_origin === 230 && kWires.independent === 90 && kWires.china_total === 320 && Math.abs(kWires.state_share_of_china - 230 / 320) < 1e-9, "findings under worldwide wires are the wires' part alone");
+assert(kWires.top_share_of_world === null && kWires.wires_last_30d === 200 && kWires.wires_all_time === 230, "no top country under worldwide wires; the wires' own 30 day count is given");
+assert(kBoth.state_origin + 0 === kCountry.state_origin + kWires.state_origin, "both is the sum of the two modes");
+var kOld = C.distributionFindings({state_origin: 1361, unchecked: null, independent: 35608, china_total: 38666}, null, dTop, "country");
+assert(kOld.state_origin === 1361 && kOld.unchecked === null && Math.abs(kOld.top_share_of_world - 400 / 1200) < 1e-9 && kOld.wires_last_30d === null, "an export without the wires fields reads as zero wires, with the share of the world kept");
+assert(C.distributionFindings({state_origin: 1361, china_total: 0}, null, null, "both").state_share_of_china === null, "no share over an empty denominator");
 console.log("frontend smoke ok");

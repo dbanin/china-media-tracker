@@ -266,7 +266,11 @@ attributed to the United States and never added into any individual country's
 numbers, which would count one release once per country. World totals include
 it, and `meta.distribution_wires` carries the same figures under their old
 name. Earlier exports left these releases out of every total, which hid 179
-state origin items in one 30 day window.
+state origin items in one 30 day window. The site's Distribution toggle, next
+to Measure, reads the two apart: Both, Country outlets (the wires left out of
+every figure that sums across countries) or Worldwide wires (the stratum alone,
+the map left unfilled), from the per day `wld` block in global_series.json and
+the `_wires` fields in meta.findings.
 
 Methodology review, September 2026. The changes it prompted are listed in
 CHANGELOG.md under 2026-09-15: province terms and a state origin signature

@@ -10,7 +10,8 @@ Outputs in docs/data/:
                        the gates that decide what the interface may publish
   articles/ISO3.json   most recent classified articles per country for the country panel;
                        articles/WLD.json holds the worldwide distribution stratum (press release wires)
-  global_series.json   per-day global totals for the sparkline
+  global_series.json   per-day global totals for the sparkline, with the worldwide distribution
+                       stratum's own part of each day under wld (zeros when absent)
   planted.json         articles whose byline or cited organisation matches a persona or front named
                        in a published investigation, and the recurring bylines diagnostic; never a
                        category, never a count
@@ -636,6 +637,9 @@ def build_daily(conn, outlets: Optional[List[Dict]] = None) -> Dict[str, Dict]:
     return out
 
 
+SERIES_KEYS = ("A", "B", "C", "N", "rel", "paywalled", "pending")
+
+
 def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
     series = []
     for month in sorted(daily):
@@ -644,13 +648,19 @@ def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
                    "countries_with_A": 0, "llm_ceiling_hit": day["llm_ceiling_hit"],
                    "relay_incomplete": day.get("relay_incomplete", False),
                    "labels_on_older_ruleset": day.get("labels_on_older_ruleset", 0)}
+            # The stratum's own part of the day sits beside the totals, so the interface can show the
+            # country outlets and the wires apart by subtraction. Zeros when the day has no stratum.
+            wld = {k: 0 for k in SERIES_KEYS}
             for c, v in day["countries"].items():
                 # World totals include the worldwide distribution stratum; the count of countries
                 # with state origin does not, because the stratum is not a country.
-                for k in ("A", "B", "C", "N", "rel", "paywalled", "pending"):
+                for k in SERIES_KEYS:
                     tot[k] += v[k]
+                    if c == registry.WORLDWIDE:
+                        wld[k] += v[k]
                 if v["A"] and c != registry.WORLDWIDE:
                     tot["countries_with_A"] += 1
+            tot["wld"] = wld
             series.append(tot)
     return series
 
@@ -1004,6 +1014,12 @@ def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, 
     # china_total is A + B + C across every country and the worldwide distribution stratum: the
     # same denominator the interface already uses for "share of its China coverage" (_derive above).
     china_total = tot["china_total"]
+    # The stratum's part of each total, written beside it, so the site's Distribution toggle can show
+    # the country outlets alone (total minus wires) or the wires alone without a second export. An
+    # export with no stratum writes zeros.
+    wld = latest["countries"].get(registry.WORLDWIDE) or {}
+    wld_all = wld.get("all_time") or _derive(_empty_country(), 0, visible)
+    wld_30 = wld.get("last_30d") or {}
     return {
         "since": first_discovered,
         "all_time": {
@@ -1012,6 +1028,16 @@ def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, 
             "independent": tot["C"],
             "china_total": china_total,
             "state_share_of_china": round(tot["A"] / china_total, 4) if china_total else None,
+            "state_origin_wires": wld_all.get("A", 0),
+            "unchecked_wires": wld_all.get("B", 0) if visible else None,
+            "independent_wires": wld_all.get("C", 0),
+            "china_total_wires": wld_all.get("china_total", 0),
+        },
+        # The world's state origin in the last 30 days and the wires' part of it: the denominator of
+        # the top country's share of the world, which the toggle recomputes without the wires.
+        "last_30d": {
+            "state_origin": latest["totals"]["last_30d"]["A"],
+            "state_origin_wires": wld_30.get("A", 0),
         },
         "top_country": _top_country_last30(conn, outlets, latest, latest["window_start_30d"]),
         "by_ownership": by_ownership_findings(outlets_json),

@@ -304,6 +304,8 @@ body.force-list #bars-wrap { display: block; }
 body.force-map #map-wrap { display: block; }
 body.force-map #bars-wrap { display: none; }
 #map-wrap { min-height: 18rem; }
+/* The one line under the map when the Distribution toggle shows the worldwide wires, which have no country to draw. */
+.map-caption { margin: 0.4rem 1.4rem 0.2rem; font-family: var(--font); font-size: 0.82rem; color: var(--ash); line-height: 1.45; }
 
 /* Single country view: the pickers above the map and the theme counter, and the day grid. */
 [hidden] { display: none !important; }

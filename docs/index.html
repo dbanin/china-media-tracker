@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=78">
+<link rel="stylesheet" href="style.css?v=79">
 </head>
 <body>
 <header class="top">
@@ -33,6 +33,14 @@
       <button data-measure="b" title="Local articles that pass on official Chinese sourcing without independent confirmation, as judged by the model">Unchecked state sourcing</button>
       <button data-measure="target" title="State origin, confirmed unchecked state sourcing, and pieces carrying official Chinese sourcing whose verification has not run">State-linked articles</button>
       <button data-measure="china" title="Every article that concerns China">All China coverage</button>
+    </div>
+  </div>
+  <div class="control">
+    <label>Distribution</label>
+    <div class="segment" id="distribution" data-distribution-group role="group" aria-label="Distribution: which outlets the figures sum over">
+      <button data-distribution="both" class="active" aria-pressed="true" title="Country outlets and the worldwide press release wires together">Both</button>
+      <button data-distribution="country" aria-pressed="false" title="Articles in the monitored outlets of each country only; releases on the worldwide wires are left out of every figure">Country outlets</button>
+      <button data-distribution="wires" aria-pressed="false" title="Releases on the press release distribution wires only, which reach every country at once and are drawn in none">Worldwide wires</button>
     </div>
   </div>
   <div class="control">
@@ -84,6 +92,7 @@
       <div class="control pick"><label for="map-country">Country</label><div class="csearch" data-country-pick><input type="search" id="map-country" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="map-country-list" placeholder="Search a country" autocomplete="off" spellcheck="false" aria-label="Search for a country to show in the map"><ul class="csearch-list" id="map-country-list" role="listbox" hidden></ul></div></div>
     </div>
     <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="World map of the selected metric. The same figures for every monitored country, including those too small to be drawn here, are in the ranked list below, which is reachable with the keyboard."></svg>
+    <p id="map-caption" class="map-caption" hidden></p>
     <div id="legend"></div>
     <div id="tooltip" class="tooltip"></div>
   </div>
@@ -288,7 +297,7 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=78"></script>
-<script src="app.js?v=78"></script>
+<script src="compute.js?v=79"></script>
+<script src="app.js?v=79"></script>
 </body>
 </html>
