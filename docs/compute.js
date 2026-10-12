@@ -576,6 +576,25 @@
             wires_all_time: typeof at.state_origin_wires === "number" ? at.state_origin_wires : null};
   }
 
+  /* State-origin articles over a window under the Distribution toggle: the sum of A over the countries
+     of an aggregateWindow result, keeping only the countries the mode keeps, so it equals the sum of the
+     ranked list for the same window and mode. When agg is null (no daily files loaded) it falls back to
+     findings.last_30d, {state_origin, state_origin_wires}: the total under both, the total minus the
+     wires under country outlets, the wires alone under worldwide wires. Returns null when neither
+     source holds a number. */
+  function stateOriginInWindow(agg, last30, distribution) {
+    if (agg && agg.countries) {
+      return distributionIsos(agg.countries, distribution).reduce(function (t, iso) {
+        return t + ((agg.countries[iso] && agg.countries[iso].A) || 0);
+      }, 0);
+    }
+    var total = last30 && typeof last30.state_origin === "number" ? last30.state_origin : null;
+    var wires = last30 && typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : 0;
+    if (distribution === "wires") return last30 && typeof last30.state_origin_wires === "number" ? wires : (total === null ? null : 0);
+    if (total === null) return null;
+    return distribution === "country" ? total - wires : total;
+  }
+
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
   var NAMES = {A: "State origin", B: "Unchecked state sourcing", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
                pending: "Official Chinese sourcing, verification pending"};
@@ -721,7 +740,7 @@
 
   return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
-          distributionTotals: distributionTotals, distributionFindings: distributionFindings, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
