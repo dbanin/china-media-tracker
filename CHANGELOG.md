@@ -4,6 +4,17 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Collector: section feeds that flood the queue lose the gate exemption (2026-10-12)
+
+Press release, sponsored and partner section feeds skip the keyword gate because that is where
+paid placements sit. Discovery sometimes registers a whole desk as a section (Index.hr's sport
+page, whose header reads "Sport sponsored by", admitted 3,650 items in 30 days with 2 relevant;
+ten such feeds were a sixth of all fetches). A section feed whose resolved items over the trailing
+30 days exceed 500 with under 2 percent classified anything other than not relevant now has the
+keyword gate applied again until it quietens or earns the exemption back (fetch_feeds
+section_feed_flooding; the discover counts gain section_feeds_guarded). Pending items are never
+read as irrelevance. No category, count, ruleset, gate or schema version change.
+
 ## Distribution toggle: country outlets and worldwide wires apart (2026-10-11)
 
 The map card gains a Distribution toggle beside Measure, with Both (the default, today's figures),

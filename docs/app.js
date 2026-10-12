@@ -591,7 +591,7 @@
     var sum = C.planted.summarise(j);
     var byId = function (list) { var m = {}; (list || []).forEach(function (x) { if (x && x.id) m[x.id] = x; }); return m; };
     var ops = byId(j.operations), personas = byId(j.personas), fronts = byId(j.fronts);
-    intro.textContent = "A flag here means that an article's byline, or an organisation it cites, matches a persona or false front named in a published investigation, linked in the table's last column. " +
+    intro.textContent = "A flag here means that an article's byline, or an organisation it cites, matches a persona or false front named in a published investigation, with a link to that investigation beside each match. " +
       "It does not mean the byline is fictitious: the tracker cannot prove that, and the absence of a match proves nothing. " +
       "Flagged articles are listed here only and are never counted as state origin, unchecked state sourcing or independent journalism." +
       (loaded ? " The list holds " + plural(sum.personas, "persona") + " and " + plural(sum.fronts, "front") + " from " + plural(sum.operations, "investigation") +
