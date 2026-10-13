@@ -8,8 +8,24 @@ wrong, and the errors most likely to be shared are the ones this instrument exis
 avoid: reading a quoted spokesperson as relay, or missing an unattributed official claim.
 So a high figure here licenses "the two models are consistent" and nothing about accuracy.
 
-The second rater sees exactly what the first saw: the same prompt, the same headline and
-body, no outlet, no country, no first label.
+It is a stability check and never unlocks publication. Since 12 October 2026 unchecked state
+sourcing is published only when the hand coding study in pipeline/agreement.py passes; a check
+here that falls below config.KAPPA_WARNING_THRESHOLD withholds the provisional counts, and one
+that clears it changes nothing.
+
+The second rater sees exactly what the first saw: the same prompt (classify_llm.request_params,
+system prompt and user message unchanged, only the model name overridden), the same headline and
+body, the same lookalike context when the rules sent the article for nearly repeating a state origin
+item (classify_llm.lookalike_context), no outlet of its own, no country, no first label. No
+temperature is passed, so both passes run at the API default of 1.0. The default second model is
+config.LLM_MODEL itself, which makes the automatic study a same model rerun.
+
+Both labels in a pair come from one prompt. The second rater always judges with the current
+classifier prompt (classify_llm.PROMPT_VERSION), so a study draws only first labels made under it
+(classify_llm.on_current_prompt): against a label from an older prompt it would measure the prompt
+change, not stability. While older labels are being judged again the automatic study waits until
+config.RELIABILITY_MIN_POOL current labels exist. Each study records its prompt in details, and
+the export shows a study made under an older prompt as history, not as the current stability figure.
 
 Usage:
   python -m pipeline.second_rater sample --n 200 --model claude-sonnet-5 --out review/second_rater.json
@@ -24,6 +40,7 @@ import calendar
 import datetime as dt
 import json
 import random
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -35,16 +52,20 @@ CATEGORIES = ["A", "B", "C", "not_relevant"]
 DEFAULT_SECOND_MODEL = "claude-sonnet-5"
 
 
-def judged_rows(conn, with_body: bool = False) -> List[Dict]:
+def judged_rows(conn, with_body: bool = False, current_prompt: bool = False) -> List[Dict]:
     """Articles carrying a current model label. with_body keeps only those whose body is still on
-    disk, which is what a study can actually re-judge."""
+    disk, which is what a study can actually re-judge. current_prompt keeps only labels made under
+    the current classifier prompt, the one the second rater judges with."""
     rows = conn.execute(
-        """SELECT a.id, a.title, a.url_hash, a.country, a.language, c.category, c.confidence,
+        """SELECT a.id, a.title, a.url_hash, a.country, a.language, a.llm_trigger, c.category, c.confidence,
                   c.evidence_quote, c.model_version
            FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE c.method='llm' ORDER BY a.id"""
     ).fetchall()
     out = [dict(r) for r in rows]
+    if current_prompt:
+        from pipeline import classify_llm
+        out = [r for r in out if classify_llm.on_current_prompt(r["model_version"])]
     if with_body:
         out = [r for r in out if store.body_path(r["url_hash"]).exists()]
     return out
@@ -80,7 +101,8 @@ def rejudge(conn, rows: List[Dict], model: str, client=None, dry_run: bool = Fal
         body = store.load_body(r["url_hash"]) or ""
         if not body:
             continue
-        params = dict(classify_llm.request_params(r["title"], body))
+        # The lookalike context the first rater was given, when the rules sent the article for that.
+        params = dict(classify_llm.request_params(r["title"], body, classify_llm.lookalike_context(r)))
         params["model"] = model
         try:
             message = client.messages.create(**params)
@@ -124,8 +146,9 @@ def pair_rows(pairs: List[Dict]) -> List[Dict]:
             for p in pairs]
 
 
-def summarise(pairs: List[Dict], first_model: str, second_model: str) -> Dict:
-    """Consistency between the two raters. Reported as reliability, never as validity."""
+def summarise(pairs: List[Dict], first_model: str, second_model: str, prompt_version: Optional[str] = None) -> Dict:
+    """Consistency between the two raters. Reported as stability, never as validity. prompt_version
+    is the classifier prompt both labels of every pair were made under, None when it is not known."""
     both = [(p["first"]["category"], p["second"]["category"]) for p in pairs]
     bc = [(a, b) for a, b in both if a in ("B", "C") or b in ("B", "C")]
     bc_binary = [("B" if a == "B" else "notB", "B" if b == "B" else "notB") for a, b in bc]
@@ -148,10 +171,12 @@ def summarise(pairs: List[Dict], first_model: str, second_model: str) -> Dict:
     return {
         "method": "same_model_rerun" if same else "model_vs_model",
         "measures": ("the same model judging the same articles twice, not correctness; it detects randomness in "
-                     "that model's own judgement and cannot detect a bias it holds consistently; no human coding has been done"
+                     "that model's own judgement and cannot detect a bias it holds consistently; a stability check, which "
+                     "never publishes: publication waits for hand coding"
                      if same else
-                     "consistency between two models, not correctness; no human coding has been done"),
-        "first_model": first_model, "second_model": second_model,
+                     "consistency between two models, not correctness; a stability check, which never publishes: "
+                     "publication waits for hand coding"),
+        "first_model": first_model, "second_model": second_model, "prompt_version": prompt_version,
         "n": len(pairs), "n_bc": len(bc), "n_b_first": sum(1 for a, _ in bc if a == "B"),
         "n_b_second": sum(1 for _, b in bc if b == "B"),
         "kappa_all": cohens_kappa(both), "kappa_bc": kappa_bc,
@@ -186,6 +211,9 @@ def study_row(summary: Dict) -> Dict:
             # bc_by_language is the key export.build_meta reads for the per language veto.
             "details": {"measures": summary["measures"], "raw_agreement": summary["raw_agreement"],
                         "bc_by_language": summary["per_language_bc"], "pool_size": summary.get("pool_size"),
+                        # The prompt both labels were made under. The export shows a study made under
+                        # an older prompt as history (study_on_current_prompt).
+                        "prompt_version": summary.get("prompt_version"),
                         # Why a study reports no kappa, so a stored row cannot be read as a failed study.
                         "kappa_bc_inconclusive": summary.get("kappa_bc_inconclusive"),
                         "kappa_min_positive": summary.get("kappa_min_positive"),
@@ -200,6 +228,35 @@ def study_row(summary: Dict) -> Dict:
 # ---------------------------------------------------------------------------
 
 STUDY_PREFIX = "study-"
+_PROMPT_SUFFIX = re.compile(r"\s*\(prompt \d{4}-\d{2}-\d{2}\)\s*$")
+
+
+def _study_details(study) -> Dict:
+    try:
+        return json.loads((study["details"] if study is not None else None) or "{}") or {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def study_prompt_version(study) -> Optional[str]:
+    """The classifier prompt a stored study's labels were made under, or None when it records none."""
+    return _study_details(study).get("prompt_version")
+
+
+def study_on_current_prompt(study) -> bool:
+    """Whether a stored study (a model_agreement_studies row) was made under the current classifier
+    prompt. One made under an older prompt, or whose prompt is unknown, is history: its first labels
+    are no longer the ones the site counts, and it may have paired labels from two prompts. A study
+    stored before studies recorded their prompt is dated instead: computed before the current
+    prompt's date, it was made under an older one."""
+    from pipeline import classify_llm
+    if study is None:
+        return False
+    details = _study_details(study)
+    if "prompt_version" in details:
+        v = details["prompt_version"]
+        return v is not None and v >= classify_llm.PROMPT_VERSION
+    return (study["computed_at"] or "")[:10] >= classify_llm.PROMPT_VERSION
 
 
 def _today(today: Optional[dt.date]) -> dt.date:
@@ -208,14 +265,16 @@ def _today(today: Optional[dt.date]) -> dt.date:
 
 def study_needed(conn, pool: int) -> Optional[str]:
     """Why a study should run now, or None. Human coding that settled the question needs no model study."""
-    human = conn.execute("SELECT kappa_bc FROM agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
-    if human and human["kappa_bc"] is not None and human["kappa_bc"] >= config.KAPPA_WARNING_THRESHOLD:
+    from pipeline.agreement import human_study_status
+    if human_study_status(conn)["passed"]:
         return None
     last = store.latest_model_agreement(conn)
     if not last:
         return "no study yet"
     if last["model_a"] != config.LLM_MODEL:
         return "the judging model changed"
+    if not study_on_current_prompt(last):
+        return "the classifier prompt changed"
     age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(last["computed_at"])
     if age.days >= config.RELIABILITY_REFRESH_DAYS:
         return "the last study is %d days old" % age.days
@@ -234,11 +293,14 @@ def study_state(conn, today: Optional[dt.date] = None) -> Dict:
     out = {"auto": config.RELIABILITY_AUTO, "sample": config.RELIABILITY_SAMPLE, "earliest": None}
     if conn.execute("SELECT COUNT(*) FROM llm_batches WHERE kind='study' AND status='submitted'").fetchone()[0]:
         return dict(out, state="submitted")
-    pool = len(judged_rows(conn, with_body=True))
+    pool = len(judged_rows(conn, with_body=True, current_prompt=True))
     why = study_needed(conn, pool)
     if not why:
         return dict(out, state="done" if store.latest_model_agreement(conn) else "not_needed")
     out["reason"] = why
+    if pool < config.RELIABILITY_MIN_POOL:
+        # Too few labels made under the current prompt yet; older ones are being judged again.
+        return dict(out, state="waiting_for_labels", pool=pool, min_pool=config.RELIABILITY_MIN_POOL)
     plan = study_plan(conn, today, config.RELIABILITY_SAMPLE)
     ok = plan["n"] > 0
     out["blocked"] = plan["reason"]
@@ -344,15 +406,18 @@ def submit_study(conn, client, rows: List[Dict], model: str, date: Optional[dt.d
         body = store.load_body(r["url_hash"]) or ""
         if not body:
             continue
-        params = dict(classify_llm.request_params(r["title"], body))
+        # The lookalike context the first rater was given, when the rules sent the article for that.
+        params = dict(classify_llm.request_params(r["title"], body, classify_llm.lookalike_context(r)))
         params["model"] = model
         requests.append(Request(custom_id=STUDY_PREFIX + str(r["id"]), params=MessageCreateParamsNonStreaming(**params)))
         ids.append(r["id"])
     if not requests:
         return 0
     batch = client.messages.batches.create(requests=requests)
+    # The prompt these requests carry is kept with the batch, "claude-sonnet-5 (prompt 2026-10-12)", so
+    # collect_study pairs them only with first labels made under the same prompt and records it.
     conn.execute("INSERT INTO llm_batches(batch_id, submitted_at, status, article_ids, model_version, kind) VALUES (?,?,?,?,?,?)",
-                 (batch.id, store.utcnow(), "submitted", json.dumps(ids), model, "study"))
+                 (batch.id, store.utcnow(), "submitted", json.dumps(ids), classify_llm.with_prompt_version(model), "study"))
     # The study takes today's share of the budget, so it is counted where the daily cap looks, and
     # on the same day study_plan read when it sized the sample.
     store.record_llm_usage(conn, len(ids), 0, 0, date=date.isoformat() if date else None)
@@ -370,7 +435,13 @@ def collect_study(conn, client) -> Optional[Dict]:
     info = client.messages.batches.retrieve(b["batch_id"])
     if info.processing_status != "ended":
         return {"state": "running"}
-    by_id = {r["id"]: r for r in judged_rows(conn)}
+    # The prompt the second labels were made under, from the batch; None for a batch submitted before
+    # batches recorded it. Only first labels made under that same prompt are paired, so a first label
+    # judged again under a newer prompt while the batch ran drops out rather than measuring the change.
+    prompt = classify_llm.prompt_version_of(b["model_version"])
+    second_model = _PROMPT_SUFFIX.sub("", b["model_version"] or "") or b["model_version"]
+    by_id = {r["id"]: r for r in judged_rows(conn)
+             if classify_llm.prompt_version_of(r["model_version"]) == prompt}
     day = (b["submitted_at"] or "")[:10] or None
     pairs = []
     for result in client.messages.batches.results(b["batch_id"]):
@@ -381,13 +452,13 @@ def collect_study(conn, client) -> Optional[Dict]:
         data = classify_llm.parse_response(message)
         row = by_id.get(int(str(result.custom_id)[len(STUDY_PREFIX):]))
         if row and data and not data.get("_error"):
-            pairs.append(_pair(row, data, getattr(message, "model", None) or b["model_version"]))
+            pairs.append(_pair(row, data, getattr(message, "model", None) or second_model))
     if len(pairs) < config.RELIABILITY_MIN_PAIRS:
         conn.execute("UPDATE llm_batches SET status='failed', collected_at=? WHERE batch_id=?", (store.utcnow(), b["batch_id"]))
         conn.commit()
         return {"state": "too_few_results", "pairs": len(pairs)}
-    out = summarise(pairs, config.LLM_MODEL, b["model_version"])
-    out["pool_size"] = len(judged_rows(conn, with_body=True))
+    out = summarise(pairs, config.LLM_MODEL, second_model, prompt_version=prompt)
+    out["pool_size"] = len(judged_rows(conn, with_body=True, current_prompt=True))
     store.record_model_agreement(conn, study_row(out), pair_rows(out["pairs"]))
     conn.execute("UPDATE llm_batches SET status='collected', collected_at=? WHERE batch_id=?", (store.utcnow(), b["batch_id"]))
     conn.commit()
@@ -426,7 +497,8 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
         elif not (force or config.RELIABILITY_AUTO):
             out["skipped"] = "automatic study is switched off"
         else:
-            pool = judged_rows(conn, with_body=True)
+            # Only first labels made under the current prompt, which the second rater judges with.
+            pool = judged_rows(conn, with_body=True, current_prompt=True)
             why = "forced" if force else study_needed(conn, len(pool))
             plan = study_plan(conn, today, config.RELIABILITY_SAMPLE)
             out["budget"] = plan["cap"]
@@ -434,7 +506,10 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
             if not why:
                 out["skipped"] = "no study needed"
             elif len(pool) < config.RELIABILITY_MIN_POOL:
-                out["skipped"] = "only %d labelled articles with a body on disk" % len(pool)
+                # Even when forced: a smaller pool, while older labels are being judged again, would
+                # draw a sample the current prompt's labels cannot yet fill.
+                out["skipped"] = ("only %d articles with a body on disk carry a label from the current prompt; "
+                                  "a study waits for %d" % (len(pool), config.RELIABILITY_MIN_POOL))
             elif _submitted_this_month(conn, today) and not force:
                 out["skipped"] = "a study was already submitted this month"
             elif plan["n"] <= 0:
@@ -471,11 +546,13 @@ def main(argv=None):
     if args.cmd == "auto":
         print(json.dumps(auto(conn, submit=args.submit, force=args.force, model=args.model), indent=1, default=str))
         return
-    rows = draw(judged_rows(conn, with_body=True), args.n)
+    from pipeline import classify_llm
+    pool = judged_rows(conn, with_body=True, current_prompt=True)
+    rows = draw(pool, args.n)
     pairs, usage = rejudge(conn, rows, args.model, dry_run=args.dry_run)
-    out = summarise(pairs, config.LLM_MODEL, args.model)
+    out = summarise(pairs, config.LLM_MODEL, args.model, prompt_version=classify_llm.PROMPT_VERSION)
     out["usage"] = usage
-    out["pool_size"] = len(judged_rows(conn, with_body=True))
+    out["pool_size"] = len(pool)
     if args.record:
         store.record_model_agreement(conn, study_row(out), pair_rows(out["pairs"]))
         conn.commit()

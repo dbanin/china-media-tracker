@@ -76,6 +76,16 @@ def validate_outlets(outlets: List[Dict]) -> None:
             )
         if not o["active"] and not o.get("inactive_reason"):
             raise ValueError("inactive outlet %s needs an inactive_reason" % o["id"])
+        junk = o.get("junk_feed")
+        if junk:
+            # pipeline/junk_feeds.py withdraws the outlet's whole discovery from since until `until`, so
+            # an outlet still collecting needs the day it left the feed, and must not poll it any more.
+            if junk.get("until") and junk["until"] <= junk["since"]:
+                raise ValueError("outlet %s: junk_feed until must come after since" % o["id"])
+            if o["active"] and not junk.get("until"):
+                raise ValueError("active outlet %s needs junk_feed until, the day it stopped polling the feed" % o["id"])
+            if o["active"] and junk["url"] in {e["url"] for e in feed_entries(o)}:
+                raise ValueError("active outlet %s still polls its junk_feed %s" % (o["id"], junk["url"]))
 
 
 def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict]:
@@ -92,10 +102,10 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
-    key_order = ["id", "name", "country", "language", "feeds", "section_feeds", "release_sections", "tier", "notes",
-                 "audience_rank", "rank_source", "political_leaning", "leaning_source", "ownership", "ownership_source",
+    key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "section_feeds", "release_sections", "tier", "notes",
+                 "audience_rank", "rank_source", "political_leaning", "leaning_source", "leaning_second_source", "ownership", "ownership_source",
                  "government_stance", "stance_source", "stance_as_of",
-                 "collector", "active", "inactive_reason", "inactive_since"]
+                 "collector", "active", "inactive_reason", "inactive_since", "junk_feed"]
     # Every field the schema allows must be listed, or saving drops it silently. The weekly feed
     # validation saves through here, so a missing key would erase that field from the whole registry.
     with open(config.OUTLETS_SCHEMA_PATH, "r", encoding="utf-8") as fh:
@@ -120,9 +130,15 @@ GATE_EXEMPT_KINDS = ("press_release", "sponsored", "partner")
 
 def feed_entries(outlet: Dict) -> List[Dict]:
     """Every feed the outlet is polled on, as {url, kind}: the editorial feeds first, then the
-    press release, sponsored and partner section feeds found by pipeline/discover_sections.py."""
+    press release, sponsored and partner section feeds found by pipeline/discover_sections.py.
+    The editorial feeds are the RSS feeds, then the Google News sitemaps (news_sitemaps, type
+    news_sitemap, pipeline/news_sitemap.py), read after the RSS so an item on both keeps its summary."""
     out = [{"url": u, "kind": EDITORIAL, "type": "rss"} for u in outlet.get("feeds", [])]
     seen = {e["url"] for e in out}
+    for u in outlet.get("news_sitemaps", []) or []:
+        if u not in seen:
+            out.append({"url": u, "kind": EDITORIAL, "type": "news_sitemap"})
+            seen.add(u)
     for f in outlet.get("section_feeds", []) or []:
         if f["url"] not in seen:
             out.append({"url": f["url"], "kind": f["kind"], "type": f.get("type", "rss")})
@@ -178,18 +194,76 @@ def collector_of(outlet: Dict) -> str:
     return outlet.get("collector") or "hosted"
 
 
+# collector: both puts an outlet on both schedules. GitHub drops many scheduled runs, so the hosted
+# runner reached each feed a median 2.7 hours apart in the 30 days to 2026-10-12 (3.6 hours in the
+# last week), and a feed that carries 20 items or fewer rolled past items between polls: 221 such
+# feeds were saturated in more than a tenth of their polls. The relay on the owner's machine polls
+# hourly; with both schedules the median gap is about an hour. Both collectors poll the feeds, the
+# hosted side ingests the relay's items by url_hash like any other relay item, and article pages are
+# fetched once, by fetcher_of: the hosted runner for a shared outlet, which it can reach (an outlet
+# that refuses the runner is self_hosted, not both).
+HOSTED, SELF_HOSTED, BOTH = "hosted", "self_hosted", "both"
+
+
+def polled_by(outlet: Dict, collector: str = None) -> bool:
+    """Whether this collector polls the outlet's feeds: its own outlets and the shared ones."""
+    c = collector_of(outlet)
+    return c == (collector or config.COLLECTOR) or c == BOTH
+
+
+def fetcher_of(outlet: Dict) -> str:
+    """The one collector that fetches the outlet's article pages."""
+    c = collector_of(outlet)
+    return HOSTED if c == BOTH else c
+
+
+def is_shared(outlet: Dict) -> bool:
+    """Polled by both collectors."""
+    return collector_of(outlet) == BOTH
+
+
+# Media Bias/Fact Check is a US based rater that places outlets on a United States spectrum. Where it
+# is the only source behind an assessed leaning outside the United States, the leaning is kept but
+# marked weak, and the site shows it with a caution. A second source that is not this rater lifts it.
+US_RATER_HOSTS = ("mediabiasfactcheck.com",)
+LEANING_NOT_RATED = ("unassessed", "state_controlled")
+
+
+def _host(url) -> str:
+    from urllib.parse import urlsplit
+    h = urlsplit(url or "").netloc.lower()
+    return h[4:] if h.startswith("www.") else h
+
+
+def is_us_rater(url) -> bool:
+    h = _host(url)
+    return any(h == u or h.endswith("." + u) for u in US_RATER_HOSTS)
+
+
+def leaning_source_weak(outlet: Dict) -> bool:
+    """True when an outlet outside the United States has an assessed left/right leaning whose only
+    source is a US based rater. State controlled and unassessed leanings are not ratings."""
+    if (outlet.get("political_leaning") or "unassessed") in LEANING_NOT_RATED:
+        return False
+    if outlet.get("country") == "USA" or not is_us_rater(outlet.get("leaning_source")):
+        return False
+    second = outlet.get("leaning_second_source")
+    return not (second and not is_us_rater(second))
+
+
 def is_mine(outlet_id: str, outlets: List[Dict] = None, collector: str = None) -> bool:
-    """Whether this collector fetches for the outlet. Outlets not in the registry (test
+    """Whether this collector fetches article pages for the outlet (fetcher_of; a shared outlet's
+    pages are fetched by the hosted runner only). Outlets not in the registry (test
     fixtures, retired ids) belong to whoever asks, so nothing is stranded."""
     collector = collector or config.COLLECTOR
-    owners = {o["id"]: collector_of(o) for o in (outlets if outlets is not None else load_outlets())}
+    owners = {o["id"]: fetcher_of(o) for o in (outlets if outlets is not None else load_outlets())}
     return owners.get(outlet_id, collector) == collector
 
 
 def collectable(outlets: List[Dict], collector: str = None) -> List[Dict]:
-    """Active outlets that this collector is responsible for."""
+    """Active outlets whose feeds this collector polls, shared outlets included (polled_by)."""
     collector = collector or config.COLLECTOR
-    return [o for o in outlets if o.get("active") and collector_of(o) == collector]
+    return [o for o in outlets if o.get("active") and polled_by(o, collector)]
 
 
 def registry_summary(outlets: List[Dict]) -> Dict:

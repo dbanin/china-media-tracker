@@ -14,12 +14,16 @@ def _db():
 
 def test_prompt_contains_definitions_verbatim():
     for phrase in (
-        "Category A, state origin. The text was written by an entity of the Chinese state and published essentially unaltered.",
-        "Category B, unverified relay. The article was written by the local outlet, but it passes on official Chinese sourcing without independent confirmation.",
-        "Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.",
+        "Category A, state origin. The text was authored or commissioned by a Chinese state entity and published without substantive editorial alteration.",
+        "Deciding to run a piece, or placing it on an opinion page, is not an alteration.",
+        "Category B, unverified relay. The article was written by the local outlet, and its central content is a factual claim attributed to a Chinese official or state source, passed on without independent confirmation.",
+        "A stated position, policy, warning, threat, opinion or denial is not a factual claim",
+        "Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say, and reporting of a position, policy, warning, threat, opinion or denial",
         "Not relevant. Does not concern China.",
         "verification, not about topic or tone",
         "answer C",
+        "That confirmation, contextualization or contest must concern the claim itself",
+        "does not make it C, because it takes the claim as given instead of checking it.",
     ):
         assert phrase in cl.SYSTEM_PROMPT, phrase
 

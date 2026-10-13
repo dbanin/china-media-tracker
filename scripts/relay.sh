@@ -17,7 +17,9 @@ LOG="$REPO/logs/relay-$(date -u +%Y-%m-%d).log"
   git -C "$WT" checkout --quiet --detach origin/main
   mkdir -p "$WT/data"
   [ -e "$WT/data/bodies" ] || ln -s "$REPO/data/bodies" "$WT/data/bodies"
-  cd "$WT" && TRACKER_COLLECTOR=self_hosted TRACKER_DB_PATH="$REPO/data/relay.db" \
+  # The main checkout's copy of the main database (scripts/db_pull.sh), read only, for the articles the
+  # runner found on relay outlets and was refused (pipeline.relay.seed_refused).
+  cd "$WT" && TRACKER_COLLECTOR=self_hosted TRACKER_DB_PATH="$REPO/data/relay.db" TRACKER_MAIN_DB="$REPO/data/tracker.db" \
     "$REPO/.venv/bin/python" -X faulthandler -m pipeline.relay run --budget-minutes 30
   echo "=== done $(date -u +%Y-%m-%dT%H:%M:%SZ) from $(git -C "$WT" rev-parse --short HEAD)"
 } >> "$LOG" 2>&1

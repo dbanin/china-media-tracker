@@ -75,6 +75,7 @@
   leaning_source: https://en.wikipedia.org/wiki/ANSA_(news_agency)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/ANSA_(news_agency)
+  collector: both
   active: true
 - id: it_fattoquotidiano
   name: Il Fatto Quotidiano
@@ -146,6 +147,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Adnkronos
+  collector: both
   active: true
 - id: it_agi
   name: AGI
@@ -359,11 +361,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 27 of the 27 China-relevant articles it found here; one request from the owner''s
+    Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3732 characters).'
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/linkiesta-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Linkiesta
+  collector: self_hosted
   active: true
 - id: it_askanews
   name: askanews
@@ -396,6 +400,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.dire.it/chi-siamo/
+  collector: both
   active: true
 - id: it_eunews
   name: Eunews
@@ -461,6 +466,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.open.online/chi-siamo/
+  collector: both
   active: true
 - id: it_lastampa
   name: La Stampa
@@ -613,6 +619,7 @@
   leaning_source: https://mediabiasfactcheck.com/global-news/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/global-news/
+  collector: both
   active: true
 - id: ca_lapresse
   name: La Presse
@@ -749,6 +756,7 @@
   leaning_source: https://mediabiasfactcheck.com/financial-post/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/financial-post/
+  collector: both
   active: true
 - id: ca_journaldemontreal
   name: Le Journal de Montréal
@@ -812,6 +820,7 @@
   leaning_source: https://mediabiasfactcheck.com/toronto-sun/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Canada
+  collector: both
   active: true
 - id: ca_calgaryherald
   name: Calgary Herald
@@ -919,6 +928,7 @@
   leaning_source: https://mediabiasfactcheck.com/the-chronicle-herald/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/the-chronicle-herald/
+  collector: both
   active: true
 - id: ca_tvanouvelles
   name: TVA Nouvelles
@@ -1123,12 +1133,13 @@
   feeds:
   - https://www.abc.net.au/news/feed/2942460/rss.xml
   - https://www.abc.net.au/news/feed/45910/rss.xml
+  - https://www.abc.net.au/news/feed/51120/rss.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Public broadcaster. Feed 2942460 is top stories, 45910 is world. Verified 2026-09-02.
+  notes: 'Public broadcaster. Feed 2942460 is top stories, 45910 is world. Verified 2026-09-02. Feed 51120 (Just In, every new story including the regional bureaux) added 2026-10-12: robots.txt allows it, HTTP 200 with 25 items from the owner''s Mac with the project user agent.'
   audience_rank: 1
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
   political_leaning: centre_left
@@ -1206,7 +1217,7 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Public broadcaster. English service only; SBS Mandarin excluded by the Chinese language rule. Verified 2026-09-02.
+  notes: Public broadcaster. English service only; SBS Mandarin excluded by the Chinese language rule and registered inactive as au_sbs_zh. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/special-broadcasting-service-sbs/
   ownership: public_service
@@ -1302,6 +1313,11 @@
   language: en
   feeds:
   - https://www.canberratimes.com.au/rss.xml
+  section_feeds:
+  - url: https://www.canberratimes.com.au/press-releases
+    kind: press_release
+    section: https://www.canberratimes.com.au/press-releases
+    type: aap_widget
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1310,7 +1326,7 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
-      readable: false
+      readable: true
     - url: https://www.canberratimes.com.au/sponsored
       kind: sponsored
       feed: null
@@ -1334,11 +1350,14 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Public policy journal. Has published signed pieces by Chinese embassy officials, so it matters for the authored-by-state signature group. Verified 2026-09-02.
+  notes: 'Public policy journal. Has published signed pieces by Chinese embassy officials, so it matters for the authored-by-state signature group. Verified 2026-09-02. Moved to the self-hosted collector
+    2026-10-12: the hosted runner was refused (HTTP 403) on 45 of the 45 China-relevant articles it found here; one request from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt
+    allowing it, returned HTTP 200 and the article text (16444 characters).'
   political_leaning: left
   leaning_source: https://johnmenadue.com/about/pearls-and-irritations/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/John_Menadue
+  collector: self_hosted
   active: true
 - id: au_aspistrategist
   name: The Strategist (ASPI)
@@ -1379,6 +1398,11 @@
   language: en
   feeds:
   - https://www.newcastleherald.com.au/rss.xml
+  section_feeds:
+  - url: https://www.newcastleherald.com.au/press-releases
+    kind: press_release
+    section: https://www.newcastleherald.com.au/press-releases
+    type: aap_widget
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1387,7 +1411,7 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
-      readable: false
+      readable: true
     - url: https://www.newcastleherald.com.au/sponsored
       kind: sponsored
       feed: null
@@ -1406,6 +1430,11 @@
   language: en
   feeds:
   - https://www.illawarramercury.com.au/rss.xml
+  section_feeds:
+  - url: https://www.illawarramercury.com.au/press-releases
+    kind: press_release
+    section: https://www.illawarramercury.com.au/press-releases
+    type: aap_widget
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1414,7 +1443,7 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
-      readable: false
+      readable: true
     - url: https://www.illawarramercury.com.au/sponsored
       kind: sponsored
       feed: null
@@ -1433,6 +1462,11 @@
   language: en
   feeds:
   - https://www.examiner.com.au/rss.xml
+  section_feeds:
+  - url: https://www.examiner.com.au/press-releases
+    kind: press_release
+    section: https://www.examiner.com.au/press-releases
+    type: aap_widget
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -1441,7 +1475,7 @@
       kind: press_release
       feed: null
       label: Press Releases from AAP
-      readable: false
+      readable: true
     - url: https://www.examiner.com.au/sponsored
       kind: sponsored
       feed: null
@@ -1476,22 +1510,21 @@
   language: en
   feeds:
   - https://7news.com.au/rss
-  section_feeds:
-  - url: https://7news.com.au/lifestyle/sponsored/feed
-    kind: sponsored
-    section: https://7news.com.au/lifestyle/sponsored
-    type: rss
   release_sections:
     searched_on: '2026-09-15'
     status: found
     sections:
     - url: https://7news.com.au/lifestyle/sponsored
       kind: sponsored
-      feed: https://7news.com.au/lifestyle/sponsored/feed
+      feed: null
       label: Sponsored
-      readable: true
+      readable: false
+      rejected: true
+      rejected_feed: https://7news.com.au/lifestyle/sponsored/feed
+      rejected_on: '2026-10-12'
+      reason: the dormant Your Feed topic page, not a sponsored section; its feed carries the latest stories across desks, mostly sport and 7you, and of 716 items it carried 2 were relevant
   tier: broadcaster
-  notes: Seven Network. Verified 2026-09-02.
+  notes: 'Seven Network. Verified 2026-09-02. Sponsored section feed https://7news.com.au/lifestyle/sponsored/feed removed 2026-10-12: the homepage links /lifestyle/sponsored as "Sponsored", but it is the dormant "Your Feed" topic (described as deals, products and offers) that the site also tags sport and 7you stories with, so its feed carries the latest stories across desks (63 sport, 23 7you of 100 items on 2026-10-12), every card on the page is marked not sponsored, and of 716 items it carried 2 were relevant. No sponsored, partner or branded content section with its own feed was found: /sponsored and /brandedcontent return 404.'
   audience_rank: 4
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
   political_leaning: centre_right
@@ -1508,19 +1541,17 @@
   tier: national_daily
   notes: News Corp. Hard paywall and feed returns 403 to the project user agent.
   active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02; News Corp Australia titles block non-browser clients
+  inactive_reason: 'feed returned HTTP 403 to identified crawler on 2026-09-02; News Corp Australia titles block non-browser clients. Retested 2026-10-12: robots.txt now disallows the crawler for the feed path (named agents only), not fetched'
   inactive_since: '2026-09-02'
 - id: au_afr
   name: The Australian Financial Review
   country: AUS
   language: en
   feeds:
-  - https://www.afr.com/rss/world
+  - https://www.afr.com/rss/feed.xml
   tier: business
-  notes: Nine. No public feed found.
-  active: false
-  inactive_reason: no working RSS endpoint found on 2026-09-02; hard paywall
-  inactive_since: '2026-09-02'
+  notes: 'Nine. Hard paywall. Inactive 2026-09-02 to 2026-10-12 for want of a feed. Reactivated 2026-10-12: /rss/feed.xml, the site-wide path Nine mastheads use (The Age), robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent; /rss/world returns 404. Nine feeds already answer the hosted runner. Paywalled articles are recorded as paywalled and never retrieved by another route.'
+  active: true
 - id: au_heraldsun
   name: Herald Sun
   country: AUS
@@ -1530,8 +1561,349 @@
   tier: regional
   notes: News Corp.
   active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
+  inactive_reason: 'feed returned HTTP 403 to identified crawler on 2026-09-02. Retested 2026-10-12: robots.txt now disallows the crawler for the feed path (named agents only), not fetched'
   inactive_since: '2026-09-02'
+- id: au_spectator
+  name: 'The Spectator Australia'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.spectator.com.au/feed/
+  tier: national_daily
+  notes: 'Weekly magazine and daily commentary. Added 2026-10-12 to widen Australian coverage. Feed at the WordPress /feed/ path; robots.txt allows it for the crawler; HTTP 200 with 100 items on 2026-10-12 from the owner''s Mac with the project user agent.'
+  active: true
+- id: au_saturdaypaper
+  name: 'The Saturday Paper'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.thesaturdaypaper.com.au/feed.xml
+  tier: national_daily
+  notes: 'Schwartz Media weekly. Metered access. Added 2026-10-12 to widen Australian coverage. Feed found as the RSS alternate link on the homepage (/rss.xml returns 404); robots.txt allows it for the crawler; HTTP 200 with 30 items on 2026-10-12 from the owner''s Mac with the project user agent.'
+  active: true
+- id: au_insidestory
+  name: 'Inside Story'
+  country: AUS
+  language: en
+  feeds:
+  - https://insidestory.org.au/feed/
+  tier: national_daily
+  notes: 'Public affairs magazine with regular Asia and China coverage. Added 2026-10-12 to widen Australian coverage. Feed at the WordPress /feed/ path; robots.txt allows it for the crawler; HTTP 200 with 70 items on 2026-10-12 from the owner''s Mac with the project user agent.'
+  active: true
+- id: au_bendigoadvertiser
+  name: 'Bendigo Advertiser'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.bendigoadvertiser.com.au/rss.xml
+  section_feeds:
+  - url: https://www.bendigoadvertiser.com.au/press-releases
+    kind: press_release
+    section: https://www.bendigoadvertiser.com.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.bendigoadvertiser.com.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_thecourier
+  name: 'The Courier (Ballarat)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.thecourier.com.au/rss.xml
+  section_feeds:
+  - url: https://www.thecourier.com.au/press-releases
+    kind: press_release
+    section: https://www.thecourier.com.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.thecourier.com.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_bordermail
+  name: 'The Border Mail'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.bordermail.com.au/rss.xml
+  section_feeds:
+  - url: https://www.bordermail.com.au/press-releases
+    kind: press_release
+    section: https://www.bordermail.com.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.bordermail.com.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_standard
+  name: 'The Standard (Warrnambool)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.standard.net.au/rss.xml
+  section_feeds:
+  - url: https://www.standard.net.au/press-releases
+    kind: press_release
+    section: https://www.standard.net.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.standard.net.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_dailyadvertiser
+  name: 'The Daily Advertiser (Wagga Wagga)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.dailyadvertiser.com.au/rss.xml
+  section_feeds:
+  - url: https://www.dailyadvertiser.com.au/press-releases
+    kind: press_release
+    section: https://www.dailyadvertiser.com.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.dailyadvertiser.com.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_theadvocate
+  name: 'The Advocate (Burnie)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.theadvocate.com.au/rss.xml
+  section_feeds:
+  - url: https://www.theadvocate.com.au/press-releases
+    kind: press_release
+    section: https://www.theadvocate.com.au/press-releases
+    type: aap_widget
+  release_sections:
+    searched_on: '2026-10-12'
+    status: found
+    sections:
+    - url: https://www.theadvocate.com.au/press-releases
+      kind: press_release
+      feed: null
+      label: Press Releases from AAP
+      readable: true
+  tier: regional
+  notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
+  active: true
+- id: au_thenewdaily
+  name: 'The New Daily'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.thenewdaily.com.au/feed
+  tier: national_daily
+  notes: 'Added 2026-10-12 so the gap is visible. Feed at the /feed path refuses the project user agent from the owner''s Mac too, so the self-hosted collector cannot poll it either.'
+  active: false
+  inactive_reason: 'feed returned HTTP 403 to the identified crawler on 2026-10-12 from the owner''s Mac as well; robots.txt allows the path'
+  inactive_since: '2026-10-12'
+- id: au_indaily
+  name: 'InDaily'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.indaily.com.au/feed
+  tier: regional
+  notes: 'Adelaide. Added 2026-10-12 so the gap is visible. Feed at the /feed path refuses the project user agent from the owner''s Mac too, so the self-hosted collector cannot poll it either.'
+  active: false
+  inactive_reason: 'feed returned HTTP 403 to the identified crawler on 2026-10-12 from the owner''s Mac as well; robots.txt allows the path'
+  inactive_since: '2026-10-12'
+- id: au_michaelwest
+  name: 'Michael West Media'
+  country: AUS
+  language: en
+  feeds:
+  - https://michaelwest.com.au/feed/
+  tier: national_daily
+  notes: 'Independent investigative site. Added 2026-10-12 so the gap is visible. Feed at the WordPress /feed/ path refuses the project user agent from the owner''s Mac too, so the self-hosted collector cannot poll it either.'
+  active: false
+  inactive_reason: 'feed returned HTTP 403 to the identified crawler on 2026-10-12 from the owner''s Mac as well; robots.txt allows the path'
+  inactive_since: '2026-10-12'
+- id: au_eastasiaforum
+  name: 'East Asia Forum'
+  country: AUS
+  language: en
+  feeds:
+  - https://eastasiaforum.org/feed/
+  tier: national_daily
+  notes: 'ANU Crawford School, heavy China coverage. Added 2026-10-12 so the gap is visible. Feed at the WordPress /feed/ path refuses the project user agent from the owner''s Mac too, so the self-hosted collector cannot poll it either.'
+  active: false
+  inactive_reason: 'feed returned HTTP 403 to the identified crawler on 2026-10-12 from the owner''s Mac as well; robots.txt could not be read (treated as allow all)'
+  inactive_since: '2026-10-12'
+- id: au_newscomau
+  name: 'news.com.au'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.news.com.au/content-feeds/latest-news-national/
+  tier: national_daily
+  notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
+  active: false
+  inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
+  inactive_since: '2026-10-12'
+- id: au_skynews
+  name: 'Sky News Australia'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.skynews.com.au/feed
+  tier: broadcaster
+  notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
+  active: false
+  inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
+  inactive_since: '2026-10-12'
+- id: au_dailytelegraph
+  name: 'The Daily Telegraph (Sydney)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.dailytelegraph.com.au/feed
+  tier: regional
+  notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
+  active: false
+  inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
+  inactive_since: '2026-10-12'
+- id: au_couriermail
+  name: 'The Courier-Mail'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.couriermail.com.au/feed
+  tier: regional
+  notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
+  active: false
+  inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
+  inactive_since: '2026-10-12'
+- id: au_advertiser
+  name: 'The Advertiser (Adelaide)'
+  country: AUS
+  language: en
+  feeds:
+  - https://www.adelaidenow.com.au/feed
+  tier: regional
+  notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
+  active: false
+  inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
+  inactive_since: '2026-10-12'
+- id: au_sydneytoday_zh
+  name: Sydney Today
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.sydneytoday.com/
+  tier: national_daily
+  notes: 'Publishes primarily in Chinese (今日悉尼, simplified script). Registered so the exclusion is visible. Digital outlet of Media Today (今日传媒), Sydney, with Melbourne and Brisbane offices; described by UTS as the largest digital Chinese-language news outlet in Australia. No public feed was visible; the URL listed is the homepage, because the schema needs one URL. The homepage served a bot challenge (HTTP 403) on 2026-10-12, so the language was confirmed from https://www.lowyinstitute.org/publications/translating-tension-chinese-language-media-australia and https://www.uts.edu.au/news/2021/10/why-apps-are-game-changer-chinese-language-media-australia. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_1688_zh
+  name: 1688.com.au (Daily Chinese Herald)
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.1688.com.au/
+  tier: national_daily
+  notes: 'Publishes primarily in Chinese. Registered so the exclusion is visible. News portal of the Chinese News and Media Group (1688传媒集团, Surry Hills, Sydney, founded 1986), which also prints the Daily Chinese Herald (澳洲日报) and the Melbourne and Queensland Chinese dailies. No public feed was visible; the URL listed is the homepage, because the schema needs one URL. The homepage served a bot challenge (HTTP 403) on 2026-10-12, so the language was confirmed from https://lingua-sinica.org/?p=7527 and https://www.lowyinstitute.org/publications/translating-tension-chinese-language-media-australia. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_acd_zh
+  name: Australian Chinese Daily
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.acd.com.au/
+  tier: national_daily
+  notes: 'Publishes primarily in Chinese (澳洲新報, traditional script). Registered so the exclusion is visible. Sydney daily founded 1987; australianchinesedaily.com.au redirects to acd.com.au. No public feed was visible; the URL listed is the homepage, because the schema needs one URL. The homepage served a bot challenge (HTTP 403) on 2026-10-12, so the language was confirmed from https://en.wikipedia.org/wiki/Australian_Chinese_Daily and https://www.lowyinstitute.org/publications/translating-tension-chinese-language-media-australia. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_visiontimes_zh
+  name: Vision China Times (Australia)
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.visiontimes.com.au/feed/
+  tier: national_daily
+  notes: 'Publishes primarily in Chinese (看中國, weekly print editions for Sydney, Melbourne, Brisbane and the Gold Coast). Registered so the exclusion is visible. Owned by Vision Times Media (Australia); source https://en.wikipedia.org/wiki/Vision_China_Times. The website and its feed (the RSS alternate link on the homepage) carry mostly English company and event posts; the journalism is in the Chinese print edition. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_acnews_zh
+  name: Australian Chinese News
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.australianchinesenews.com.au/
+  tier: regional
+  notes: 'Publishes primarily in Chinese (大华时代, simplified script). Registered so the exclusion is visible. Melbourne weekly founded 1995 (formerly haoyah.com, which redirects here); source https://www.chinanews.com.cn/focus_site/hwlt-4/mtjj-aodaliya.htm and the homepage, read on 2026-10-12. No public feed was visible; the URL listed is the homepage, because the schema needs one URL. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_abc_zh
+  name: ABC Chinese
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.abc.net.au/news/chinese
+  tier: broadcaster
+  notes: 'Publishes primarily in Chinese (ABC中文). Registered so the exclusion is visible. Chinese-language service of the public broadcaster; the English service is au_abc. No public feed was visible on the section page; the URL listed is that page, because the schema needs one URL. Page read on 2026-10-12 (html lang zh). Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
+- id: au_sbs_zh
+  name: SBS Chinese
+  country: AUS
+  language: zh
+  feeds:
+  - https://www.sbs.com.au/language/chinese/zh-hans
+  tier: broadcaster
+  notes: 'Publishes primarily in Chinese (SBS中文: SBS Mandarin in simplified script, with a traditional-script edition at https://www.sbs.com.au/language/chinese/zh-hant). Registered so the exclusion is visible. Language service of the public broadcaster; the English service is au_sbs. No public feed was visible on the section page; the URL listed is that page, because the schema needs one URL. Page read on 2026-10-12. Added 2026-10-12.'
+  active: false
+  inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
+  inactive_since: '2026-10-12'
 - id: af_afintl
   name: Afghanistan International
   country: AFG
@@ -1619,6 +1991,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://8am.media/eng/about/
+  collector: both
   active: true
 - id: af_kabulnow
   name: KabulNow
@@ -1833,10 +2206,12 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 1 of the 1 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (7824 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Reporter.al
+  collector: self_hosted
   active: true
 - id: al_rtsh
   name: RTSH
@@ -2069,6 +2444,8 @@
   feeds:
   - https://www.clarin.com/rss/mundo/
   - https://www.clarin.com/rss/lo-ultimo/
+  news_sitemaps:
+  - https://www.clarin.com/sitemaps/sitemap_google_news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -3826,6 +4203,7 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: ba_srna
   name: SRNA
@@ -4018,6 +4396,7 @@
   ownership_source: https://www.ebc.com.br/sobre
   government_stance: state_controlled
   stance_source: https://www.ebc.com.br/sobre
+  collector: both
   active: true
 - id: br_agenciasenado
   name: Agência Senado
@@ -4081,10 +4460,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/bbc/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://brazil.mom-gmr.org/en/media/detail/outlet/bbc-brasil/
   active: true
 - id: br_brasildefato
@@ -4121,6 +4500,7 @@
   leaning_source: https://www.scielo.br/j/interc/a/MG8G3b7Tg9vpQkjwZj8xG4K/?lang=pt
   ownership: private
   ownership_source: https://www.cartacapital.com.br/editora/expediente/
+  collector: both
   active: true
 - id: br_cnnbrasil
   name: CNN Brasil
@@ -4254,6 +4634,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Domingo_Alzugaray
+  collector: both
   active: true
 - id: br_jovempan
   name: Jovem Pan
@@ -4271,6 +4652,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Jovem_Pan
   ownership: private
   ownership_source: https://pt.wikipedia.org/wiki/Grupo_Jovem_Pan
+  collector: both
   active: true
 - id: br_metropoles
   name: Metrópoles
@@ -4364,10 +4746,10 @@
       label: Contenus sponsorisés
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the French state through France Medias Monde to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/rfi-radio-france-internationale/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/France_M%C3%A9dias_Monde
   active: true
 - id: br_riotimes
@@ -4376,6 +4758,8 @@
   language: en
   feeds:
   - https://www.riotimesonline.com/feed/
+  news_sitemaps:
+  - https://www.riotimesonline.com/news-sitemap.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
@@ -4403,6 +4787,7 @@
   leaning_source: https://www.eurotopics.net/en/213697/terra
   ownership: private
   ownership_source: https://pt.wikipedia.org/wiki/Terra_(empresa)
+  collector: both
   active: true
 - id: br_theintercept
   name: The Intercept Brasil
@@ -4500,6 +4885,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://pt.wikipedia.org/wiki/NSC_Total
+  collector: both
   active: true
 - id: bb_barbadostoday
   name: Barbados Today
@@ -5088,6 +5474,7 @@
   leaning_source: https://es.wikipedia.org/wiki/El_Ciudadano_(Chile)
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_Ciudadano_(Chile)
+  collector: both
   active: true
 - id: cl_interferencia
   name: Interferencia
@@ -5410,7 +5797,7 @@
 - id: cm_mimimefo
   name: Mimi Mefo Info
   country: CMR
-  language: en
+  language: fr
   feeds:
   - https://mimimefoinfos.com/feed/
   release_sections:
@@ -5418,7 +5805,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Language corrected from en to fr on 2026-10-12: the one feed carries French and English items, most of them French (7 of the 11 stored in the 30 days before). Every language also reads the English terms, so French covers both.'
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Mimi_Mefo
   ownership: private
@@ -5890,7 +6277,13 @@
   ownership_source: https://rsf.org/en/country/comoros
   government_stance: state_controlled
   stance_source: https://rsf.org/en/country/comoros
-  active: true
+  active: false
+  inactive_reason: 'the site feed now carries casino and betting posts in Azerbaijani, Italian, Russian and Czech (all 10 titles stored in the 30 days to 2026-10-12); the post sitemap holds only such posts since 2026-06 under the categories casino, igaming, computers-games and uncategorized, the news on the homepage is in no feed, and sitemap.rss lists programme pages only; no clean feed on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://www.ortc.km/feed/
+    since: '2026-09-03'
+    reason: 'from the first discovery on 2026-09-03 the feed served the same ten casino and betting posts published 2026-06-06 and 2026-06-07, found again each time the gated-out copies were pruned; no news item was ever stored from it'
 - id: cv_anacao
   name: A Nação
   country: CPV
@@ -6020,6 +6413,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.puntoyaparte-ca.com/periodico-digital-el-observador-nacio-con-el-capital-semilla-de-un-grupo-de-empresarios/
+  collector: both
   active: true
 - id: cr_mundo
   name: El Mundo CR
@@ -6039,6 +6433,7 @@
   leaning_source: https://elmundo.cr/costa-rica/fernandez-la-vergonzosa-alianza-comunista-pln-frente-amplio-pone-los-derechos-de-los-delincuentes-encima-de-la-vida-de-las-familias-costarricenses/
   ownership: private
   ownership_source: https://crhoy.com/nacionales/asesor-del-presidente-fundo-sociedad-de-elmundo-cr-morosa-con-la-ccss/
+  collector: both
   active: true
 - id: cr_nacion
   name: La Nación
@@ -6090,11 +6485,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 9 of the 10 China-relevant articles it found here (it got through on 1); one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (5500 characters).'
   political_leaning: centre_left
   leaning_source: https://www.scielo.org.mx/scielo.php?script=sci_arttext_plus&pid=S1870-41152021000100111&lng=es&tlng=es&nrm=iso
   ownership: public_service
   ownership_source: https://es.wikipedia.org/wiki/Semanario_Universidad
+  collector: self_hosted
   active: true
 - id: cr_ticotimes
   name: The Tico Times
@@ -6432,6 +6829,7 @@
   leaning_source: https://www.eurotopics.net/en/148468/cyprus-mail
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Cyprus_Mail
+  collector: both
   active: true
 - id: cy_incyprus
   name: in-cyprus
@@ -6449,6 +6847,7 @@
   leaning_source: https://www.eurotopics.net/en/148747/phileleftheros
   ownership: private
   ownership_source: https://www.eurotopics.net/en/148747/phileleftheros
+  collector: both
   active: true
 - id: cy_philenews
   name: Philenews
@@ -6469,6 +6868,7 @@
   leaning_source: https://www.eurotopics.net/en/148747/phileleftheros
   ownership: private
   ownership_source: https://www.eurotopics.net/en/148747/phileleftheros
+  collector: both
   active: true
 - id: cy_politis
   name: Politis
@@ -6730,7 +7130,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Article pages unreadable by automated clients (2026-10-12): all 61 stored bodies are the same 1091 character Seznam consent wall (title "Nastavení souhlasu s personalizací"), served with HTTP 200 in place of the article to a client without a consent cookie. Two requests from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing the paths, got the same wall, so the self-hosted collector would not help; consent is never accepted automatically, and licensed or publisher granted access is the only route to the article text.'
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/czech-republic/news-and-media/
   political_leaning: centre_left
@@ -6750,7 +7150,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Article pages unreadable by automated clients (2026-10-12): all 61 stored bodies are the same 1091 character Seznam consent wall (title "Nastavení souhlasu s personalizací"), served with HTTP 200 in place of the article to a client without a consent cookie. Two requests from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing the paths, got the same wall, so the self-hosted collector would not help; consent is never accepted automatically, and licensed or publisher granted access is the only route to the article text.'
   political_leaning: centre
   leaning_source: https://www.eurotopics.net/en/235302/seznam-zpravy
   ownership: private
@@ -6788,10 +7188,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the German federal budget to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/dw-news/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Deutsche_Welle
   active: true
 - id: de_dw_en
@@ -6806,10 +7206,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the German federal budget to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/dw-news/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Deutsche_Welle
   active: true
 - id: de_faz
@@ -7225,7 +7625,13 @@
   government_stance: opposition
   stance_source: https://freedomhouse.org/country/djibouti/freedom-world/2024
   stance_as_of: 2023
-  active: true
+  active: false
+  inactive_reason: 'domain now serves English advertorial posts (tacos, roof inspection, braces, flooring in Sydney), not news: all 10 titles stored in the 30 days to 2026-10-12 were such posts, and the homepage and its only feed carry the same; no clean feed on the site on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://lavoixdedjibouti.com/feed/
+    since: '2026-09-03'
+    reason: 'from the first discovery on 2026-09-03 the feed served the same ten English advertorial posts published 2026-07-07 to 2026-08-21, found again each time the gated-out copies were pruned; no news item was ever stored from it'
 - id: dj_rtd
   name: RTD
   country: DJI
@@ -7365,6 +7771,7 @@
   leaning_source: https://mediabiasfactcheck.com/ekstra-bladet-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ekstra_Bladet
+  collector: both
   active: true
 - id: dk_politiken
   name: Politiken
@@ -7498,6 +7905,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://n.com.do/
+  collector: both
   active: true
 - id: do_noticiassin
   name: Noticias SIN
@@ -7588,6 +7996,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Algeria
+  collector: both
   active: true
 - id: dz_elkhabar
   name: El Khabar
@@ -7638,6 +8047,7 @@
   leaning_source: https://fr.wikipedia.org/wiki/Ennahar_TV
   ownership: private
   ownership_source: https://rsf.org/en/country/algeria
+  collector: both
   active: true
 - id: dz_lesoir
   name: Le Soir d'Algérie
@@ -7864,6 +8274,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_Egypt
+  collector: both
   active: true
 - id: eg_almasryalyoum
   name: Al-Masry Al-Youm
@@ -8010,6 +8421,7 @@
   ownership_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
   government_stance: state_controlled
   stance_source: https://egypt.mom-gmr.org/en/media/detail/outlet/al-youm-al-sabea-youm7/
+  collector: both
   active: true
 - id: es_20minutos
   name: 20minutos
@@ -8095,11 +8507,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 23 of the 23 China-relevant articles it found here; one request from the owner''s
+    Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (4052 characters).'
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/El_Confidencial
   ownership: private
   ownership_source: http://www.elconfidencialdigital.com/medios/Jesus-Cacho-Elconfidencialcom-compania-millones_0_2127987208.html
+  collector: self_hosted
   active: true
 - id: es_elcorreo
   name: El Correo
@@ -8252,6 +8666,7 @@
   leaning_source: https://mediabiasfactcheck.com/europa-press-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Europa_Press
+  collector: both
   active: true
 - id: es_expansion
   name: Expansión
@@ -8600,6 +9015,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
+  collector: both
   active: true
 - id: fi_aamulehti
   name: Aamulehti
@@ -8809,6 +9225,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Fiji_Broadcasting_Corporation
+  collector: both
   active: true
 - id: fj_islandsbusiness
   name: Islands Business
@@ -8846,7 +9263,14 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://pina.com.fj/about-us/
-  active: true
+  collector: both
+  active: false
+  inactive_reason: 'the feed https://pina.com.fj/feed/ (and /?feed=rss2) returns one placeholder item titled "No Feed Access" that links to the day''s date archive, which is all 3 items stored in the 30 days to 2026-10-12; the homepage links no other working feed (/home/feed/ has no entries) and robots.txt names only the plain WordPress sitemap, no news sitemap; no clean feed on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://pina.com.fj/feed/
+    since: '2026-09-03'
+    reason: 'from the first discovery on 2026-09-03 the feed served one placeholder item a day titled "No Feed Access" that links to the day''s date archive; no news item was ever stored from it'
 - id: fr_20minutes
   name: 20 Minutes
   country: FRA
@@ -8937,10 +9361,10 @@
       label: Sponsored contents
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the French state through France Medias Monde to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/france24/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/France_24
   active: true
 - id: fr_france24_en
@@ -8965,10 +9389,10 @@
       label: Sponsored contents
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the French state through France Medias Monde to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/france24/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/France_24
   active: true
 - id: fr_franceinfo
@@ -9097,7 +9521,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Article pages unreadable by automated clients (2026-10-12): all 103 stored bodies are the 286 character "Client Challenge" bot page Le Monde serves with HTTP 200 in place of the article. Its robots.txt allows the article paths for the project user agent, but the comment at its head says robots and other automatic browsing of the site are prohibited and asks for a licence, so the owner''s Mac was not tried and the outlet was not moved to the self-hosted collector; the challenge is never solved or bypassed, and licensed access is the only route to the article text.'
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/france
   political_leaning: centre_left
@@ -9276,10 +9700,10 @@
       label: Contenus sponsorisés
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the French state through France Medias Monde to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/rfi-radio-france-internationale/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://mediabiasfactcheck.com/rfi-radio-france-internationale/
   active: true
 - id: fr_rfi_en
@@ -9303,10 +9727,10 @@
       label: Contenus sponsorisés
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the French state through France Medias Monde to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/rfi-radio-france-internationale/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://mediabiasfactcheck.com/rfi-radio-france-internationale/
   active: true
 - id: fr_sudouest
@@ -9340,6 +9764,7 @@
   leaning_source: https://mediabiasfactcheck.com/sud-ouest-bias-and-credibility/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/sud-ouest-bias-and-credibility/
+  collector: both
   active: true
 - id: ga_agp
   name: Agence Gabonaise de Presse
@@ -9364,6 +9789,7 @@
   ownership_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
   government_stance: state_controlled
   stance_source: https://fr.wikipedia.org/wiki/Agence_gabonaise_de_presse
+  collector: both
   active: true
 - id: ga_gabonactu
   name: Gabonactu
@@ -9615,6 +10041,7 @@
   leaning_source: https://mediabiasfactcheck.com/inews/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_i_Paper
+  collector: both
   active: true
 - id: gb_mirror
   name: Daily Mirror
@@ -9631,6 +10058,9 @@
       feed: null
       label: Partner Stories
       readable: false
+      rejected_feed: https://www.mirror.co.uk/rss.xml
+      rejected_on: '2026-10-12'
+      reason: the site-wide feed (news, sport, TV, 3am, money), not the Partner Stories section; of 3,070 items it carried 13 were relevant
   tier: national_daily
   notes: 'Verified 2026-09-02. Partner section feed https://www.mirror.co.uk/rss.xml removed 2026-10-12: it is the site-wide feed (news, sport, TV, 3am, money), not the Partner Stories section, and of 3,070
     items it carried 13 were relevant.'
@@ -9886,7 +10316,8 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 6 of the 8 China-relevant articles it found here (it got through on 2); one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3908 characters).'
   audience_rank: 2
   rank_source: https://news.feedspot.com/ghana_news_websites/
   political_leaning: state_controlled
@@ -9895,6 +10326,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
+  collector: self_hosted
   active: true
 - id: gh_modernghana
   name: Modern Ghana
@@ -10215,10 +10647,12 @@
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 2 of the 2 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3513 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.accessgambia.com/extra/the-standard-newspaper.html
+  collector: self_hosted
   active: true
 - id: gm_thevoice
   name: The Voice Gambia
@@ -10584,7 +11018,13 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Guatevisi%C3%B3n
-  active: true
+  active: false
+  inactive_reason: 'the site feed now carries injected English travel and lifestyle posts dated 2026-06-26 (all 10 titles stored in the 30 days to 2026-10-12); the post sitemap lists no Guatevision article after 2025-11-27 and the news sitemap named in robots.txt lists only the homepage, so no clean feed was found on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://www.guatevision.com/feed/
+    since: '2026-09-03'
+    reason: 'from the first discovery on 2026-09-03 the feed served the same ten injected English travel posts dated 2026-06-26, found again each time the gated-out copies were pruned; no news item was ever stored from it'
 - id: gt_lahora
   name: La Hora
   country: GTM
@@ -10602,6 +11042,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/La_Hora_(Guatemala)
+  collector: both
   active: true
 - id: gt_prensalibre
   name: Prensa Libre
@@ -10659,6 +11100,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Guyana_Chronicle
+  collector: both
   active: true
 - id: gy_demerarawaves
   name: Demerara Waves
@@ -10724,6 +11166,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Guyana_Times
+  collector: both
   active: true
 - id: gy_hgptv
   name: HGP Nightly News
@@ -10813,6 +11256,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://guyanachronicle.com/2021/04/17/village-voice-in-limbo/
+  collector: both
   active: true
 - id: hk_asiatimes
   name: Asia Times
@@ -11026,6 +11470,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://hch.tv/nosotros/
+  collector: both
   active: true
 - id: hn_hondudiario
   name: Hondudiario
@@ -11041,6 +11486,7 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: hn_laprensa
   name: La Prensa
@@ -11123,6 +11569,7 @@
   leaning_source: https://www.eurotopics.net/en/148399/24-sata
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Croatia
+  collector: both
   active: true
 - id: hr_croatiaweek
   name: Croatia Week
@@ -11166,6 +11613,10 @@
       feed: null
       label: Sport sponsored by
       readable: false
+      rejected: true
+      rejected_feed: https://www.index.hr/sport
+      rejected_on: '2026-10-12'
+      reason: the sport desk, registered only because its header reads Sport sponsored by; of 3,650 items it carried 2 were relevant
   tier: national_daily
   notes: 'Verified 2026-09-02. Sponsored section feed https://www.index.hr/sport removed 2026-10-12: it is the sport desk, registered only because its header reads "Sport sponsored by", and of 3,650 items
     it carried 2 were relevant.'
@@ -11483,6 +11934,7 @@
   leaning_source: https://en.wikipedia.org/wiki/ATV_(Hungary)
   ownership: private
   ownership_source: https://www.freepressunlimited.org/en/countries/hungary
+  collector: both
   active: true
 - id: hu_budapesttimes
   name: Budapest Times
@@ -11655,6 +12107,7 @@
   government_stance: independent
   stance_source: https://rsf.org/en/country/hungary
   stance_as_of: 2026
+  collector: both
   active: true
 - id: hu_portfolio
   name: Portfolio
@@ -11716,7 +12169,9 @@
   government_stance: independent
   stance_source: https://rsf.org/en/country/hungary
   stance_as_of: 2026
-  active: true
+  active: false
+  inactive_reason: the English feed https://telex.hu/rss/english served the Hungarian site's items in October 2026 (139 of 140 titles stored in the 30 days to 2026-10-12 were Hungarian), which hu_telex already polls; no English feed could be confirmed on 2026-10-12 (the site answered HTTP 403); reactivate with a working English feed
+  inactive_since: '2026-10-12'
 - id: hu_vg
   name: Világgazdaság
   country: HUN
@@ -12125,10 +12580,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/bbc/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
   active: true
 - id: in_businessstandard
@@ -12499,6 +12954,7 @@
   leaning_source: https://mediabiasfactcheck.com/theprint/
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
+  collector: both
   active: true
 - id: in_thestatesman
   name: The Statesman
@@ -12546,6 +13002,7 @@
   leaning_source: https://mediabiasfactcheck.com/times-of-india/
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
+  collector: both
   active: true
 - id: in_tribune
   name: The Tribune
@@ -12677,9 +13134,9 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
   active: true
 - id: ir_donyaeeqtesad
@@ -13116,6 +13573,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/DV_(newspaper)
+  collector: both
   active: true
 - id: is_grapevine
   name: Reykjavík Grapevine
@@ -13180,6 +13638,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Morgunbla%C3%B0i%C3%B0
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Morgunbla%C3%B0i%C3%B0
+  collector: both
   active: true
 - id: is_ruv
   name: RÚV
@@ -13378,6 +13837,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ice.co.il/about
+  collector: both
   active: true
 - id: il_israelhayom
   name: Israel Hayom
@@ -13772,6 +14232,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.jordannews.jo/About-Us
+  collector: both
   active: true
 - id: jo_jordantimes
   name: The Jordan Times
@@ -13866,12 +14327,16 @@
   feeds:
   - https://www.japantimes.co.jp/feed/
   section_feeds:
-  - url: https://www.japantimes.co.jp/feed/topstories/
-    kind: partner
-    section: https://www.japantimes.co.jp/comfacts/348
+  - url: https://www.japantimes.co.jp/comfacts/feed/
+    kind: press_release
+    section: https://www.japantimes.co.jp/comfacts
+    type: rss
+  - url: https://info.japantimes.co.jp/cms/feed/
+    kind: sponsored
+    section: https://info.japantimes.co.jp/
     type: rss
   release_sections:
-    searched_on: '2026-09-15'
+    searched_on: '2026-10-12'
     status: found
     sections:
     - url: https://www.japantimes.co.jp/about-us/press
@@ -13879,11 +14344,25 @@
       feed: null
       label: Press releases
       readable: false
+    - url: https://www.japantimes.co.jp/comfacts
+      kind: press_release
+      feed: https://www.japantimes.co.jp/comfacts/feed/
+      label: News releases
+      readable: true
+    - url: https://info.japantimes.co.jp/
+      kind: sponsored
+      feed: https://info.japantimes.co.jp/cms/feed/
+      label: 'Special supplements: sponsored content'
+      readable: true
     - url: https://www.japantimes.co.jp/comfacts/348
       kind: partner
-      feed: https://www.japantimes.co.jp/feed/topstories/
+      feed: null
       label: GAKU Announces The Japan Times as an official media partner for the Esports Rese
-      readable: true
+      readable: false
+      rejected: true
+      rejected_feed: https://www.japantimes.co.jp/feed/topstories/
+      rejected_on: '2026-10-12'
+      reason: a single news release, not a section, registered on the frozen Today's Top Stories feed
   tier: national_daily
   notes: Verified 2026-09-02.
   political_leaning: centre_right
@@ -13940,6 +14419,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Mainichi_Shimbun
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mainichi_Shimbun
+  collector: both
   active: true
 - id: jp_mainichi_en
   name: The Mainichi
@@ -14240,6 +14720,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://internewske.org/mediamap/place_capital_group.html
+  collector: both
   active: true
 - id: ke_kbc
   name: KBC
@@ -14323,6 +14804,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/People_Daily
+  collector: both
   active: true
 - id: ke_standard
   name: The Standard
@@ -14438,6 +14920,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/AKIpress
+  collector: both
   active: true
 - id: kg_economist
   name: Economist.kg
@@ -14613,6 +15096,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/bayon-tv/
+  collector: both
   active: true
 - id: kh_cambodiadaily
   name: Cambodia Daily
@@ -14670,6 +15154,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/dap-newscom/
+  collector: both
   active: true
 - id: kh_freshnews
   name: Fresh News
@@ -14716,6 +15201,7 @@
   leaning_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/koh-santepheap-daily/
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/kohsantepheapdailycomkh/
+  collector: both
   active: true
 - id: kh_phnompenhpost
   name: The Phnom Penh Post
@@ -14758,10 +15244,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/wwwrfaorgkhmer/
   government_stance: independent
   stance_source: https://freedomhouse.org/country/cambodia/freedom-net/2025
@@ -14847,13 +15333,13 @@
   country: KOR
   language: en
   feeds:
-  - https://english.hani.co.kr/rss/
+  - https://english.hani.co.kr/rss/english_edition/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Feed replaced on 2026-10-12: https://english.hani.co.kr/rss/ now serves the Korean site''s feed (212 of 221 titles stored in the 30 days before were Korean, the same stream kr_hani polls at https://www.hani.co.kr/rss/). The English edition feed, linked from the English home page, returned 30 English items on 2026-10-12.'
   political_leaning: centre_left
   leaning_source: https://en.wikipedia.org/wiki/The_Hankyoreh
   ownership: private
@@ -14912,9 +15398,9 @@
     status: blocked
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the South Korean government to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Korean_Broadcasting_System
   active: false
   inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
@@ -15061,6 +15547,7 @@
   leaning_source: https://en.wikipedia.org/wiki/OhmyNews
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/OhmyNews
+  collector: both
   active: true
 - id: kr_sbs
   name: SBS News
@@ -15596,6 +16083,7 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: ly_almarsad
   name: Al Marsad
@@ -15613,6 +16101,7 @@
   rank_source: https://news.feedspot.com/libya_news_websites/
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: ly_alwasat
   name: Alwasat
@@ -15653,6 +16142,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://find-and-update.company-information.service.gov.uk/company/12505418
+  collector: both
   active: true
 - id: ly_libyaakhbar
   name: Libya Akhbar
@@ -15927,6 +16417,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/15min
+  collector: both
   active: true
 - id: lt_alfa
   name: Alfa.lt
@@ -16378,6 +16869,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/alyoum-24/
+  collector: both
   active: true
 - id: ma_assabah
   name: Assabah
@@ -16404,6 +16896,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Eco-M%C3%A9dias
+  collector: both
   active: true
 - id: ma_barlamane
   name: Barlamane
@@ -16488,6 +16981,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/hespress/
+  collector: both
   active: true
 - id: ma_hibapress
   name: Hibapress
@@ -16515,6 +17009,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.infomediaire.net/a-propos-de-nous/
+  collector: both
   active: true
 - id: ma_lavieeco
   name: La Vie Éco
@@ -16670,10 +17165,12 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 5 of the 5 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (1911 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/yabiladi/
+  collector: self_hosted
   active: true
 - id: md_ipn
   name: IPN
@@ -16719,6 +17216,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://moldova.mom-gmr.org/ro/owners/companies/company/news-maker-98125/
+  collector: both
   active: true
 - id: md_point
   name: Point.md
@@ -16753,6 +17251,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/TV8_(Moldova)
+  collector: both
   active: true
 - id: md_zdg
   name: Ziarul de Gardă
@@ -16774,6 +17273,7 @@
   government_stance: independent
   stance_source: https://moldova.mom-gmr.org/en/media/print/outlet/ziarul-de-garda-98063
   stance_as_of: 2024
+  collector: both
   active: true
 - id: md_ziarulnational
   name: Ziarul Național
@@ -16846,7 +17346,7 @@
 - id: mg_newsmada
   name: NewsMada
   country: MDG
-  language: fr
+  language: mg
   feeds:
   - https://newsmada.com/feed/
   release_sections:
@@ -16854,7 +17354,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Language corrected from fr to mg on 2026-10-12: the feed carries mostly Malagasy items (about 17 of the 19 stored in the 30 days before) and a few French ones, which are read on the Malagasy, English and international terms.'
   audience_rank: 3
   rank_source: https://news.feedspot.com/madagascar_news_websites/
   political_leaning: unassessed
@@ -16968,6 +17468,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Reforma_(newspaper)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Grupo_Reforma
+  collector: both
   active: true
 - id: mx_elpaismx
   name: El País México
@@ -17063,6 +17564,7 @@
   leaning_source: https://en.wikipedia.org/wiki/La_Jornada
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/La_Jornada
+  collector: both
   active: true
 - id: mx_lasillarota
   name: La Silla Rota
@@ -17192,6 +17694,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://a1on.mk/impressum
+  collector: both
   active: true
 - id: mk_alsat
   name: Alsat-M
@@ -17250,6 +17753,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Media_of_North_Macedonia
+  collector: both
   active: true
 - id: mk_republika
   name: Republika
@@ -17267,6 +17771,7 @@
   leaning_source: https://north-macedonia.mom-gmr.org/en/media/detail/outlet/republika/
   ownership: private
   ownership_source: https://republika.mk/impresum
+  collector: both
   active: true
 - id: mk_sitel
   name: Sitel
@@ -17284,6 +17789,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Sitel_(TV_channel)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Sitel_(North_Macedonia)
+  collector: both
   active: true
 - id: mk_slobodenpecat
   name: Sloboden Pečat
@@ -17311,10 +17817,12 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 4 of the 4 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (880 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Telma_(TV_channel)
+  collector: self_hosted
   active: true
 - id: ml_amap
   name: AMAP
@@ -17562,12 +18070,12 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 1
   rank_source: https://gijn.org/stories/independent-media-rebuilds-inside-and-outside-myanmar-after-violent-coup/
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/bbc/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
   active: true
 - id: mm_dvb
@@ -17679,11 +18187,11 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 7
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
 - id: me_cdm
@@ -18008,10 +18516,12 @@
       label: Communique
       readable: true
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 25 of the 25 China-relevant articles it found here; one request from the owner''s
+    Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2160 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ionnews.mu/about-us/
+  collector: self_hosted
   active: true
 - id: mu_lemauricien
   name: Le Mauricien
@@ -18404,10 +18914,12 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 28 of the 45 China-relevant articles it found here (it got through on 17); one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (4219 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://vinodsekhar.com/2020/12/vinod-sekhar-launches-the-vibes-a-new-site-covering-malaysian-news/
+  collector: self_hosted
   active: true
 - id: my_utusan
   name: Utusan Malaysia
@@ -18504,6 +19016,7 @@
   government_stance: independent
   stance_source: https://rsf.org/en/country/namibia
   stance_as_of: 2026
+  collector: both
   active: true
 - id: na_neweralive
   name: New Era
@@ -18526,6 +19039,7 @@
   ownership_source: https://rsf.org/en/country/namibia
   government_stance: state_controlled
   stance_source: https://rsf.org/en/country/namibia
+  collector: both
   active: true
 - id: na_windhoekobserver
   name: Windhoek Observer
@@ -18674,6 +19188,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Arise_News
+  collector: both
   active: true
 - id: ng_businessday
   name: BusinessDay
@@ -18743,6 +19258,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Channels_TV
+  collector: both
   active: true
 - id: ng_dailypost
   name: Daily Post
@@ -18789,6 +19305,7 @@
   leaning_source: https://mediabiasfactcheck.com/daily-trust-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Nigeria
+  collector: both
   active: true
 - id: ng_guardian
   name: The Guardian Nigeria
@@ -18835,6 +19352,7 @@
   ownership_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/News_Agency_of_Nigeria
+  collector: both
   active: true
 - id: ng_pmnews
   name: PM News
@@ -18869,6 +19387,7 @@
   leaning_source: https://mediabiasfactcheck.com/premium-times-bias-and-credibility/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/premium-times-bias-and-credibility/
+  collector: both
   active: true
 - id: ng_punch
   name: The Punch
@@ -18978,6 +19497,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Nigeria
+  collector: both
   active: true
 - id: ng_tvc
   name: TVC News
@@ -18994,6 +19514,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/TVC_News
+  collector: both
   active: true
 - id: ng_vanguard
   name: Vanguard
@@ -19013,6 +19534,7 @@
   leaning_source: https://mediabiasfactcheck.com/vanguard-news-nigeria-bias/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/vanguard-news-nigeria-bias/
+  collector: both
   active: true
 - id: ng_voice
   name: Voice of Nigeria
@@ -19032,6 +19554,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Voice_of_Nigeria
+  collector: both
   active: true
 - id: ni_articulo66
   name: Artículo 66
@@ -19111,6 +19634,7 @@
   government_stance: pro_government
   stance_source: https://freedomhouse.org/country/nicaragua/freedom-net/2024
   stance_as_of: 2024
+  collector: both
   active: true
 - id: ni_laprensa
   name: La Prensa
@@ -19619,6 +20143,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://english.khabarhub.com/about-us/
+  collector: both
   active: true
 - id: np_nepalitimes
   name: Nepali Times
@@ -19687,6 +20212,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.onlinekhabar.com/about-us
+  collector: both
   active: true
 - id: np_ratopati
   name: Ratopati
@@ -19851,10 +20377,10 @@
       label: Media Releases
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the New Zealand government to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/rnz/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_New_Zealand
   active: true
 - id: nz_stuff
@@ -20279,6 +20805,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://pakistan.mom-gmr.org/en/media/
+  collector: both
   active: true
 - id: pk_thenation
   name: The Nation
@@ -20430,6 +20957,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Andina_(news_agency)
+  collector: both
   active: true
 - id: pe_andina_en
   name: Andina English
@@ -20864,6 +21392,7 @@
   leaning_source: https://mediabiasfactcheck.com/philippine-star-bias/
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/philstarcom-3/
+  collector: both
   active: true
 - id: ph_pia
   name: Philippine Information Agency
@@ -20912,6 +21441,7 @@
   leaning_source: https://en.wikipedia.org/wiki/SunStar
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/sunstar-cebu-4/
+  collector: both
   active: true
 - id: pg_insidepng
   name: Inside PNG
@@ -20980,6 +21510,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Post-Courier
+  collector: both
   active: true
 - id: pg_thenational
   name: The National
@@ -21094,6 +21625,7 @@
   government_stance: independent
   stance_source: https://rsf.org/en/country/poland
   stance_as_of: 2026
+  collector: both
   active: true
 - id: pl_pap_en
   name: PAP English
@@ -21842,6 +22374,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.paginademedia.ro/2012/03/romania-tv-a-lansat-economica-net/
+  collector: both
   active: true
 - id: ro_g4media
   name: G4Media
@@ -21876,6 +22409,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ro.wikipedia.org/wiki/G%C3%A2ndul
+  collector: both
   active: true
 - id: ro_hotnews
   name: HotNews
@@ -21895,6 +22429,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/HotNews.ro
+  collector: both
   active: true
 - id: ro_libertatea
   name: Libertatea
@@ -21996,6 +22531,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ziarul_Financiar
+  collector: both
   active: true
 - id: ru_aif
   name: Argumenty i Fakty
@@ -22049,10 +22585,10 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the German federal budget to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/dw-news/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Deutsche_Welle
   active: true
 - id: ru_gazeta
@@ -22308,6 +22844,9 @@
       feed: null
       label: Спецпроекты
       readable: false
+      rejected_feed: https://novayagazeta.eu/feed/rss
+      rejected_on: '2026-10-12'
+      reason: the Russian outlet's site-wide feed of every article, not the special projects section; of 498 items it carried 9 were relevant
   tier: national_daily
   notes: 'Verified 2026-09-02. Sponsored section feed https://novayagazeta.eu/feed/rss removed 2026-10-12: it is the site-wide feed of every article, not the special projects section, and of 498 items it
     carried 9 were relevant.'
@@ -22961,6 +23500,7 @@
   ownership_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
   government_stance: state_controlled
   stance_source: https://fr.wikipedia.org/wiki/Agence_de_presse_s%C3%A9n%C3%A9galaise
+  collector: both
   active: true
 - id: sn_emedia
   name: E-Media
@@ -23035,9 +23575,11 @@
     status: none_found
     sections: []
   tier: regional
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 1 of the 1 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2348 characters).'
   political_leaning: unassessed
   ownership: unassessed
+  collector: self_hosted
   active: true
 - id: sn_pressafrik
   name: PressAfrik
@@ -23086,6 +23628,26 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  active: true
+- id: sg_asiaone
+  name: AsiaOne
+  country: SGP
+  language: en
+  feeds:
+  - https://www.asiaone.com/rss-feed/63335
+  - https://www.asiaone.com/rss-feed/4
+  - https://www.asiaone.com/rss-feed/5
+  news_sitemaps:
+  - https://www.asiaone.com/googlenews.xml
+  release_sections:
+    searched_on: '2026-10-12'
+    status: none_found
+    sections: []
+  tier: national_daily
+  notes: Added 2026-10-12 because the owner's paper found AsiaOne had the highest unchecked state sourcing of the outlets it read, with agency copy run without a credit line. Feeds are the China, Asia and World section feeds, each verified 2026-10-12 (10 items); the News feed (rss-feed/1) returns HTTP 404. SPH Media has been a minority shareholder since a December 2022 private buyout, so the Straits Times group leaning does not carry over. robots.txt asks for Crawl-delay 60, which the crawler honours with one request every 60 seconds.
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/AsiaOne
   active: true
 - id: sg_businesstimes
   name: The Business Times
@@ -23303,6 +23865,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Yahoo
+  collector: both
   active: true
 - id: sg_zaobao_zh
   name: Lianhe Zaobao
@@ -23561,7 +24124,7 @@
 - id: so_goobjoog
   name: Goobjoog
   country: SOM
-  language: en
+  language: so
   feeds:
   - https://goobjoog.com/feed/
   release_sections:
@@ -23569,7 +24132,7 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Language corrected from en to so on 2026-10-12: the feed publishes in Somali (42 of 43 titles stored in the 30 days before), so the Somali terms (Shiinaha) were never read.'
   audience_rank: 5
   rank_source: https://en.wikipedia.org/wiki/Hiiraan_Online
   political_leaning: unassessed
@@ -23678,6 +24241,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://beta.rs/kontakt
+  collector: both
   active: true
 - id: rs_biznis
   name: Biznis.rs
@@ -23861,6 +24425,8 @@
   language: sr
   feeds:
   - https://www.telegraf.rs/rss
+  news_sitemaps:
+  - https://www.telegraf.rs/xml/news
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
@@ -24017,6 +24583,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Dagblad_Suriname
   ownership: private
   ownership_source: https://nl.wikipedia.org/w/index.php?search=%22Dagblad+Suriname%22
+  collector: both
   active: true
 - id: sr_dwt
   name: De Ware Tijd
@@ -24115,10 +24682,12 @@
       label: Advertorial
       readable: true
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 5 of the 5 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2686 characters).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.srherald.com/
+  collector: self_hosted
   active: true
 - id: sr_unitednews
   name: United News
@@ -24172,6 +24741,7 @@
   leaning_source: https://sk.wikipedia.org/wiki/Aktuality.sk
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Aktuality.sk
+  collector: both
   active: true
 - id: sk_dennikn
   name: Denník N
@@ -24192,6 +24762,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Denn%C3%ADk_N
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Denn%C3%ADk_N
+  collector: both
   active: true
 - id: sk_hnonline
   name: Hospodárske noviny
@@ -24246,6 +24817,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.forbes.sk/dennik-pravda-ma-noveho-majitela-patri-rebricka-najbohatsich-cechov/
+  collector: both
   active: true
 - id: sk_rtvs
   name: RTVS
@@ -24281,6 +24853,7 @@
   leaning_source: https://en.wikipedia.org/wiki/TASR
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/TASR
+  collector: both
   active: true
 - id: si_24ur
   name: 24ur
@@ -24356,6 +24929,7 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/RTV_Slovenija
+  collector: both
   active: true
 - id: si_sloveniatimes
   name: The Slovenia Times
@@ -24437,6 +25011,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Dagens_industri
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Sweden
+  collector: both
   active: true
 - id: se_dn
   name: Dagens Nyheter
@@ -24758,17 +25333,35 @@
   language: en
   feeds:
   - https://npasyria.com/en/feed/
+  release_sections:
+    searched_on: '2026-09-15'
+    status: none_found
+    sections: []
+  tier: agency
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 2 of the 2 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2052 characters).'
+  audience_rank: 7
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://npasyria.com/en/about/
+  collector: self_hosted
+  active: true
+- id: sy_northpress_ar
+  name: North Press Agency Arabic
+  country: SYR
+  language: ar
+  feeds:
   - https://npasyria.com/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
-  audience_rank: 7
+  notes: 'Split from sy_northpress on 2026-10-12: the Arabic site''s feed was registered on the English outlet, so its items (41 of the 77 stored in the 30 days before) were read on English terms only. Self-hosted collector, as for the English site.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://npasyria.com/en/about/
+  collector: self_hosted
   active: true
 - id: sy_sana
   name: SANA
@@ -25172,6 +25765,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Thailand
+  collector: both
   active: true
 - id: th_matichon
   name: Matichon
@@ -25322,6 +25916,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.bangkokpost.com/business/1263367/a-day-executives-form-the-standard
+  collector: both
   active: true
 - id: tj_asiaplus_en
   name: Asia-Plus English
@@ -25338,11 +25933,28 @@
       feed: null
       label: Спецпроекты
       readable: false
+      rejected_feed: https://asiaplus.news/feed/
+      rejected_feed_language: ru
+      rejected_on: '2026-10-12'
+      reason: the Russian site's site-wide news feed, not the special projects section; of 398 items it carried 2 were relevant
   tier: national_daily
   notes: 'Verified 2026-09-02. Sponsored section feed https://asiaplus.news/feed/ removed 2026-10-12: it is the Russian site''s site-wide news feed, not the special projects section, and of 398 items it
     carried 2 were relevant.'
   audience_rank: 1
   rank_source: https://journalists.feedspot.com/tajikistan_news_websites/
+  political_leaning: centre
+  leaning_source: https://en.wikipedia.org/wiki/Asia-Plus
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Asia-Plus
+  active: true
+- id: tj_asiaplus
+  name: Asia-Plus
+  country: TJK
+  language: ru
+  feeds:
+  - https://asiaplus.news/feed/
+  tier: national_daily
+  notes: 'Split from tj_asiaplus_en on 2026-10-12: the Russian site''s news feed had been registered on the English outlet as its special projects section (removed as a section the same day; the record is kept on tj_asiaplus_en). It is the Russian site''s editorial feed and is polled here, gated in Russian. The feed returned HTTP 200 with Russian items on 2026-10-12.'
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Asia-Plus
   ownership: private
@@ -25359,12 +25971,14 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 59 of the 59 China-relevant articles it found here; one request from the owner''s
+    Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2817 characters).'
   audience_rank: 3
   rank_source: https://journalists.feedspot.com/tajikistan_news_websites/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://avesta.tj/about/
+  collector: self_hosted
   active: true
 - id: tj_khovar
   name: Khovar
@@ -25852,6 +26466,7 @@
   ownership_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
   government_stance: state_controlled
   stance_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/la-presse/
+  collector: both
   active: true
 - id: tn_leaders
   name: Leaders
@@ -25980,7 +26595,7 @@
 - id: tn_tunisiefocus
   name: Tunisie Focus
   country: TUN
-  language: ar
+  language: fr
   feeds:
   - https://www.tunisiefocus.com/feed/
   release_sections:
@@ -25988,7 +26603,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Language corrected from ar to fr on 2026-10-12: the feed carries French news with some Arabic opinion pieces (26 of 35 titles stored in the 30 days before were French). Its Arabic items are read on the French, English and international terms.'
   political_leaning: unassessed
   ownership: unassessed
   active: true
@@ -26460,7 +27075,9 @@
   feeds:
   - https://www.trtworld.com/rss
   tier: broadcaster
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Ownership recorded as state, not state_funded_international, because TRT's governing rules (Presidential Decree No. 4, articles 533 to 538, which replaced the organ articles of Law 2954 in 2018) give the President the appointment of its board and director general and task its foreign broadcasts with promoting the state, and no statute, charter or agreement protects its editorial decisions from the government, its legal label as an impartial public entity notwithstanding (methodology review 2026-10-12).
+  ownership: state
+  ownership_source: https://www.mevzuat.gov.tr/MevzuatMetin/19.5.4.pdf
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
@@ -26584,6 +27201,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Daily_News_(Tanzania)
+  collector: both
   active: true
 - id: tz_habarileo
   name: HabariLeo
@@ -26819,6 +27437,9 @@
       feed: null
       label: Новини компаній
       readable: false
+      rejected_feed: https://news.liga.net/ua/all/rss.xml
+      rejected_on: '2026-10-12'
+      reason: the site-wide Ukrainian news feed, not the company news section; of 721 items it carried 9 were relevant
   tier: national_daily
   notes: 'Verified 2026-09-02. Press release section feed https://news.liga.net/ua/all/rss.xml removed 2026-10-12: it is the site-wide Ukrainian news feed (politics, war, world, society), not the company
     news section, and of 721 items it carried 9 were relevant.'
@@ -26899,6 +27520,7 @@
   leaning_source: https://en.wikipedia.org/wiki/Ukrayinska_Pravda
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ukrayinska_Pravda
+  collector: both
   active: true
 - id: ua_pravda_en
   name: Ukrainska Pravda English
@@ -27168,6 +27790,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Canal_12_(Uruguay)
+  collector: both
   active: true
 - id: us_abc
   name: ABC News
@@ -27474,6 +28097,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.contentpowered.com/blog/prweb-newswire-globe-best/
+  collector: both
   active: true
 - id: us_honolulu
   name: Honolulu Star-Advertiser
@@ -27786,6 +28410,8 @@
   feeds:
   - https://www.prnewswire.com/rss/news-releases-list.rss
   - https://www.prnewswire.com/rss/general-business-latest-news/general-business-latest-news-list.rss
+  news_sitemaps:
+  - https://www.prnewswire.com/sitemap-news.xml
   section_feeds:
   - url: https://www.prnewswire.com/news-releases
     kind: press_release
@@ -27824,6 +28450,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/PR_Newswire
+  collector: both
   active: true
 - id: us_propublica
   name: ProPublica
@@ -27854,11 +28481,11 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is a private nonprofit grantee funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad, with its professional independence protected by statute (22 U.S.C. 6204(b), the USAGM firewall) (methodology review 2026-10-12).
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
-  ownership: public_service
-  ownership_source: https://mediabiasfactcheck.com/radio-free-asia/
+  ownership: state_funded_international
+  ownership_source: https://www.usagm.gov/who-we-are/firewall/
   active: true
 - id: us_sandiego
   name: The San Diego Union-Tribune
@@ -28313,6 +28940,7 @@
   ownership_source: https://en.wikipedia.org/wiki/UzA
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/UzA
+  collector: both
   active: true
 - id: uz_uza_en
   name: UzA English
@@ -28356,6 +28984,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.uzdaily.uz/
+  collector: both
   active: true
 - id: ve_cronica
   name: Crónica Uno
@@ -28464,7 +29093,8 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 53 of the 54 China-relevant articles it found here (it got through on 1); one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (2084 characters).'
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/venezuela/news-and-media/
   political_leaning: unassessed
@@ -28473,6 +29103,7 @@
   government_stance: independent
   stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
   stance_as_of: 2024
+  collector: self_hosted
   active: true
 - id: ve_elpitazo
   name: El Pitazo
@@ -28955,6 +29586,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Koha_Ditore
+  collector: both
   active: true
 - id: xk_kosovaonline
   name: Kosovo Online
@@ -29058,11 +29690,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 3 of the 3 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (569 characters).'
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Al_Sahwa
   ownership: party
   ownership_source: https://en.wikipedia.org/wiki/Al-Islah_(Yemen)
+  collector: self_hosted
   active: true
 - id: ye_saba
   name: Saba
@@ -29108,7 +29742,6 @@
   language: en
   feeds:
   - https://en.ypagency.net/feed/
-  - https://ypagency.net/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
@@ -29117,6 +29750,23 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
+  active: true
+- id: ye_yemenpress_ar
+  name: Yemen Press Agency Arabic
+  country: YEM
+  language: ar
+  feeds:
+  - https://ypagency.net/feed/
+  release_sections:
+    searched_on: '2026-09-15'
+    status: none_found
+    sections: []
+  tier: agency
+  notes: 'Split from ye_yemenpress on 2026-10-12: the Arabic site''s feed was registered on the English outlet, so its items (127 of the 208 stored in the 30 days before) were read on English terms only.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: both
   active: true
 - id: za_africanews
   name: Africanews
@@ -29246,6 +29896,7 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: za_news24
   name: News24
@@ -29392,12 +30043,14 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 6 of the 10 China-relevant articles it found here (it got through on 4); one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (721 characters).'
   audience_rank: 2
   rank_source: https://www.scimagomedia.com/rankings.php?country=Zambia
   political_leaning: unassessed
   ownership: private
   ownership_source: https://rsf.org/en/country/zambia
+  collector: self_hosted
   active: true
 - id: zm_zambiadailymail
   name: Zambia Daily Mail
@@ -29629,6 +30282,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://aruba.nu/en/2021/12/media-directeur-24ora-haalt-fel-uit-naar-minister-kabinet-wever-croes/
+  collector: both
   active: true
 - id: aw_arubatoday
   name: Aruba Today
@@ -30000,6 +30654,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Breaking_Belize_News
+  collector: both
   active: true
 - id: bz_reporter
   name: The Reporter Belize
@@ -30109,6 +30764,7 @@
   rank_source: https://www.similarweb.com/website/curacao.nu/
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: ky_cayman27
   name: Cayman Marl Road
@@ -30725,6 +31381,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.lepelican-journal.com/mentions-legales/
+  collector: both
   active: true
 - id: mf_stmartinweek
   name: St Martin Week
@@ -30829,7 +31486,6 @@
   language: fr
   feeds:
   - https://www.monaco-tribune.com/feed/
-  - https://www.monaco-tribune.com/en/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
@@ -30838,6 +31494,22 @@
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Monaco
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://www.monaco-tribune.com/en/who-we-are/
+  active: true
+- id: mc_monacotribune_en
+  name: Monaco Tribune English
+  country: MCO
+  language: en
+  feeds:
+  - https://www.monaco-tribune.com/en/feed/
+  release_sections:
+    searched_on: '2026-09-15'
+    status: none_found
+    sections: []
+  tier: national_daily
+  notes: 'Split from mc_monacotribune on 2026-10-12: the English edition''s feed was registered on the French outlet (100 of the 200 items stored in the 30 days before).'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.monaco-tribune.com/en/who-we-are/
@@ -31120,6 +31792,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/NotiCel
+  collector: both
   active: true
 - id: pr_primerahora
   name: Primera Hora
@@ -31194,13 +31867,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 3 of the 3 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (5139 characters).'
   audience_rank: 4
   rank_source: https://www.nknews.org/
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/38-north/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/38_North
+  collector: self_hosted
   active: true
 - id: kp_dailynk
   name: Daily NK
@@ -31250,12 +31925,12 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 3
   rank_source: https://www.nknews.org/
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/radio-free-asia/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
 - id: pf_radio1
@@ -31589,6 +32264,7 @@
   ownership_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/L%27Osservatore_Romano
+  collector: both
   active: true
 - id: va_ucanews
   name: UCA News
@@ -31656,12 +32332,14 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 4 of the 4 China-relevant articles it found here; one request from the owner''s Mac
+    on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3292 characters).'
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/stvincenttimes.com/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.iwnsvg.com/about-us/
+  collector: self_hosted
   active: true
 - id: vc_nbc
   name: NBC SVG
@@ -32287,6 +32965,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://rsf.org/en/country/uganda
+  collector: both
   active: true
 - id: za_mg
   name: Mail & Guardian
@@ -32317,6 +32996,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/ENCA
+  collector: both
   active: true
 - id: ar_infobae
   name: Infobae
@@ -32812,6 +33492,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.orda.kz/informburo-and-channel-31-have-new-owners-3374/
+  collector: both
   active: true
 - id: jp_fnn
   name: FNN Prime Online (Fuji TV)
@@ -32882,6 +33563,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/kampucheathmeycom/
+  collector: both
   active: true
 - id: my_astroawani
   name: Astro Awani
@@ -32953,6 +33635,7 @@
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/thailand
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: tl_rttl
   name: RTTL (Radio-Televizaun Timor-Leste)
@@ -32986,6 +33669,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://stltimorleste.com/stl-profile/
+  collector: both
   active: true
 - id: vn_24h
   name: 24h.com.vn
@@ -33024,11 +33708,11 @@
   feeds:
   - https://www.azatutyun.am/api/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 8
   rank_source: https://www.similarweb.com/website/news.am/
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   government_stance: independent
   stance_source: https://rsf.org/en/country/armenia
@@ -33056,11 +33740,11 @@
 - id: az_haqqin
   name: Haqqin.az
   country: AZE
-  language: az
+  language: ru
   feeds:
   - https://haqqin.az/rss
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. Language corrected from az to ru on 2026-10-12: the feed publishes in Russian (179 of 180 titles stored in the 30 days before were in Cyrillic, in Russian).'
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/oxu.az/
   political_leaning: unassessed
@@ -33074,12 +33758,12 @@
   feeds:
   - https://www.radiotavisupleba.ge/api/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/1tv.ge/
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/radio-free-europe-radio-liberty/
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: true
 - id: ge_publika
@@ -33122,6 +33806,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Saraya_(newspaper)
+  collector: both
   active: true
 - id: jo_almamlaka
   name: Al-Mamlaka TV
@@ -33380,6 +34065,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/SME_(newspaper)
+  collector: both
   active: true
 - id: sk_topky
   name: Topky.sk
@@ -33394,6 +34080,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.topky.sk/
+  collector: both
   active: true
 - id: ua_24tv
   name: 24 Kanal
@@ -33667,6 +34354,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Siol.net
+  collector: both
   active: true
 - id: at_krone
   name: Kronen Zeitung
@@ -33835,15 +34523,20 @@
   country: NCL
   language: fr
   feeds:
-  - https://feeds.feedburner.com/LesNouvellesCaledoniennes
+  - https://www.lnc.nc/rss.xml
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. Feed replaced on 2026-10-12: https://feeds.feedburner.com/LesNouvellesCaledoniennes, still the RSS alternate link on the homepage, now serves Vietnamese shoe advertisements from humtto.vn (all 10 titles stored in the 30 days before). The site''s own /rss.xml, which robots.txt allows for the crawler, returned 50 French items on 2026-10-12 with the project user agent, every one an /article/ page on lnc.nc.'
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/Les_Nouvelles_Cal%C3%A9doniennes
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Les_Nouvelles_Cal%C3%A9doniennes
   active: true
+  junk_feed:
+    url: https://feeds.feedburner.com/LesNouvellesCaledoniennes
+    since: '2026-09-24'
+    until: '2026-10-12'
+    reason: 'from the first poll on 2026-09-24 the FeedBurner feed, the outlet''s only feed until 2026-10-12, served the same ten Vietnamese shoe advertisements from humtto.vn published 2026-05-04, found again each time the gated-out copies were pruned; no news item was ever stored from it'
 - id: tw_cti
   name: ChungTien News (CTI)
   country: TWN
@@ -33907,6 +34600,7 @@
   ownership_source: https://en.wikipedia.org/wiki/Ghanaian_Times
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Ghanaian_Times
+  collector: both
   active: true
 - id: gh_chronicle
   name: Chronicle
@@ -33920,6 +34614,7 @@
   rank_source: https://en.wikipedia.org/wiki/Media_of_Ghana
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
   active: true
 - id: gh_dailyguide
   name: Daily Guide
@@ -33949,7 +34644,13 @@
   ownership_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
   government_stance: state_controlled
   stance_source: https://fr.wikipedia.org/wiki/M%C3%A9dias_en_R%C3%A9publique_centrafricaine
-  active: true
+  active: false
+  inactive_reason: 'domain now serves Indonesian gambling posts, not news: all 85 titles stored in the 30 days to 2026-10-12 were Indonesian (68 name gambling, slots or betting), the homepage is titled "Gaming and Playing" and its only feed is the one polled; no clean feed or news sitemap on the site on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://www.centrafrique-presse.com/feed/
+    since: '2026-09-24'
+    reason: 'from the first poll on 2026-09-24 the feed served the same Indonesian gambling, slots and betting posts published 2023-04-29 to 2024-02-05 (85 that day, the same 84 again each time the gated-out copies were pruned); every title stored since is such a post'
 - id: cg_congopage
   name: Congopage
   country: COG
@@ -34141,10 +34842,10 @@
   feeds:
   - https://www.azathabar.com/api/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research.
+  notes: Added 2026-09-23 from the readership research. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 5
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: false
   inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
@@ -34172,26 +34873,27 @@
   feeds:
   - https://www.rfa.org/lao/rss2.xml
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 5
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Asia
   active: true
 - id: mv_psmnews
   name: PSM News
   country: MDV
-  language: en
+  language: dv
   feeds:
   - https://psmnews.mv/feed
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: 'Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Language corrected from en to dv on 2026-10-12: the feed publishes in Dhivehi (all 87 titles stored in the 30 days before were in Thaana script). There is no Dhivehi keyword list, so its items are read on the English and international terms, as before.'
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Public_Service_Media_(Maldives)
+  collector: both
   active: true
 - id: by_svaboda
   name: Радыё Свабода (Radio Svaboda / RFE/RL Belarusian Service)
@@ -34200,10 +34902,10 @@
   feeds:
   - https://www.svaboda.org/api/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 6
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: false
   inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
@@ -34220,7 +34922,13 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/BelaPAN
-  active: true
+  active: false
+  inactive_reason: 'the feed https://belapan.com/rss serves machine-generated titles ("belapan com" followed by random letters and numbers; all 206 stored in the 30 days to 2026-10-12) and the belapan.com homepage is not a news site; belapan.by links no feed, its /feed/ is disallowed to the crawler by robots.txt and was not fetched, and its homepage carries casino and lifestyle posts; no clean feed on 2026-10-12; deactivated 2026-10-12'
+  inactive_since: '2026-10-12'
+  junk_feed:
+    url: https://belapan.com/rss
+    since: '2026-09-24'
+    reason: 'every title stored from the feed, 900 from 2026-09-27 (the earliest kept by any snapshot) to 2026-10-12, is "belapan com" followed by random letters and numbers; 2026-09-24 to 2026-09-26, its first days, were pruned before a snapshot kept them and show the same 11 to 13 entries a poll and 64 to 79 new items a day, none gate relevant'
 - id: by_currenttime
   name: Настоящее Время (Current Time TV)
   country: BLR
@@ -34228,10 +34936,10 @@
   feeds:
   - https://www.currenttime.tv/api/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Ownership recorded as state_funded_international, not public_service, because it is funded by the United States government through the U.S. Agency for Global Media to broadcast to audiences abroad (methodology review 2026-10-12).
   audience_rank: 8
   political_leaning: unassessed
-  ownership: public_service
+  ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Current_Time_TV
   active: false
   inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
@@ -34298,6 +35006,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://north-macedonia.mom-gmr.org/mk/mediumi/detail/outlet/plusinfo/
+  collector: both
   active: true
 - id: mk_faktor
   name: Faktor.mk
@@ -34311,6 +35020,7 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://north-macedonia.mom-gmr.org/mk/mediumi/detail/outlet/faktor/
+  collector: both
   active: true
 - id: mk_skopje1
   name: Skopje1.mk
@@ -34550,6 +35260,7 @@
   - https://www.gulf-insider.com/feed/
   tier: national_daily
   notes: Added 2026-09-28 from the readership research.
+  collector: both
   active: true
 - id: aw_solodipueblo
   name: Solo di Pueblo
@@ -34721,7 +35432,9 @@
   feeds:
   - https://kanditnews.com/feed/
   tier: regional
-  notes: Added 2026-09-28 from the readership research.
+  notes: 'Added 2026-09-28 from the readership research. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 1 of the 1 China-relevant articles it found here; one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (10846 characters).'
+  collector: self_hosted
   active: true
 - id: lc_stluciachronicle
   name: St. Lucia Chronicle
@@ -34731,6 +35444,7 @@
   - https://stluciachronicle.com/feed/
   tier: regional
   notes: Added 2026-09-28 from the readership research.
+  collector: both
   active: true
 - id: mf_le97150
   name: Le 97150
@@ -34958,6 +35672,7 @@
   - https://www.sanmarinortv.sm/rss.xml
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research.
+  collector: both
   active: true
 - id: sm_italica
   name: Italica
@@ -35112,6 +35827,7 @@
   - https://www.lankadeepa.lk/rss/news/48
   tier: national_daily
   notes: Added 2026-09-28 from the readership research.
+  collector: both
   active: true
 - id: lk_divaina
   name: Divaina
@@ -35336,6 +36052,7 @@
   - https://www.telemetro.com/rss/pages/internacionales.xml
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research.
+  collector: both
   active: true
 - id: pa_diaadia
   name: Día a Día
@@ -35362,7 +36079,9 @@
   feeds:
   - https://www.onepng.com/feeds/posts/default
   tier: national_daily
-  notes: Added 2026-09-28 from the readership research.
+  notes: 'Added 2026-09-28 from the readership research. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 429) on 1 of the 1 China-relevant articles it found here; one request
+    from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3264 characters).'
+  collector: self_hosted
   active: true
 - id: pg_pngtoday
   name: Papua New Guinea Today (PNG Facts news)
@@ -35488,7 +36207,9 @@
   feeds:
   - https://www.rti.org.tw/en/rss
   tier: broadcaster
-  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
+  notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403). Ownership recorded as state, not state_funded_international, because the Radio Taiwan International Establishment Act makes Rti a foundation budgeted and supervised by the competent ministry (now the Ministry of Culture), which selects its directors and supervisors, and the Act contains no editorial independence provision (methodology review 2026-10-12).
+  ownership: state
+  ownership_source: https://law.moj.gov.tw/ENG/LawClass/LawAll.aspx?pcode=P0000007
   collector: self_hosted
   active: true
 - id: tw_digitimes

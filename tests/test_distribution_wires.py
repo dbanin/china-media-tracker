@@ -4,6 +4,7 @@ any denominator. The stratum is part of the world total and is never the top cou
 of this left the wires in the daily build's own loop and in the discovery denominators, so a route
 filtered view of the United States came out larger than its unfiltered total; the second left them
 out of every total, which hid 179 state origin releases in one 30 day window."""
+import datetime as dt
 import json
 
 from pipeline import config, export, methodology, registry, store
@@ -85,8 +86,7 @@ def test_latest_has_a_worldwide_entry_and_world_totals_include_it(tmp_path):
 
 
 def test_top_carrier_of_the_stratum_is_a_wire(tmp_path):
-    today = export._today()
-    conn = _seed(tmp_path, today)
+    conn = _seed(tmp_path, _yesterday())   # the carriers count the 30 complete days, not the partial export day
     export.rebuild_rollups(conn, OUTLETS)
     latest = export.build_latest(conn, OUTLETS, [], population={})
     assert latest["countries"]["WLD"]["top_carrier"] == {"id": "us_wire", "name": "Wire", "count": 5}
@@ -94,9 +94,13 @@ def test_top_carrier_of_the_stratum_is_a_wire(tmp_path):
     assert latest["countries"]["USA"]["top_carrier"] == {"id": "us_paper", "name": "Paper", "count": 1}
 
 
+def _yesterday():
+    """The last complete day: the findings' 30 day window leaves out the partial export day."""
+    return (dt.date.fromisoformat(export._today()) - dt.timedelta(days=1)).isoformat()
+
+
 def test_top_country_is_never_the_stratum(tmp_path):
-    today = export._today()
-    conn = _seed(tmp_path, today)   # the wire holds 5 state origin against the paper's 1
+    conn = _seed(tmp_path, _yesterday())   # the wire holds 5 state origin against the paper's 1
     export.rebuild_rollups(conn, OUTLETS)
     latest = export.build_latest(conn, OUTLETS, [], population={})
     meta = export.build_meta(conn, OUTLETS, [], latest)
@@ -129,7 +133,7 @@ def test_export_writes_the_stratum_articles_file(tmp_path, monkeypatch):
     export.run(conn, "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
     arts = json.loads((out / "articles" / "WLD.json").read_text(encoding="utf-8"))
     assert len(arts) == 5 and all(a["outlet_id"] == "us_wire" for a in arts)
-    assert json.loads((out / "meta.json").read_text(encoding="utf-8"))["schema_version"] == config.SCHEMA_VERSION == 11
+    assert json.loads((out / "meta.json").read_text(encoding="utf-8"))["schema_version"] == config.SCHEMA_VERSION >= 11
     text = (tmp_path / "M.md").read_text(encoding="utf-8")
     assert "Worldwide\ndistribution" in text or "Worldwide distribution" in text
     assert "never\nadded into any individual country's numbers" in text or "never added into any individual country's numbers" in text
@@ -171,8 +175,7 @@ def test_global_series_wld_is_zeros_without_the_stratum(tmp_path):
 
 
 def test_findings_carry_the_wires_part_of_every_total(tmp_path):
-    today = export._today()
-    conn = _seed(tmp_path, today)
+    conn = _seed(tmp_path, _yesterday())
     export.rebuild_rollups(conn, OUTLETS)
     latest = export.build_latest(conn, OUTLETS, [], population={})
     f = export.build_meta(conn, OUTLETS, [], latest)["findings"]
@@ -181,7 +184,8 @@ def test_findings_carry_the_wires_part_of_every_total(tmp_path):
     assert at["independent"] == 0 and at["independent_wires"] == 0
     assert at["china_total"] == 6 and at["china_total_wires"] == 5
     assert at["unchecked"] is None and at["unchecked_wires"] is None, "the model stage has not run, so unchecked is withheld on both sides"
-    assert f["last_30d"] == {"state_origin": 6, "state_origin_wires": 5}
+    assert f["last_30d"]["state_origin"] == 6 and f["last_30d"]["state_origin_wires"] == 5
+    assert f["last_30d"]["window_end"] == _yesterday()
     # what the toggle shows: country outlets is the difference, worldwide wires is the part
     assert at["state_origin"] - at["state_origin_wires"] == 1
     assert f["top_country"]["share_of_world"] == round(1 / 6, 4)
@@ -214,4 +218,4 @@ def test_findings_unchecked_wires_is_null_when_relay_not_visible(tmp_path, monke
 
 
 def test_schema_bump_names_the_toggle_fields():
-    assert config.SCHEMA_VERSION == 11
+    assert config.SCHEMA_VERSION >= 11

@@ -11,14 +11,16 @@ def _db(tmp_path, monkeypatch):
     return conn
 
 
-def _judged(conn, n=8, category="B"):
+def _judged(conn, n=8, category="B", model_version=None, tag=""):
+    """n model labelled articles with a body on disk, made under the current prompt unless model_version says otherwise."""
+    model_version = model_version or classify_llm.with_prompt_version("claude-sonnet-5")
     for i in range(n):
-        url = "https://example.com/%s-%d" % (category, i)
+        url = "https://example.com/%s%s-%d" % (tag, category, i)
         aid = store.insert_discovered(conn, {"url": url, "outlet_id": "it_x", "country": "ITA", "language": "it",
                                              "title": "Headline %d" % i, "gate_relevant": 1, "status": "fetched"})
         store.save_body(store.url_hash(url), "Body text about China, item %d. " % i * 20)
         store.insert_classification(conn, aid, "llm", category, 0.8, evidence_quote="quote %d" % i,
-                                    model_version="claude-sonnet-5")
+                                    model_version=model_version)
     conn.commit()
 
 
@@ -59,7 +61,7 @@ def test_summary_states_what_it_measures_and_lists_disagreements():
               "first": {"category": "C"}, "second": {"category": "C"}}]
     s = sr.summarise(pairs, "claude-sonnet-5", "claude-opus-5")
     assert s["method"] == "model_vs_model"
-    assert "not correctness" in s["measures"] and "no human coding" in s["measures"]
+    assert "not correctness" in s["measures"] and "never publishes" in s["measures"] and "hand coding" in s["measures"]
     assert s["first_model"] == "claude-sonnet-5" and s["second_model"] == "claude-opus-5"
     assert s["n"] == 3 and s["n_bc"] == 3
     assert s["raw_agreement"] == 0.6667
@@ -104,7 +106,8 @@ def test_default_second_rater_is_sonnet_and_a_rerun_says_so():
     assert diff["method"] == "model_vs_model"
     from pipeline import export
     assert "same_model_rerun" in export.RELAY_QUALIFIER
-    assert "another model" in export.RELAY_QUALIFIER["same_model_rerun"]
+    assert "stability check, not a basis for publication" in export.RELAY_QUALIFIER["same_model_rerun"]
+    assert "same prompt" in export.RELAY_QUALIFIER["same_model_rerun"]
 
 
 # ---------------------------------------------------------------------------
@@ -308,3 +311,131 @@ def test_auto_never_raises(tmp_path, monkeypatch):
                     raise RuntimeError("api down")
     out = sr.auto(conn, submit=True, today=dt.date(2026, 10, 1), client=Broken())
     assert "api down" in out["error"] and out["submitted"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Both labels of a pair come from one prompt
+# ---------------------------------------------------------------------------
+
+OLD_PROMPT = "claude-sonnet-5 (prompt 2026-09-01)"
+
+
+def test_a_study_draws_only_first_labels_made_under_the_current_prompt(tmp_path, monkeypatch):
+    """The second rater judges with the current prompt. Against a first label from an older prompt the
+    pair measures the prompt change, not whether the model agrees with itself."""
+    conn = _db(tmp_path, monkeypatch)
+    _judged(conn, n=3, model_version=OLD_PROMPT, tag="old")
+    _judged(conn, n=2, model_version="claude-sonnet-5", tag="untagged")       # labelled before prompts were recorded
+    _judged(conn, n=4, tag="new")
+    assert len(sr.judged_rows(conn, with_body=True)) == 9
+    current = sr.judged_rows(conn, with_body=True, current_prompt=True)
+    assert len(current) == 4 and all(classify_llm.on_current_prompt(r["model_version"]) for r in current)
+
+
+def test_auto_waits_for_enough_labels_on_the_current_prompt(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch, n=6)                        # 6 current, the pool needs 10
+    _judged(conn, n=20, model_version=OLD_PROMPT, tag="old")               # plenty, all on the old prompt
+    client = _FakeClient()
+    today = dt.date(2026, 10, 1)
+    out = sr.auto(conn, submit=True, today=today, client=client)
+    assert out["submitted"] == 0 and not client.messages.batches.created
+    assert "current prompt" in out["skipped"] and "waits for 10" in out["skipped"]
+    state = sr.study_state(conn, today)
+    assert state["state"] == "waiting_for_labels" and state["pool"] == 6 and state["min_pool"] == 10
+    # forcing does not skip the wait either
+    assert sr.auto(conn, submit=True, force=True, today=today, client=client)["submitted"] == 0
+    # once relabelling has produced enough current labels, the study goes, and draws only those
+    _judged(conn, n=6, tag="relabelled")
+    out = sr.auto(conn, submit=True, today=today, client=client)
+    assert out["submitted"] == 10
+    sent = {int(r["custom_id"][len(sr.STUDY_PREFIX):]) for r in client.messages.batches.created[0]}
+    old_ids = {r["id"] for r in sr.judged_rows(conn) if not classify_llm.on_current_prompt(r["model_version"])}
+    assert sent and not (sent & old_ids)
+
+
+def test_a_study_records_its_prompt_and_pairs_only_labels_from_it(tmp_path, monkeypatch):
+    conn = _auto_setup(tmp_path, monkeypatch)
+    client = _FakeClient(answer="B")
+    today = dt.date(2026, 10, 1)
+    assert sr.auto(conn, submit=True, today=today, client=client)["submitted"] == 10
+    batch = conn.execute("SELECT model_version FROM llm_batches").fetchone()[0]
+    assert classify_llm.prompt_version_of(batch) == classify_llm.PROMPT_VERSION
+    # While the batch ran, one first label was replaced by a label from another prompt: it drops out.
+    sent = [int(r["custom_id"][len(sr.STUDY_PREFIX):]) for r in client.messages.batches.created[0]]
+    store.insert_classification(conn, sent[0], "llm", "C", 0.9, model_version=OLD_PROMPT)
+    conn.commit()
+    out = sr.auto(conn, submit=False, today=today, client=client)
+    assert out["collected"]["state"] == "recorded" and out["collected"]["pairs"] == 9
+    assert out["collected"]["method"] == "same_model_rerun", "the prompt tag is not part of the model's name"
+    study = store.latest_model_agreement(conn)
+    assert study["model_b"] == "claude-sonnet-5"
+    assert json.loads(study["details"])["prompt_version"] == classify_llm.PROMPT_VERSION
+    assert sr.study_prompt_version(study) == classify_llm.PROMPT_VERSION and sr.study_on_current_prompt(study)
+    assert sr.study_needed(conn, 12) is None
+
+
+def _record_study(conn, prompt_version="absent", computed_at=None, kappa_bc=0.41, by_language=None):
+    details = {"bc_by_language": by_language or {}}
+    if prompt_version != "absent":
+        details["prompt_version"] = prompt_version
+    sid = store.record_model_agreement(conn, {"method": "same_model_rerun", "model_a": config.LLM_MODEL,
+                                              "model_b": config.LLM_MODEL, "sample_size": 225, "kappa_all": 0.7,
+                                              "kappa_bc": kappa_bc, "n_bc": 116, "details": details}, [])
+    if computed_at:
+        conn.execute("UPDATE model_agreement_studies SET computed_at=? WHERE id=?", (computed_at, sid))
+        conn.commit()
+    return store.latest_model_agreement(conn)
+
+
+def test_which_studies_are_on_the_current_prompt(tmp_path, monkeypatch):
+    conn = _db(tmp_path, monkeypatch)
+    assert sr.study_on_current_prompt(_record_study(conn, classify_llm.PROMPT_VERSION))
+    assert not sr.study_on_current_prompt(_record_study(conn, "2026-09-01"))
+    assert not sr.study_on_current_prompt(_record_study(conn, None)), "a study whose prompt is unknown is history"
+    # recorded before studies kept their prompt: dated by when it was computed
+    assert not sr.study_on_current_prompt(_record_study(conn, computed_at="2026-10-09T02:29:14+00:00"))
+    assert sr.study_needed(conn, 500) == "the classifier prompt changed"
+    assert sr.study_on_current_prompt(_record_study(conn, computed_at=classify_llm.PROMPT_VERSION + "T08:00:00+00:00"))
+
+
+def test_the_export_shows_a_study_on_an_older_prompt_as_history(tmp_path, monkeypatch):
+    """A failing stability check made under an older prompt neither withholds the counts nor vetoes a
+    language, and is not given as the current stability figure."""
+    from pipeline import agreement, export
+    monkeypatch.setattr(agreement, "REVIEWS_DIR", tmp_path / "reviews")
+    conn = _db(tmp_path, monkeypatch)
+    _judged(conn, n=2)
+    _record_study(conn, "2026-09-01", kappa_bc=0.41, by_language={"it": {"kappa": 0.2, "n": 40}})
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["relay_reliability"] is None
+    hist = meta["relay_reliability_history"]
+    assert hist["stale"] is True and hist["prompt_version"] == "2026-09-01" and hist["kappa_bc"] == 0.41
+    assert meta["relay_provisional"] is True and meta["relay_withheld_languages"] == []
+    assert export._relay_unstable(conn) is False
+    # the same check made under the current prompt is the current figure, and withholds
+    _record_study(conn, classify_llm.PROMPT_VERSION, kappa_bc=0.41, by_language={"it": {"kappa": 0.2, "n": 40}})
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["relay_reliability_history"] is None
+    rr = meta["relay_reliability"]
+    assert rr["stale"] is False and rr["prompt_version"] == classify_llm.PROMPT_VERSION
+    assert meta["relay_provisional"] is False and meta["relay_withheld_languages"] == ["it"]
+    assert export._relay_unstable(conn) is True
+
+
+def test_the_second_rater_gets_the_lookalike_context_the_first_had(tmp_path, monkeypatch):
+    """An article the rules sent for nearly repeating a state origin item reaches the first rater with
+    that item's outlet and headline. The second rater, in both paths, must see the same message."""
+    conn = _auto_setup(tmp_path, monkeypatch)
+    trig = json.dumps({"lookalike": {"article_id": 999, "outlet": "Xinhua Italia", "title": "Grain output hits record"}})
+    conn.execute("UPDATE articles SET llm_trigger=?", (trig,))
+    conn.commit()
+    rows = sr.judged_rows(conn, with_body=True, current_prompt=True)
+    expected = classify_llm.request_params(rows[0]["title"], store.load_body(rows[0]["url_hash"]),
+                                           classify_llm.lookalike_context(rows[0]))["messages"][0]["content"]
+    assert "Xinhua Italia" in expected and "Grain output hits record" in expected
+    client = classify_llm.DryRunClient(answer=lambda body: "A")
+    sr.rejudge(conn, rows[:1], "claude-sonnet-5", client=client, dry_run=True)
+    assert client.calls[0]["messages"][0]["content"] == expected
+    batches = _FakeClient()
+    assert sr.submit_study(conn, batches, rows[:1], "claude-sonnet-5") == 1
+    assert batches.messages.batches.created[0][0]["params"]["messages"][0]["content"] == expected

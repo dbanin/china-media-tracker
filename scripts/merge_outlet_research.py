@@ -34,7 +34,7 @@ import yaml  # noqa: E402
 from pipeline import registry  # noqa: E402
 
 LEANINGS = {"left", "centre_left", "centre", "centre_right", "right", "state_controlled", "unassessed"}
-OWNERSHIP = {"private", "public_service", "state", "party", "unassessed"}
+OWNERSHIP = {"private", "public_service", "state_funded_international", "state", "party", "unassessed"}
 STANCES = {"pro_government", "independent", "opposition", "unassessed"}
 # A stance is toward the government of the day; older sources may describe a government since replaced.
 STANCE_OLDEST_YEAR = 2023

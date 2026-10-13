@@ -88,5 +88,103 @@
   "date": "2026-09-02",
   "title": "Atirador deixa dois mortos e vários feridos, incluindo policiais, em Minneapolis, nos EUA | G1",
   "chars": 1660
+ },
+ {
+  "name": "en_sg_straitstimes_ppr_xinhua",
+  "url": "https://www.straitstimes.com/paid-press-releases/xinhua-silk-road-chinese-youths-explore-mazu-culture-in-trendy-ways-20260929",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-29",
+  "title": "Xinhua Silk Road: Chinese youths explore Mazu culture in trendy ways",
+  "chars": 2201,
+  "note": "Straits Times paid press release: the release is only in the page's React Router payload (htmlContent). Before 2026-10-12 extraction returned the 250 character header."
+ },
+ {
+  "name": "en_sg_straitstimes_ppr_bureau",
+  "url": "https://www.straitstimes.com/paid-press-releases/hangzhou-investment-promotion-bureau-hangzhou-finds-a-gateway-to-the-sea-in-hong-kong-20260929",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-29",
+  "title": "Hangzhou Investment Promotion Bureau: Hangzhou Finds a \"Gateway to the Sea\" in Hong Kong",
+  "chars": 3596,
+  "note": "Same template as en_sg_straitstimes_ppr_xinhua, a release issued by a municipal government bureau."
+ },
+ {
+  "name": "en_id_antara_release",
+  "url": "https://en.antaranews.com/news/434130/hangzhou-investment-promotion-bureau-hangzhou-finds-a-gateway-to-the-sea-in-hong-kong",
+  "language": "en",
+  "author": null,
+  "date": "2026-10-05",
+  "title": "Hangzhou Investment Promotion Bureau: Hangzhou Finds a \"Gateway to the Sea\" in Hong Kong",
+  "chars": 3599,
+  "note": "Antara English: the opening paragraph, which carries the (ANTARA/PRNewswire) stamp, is bare text ahead of the first br and was dropped before 2026-10-12."
+ },
+ {
+  "name": "en_af_afintl_related_card",
+  "url": "https://www.afintl.com/en/202609023941",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-02",
+  "title": "Regional Peace Is Impossible While Terrorists Use Afghan Soil, Says Pakistan PM",
+  "chars": 2835,
+  "note": "Afghanistan International: a RelatedArticleCard holds another story's full text and was extracted in place of the article before 2026-10-12 (extract.PRUNE_XPATH)."
+ },
+ {
+  "name": "en_my_nst_embedded",
+  "url": "https://www.nst.com.my/news/nation/2026/09/1525236/missing-malaysians-families-seek-urgent-meeting-anwar",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-03",
+  "title": "Missing Malaysians: Families seek urgent meeting with Anwar",
+  "chars": 2250,
+  "note": "New Straits Times: the article is passed to a Vue component as an :article attribute; the served page held only menus before 2026-10-12 (extract.embedded_article)."
+ },
+ {
+  "name": "ms_my_hmetro_embedded",
+  "url": "https://www.hmetro.com.my/mutakhir/2026/09/1406123/banjir-nepal-kaunselor-fasih-tamil-diperlukan-bantu-keluarga-rakyat",
+  "language": "ms",
+  "author": null,
+  "date": "2026-09-03",
+  "title": "Banjir Nepal: Kaunselor fasih Tamil diperlukan bantu keluarga rakyat Malaysia hilang",
+  "chars": 2518,
+  "note": "Harian Metro, same New Straits Times Press template as en_my_nst_embedded."
+ },
+ {
+  "name": "en_au_lowy_prose_blocks",
+  "url": "https://www.lowyinstitute.org/the-interpreter/canberra-will-be-a-proving-ground-for-liu-jinsong-s-promotion-path",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-17",
+  "title": "Canberra will be a proving ground for Liu Jinsong’s promotion path",
+  "chars": 4471,
+  "note": "Lowy Interpreter: the article is split over several div.prose.dark:prose-invert blocks; extraction returned the standfirst before 2026-10-12 (extract.prose_blocks_html)."
+ },
+ {
+  "name": "en_au_7news_page_data",
+  "url": "https://7news.com.au/news/world/fitness-influencer-caught-cheating-at-berlin-marathon-after-hitching-ride-on-bike-during-race-c-22985359",
+  "language": "en",
+  "author": "Zach Margolius",
+  "date": "2026-10-08",
+  "title": "Fitness influencer caught cheating during Berlin marathon",
+  "chars": 1969,
+  "embedded_source": [
+   "PerthNow",
+   true
+  ],
+  "note": "7NEWS (Seven West Media): the article's own source is only in window.PAGE_DATA, on the object whose id is the URL's c-ID (C-22985359, source PerthNow, a house name). A related card on the same page carries a photo credit \"AP, Xinhua\", which must not be read as the article's source (extract.embedded_source)."
+ },
+ {
+  "name": "en_au_perthnow_page_data",
+  "url": "https://www.perthnow.com.au/news/politics/tung-chee-hwa-hk-first-leader-under-china-dies-at-89-c-22843175",
+  "language": "en",
+  "author": null,
+  "date": "2026-09-08",
+  "title": "Tung Chee-hwa, HK first leader under China, dies at 89",
+  "chars": 3651,
+  "embedded_source": [
+   "Reuters",
+   false
+  ],
+  "note": "PerthNow (Seven West Media): Reuters copy bylined Staff Writers; the source is in window.PAGE_DATA (C-22843175, source Reuters) and never in the body, and the fetch stage credits it beside the desk byline as \"Staff Writers; Reuters\" (extract.embedded_source, extract.wire_author)."
  }
 ]

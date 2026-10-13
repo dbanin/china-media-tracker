@@ -1,12 +1,66 @@
 # Maintained list of Chinese diplomatic personnel used by the authored-by-state
-# signature group. An author field that matches a name here, together with a
-# diplomatic title regex anywhere in the author field, head or tail of the
-# piece, is a strong Category A signature. Names alone are not enough, because
-# a reporter can share a name with a diplomat.
+# signature group. A name is matched whole, between word boundaries, or as it
+# stands in a script written without spaces. It is never matched inside a
+# hyphenated or longer name: "Wang Yu" is not found in "Wang Yu-ting", nor
+# "Chen Li" in "Yu-chen Li".
 #
-# Keep this current. Each entry: name (as printed in Latin script), post, note.
-# Postings change; a stale entry only weakens recall, it does not create false
-# positives, because the title regex must also fire.
+# A listed name in the author field is a strong state origin signature
+# (diplomat_list_author) only when a diplomatic title describes that person and
+# makes them China's diplomat. The title can be in the author field itself; on
+# the byline line at the top of the body naming the same person; in a bio line
+# in the head, tail or page labels that names the same person or speaks of the
+# author ("Xiao Qian is the Chinese ambassador to Australia", "The writer is the
+# Chinese Ambassador to Pakistan", a "*Embajador de China en Mexico" footnote
+# under an author field marked "*"); on a title line of its own directly under
+# the name ("Zhang Yang" and then "Embaixador da República Popular da China em
+# Cabo Verde"); or next to the name in an opinion or commentary section
+# ("Chinese Ambassador Chen Daojiang"). A title found elsewhere in the head, tail
+# or labels does not count (until ruleset 2026.10.1 it did).
+#
+# The title is China's when the words bound to it name China ("Chinese
+# Ambassador", "Ambassador of the People's Republic of China", "Embajador de
+# China"). China as the host country does not count, and a title that names
+# another country never counts: "Li Dong, Ambassador of Singapore" and "By Li
+# Dong, Ambassador of Singapore to China" do not fire. A title that names no
+# country ("Ambassador") counts when its line names a Chinese embassy or
+# consulate, or, for a title in the author field only, when the page labels or
+# the head of the body name China.
+#
+# When the author field is empty, a byline line at the top of the body ("By Liu
+# Jinsong, Chinese Ambassador to Australia") that names someone here with China's
+# diplomatic title on the same line fires the same signature. The regex signature
+# diplomat_byline_head in signatures.yaml runs the same China check on its match
+# (post_check: title_is_chinese). A listed name in the author field with no such
+# title is a weak signal (diplomat_list_name_only) that sends the article to the
+# model, because a reporter can share a name with a diplomat. A listed name in a
+# body byline with no such title fires nothing.
+#
+# Keep this current. Each entry: name (as printed in Latin script), post, note,
+# and source (a page confirming the post; entries checked on 2026-10-12 carry one).
+# native lists the same name as printed in another script, matched exactly like
+# name, with native_source the page that prints it: the embassy site's page in
+# that language where it has one, otherwise a news report in that language.
+# Postings change; a stale entry only weakens recall.
+#
+# What these rules protect against: a namesake (Xiao Qian, Wang Yu, Li Dong and
+# Chen Xu are common names) whose piece mentions an ambassador, whose own bio line
+# gives another job, or who signs as another country's diplomat. What they do not
+# protect against: a namesake whose piece names the listed diplomat with China's
+# title in one of the places read above. A commentator called Wang Yu whose
+# opinion piece mentions "Chinese Ambassador Wang Yu" fires, and so does a
+# reporter called Wang Yu whose story opens "Wang Yu, Chinese Ambassador to
+# Australia, said", because the code cannot tell that the title belongs to
+# someone other than the author. A new entry with a very common name therefore
+# deserves a look at the author fields it matches.
+#
+# Former post-holders stay listed, with "former" in post. Matching reads the name
+# only, never post, so a piece signed by a diplomat who has since left the post
+# still matches; a signed piece published while in post is state origin whenever
+# it is collected. There are no dates: a former diplomat's byline that also
+# carries China's diplomatic title matches as strongly as a serving one's.
+#
+# The list is part of the ruleset: a change here relabels, so bump ruleset_version
+# in signatures.yaml and config.RULESET_VERSION with a CHANGELOG entry.
 #
 # Source for updates: fmprc.gov.cn mission lists, embassy websites.
 personnel:
@@ -19,8 +73,6 @@ personnel:
     post: MFA spokesperson
   - name: Wang Wenbin
     post: former MFA spokesperson, ambassador to Cambodia
-  - name: Hua Chunying
-    post: MFA assistant minister, former spokesperson
   - name: Zhao Lijian
     post: former MFA spokesperson
   # Ministers
@@ -31,199 +83,975 @@ personnel:
   - name: Sun Weidong
     post: vice foreign minister
   - name: Deng Li
-    post: vice foreign minister
+    post: ambassador to France, former vice foreign minister
+    source: https://fr.china-embassy.gov.cn/fra/zfzj/202609/t20260925_12031016.htm
   - name: Hua Chunying
-    post: assistant foreign minister
+    post: vice foreign minister (appointed 2024-05-27), former assistant foreign minister (2021 to 2024) and former MFA spokesperson
+    source: https://www.mfa.gov.cn/eng/xw/wjbxw/202607/t20260703_11974770.html
+    note: Appointment reported by the State Council, https://english.www.gov.cn/news/202405/27/content_WS665405a9c6d0868f4e8e7825.html. Was listed twice (spokesperson and ministers sections); merged into this entry.
   # Ambassadors to the study countries and other frequently published posts
   - name: Xiao Qian
-    post: ambassador to Australia
+    post: former ambassador to Australia (January 2022 to August 2026)
+    source: https://www.globaltimes.cn/page/202608/1368902.shtml
+  - name: Liu Jinsong
+    post: ambassador to Australia (assumed post 2026-08-24)
+    source: https://www.globaltimes.cn/page/202608/1368902.shtml
+    note: Also https://au.china-embassy.gov.cn/eng/dshd/202610/t20261008_12036136.htm (embassy, 2026-10-08). Signed op-ed in the Australian Financial Review on 2026-09-16.
+  - name: Wang Yu
+    post: consul-general in Sydney
+    source: https://sydney.china-consulate.gov.cn/eng/zlgdt/202609/t20260929_12033102.htm
+    note: The ambassador to Somalia is also romanised Wang Yu (a different name in Chinese), per https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/201410/t20141015_7679819.shtml; matching reads the Latin name, so this entry covers both.
+  - name: Fang Xinwen
+    post: consul-general in Melbourne
+    source: https://melbourne.china-consulate.gov.cn/eng/zlghd/202610/t20261008_12036266.htm
+  - name: Sun Zhaoyang
+    post: consul-general in Brisbane
+    source: https://brisbane.china-consulate.gov.cn/eng/gywm/zlgxw/202610/t20261009_12037360.htm
+  - name: Fu Lihua
+    post: consul-general in Perth
+    source: https://perth.china-consulate.gov.cn/eng/zlgdt/202610/t20261001_12034775.htm
+    note: Signed article in The West Australian on 2026-10-01, per the consulate page above.
+  - name: Wang Fengzhong
+    post: acting consul-general in Perth
+    source: https://perth.china-consulate.gov.cn/eng/zlgdt/202610/t20261008_12036555.htm
+  - name: Li Dong
+    post: consul-general in Adelaide
+    source: https://www.governor.sa.gov.au/vice-regal/daily-program/friday-30-january-2026
+    note: Named as consul-general in January 2026; in October 2026 the consulate is headed by an acting consul-general.
+  - name: Wang Hongsun
+    post: acting consul-general in Adelaide
+    source: https://adelaide.china-consulate.gov.cn/eng/zlgxw/202610/t20261006_12035810.htm
   - name: Wang Di
     post: ambassador to Canada
+    source: https://ca.china-embassy.gov.cn/eng/sgxw/202610/t20261010_12037725.htm
   - name: Jia Guide
-    post: ambassador to Italy
+    post: permanent representative to the UN Office at Geneva (credentials presented 2025-12-22), former ambassador to Italy (2022 to 2025), former ambassador to Peru (2015 to 2019)
+    source: https://www.ungeneva.org/en/news-media/presentation-of-credentials/2025/12/new-permanent-representative-china-presents
+    note: Succeeded in Italy by Hou Yue, https://it.china-embassy.gov.cn/ita/xwdt/202610/t20261010_12037662.htm. Was listed twice (Italy and Peru); the UN Geneva release gives both posts for the same person, so the entries are merged into this one.
+  - name: Hou Yue
+    post: ambassador to Italy (credentials presented 2026-09-29), former ambassador to Norway
+    source: https://it.china-embassy.gov.cn/ita/xwdt/202610/t20261010_12037662.htm
   - name: Cong Peiwu
-    post: former ambassador to Canada
+    post: ambassador to Iran, former ambassador to Canada
+    source: http://ir.china-embassy.gov.cn/sgzc/202610/t20261008_12036767.htm
   - name: Cheng Jingye
     post: former ambassador to Australia
   - name: Li Junhua
     post: former ambassador to Italy
   - name: Zheng Zeguang
     post: ambassador to the United Kingdom
+    source: http://gb.china-embassy.gov.cn/dshdjjh/202609/t20260930_12033686.htm
   - name: Xie Feng
     post: ambassador to the United States
+    source: https://us.china-embassy.gov.cn/eng/dshd/202610/t20261004_12035572.htm
   - name: Lu Shaye
     post: former ambassador to France, special envoy
-  - name: Wang Lutong
-    post: ambassador to New Zealand
   - name: Fu Cong
     post: permanent representative to the United Nations, former ambassador to the EU
   - name: Cai Run
-    post: ambassador to the European Union
+    post: head of the mission to the European Union (arrived September 2024), former ambassador to Israel (2021 to 2024), former ambassador to Portugal (2015 to 2021)
+    source: http://eu.china-mission.gov.cn/dshd/202607/t20260714_11982277.htm
+    note: Succeeded in Israel by Xiao Junzheng, https://www.mfa.gov.cn/eng/xw/zyxw/202501/t20250113_11532616.html, and in Portugal by Zhao Bentang in 2021, https://www.gcs.gov.mo/detail/en/M25FEIJfaV. Was listed twice (EU and Portugal); one person, merged into this entry.
   - name: Wu Ken
-    post: ambassador to Germany
+    post: former ambassador to Germany
   - name: Deng Hongbo
     post: ambassador to Germany
+    source: https://de.china-embassy.gov.cn/dshd_148970/202610/t20261007_12036025.htm
   - name: Chen Dong
-    post: ambassador to France
-  - name: Zhang Run
-    post: ambassador to Ireland
+    post: former ambassador to the Central African Republic (succeeded by Li Qinfeng, February 2023)
+    source: https://ug.china-embassy.gov.cn/eng/zgxw/202302/t20230214_11024827.htm
+    note: Never ambassador to France (Deng Li is).
   - name: He Xiangdong
-    post: ambassador to Ireland
+    post: former ambassador to Ireland (to November 2024)
+    source: https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html
+    note: Replaced in Ireland by Zhao Xiyuan per the notice above (2024-11-26).
+  - name: Zhao Xiyuan
+    post: ambassador to Ireland (appointed November 2024)
+    source: http://ie.china-embassy.gov.cn/sggg/202609/t20260929_12032805.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html (replacing He Xiangdong).
   - name: Zhang Jianmin
-    post: ambassador to the Czech Republic
+    post: consul-general in San Francisco, former ambassador to the Czech Republic
+    source: http://sanfrancisco.china-consulate.gov.cn/zlghd/202610/t20261001_12035105.htm
+    note: The consul-general is probably the same person as the former ambassador; not confirmed. The ambassador to the Czech Republic is Zhou Qian.
   - name: Feng Biao
-    post: ambassador to the Czech Republic
+    post: former ambassador to the Czech Republic (succeeded by Zhou Qian, September 2026)
+    source: http://cz.china-embassy.gov.cn/sghd/202609/t20260925_12031464.htm
   - name: Wang Xiaolong
     post: ambassador to New Zealand
-  - name: Zhang Yiming
-    post: ambassador to Namibia
+    source: http://nz.china-embassy.gov.cn/zxgx/202610/t20261005_12035604.htm
   - name: Chen Xiaodong
-    post: ambassador to South Africa
+    post: former ambassador to South Africa (succeeded by Wu Peng)
+    source: http://za.china-embassy.gov.cn/dshd/202610/t20261001_12034926.htm
   - name: Wu Peng
     post: ambassador to South Africa
+    source: http://za.china-embassy.gov.cn/dshd/202610/t20261001_12034926.htm
   - name: Zhu Jing
-    post: ambassador to Kenya
+    post: former ambassador to Kenya (unverified)
+    source: http://ke.china-embassy.gov.cn/zxyw/202610/t20261001_12034673.htm
+    note: Not in post on 2026-10-12, when the ambassador is Guo Haiyan per the source. No record of Zhu Jing holding this post was found on the pages checked; kept for the owner to check.
   - name: Guo Haiyan
-    post: ambassador to Kenya
+    post: ambassador to Kenya (appointed January 2025)
+    source: http://ke.china-embassy.gov.cn/zxyw/202610/t20261001_12034673.htm
   - name: Zhao Zhiyuan
-    post: ambassador to Ethiopia
+    post: former ambassador to Ethiopia (succeeded by Chen Hai)
+    source: http://et.china-embassy.gov.cn/zagx/202609/t20260928_12032750.htm
   - name: Wei Hongtian
-    post: ambassador to Nigeria
+    post: former ambassador to Grenada (late 2020 to July 2025, four years and seven months), former ambassador to Somalia (from 2014)
+    source: https://gd.china-embassy.gov.cn/eng/gywm_1/dsjhjwz/202507/t20250731_11680151.htm
+    note: Never ambassador to Nigeria (Yu Dunhai is). Succeeded in Grenada by Yang Shu in 2025.
   - name: Yu Dunhai
     post: ambassador to Nigeria
+    source: https://ng.china-embassy.gov.cn/eng/zngx/cne/202610/t20261008_12036842.htm
   - name: Wang Xiaojun
-    post: ambassador to Ghana
+    post: former ambassador to Ghana (unverified)
+    source: http://gh.china-embassy.gov.cn/xwdt/202609/t20260903_12015211.htm
+    note: Not in post on 2026-10-12, when the ambassador is Cong Song per the source. No record of Wang Xiaojun holding this post was found on the pages checked; kept for the owner to check.
   - name: Lu Kun
-    post: ambassador to Ghana
+    post: former ambassador to Ghana
+    source: http://gh.china-embassy.gov.cn/xwdt/202609/t20260903_12015211.htm
+    note: The ambassador is Cong Song, appointed in 2026 to replace Tong Defa, per the source and https://www.fmprc.gov.cn/eng/xw/zyxw/202605/t20260520_11914691.html.
   - name: Chen Mingjian
     post: ambassador to Tanzania
+    source: http://tz.china-embassy.gov.cn/sgdt/202610/t20261009_12037306.htm
   - name: Zhang Jianguo
-    post: ambassador to Uganda
+    post: no Chinese diplomatic post found (was listed as ambassador to Uganda)
+    source: http://ug.china-embassy.gov.cn/sgxx/lrds/
+    note: Not among the ambassadors to Uganda on the embassy's list (Zhang Lizhong 2021 to January 2026, Wu Guangrong from August 2026). Kept for the owner to check.
   - name: Wang Xuefeng
-    post: ambassador to Zimbabwe
+    post: ambassador to Denmark
+    source: http://dk.china-embassy.gov.cn/zdjl/202610/t20261001_12034635.htm
+    note: Was listed as ambassador to Zimbabwe, which he never was per the embassy's list of ambassadors, http://zw.china-embassy.gov.cn/dsxx/lrds/ (Guo Shaochun 2019 to 2022, then Zhou Ding).
   - name: Zhou Ding
-    post: ambassador to Zimbabwe
+    post: ambassador to Zimbabwe (since 2023)
+    source: http://zw.china-embassy.gov.cn/xwdt/202609/t20260920_12026498.htm
   - name: Du Xiaohui
-    post: ambassador to Zambia
+    post: former ambassador to Zambia (succeeded by Han Jing, August 2024)
+    source: http://zm.china-embassy.gov.cn/eng/dsxxx/dsjl_132020/202408/t20240807_11467161.htm
   - name: Han Jing
-    post: ambassador to Zambia
+    post: ambassador to Zambia (arrived 2024-08-06), former ambassador to Suriname (August 2021 to 2024)
+    source: http://zm.china-embassy.gov.cn/eng/dsxxx/dsjl_132020/202408/t20240807_11467161.htm
+    note: Still in post in Zambia in October 2026, http://zm.china-embassy.gov.cn/eng/dshdyjh/202610/t20261009_12037176.htm. Replaced in Suriname by Lin Ji, https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html; Surinamese press reported the end of his three-year term in Suriname in July 2024, https://www.srherald.com/suriname/2024/07/12/ambassadeur-han-jing-prijst-nauwe-samenwerking-tussen-china-en-suriname. One person in both posts.
+  - name: Lin Ji
+    post: ambassador to Suriname (appointed November 2024)
+    source: http://sr.china-embassy.gov.cn/sbgxyw/202607/t20260703_11974216.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html (replacing Han Jing). The page above reports an article he signed in Surinamese media in July 2026. A short name (two syllables, common surname).
   - name: Yu Bo
-    post: ambassador to Malawi
-  - name: Wang Wei
-    post: ambassador to Mozambique
+    post: ambassador to Honduras
+    source: http://hn.china-embassy.gov.cn/sgxw/202610/t20261003_12035404.htm
+    note: Was listed as ambassador to Malawi (the ambassador is Lu Xu); no record of that post found. A short name (two syllables), so namesakes are likely.
   - name: Xu Jie
-    post: ambassador to Rwanda
+    post: former ambassador to Rwanda (unverified)
+    source: http://rw.china-embassy.gov.cn/sgxw/202609/t20260926_12031476.htm
+    note: Not in post on 2026-10-12, when the ambassador is Gao Wenqi per the source. No record of Xu Jie holding this post was found on the pages checked; kept for the owner to check.
   - name: Wang Wen
-    post: ambassador to Rwanda
+    post: former ambassador to Rwanda (unverified)
+    source: http://rw.china-embassy.gov.cn/sgxw/202609/t20260926_12031476.htm
+    note: Not in post on 2026-10-12, when the ambassador is Gao Wenqi per the source. No record of Wang Wen holding this post was found on the pages checked; kept for the owner to check.
   - name: Zhang Ming
-    post: ambassador to Russia
+    post: former head of the mission to the European Union (2017 to 2021), former SCO secretary-general (2022 to 2024), former vice foreign minister
+    source: http://eu.china-mission.gov.cn/eng/mh/202112/t20211218_10471570.htm
+    note: Never ambassador to Russia (Zhang Hanhui is). SCO post per https://eng.sectsco.org/20231127/1169264.html.
   - name: Zhang Hanhui
     post: ambassador to Russia
+    native: ["Чжан Ханьхуэй"]
+    native_source: ["https://ru.china-embassy.gov.cn/rus/"]
+    source: https://ru.china-embassy.gov.cn/rus/dshd/202609/t20260929_12033591.htm
   - name: Fan Xianrong
-    post: ambassador to Ukraine
+    post: former ambassador to Ukraine
   - name: Ma Shengkun
     post: ambassador to Ukraine
+    native: ["Ма Шенкунь"]
+    native_source: ["http://ua.china-embassy.gov.cn/rus/"]
+    source: http://ua.china-embassy.gov.cn/sgdt/202609/t20260929_12032887.htm
   - name: Huang Xilian
-    post: ambassador to the Philippines
+    post: former ambassador to the Philippines (succeeded by Jing Quan)
+    source: http://ph.china-embassy.gov.cn/sgdt/202607/t20260731_11996385.htm
   - name: Lu Kang
-    post: ambassador to Indonesia
+    post: former ambassador to Indonesia
   - name: Wang Lutong
-    post: ambassador to Indonesia
+    post: ambassador to Indonesia (appointed November 2024), former ambassador to New Zealand (2013 to 2017)
+    source: http://id.china-embassy.gov.cn/indo/sgyw/202609/t20260901_12013962.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html (replacing Lu Kang). New Zealand post per http://nz.china-embassy.gov.cn/eng/zxgx/201707/t20170728_883844.htm. Was listed twice (Indonesia and New Zealand); merged into this entry.
   - name: Ouyang Yujing
-    post: ambassador to Malaysia
+    post: ambassador to Malaysia (farewell calls in October 2026)
+    source: http://my.china-embassy.gov.cn/tpxw/202610/t20261003_12035475.htm
   - name: Han Zhiqiang
-    post: ambassador to Thailand
+    post: former ambassador to Thailand (from 2021, succeeded by Zhang Jianwei)
+    native: ["หาน จื้อเฉียง"]
+    native_source: ["https://www.dailynews.co.th/articles/3586559/"]
+    source: http://th.china-embassy.gov.cn/ztgx/lrds/
   - name: Wang Wentian
-    post: ambassador to Cambodia
+    post: former ambassador to Cambodia (succeeded by Wang Wenbin)
+    source: http://kh.china-embassy.gov.cn/dssghd/202609/t20260908_12018158.htm
   - name: Xiong Bo
-    post: ambassador to Vietnam
+    post: former ambassador to Vietnam (succeeded by He Wei)
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200505/t20050526_7679677.shtml
   - name: He Wei
     post: ambassador to Vietnam
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200505/t20050526_7679677.shtml
+    note: In September 2026 the embassy was headed by the charge d'affaires Wang Qun.
   - name: Chen Song
-    post: ambassador to Nepal
+    post: former ambassador to Nepal (succeeded by Zhang Maoming)
+    source: http://np.china-embassy.gov.cn/xwdt/202610/t20261005_12035633.htm
   - name: Jiang Zaidong
     post: ambassador to Pakistan
+    source: http://pk.china-embassy.gov.cn/zbgx/202610/t20261008_12036800.htm
   - name: Xu Feihong
     post: ambassador to India
+    source: https://in.china-embassy.gov.cn/eng/embassy_news/202609/t20260924_12030701.htm
   - name: Yao Wen
     post: ambassador to Bangladesh
+    source: http://bd.china-embassy.gov.cn/dshd/202608/t20260825_12010165.htm
   - name: Qi Zhenhong
-    post: ambassador to Sri Lanka
-  - name: Wang Xiaotao
-    post: ambassador to Brazil
+    post: former ambassador to Sri Lanka (succeeded by Wei Huaxiang), former ambassador to Bahrain (2015 to 2017)
+    source: http://bh.china-embassy.gov.cn/dsxx/lrds/
+    note: Sri Lanka per http://lk.china-embassy.gov.cn/dssghd/202610/t20261010_12038166.htm.
   - name: Zhu Qingqiao
     post: ambassador to Brazil
+    source: https://br.china-embassy.gov.cn/por/sghds/202608/t20260819_12006374.htm
   - name: Zhang Run
-    post: ambassador to Mexico
+    post: former ambassador to Mexico (to July 2025)
+    source: https://www.mfa.gov.cn/eng/xw/xrds/202507/t20250714_11670288.html
+    note: Replaced in Mexico by Chen Daojiang per the notice above. A Zhang Run has headed the foreign ministry's Department of Latin American and Caribbean Affairs since at least December 2025, https://www.mfa.gov.cn/wjb_673085/zzjg_673183/ldmzs_673663/xwlb_673665/202512/t20251210_11770431.shtml, probably the same person. Never ambassador to Ireland (He Xiangdong, then Zhao Xiyuan from November 2024, https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html). Was listed twice (Mexico and Ireland); merged into this entry.
   - name: Chen Daojiang
     post: ambassador to Mexico
+    source: https://mx.china-embassy.gov.cn/esp/dshd/202610/t20261001_12034737.htm
   - name: Wang Wei
-    post: ambassador to Argentina
+    post: ambassador to Argentina (since September 2023)
+    source: http://ar.china-embassy.gov.cn/sgxw/202609/t20260917_12024895.htm
+    note: Start date per the embassy list of ambassadors, http://ar.china-embassy.gov.cn/sgxx/lrds/201501/t20150119_4922394.htm. Never ambassador to Mozambique (Wang Hejun, then Zheng Xuan from July 2025, https://www.mfa.gov.cn/eng/xw/xrds/202507/t20250714_11670288.html). Was listed twice (Argentina and Mozambique); merged into this entry. A common name.
   - name: Niu Qingbao
     post: ambassador to Chile
+    source: http://cl.china-embassy.gov.cn/sgxw/202610/t20261007_12036028.htm
   - name: Song Yang
     post: ambassador to Peru
+    source: http://pe.china-embassy.gov.cn/sgxw/202609/t20260925_12031158.htm
   - name: Zhu Jingyang
     post: ambassador to Colombia
+    source: http://co.china-embassy.gov.cn/sgxwfb/202609/t20260924_12030124.htm
   - name: Chen Weiqing
-    post: ambassador to Saudi Arabia
+    post: former ambassador to Saudi Arabia (2019 to 2024, succeeded by Chang Hua)
+    source: http://sa.china-embassy.gov.cn/dsxx/lrds/
   - name: Zhang Yiming
-    post: ambassador to the United Arab Emirates
+    post: former ambassador to the United Arab Emirates (2022 to 2026), former ambassador to Namibia (2017 to 2022)
+    source: https://www.fmprc.gov.cn/eng/xw/zyxw/202605/t20260520_11914691.html
+    note: Replaced in the UAE by Zeng Jixin per the notice above (announced 2026-04-21). Both posts for the same person per https://www.bjnews.com.cn/detail/1653807137168347.html (2022-05-29). Was listed twice (UAE and Namibia); merged into this entry.
+  - name: Zeng Jixin
+    post: ambassador to the United Arab Emirates (appointed 2026, replacing Zhang Yiming)
+    source: https://www.fmprc.gov.cn/eng/xw/zyxw/202605/t20260520_11914691.html
+    note: The UAE foreign ministry received a copy of his credentials on 2026-03-10, https://www.mofa.gov.ae/en/mediahub/news/2026/3/10/uae-china, and the UAE President received his credentials in April 2026, https://www.mohamedbinzayed.ae/en/latest-news-listing/2026/04/UAE-President-receives-credentials-of-newly-appointed-ambassadors. Signed an op-ed in The National on 2026-09-15.
   - name: Zhang Jianwei
-    post: ambassador to Egypt
+    post: ambassador to Thailand
+    native: ["จาง เจี้ยนเว่ย"]
+    native_source: ["https://www.dailynews.co.th/news/5281809/"]
+    source: http://th.china-embassy.gov.cn/sgxw/202609/t20260930_12034336.html
+    note: Signed an article in the Thai press in September 2026, per the source. Was listed as ambassador to Egypt (Liao Liqiang is); no record of that post found.
   - name: Liao Liqiang
     post: ambassador to Egypt
+    native: ["لياو ليتشيانغ"]
+    native_source: ["https://eg.china-embassy.gov.cn/ara/"]
+    source: http://eg.china-embassy.gov.cn/sgxw/202609/t20260920_12027153.htm
   - name: Chen Xu
-    post: ambassador to Israel
+    post: former permanent representative to the UN Office at Geneva (2019 to 2025)
+    source: https://geneva.china-mission.gov.cn/eng/tpxw/202511/t20251114_11753449.htm
+    note: Farewell call on 2025-11-12; Jia Guide presented credentials in Geneva on 2025-12-22. Never ambassador to Israel (Xiao Junzheng is).
   - name: Xiao Junzheng
-    post: ambassador to Israel
+    post: ambassador to Israel (in post since November 2024), former ambassador to Greece (2021 to 2024)
+    native: ["שיאו ג'ון-ג'נג", "Σιάο Τζουντσένγκ"]
+    native_source: ["https://www.inss.org.il/he/publication/chinese-ambassador/", "https://www.skai.gr/news/world/siao-tzountsengk-kina-ellada-epimenoume-sti-diafylaksi-kyriarxias-edafikis-akeraiotitas"]
+    source: https://il.china-embassy.gov.cn/eng/sgxw/202609/t20260923_12029837.htm
+    note: Appointment notices https://www.mfa.gov.cn/eng/xw/zyxw/202501/t20250113_11532616.html (Israel, replacing Cai Run) and https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html (Fang Qiu replacing him in Greece). Was listed twice (Israel and Greece); one person, merged into this entry.
   - name: Ji Guangbin
-    post: ambassador to Bahrain
-  - name: Ren Li
-    post: ambassador to Hungary
+    post: no Chinese diplomatic post found (was listed as ambassador to Bahrain)
+    source: http://bh.china-embassy.gov.cn/dsxx/lrds/
+    note: Not among the ambassadors to Bahrain on the embassy's list (Anwar 2018 to 2022, Ni Ruchi from 2023). Kept for the owner to check.
   - name: Gong Tao
     post: ambassador to Hungary
+    source: https://hu.china-embassy.gov.cn/hu/xwdt/202609/t20260926_12031480.htm
   - name: Sun Linjiang
+    post: former ambassador to Poland
+  - name: Lu Shan
     post: ambassador to Poland
-  - name: Cai Run
-    post: former ambassador to Portugal
+    source: http://pl.china-embassy.gov.cn/pol/sghd_1/202609/t20260930_12034511.htm
   - name: Zhao Bentang
-    post: ambassador to Portugal
+    post: former ambassador to Portugal (from 2021, succeeded by Yang Yirui)
+    source: http://pt.china-embassy.gov.cn/sgxw/202609/t20260929_12033402.htm
   - name: Yao Jing
     post: ambassador to Spain
-  - name: Jia Guide
-    post: former ambassador to Peru
-  - name: Wang Xiaodong
-    post: ambassador to Turkey
+    source: http://es.china-embassy.gov.cn/sghd/202610/t20261010_12038200.htm
   - name: Liu Shaobin
+    post: former ambassador to Turkey
+  - name: Jiang Xuebin
     post: ambassador to Turkey
+    source: http://tr.china-embassy.gov.cn/tur/sgxw/202608/t20260810_12001340.htm
   - name: Zhang Wei
+    post: ambassador to Benin (appointed January 2025)
+    source: http://bj.china-embassy.gov.cn/zxxx/202609/t20260930_12033737.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202501/t20250113_11532616.html (replacing Peng Jingtao). Was listed as ambassador to Bulgaria, which he never was on any record found; the ambassador to Bulgaria is Dai Qingli. One of the most common Chinese names, so namesakes are certain.
+  - name: Dai Qingli
     post: ambassador to Bulgaria
+    native: ["Дай Цинли"]
+    native_source: ["http://bg.china-embassy.gov.cn/bjly/"]
+    source: http://bg.china-embassy.gov.cn/dssghd/202609/t20260926_12031655.htm
   - name: Dai Bing
-    post: ambassador to Bulgaria
+    post: ambassador to the Republic of Korea
+    native: ["다이빙"]
+    native_source: ["https://kr.china-embassy.gov.cn/kor/"]
+    source: https://kr.china-embassy.gov.cn/kor/sgxx/202610/t20261008_12036624.htm
+  - name: Xing Haiming
+    post: former ambassador to the Republic of Korea (January 2020 to July 2024)
+    native: ["싱하이밍"]
+    native_source: ["https://dhnews.co.kr/news/view/179521477166322"]
+    source: https://www.koreajoongangdaily.com/korea/japan-and-china-likely-to-replace-envoys-to-korea/10658865
   - name: Han Chunlin
-    post: ambassador to Romania
+    post: ambassador to Kazakhstan (appointed January 2025), former ambassador to Romania
+    native: ["Хань Чуньлинь", "Хан Чунлинь"]
+    native_source: ["https://kz.china-embassy.gov.cn/rus/"]
+    source: http://kz.china-embassy.gov.cn/sgxx/sgdt/202609/t20260928_12032631.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202501/t20250113_11532616.html (replacing Zhang Xiao); received by President Tokayev on 2025-01-22, https://akorda.kz/en/1-2202540.
+  - name: Chen Feng
+    post: ambassador to Romania (credentials presented 2025-11-27)
+    source: https://romania.representation.ec.europa.eu/events/vizita-de-curtoazie-din-partea-ambasadorului-chinei-romania-excelenta-sa-domnul-chen-feng-2025-11-12_ro
+    note: From late August 2026 the embassy site names Zhou Xiang as charge d'affaires ad interim.
+  - name: Zhou Xiang
+    post: charge d'affaires ad interim in Romania
+    source: http://ro.china-embassy.gov.cn/sghd/202609/t20260908_12018678.htm
   - name: Li Ming
     post: ambassador to Serbia
+    source: http://rs.china-embassy.gov.cn/sgdt/202610/t20261008_12036799.htm
   - name: Chen Bo
     post: former ambassador to Serbia
-  - name: Wang Liyong
-    post: ambassador to Greece
-  - name: Xiao Junzheng
-    post: former ambassador to Greece
+  - name: Fang Qiu
+    post: ambassador to Greece (appointed November 2024)
+    source: http://gr.china-embassy.gov.cn/zxhd/202610/t20261006_12035828.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202411/t20241127_11534072.html (replacing Xiao Junzheng); also named ambassador on https://www.fmprc.gov.cn/eng/zwjg/zgdsg/2495_665354/202407/t20240709_11450731.html. Replaces an entry for Wang Liyong as ambassador to Greece, a name with no record in any Chinese diplomatic post nor among the ambassadors to Greece.
   - name: Guo Shaochun
-    post: ambassador to Zimbabwe, former ambassador to Ireland
+    post: consul-general in Los Angeles (since early 2023), former ambassador to Zimbabwe (March 2019 to December 2022, succeeded by Zhou Ding)
+    source: http://losangeles.china-consulate.gov.cn/eng/lghd/202609/t20260929_12032921.htm
+    note: Zimbabwe succession per https://chinaglobalsouth.com/2023/06/14/veteran-chinese-diplomat-is-new-envoy-to-zimbabwe/. Was listed as former ambassador to Ireland, which he never was on any record found (He Xiangdong, then Zhao Xiyuan).
   - name: Wang Bin
-    post: ambassador to Ecuador
+    post: former ambassador to Ecuador (unverified)
+    source: http://ec.china-embassy.gov.cn/sgxw/202610/t20261008_12036137.htm
+    note: Not in post on 2026-10-12, when the ambassador is Sun Xiangyang per the source. No record of Wang Bin holding this post was found on the pages checked; kept for the owner to check.
   - name: Dou Xiaoling
-    post: ambassador to Ethiopia
+    post: former ambassador to Ethiopia (unverified)
+    source: http://et.china-embassy.gov.cn/zagx/202609/t20260928_12032750.htm
+    note: Not in post on 2026-10-12, when the ambassador is Chen Hai per the source. No record of Dou Xiaoling holding this post was found on the pages checked; kept for the owner to check.
   - name: Wang Qingxian
-    post: ambassador to Serbia
+    post: former ambassador to Serbia (unverified)
+    source: http://rs.china-embassy.gov.cn/sgdt/202610/t20261008_12036799.htm
+    note: Not in post on 2026-10-12, when the ambassador is Li Ming per the source. No record of Wang Qingxian holding this post was found on the pages checked; kept for the owner to check.
   - name: Xie Yong
-    post: ambassador to Bangladesh
+    post: former ambassador to Bangladesh (unverified)
+    source: http://bd.china-embassy.gov.cn/dshd/202608/t20260825_12010165.htm
+    note: Not in post on 2026-10-12, when the ambassador is Yao Wen per the source. No record of Xie Yong holding this post was found on the pages checked; kept for the owner to check.
   - name: Wang Kejian
-    post: ambassador to Lebanon
+    post: former ambassador to Lebanon (succeeded by Chen Chuandong)
+    source: http://lb.china-embassy.gov.cn/xwdt/202610/t20261012_12038500.htm
   - name: Chen Chuandong
-    post: ambassador to Syria
+    post: ambassador to Lebanon
+    source: http://lb.china-embassy.gov.cn/xwdt/202610/t20261012_12038500.htm
+    note: Was listed as ambassador to Syria (Shi Hongwei is); no record of that post found.
   - name: Fei Shengchao
-    post: ambassador to Italy
+    post: ambassador to Belgium (appointed July 2024; farewell calls from September 2026), former ambassador to Somalia (2021 to 2024)
+    source: https://be.china-embassy.gov.cn/eng/sghd/202609/t20260928_12032766.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/xrds/202407/t20240717_11455228.html (replacing Cao Zhongming); Somalia per https://so.china-embassy.gov.cn/eng/zsgx_1/202404/t20240401_11274033.htm. Never ambassador to Italy (Hou Yue is).
+  - name: Wan Li
+    post: ambassador to Tunisia
+    source: https://tn.china-embassy.gov.cn/fra/sgxw/202610/t20261012_12038769.htm
+  # Heads of mission in every country with an active monitored outlet, checked on 2026-10-12 against the
+  # foreign ministry mission pages (mfa.gov.cn, zwjg) and the embassy or consulate website; source is a
+  # page on the mission's own site naming the person, the note gives the ministry page.
+  - name: Wu Jianghao
+    post: ambassador to Japan
+    native: ["呉江浩"]
+    native_source: ["https://jp.china-embassy.gov.cn/jpn/"]
+    source: http://jp.china-embassy.gov.cn/dsdt/202609/t20260930_12033793.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200505/t20050526_7679730.shtml.
+  - name: Hua Xin
+    post: ambassador to Cuba
+    source: http://cu.china-embassy.gov.cn/sgxw/202609/t20260930_12033729.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200511/t20051115_7680091.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Shi Hongwei
+    post: ambassador to Syria
+    native: ["شي هونغ وي"]
+    native_source: ["https://mecouncil.org/ar/?p=475786"]
+    source: http://sy.china-embassy.gov.cn/xwfb/202609/t20260930_12034070.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200704/t20070430_7679794.shtml. Signed an article in the Syrian daily Al-Thawra, September 2026, per the source.
+  - name: Lan Hu
+    post: ambassador to Venezuela
+    source: http://ve.china-embassy.gov.cn/sgxx/202610/t20261001_12034704.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/dozy_674753/200711/t20071101_7680124.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Qi Qianjin
+    post: ambassador to Croatia
+    source: http://hr.china-embassy.gov.cn/dssghd/202610/t20261009_12037561.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200711/t20071101_7680002.shtml.
+  - name: Yu Jinsong
+    post: ambassador to Morocco
+    source: http://ma.china-embassy.gov.cn/xwdts/202610/t20261012_12038307.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200612/t20061218_7679845.shtml.
+  - name: Jiang Xiaoyan
+    post: ambassador to North Macedonia
+    source: http://mk.china-embassy.gov.cn/dshdsgxx/202610/t20261005_12035639.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200710/t20071024_7680049.shtml.
+  - name: Li Zhigang
+    post: ambassador to Senegal
+    source: http://sn.china-embassy.gov.cn/sgyw/202610/t20261001_12034545.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200710/t20071016_7679828.shtml.
+  - name: Wang Xiaoyao
+    post: ambassador to Costa Rica
+    source: http://cr.china-embassy.gov.cn/sgxw/202609/t20260928_12031867.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200709/t20070914_7680095.shtml.
+  - name: Sun Yong
+    post: ambassador to Guinea
+    source: http://gn.china-embassy.gov.cn/sgyw/202610/t20261008_12036089.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200705/t20070514_7679894.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Tang Songgen
+    post: ambassador to Latvia
+    source: http://lv.china-embassy.gov.cn/xwdt/202609/t20260924_12030802.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200702/t20070214_7680001.shtml.
+  - name: Shen Bo
+    post: ambassador to the Netherlands
+    source: http://nl.china-embassy.gov.cn/sgxw/202609/t20260914_12022120.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200501/t20050107_7680009.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Liu Jiangping
+    post: ambassador to Kyrgyzstan
+    native: ["Лю Цзянпин"]
+    native_source: ["https://kg.china-embassy.gov.cn/rus/"]
+    source: http://kg.china-embassy.gov.cn/dssghd/202609/t20260910_12020014.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200405/t20040517_7679759.shtml.
+  - name: Wei Huaxiang
+    post: ambassador to Sri Lanka
+    source: http://lk.china-embassy.gov.cn/dssghd/202610/t20261010_12038166.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200806/t20080627_7679723.shtml.
+  - name: Cao Zhongming
+    post: ambassador to Singapore
+    source: http://sg.china-embassy.gov.cn/dshd/202610/t20261001_12034758.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200704/t20070402_7679700.shtml.
+  - name: Cai Ge
+    post: ambassador to Slovakia
+    source: http://sk.china-embassy.gov.cn/sgxx/dongtai1/202609/t20260930_12034425.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200709/t20070927_7679959.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Qian Minjian
+    post: ambassador to Switzerland
+    source: http://ch.china-embassy.gov.cn/tpxw_1/202609/t20260922_12027966.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200505/t20050527_7679972.shtml.
+  - name: Zhao Bin
+    post: ambassador to the Democratic Republic of the Congo
+    source: http://cd.china-embassy.gov.cn/sghd/202609/t20260930_12034474.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200801/t20080123_7679899.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Chen Luning
+    post: ambassador to the Dominican Republic
+    source: http://do.china-embassy.gov.cn/xwdtx/202610/t20261002_12035258.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/201111/t20111108_7680103.shtml.
+  - name: Yang Yang
+    post: ambassador to Guyana
+    source: http://gy.china-embassy.gov.cn/sgxw/202609/t20260905_12016743.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/dozy_674753/200612/t20061218_7680132.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Yang Yirui
+    post: ambassador to Portugal
+    source: http://pt.china-embassy.gov.cn/sgxw/202609/t20260929_12033402.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200609/t20060915_7679979.shtml.
+  - name: Zhao Xing
+    post: ambassador to Afghanistan
+    source: http://af.china-embassy.gov.cn/sgxw/202609/t20260929_12033567.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200703/t20070313_7679799.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Qi Mei
+    post: ambassador to Austria
+    source: http://at.china-embassy.gov.cn/sgxw/202606/t20260602_11923285.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200712/t20071211_7680058.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zhao Deyong
+    post: ambassador to Burkina Faso
+    source: http://bf.china-embassy.gov.cn/sbjw/202609/t20260921_12027797.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/201811/t20181108_7679919.shtml.
+  - name: Li Fan
+    post: ambassador to Bosnia and Herzegovina
+    source: http://ba.china-embassy.gov.cn/sgxx/sghd/202610/t20261002_12035304.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200702/t20070227_7680038.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Xu Yong
+    post: ambassador to Cameroon
+    source: http://cm.china-embassy.gov.cn/zxxx/202608/t20260815_12004778.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200709/t20070929_7679878.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Dong Guangli
+    post: ambassador to Algeria
+    source: http://dz.china-embassy.gov.cn/xw/202609/t20260907_12017111.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200703/t20070313_7679933.shtml.
+  - name: Guo Xiaomei
+    post: ambassador to Estonia
+    source: http://ee.china-embassy.gov.cn/dssghd/202608/t20260812_12002860.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200604/t20060417_7680060.shtml.
+  - name: Chen Hai
+    post: ambassador to Ethiopia
+    source: http://et.china-embassy.gov.cn/zagx/202609/t20260928_12032750.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200603/t20060307_7679929.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Ma Xuliang
+    post: ambassador to Libya
+    source: http://ly.china-embassy.gov.cn/dssghd/202610/t20261013_12039027.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200702/t20070216_7679861.shtml.
+  - name: Ma Jia
+    post: ambassador to Myanmar
+    source: http://mm.china-embassy.gov.cn/sgxw/202609/t20260930_12033848.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200511/t20051115_7679736.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zheng Xuan
+    post: ambassador to Mozambique
+    source: http://mz.china-embassy.gov.cn/sghd/202610/t20261009_12037213.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200710/t20071008_7679844.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zhang Maoming
+    post: ambassador to Nepal
+    source: http://np.china-embassy.gov.cn/xwdt/202610/t20261005_12035633.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200802/t20080227_7679733.shtml.
+  - name: Wang Min
+    post: ambassador to Togo
+    source: http://tg.china-embassy.gov.cn/dssgxwdt/202610/t20261003_12035474.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200702/t20070227_7679909.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Yu Jun
+    post: ambassador to Uzbekistan
+    source: http://uz.china-embassy.gov.cn/sgxx/sgsd/202609/t20260917_12024299.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200511/t20051115_7679704.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Li Xinwei
+    post: ambassador to Armenia
+    source: http://am.china-embassy.gov.cn/xwdt/202610/t20261009_12037142.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200709/t20070925_7679699.shtml.
+  - name: Lu Mei
+    post: ambassador to Azerbaijan
+    source: http://az.china-embassy.gov.cn/sgxw/202609/t20260918_12025269.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200408/t20040819_7679787.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zhu Kewei
+    post: ambassador to Burundi
+    source: http://bi.china-embassy.gov.cn/sgxw/202610/t20261008_12036500.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200702/t20070227_7679916.shtml. Signed a piece in Le Renouveau (Burundi) stored as article 2099586.
+  - name: Fan Yong
+    post: ambassador to Botswana
+    source: http://bw.china-embassy.gov.cn/sgxw/202609/t20260921_12027692.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200704/t20070402_7679922.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Wu Jie
+    post: ambassador to Cote d'Ivoire
+    source: http://ci.china-embassy.gov.cn/zxyw/202609/t20260923_12029927.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200712/t20071210_7679873.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Yang Yundong
+    post: ambassador to Cyprus
+    source: http://cy.china-embassy.gov.cn/sghd/202610/t20261001_12035057.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200712/t20071225_7679966.shtml.
+  - name: Zhou Ping
+    post: ambassador to Gabon
+    source: http://ga.china-embassy.gov.cn/zxxx/202610/t20261007_12035984.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200608/t20060831_7679886.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: He Rulong
+    post: ambassador to Iceland
+    source: http://is.china-embassy.gov.cn/zbgx/202610/t20261001_12034653.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200512/t20051220_7680043.shtml.
+  - name: Yang Xiaokun
+    post: ambassador to Lesotho
+    source: http://ls.china-embassy.gov.cn/dshd/202610/t20261013_12039010.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200505/t20050527_7679867.shtml.
+  - name: Hua Ning
+    post: ambassador to Luxembourg
+    source: http://lu.china-embassy.gov.cn/sgsd/202610/t20261003_12035489.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200708/t20070822_7679993.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zhao Weiping
+    post: ambassador to Namibia
+    source: http://na.china-embassy.gov.cn/sgxw/202610/t20261001_12034560.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200802/t20080225_7679843.shtml.
+  - name: Lyu Guijun
+    post: ambassador to Niger
+    source: http://ne.china-embassy.gov.cn/zxyw/202610/t20261009_12036890.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200608/t20060831_7679834.shtml.
+  - name: Cao Xiaolin
+    post: ambassador to Qatar
+    source: http://qa.china-embassy.gov.cn/dsxx/zyhd/202608/t20260826_12010395.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200804/t20080429_7679754.shtml.
+  - name: Chang Hua
+    post: ambassador to Saudi Arabia
+    source: http://sa.china-embassy.gov.cn/xwdt/202610/t20261012_12038801.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200712/t20071210_7679727.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Cai Weiming
+    post: ambassador to the Solomon Islands
+    source: http://sb.china-embassy.gov.cn/sgxw/202610/t20261012_12038441.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/202010/t20201016_7680163.shtml.
+  - name: Kang Yan
+    post: ambassador to Slovenia
+    source: http://si.china-embassy.gov.cn/sghd/202610/t20261008_12036101.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200710/t20071015_7679954.shtml. A short name (two syllables), so namesakes are likely. A stored Delo (Slovenia) piece on Taiwan carries the author field Kang Yan (article 1376880).
+  - name: Zhang Bin
+    post: ambassador to Angola
+    source: http://ao.china-embassy.gov.cn/zagx/202610/t20261001_12035100.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200704/t20070420_7679927.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Pang Chunxue
+    post: ambassador to Albania
+    source: http://al.china-embassy.gov.cn/zajw/202609/t20260929_12032813.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200712/t20071210_7680068.shtml.
+  - name: Ni Ruchi
+    post: ambassador to Bahrain (since February 2023; farewell letter in October 2026)
+    source: http://bh.china-embassy.gov.cn/zbgx/202610/t20261006_12035791.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200701/t20070110_7679778.shtml.
+  - name: Yan Jiarong
+    post: ambassador to the Bahamas
+    source: http://bs.china-embassy.gov.cn/sgxw/202609/t20260930_12033759.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200803/t20080324_7680109.shtml.
+  - name: Wang Liang
+    post: ambassador to Bolivia
+    source: http://bo.china-embassy.gov.cn/sgnews/202610/t20261005_12035587.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/dozy_674753/200603/t20060320_7680142.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Zheng Bingkai
+    post: ambassador to Barbados
+    source: http://bb.china-embassy.gov.cn/xwdt/202609/t20260903_12015979.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200609/t20060930_7680113.shtml.
+  - name: An Qing
+    post: ambassador to the Republic of the Congo
+    source: http://cg.china-embassy.gov.cn/dshd/202610/t20261009_12037472.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200712/t20071210_7679902.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Huang Zheng
+    post: ambassador to Comoros
+    source: http://km.china-embassy.gov.cn/zxdt/202610/t20261010_12037675.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200511/t20051115_7679876.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Zhang Yang
+    post: ambassador to Cabo Verde
+    source: http://cv.china-embassy.gov.cn/sghd/202609/t20260910_12019509.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200706/t20070615_7679905.shtml. A short name (two syllables) with a very common surname, so namesakes are likely. A stored Expresso das Ilhas (Cabo Verde) piece on China and Cabo Verde carries the author field Zhang Yang (article 888044).
+  - name: Hu Bin
+    post: ambassador to Djibouti
+    source: http://dj.china-embassy.gov.cn/xwdt/202610/t20261009_12037316.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200710/t20071008_7679897.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Sun Xiangyang
+    post: ambassador to Ecuador
+    source: http://ec.china-embassy.gov.cn/sgxw/202610/t20261008_12036137.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/dozy_674753/200804/t20080416_7680138.shtml.
+  - name: Liu Jin
+    post: ambassador to the Gambia
+    source: http://gm.china-embassy.gov.cn/sgxw/202609/t20260917_12024062.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/201608/t20160829_7679903.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Wang Jinfeng
+    post: ambassador to Jamaica
+    source: http://jm.china-embassy.gov.cn/sgzcnew/202608/t20260804_11997648.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200609/t20060919_7680071.shtml.
+  - name: Guo Wei
+    post: ambassador to Jordan
+    source: http://jo.china-embassy.gov.cn/zygxyw/202609/t20260922_12028866.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200609/t20060915_7679679.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Yang Xin
+    post: ambassador to Kuwait
+    source: http://kw.china-embassy.gov.cn/sgdt/202609/t20260929_12033598.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200505/t20050526_7679752.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Fang Hong
+    post: ambassador to Laos
+    source: http://la.china-embassy.gov.cn/dssghd/202609/t20260924_12030486.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200703/t20070313_7679751.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Yin Chengwu
+    post: ambassador to Liberia
+    source: http://lr.china-embassy.gov.cn/sghdhzxxx/202608/t20260814_12003978.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200708/t20070822_7679863.shtml.
+  - name: Ji Ping
+    post: ambassador to Madagascar
+    source: http://mg.china-embassy.gov.cn/sghd/202610/t20261002_12035346.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200712/t20071210_7679856.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Kong Xianhua
+    post: ambassador to the Maldives
+    source: http://mv.china-embassy.gov.cn/sgsd/202610/t20261008_12036630.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200907/t20090730_7679746.shtml.
+  - name: Zhang Zuo
+    post: ambassador to Malta
+    source: http://mt.china-embassy.gov.cn/sgdt/202610/t20261012_12038920.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200704/t20070430_7679988.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Chen Xufeng
+    post: ambassador to Montenegro
+    source: http://me.china-embassy.gov.cn/sghd/202610/t20261008_12036792.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200607/t20060717_7680007.shtml.
+  - name: Tang Zhongdong
+    post: ambassador to Mauritania
+    source: http://mr.china-embassy.gov.cn/sgzyhd/202609/t20260909_12019472.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200706/t20070615_7679848.shtml.
+  - name: Huang Shifang
+    post: ambassador to Mauritius
+    source: http://mu.china-embassy.gov.cn/sgxw/202609/t20260930_12034402.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200603/t20060320_7679849.shtml.
+  - name: Lu Xu
+    post: ambassador to Malawi
+    source: http://mw.china-embassy.gov.cn/eng/sghdhzxxx/202608/t20260801_11996643.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200806/t20080604_7679854.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Qu Yuhui
+    post: ambassador to Nicaragua
+    source: http://ni.china-embassy.gov.cn/sgxw/202610/t20261001_12034627.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/202207/t20220722_10726305.shtml.
+  - name: Lyu Jian
+    post: ambassador to Oman
+    source: http://om.china-embassy.gov.cn/sgxw/202610/t20261011_12038251.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200611/t20061121_7679791.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Yang Xiaoguang
+    post: ambassador to Papua New Guinea
+    source: http://pg.china-embassy.gov.cn/xwdt/202610/t20261008_12036438.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200603/t20060317_7680176.shtml. Signed articles in the Post-Courier and The National (Papua New Guinea), October 2026, per the source.
+  - name: Gao Wenqi
+    post: ambassador to Rwanda
+    source: http://rw.china-embassy.gov.cn/sgxw/202609/t20260926_12031476.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200801/t20080103_7679859.shtml.
+  - name: Zhao Yong
+    post: ambassador to Sierra Leone
+    source: http://sl.china-embassy.gov.cn/sgxxs/dssghd/202609/t20260911_12020235.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200511/t20051123_7679830.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Ma Qiang
+    post: ambassador to South Sudan
+    source: http://ss.china-embassy.gov.cn/sbwl/202610/t20261001_12034887.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/201107/t20110713_7679838.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Wang Xining
+    post: ambassador to Chad
+    source: http://td.china-embassy.gov.cn/sghd/202609/t20260930_12034435.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200708/t20070827_7679804.shtml.
+  - name: Wang Wenli
+    post: ambassador to Timor-Leste
+    source: http://tl.china-embassy.gov.cn/sgdt/202609/t20260902_12014711.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200603/t20060317_7679768.shtml.
+  - name: Wu Guangrong
+    post: ambassador to Uganda
+    source: http://ug.china-embassy.gov.cn/sgxw/202610/t20261001_12034930.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200803/t20080304_7679809.shtml.
+  - name: Jiang Wei
+    post: ambassador to Antigua and Barbuda
+    source: http://ag.china-embassy.gov.cn/zgyabjw/202608/t20260811_12001710.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200612/t20061215_7680115.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Wang Yajun
+    post: ambassador to the Democratic People's Republic of Korea
+    source: http://kp.china-embassy.gov.cn/zxxx/202609/t20260930_12033789.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200701/t20070118_7679774.shtml.
+  - name: Zhang Wenchuan
+    post: ambassador to Belarus
+    source: http://by.china-embassy.gov.cn/sssgxwdt/202610/t20261002_12035303.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200511/t20051116_7680055.shtml.
+  - name: Chen Shaochun
+    post: ambassador to Brunei
+    source: http://bn.china-embassy.gov.cn/sgxss/202609/t20260930_12034356.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200704/t20070416_7679708.shtml.
+  - name: Li Qinfeng
+    post: ambassador to the Central African Republic
+    source: http://cf.china-embassy.gov.cn/xwdt/202608/t20260812_12002441.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200711/t20071106_7679802.shtml.
+  - name: Zhou Jian
+    post: ambassador to Fiji
+    source: http://fj.china-embassy.gov.cn/mtjj/202506/t20250604_11639994.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200502/t20050224_7680175.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Yang Renhuo
+    post: ambassador to Guinea-Bissau
+    source: http://gw.china-embassy.gov.cn/xwdt/202610/t20261001_12034686.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200702/t20070227_7679892.shtml.
+  - name: Wang Wengang
+    post: ambassador to Equatorial Guinea
+    source: http://gq.china-embassy.gov.cn/xwdt/202608/t20260828_12012383.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200803/t20080324_7679912.shtml.
+  - name: Zhang Yanhui
+    post: ambassador to El Salvador
+    source: http://sv.china-embassy.gov.cn/dshd/202610/t20261010_12037727.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/201812/t20181218_7680077.shtml.
+  - name: Xu Yingzhen
+    post: ambassador to Sao Tome and Principe
+    source: http://st.china-embassy.gov.cn/sghd/202609/t20260919_12026281.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/201707/t20170718_7679824.shtml.
+  - name: Guo Zhijun
+    post: ambassador to Tajikistan
+    source: http://tj.china-embassy.gov.cn/dsxx/dshd_133050/202609/t20260924_12030654.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200511/t20051129_7679720.shtml.
+  - name: Liu Weimin
+    post: ambassador to Tonga
+    source: http://to.china-embassy.gov.cn/sgxw/202608/t20260828_12012274.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200601/t20060106_7680159.shtml.
+  - name: Ren Hongyan
+    post: ambassador to Trinidad and Tobago
+    source: http://tt.china-embassy.gov.cn/sgxw/202610/t20261012_12038347.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200612/t20061215_7680074.shtml.
+  - name: Li Minggang
+    post: ambassador to Vanuatu
+    source: http://vu.china-embassy.gov.cn/zwgx_0/sbwl/202609/t20260921_12027214.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200708/t20070822_7680155.shtml.
+  - name: Ji Shumin
+    post: ambassador to Turkmenistan
+    source: http://tm.china-embassy.gov.cn/sgdt/202609/t20260911_12020908.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200404/t20040412_7679712.shtml.
+  - name: Chu Maoming
+    post: ambassador to Dominica
+    source: http://dm.china-embassy.gov.cn/zdgx/202608/t20260819_12006330.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xybf_674751/200611/t20061121_7680100.shtml.
+  - name: Wu Wei
+    post: ambassador to Micronesia
+    source: http://fm.china-embassy.gov.cn/xwdt/202609/t20260923_12029094.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200611/t20061121_7680170.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Fei Mingxing
+    post: ambassador to Samoa
+    source: http://ws.china-embassy.gov.cn/gdxw/202609/t20260916_12023292.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/200607/t20060711_7680166.shtml.
+  - name: Lin Nan
+    post: ambassador to Seychelles
+    source: http://sc.china-embassy.gov.cn/zxhd/202610/t20261009_12037539.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200612/t20061228_7679827.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Jing Quan
+    post: ambassador to the Philippines
+    source: http://ph.china-embassy.gov.cn/sgdt/202607/t20260731_11996385.htm
+    note: Named as ambassador on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200710/t20071031_7679766.shtml. Succeeded Huang Xilian. A short name (two syllables), so namesakes are likely.
+  - name: Cong Song
+    post: ambassador to Ghana (appointed 2026, replacing Tong Defa)
+    source: http://gh.china-embassy.gov.cn/xwdt/202609/t20260903_12015211.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202605/t20260520_11914691.html. A short name (two syllables), so namesakes are likely.
+  - name: Zhou Limin
+    post: ambassador to Sweden (appointed 2026, replacing Cui Aimin), former ambassador to Kiribati
+    source: http://se.china-embassy.gov.cn/sgxw/202610/t20261011_12038249.htm
+    note: Appointment notice https://www.mfa.gov.cn/eng/xw/zyxw/202605/t20260520_11914691.html. Still named as ambassador on the Kiribati mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/bmdyz_674755/202005/t20200515_7680172.shtml, but the embassy in Kiribati has been headed by the charge d'affaires Zhao Jian since at least April 2026, http://ki.china-embassy.gov.cn/sgdt/202609/t20260930_12033763.htm.
+  - name: Zhou Qian
+    post: ambassador to Czechia (copy of credentials presented 2026-09-25), former ambassador to Georgia (to July 2026)
+    source: http://cz.china-embassy.gov.cn/sghd/202609/t20260925_12031464.htm
+    note: Farewell in Georgia, http://ge.china-embassy.gov.cn/xwdt/202607/t20260728_11993888.htm. Still named as ambassador to Georgia on the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200504/t20050430_7679764.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Zuo Wenxing
+    post: former charge d'affaires ad interim in Czechia (2026, before Zhou Qian arrived)
+    source: http://cz.china-embassy.gov.cn/ggwj/202608/t20260821_12008447.htm
+    note: Signed articles in the Czech press in June, July and August 2026, per the embassy pages.
+  - name: Dai Chunyong
+    post: charge d'affaires ad interim in Georgia (since Zhou Qian left in July 2026)
+    source: http://ge.china-embassy.gov.cn/xwdt/202609/t20260930_12034204.htm
+  - name: Zhou Jingxing
+    post: ambassador to Norway (reception marking his arrival on 2026-09-29)
+    source: http://no.china-embassy.gov.cn/zjsg_0/sgyw_134107/202609/t20260930_12034157.htm
+    note: Succeeded Hou Yue; the foreign ministry mission page https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200704/t20070430_7679983.shtml still names Hou Yue.
+  - name: Wang Tongqing
+    post: ambassador to Finland (named on the foreign ministry mission page)
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/xo_674749/200607/t20060711_7680014.shtml
+    note: The embassy has been headed by the charge d'affaires Chen Huixin since at least May 2026, http://fi.china-embassy.gov.cn/gdxw/.
+  - name: Chen Huixin
+    post: charge d'affaires ad interim in Finland (since at least May 2026)
+    source: http://fi.china-embassy.gov.cn/gdxw/202607/t20260727_11993085.htm
+    note: Signed an article in a Finnish daily in July 2026, per the source.
+  - name: Huang Yazhong
+    post: ambassador to Uruguay (named on the foreign ministry mission page)
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/dozy_674753/200712/t20071210_7680121.shtml
+    note: In September and October 2026 the embassy was headed by the charge d'affaires He Fei, http://uy.china-embassy.gov.cn/xwdt/202610/t20261008_12036103.htm.
+  - name: Shen Minjuan
+    post: ambassador to Mongolia (named on the foreign ministry mission page)
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/yz_674745/200708/t20070822_7679741.shtml
+    note: In September 2026 the embassy was headed by the charge d'affaires Cao Li.
+  - name: Cao Li
+    post: charge d'affaires ad interim in Mongolia (September 2026)
+    source: http://mn.china-embassy.gov.cn/chn/dssghd/202609/t20260928_12032681.htm
+    note: Signed an article in the Mongolian Daily News on 2026-09-27, per the source. A short name (two syllables), so namesakes are likely.
+  - name: Ma Xinmin
+    post: ambassador to Sudan (named on the foreign ministry mission page)
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200706/t20070615_7679822.shtml
+    note: Named as ambassador on the embassy site in 2022, http://sd.china-embassy.gov.cn/eng/dshd/202208/t20220811_10740851.htm; in 2026 the embassy, working from Port Sudan, was headed by the charges d'affaires Xu Jian and Guo Hu.
+  - name: Guo Hu
+    post: charge d'affaires ad interim in Sudan (September 2026)
+    source: http://sd.china-embassy.gov.cn/sgxw/202609/t20260919_12026454.htm
+    note: Signed an article in the Sudanese press on 2026-09-07, per the source. A short name (two syllables), so namesakes are likely.
+  - name: Shao Zheng
+    post: charge d'affaires ad interim in Yemen (no ambassador in post)
+    native: ["شاو تشنغ"]
+    native_source: ["https://ye.china-embassy.gov.cn/ara/"]
+    source: http://ye.china-embassy.gov.cn/sgdt/202609/t20260930_12033696.htm
+    note: Signed an article for the 70th anniversary of relations in September 2026, per the source. A short name (two syllables), so namesakes are likely.
+  - name: Li Xiang
+    post: ambassador to Mali, former ambassador to Eritrea (to 2025)
+    source: http://ml.china-embassy.gov.cn/zxyw/202609/t20260921_12027208.htm
+    note: Eritrea per http://er.china-embassy.gov.cn/dshdyjh/202503/t20250315_11576410.htm (a signed article in the Eritrean press, March 2025); both posts are written with the same characters, probably one person. The foreign ministry mission pages still name him for both posts, https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200704/t20070401_7679852.shtml and https://www.mfa.gov.cn/web/zwjg_674741/zwsg_674743/fz_674747/200603/t20060320_7679908.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Dong Zhihua
+    post: ambassador to Moldova
+    source: http://md.china-embassy.gov.cn/gdxw/202610/t20261009_12037599.htm
+  - name: Xiang Bo
+    post: ambassador to Iraq
+    source: http://iq.china-embassy.gov.cn/dsxx/dsjhjwz/202610/t20261002_12035306.htm
+    note: Signs articles in the Iraqi press (Al-Zaman, Al-Sabah) about monthly, per the embassy pages. A short name (two syllables), so namesakes are likely.
+  - name: Zhang Xiangyan
+    post: ambassador to Panama (credentials presented September 2026)
+    source: http://pa.china-embassy.gov.cn/sghd/202609/t20260930_12033752.htm
+  - name: Yang Shu
+    post: ambassador to Grenada (succeeded Wei Hongtian in 2025)
+    source: http://gd.china-embassy.gov.cn/zxhd/202609/t20260915_12022268.htm
+    note: Signed an article in the Grenadian press in September 2026, per the source. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Sun Zhen
+    post: head of the Office of China to the State of Palestine
+    source: http://ps.china-office.gov.cn/gdxw/202610/t20261010_12038147.htm
+    note: A short name (two syllables), so namesakes are likely.
+  - name: Wei Xiaodong
+    post: consul-general in Istanbul
+    source: http://istanbul.china-consulate.gov.cn/zlshd/202609/t20260923_12029645.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/yz_674759/200604/t20060418_7680214.shtml.
+  - name: Xu Wei
+    post: consul-general in Kolkata
+    source: http://kolkata.china-consulate.gov.cn/zlgxw/202609/t20260930_12034093.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/yz_674759/200810/t20081014_7680202.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Qin Jie
+    post: consul-general in Mumbai
+    source: http://mumbai.china-consulate.gov.cn/zxhd/202610/t20261006_12035758.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/yz_674759/200703/t20070326_7680199.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Wu Demin
+    post: consul-general in Vladivostok
+    source: http://vladivostok.china-consulate.gov.cn/zlgdt/202610/t20261003_12035422.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/201703/t20170324_7680423.shtml.
+  - name: Jiang Xiaoyang
+    post: consul-general in Khabarovsk
+    source: http://khabarovsk.china-consulate.gov.cn/zlgdt/202608/t20260819_12006903.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200504/t20050430_7680419.shtml.
+  - name: Luo Zhanhui
+    post: consul-general in Saint Petersburg
+    source: http://saintpetersburg.china-consulate.gov.cn/zlgxw/202610/t20261008_12036793.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200803/t20080304_7680411.shtml. Signed an article on the global initiatives in October 2026, per the source.
+  - name: Luo Shixiong
+    post: consul-general in Yekaterinburg
+    source: http://ekaterinburg.china-consulate.gov.cn/zlgxx/202610/t20261009_12036848.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200902/t20090204_7680407.shtml. Signs a series of articles, October 2026, per the source.
+  - name: Liu Yu
+    post: consul-general in Irkutsk
+    source: http://irkutsk.china-consulate.gov.cn/lqdt/202610/t20261010_12038145.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200902/t20090204_7680404.shtml. A short name (two syllables) with a very common surname, so namesakes are likely.
+  - name: Yu Jiang
+    post: consul-general in Lyon
+    source: http://lyon.china-consulate.gov.cn/zlghd/202610/t20261008_12036080.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200912/t20091215_7680402.shtml. A short name (two syllables), so namesakes are likely.
+  - name: He Youlin
+    post: consul-general in Marseille
+    source: http://marseille.china-consulate.gov.cn/zlgzxhd/202610/t20261013_12038997.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200710/t20071010_7680398.shtml.
+  - name: Chen Xiaolei
+    post: consul-general in Saint-Denis (Reunion)
+    source: http://saintdenis.china-consulate.gov.cn/zlgxw/202610/t20261007_12036021.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/201006/t20100608_7680391.shtml. Wrote in the Reunion press for the national day, October 2026, per the source.
+  - name: Pan Yumin
+    post: consul-general in Strasbourg
+    source: http://strasbourg.china-consulate.gov.cn/zlgzxxx/202609/t20260919_12026230.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200505/t20050531_7680386.shtml.
+  - name: Yin Qi
+    post: consul-general in Florence
+    source: http://firenze.china-consulate.gov.cn/zxhd/202610/t20261001_12035058.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200706/t20070608_7680367.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Zhang Chenggang
+    post: consul-general in Milan
+    source: http://milano.china-consulate.gov.cn/zxhd/202610/t20261012_12038901.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xo_674763/200706/t20070608_7680363.shtml.
+  - name: Luo Weidong
+    post: consul-general in Toronto
+    source: http://toronto.china-consulate.gov.cn/xw/202609/t20260930_12034449.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/200505/t20050527_7680475.shtml. In October 2026 an acting consul-general, Cheng Hongbo, appears on the consulate site.
+  - name: Zhao Liying
+    post: consul-general in Calgary
+    source: http://calgary.china-consulate.gov.cn/xwdt/202610/t20261013_12039017.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/200701/t20070119_7680469.shtml.
+  - name: Dai Yuming
+    post: consul-general in Montreal
+    source: http://montreal.china-consulate.gov.cn/zlgxw/202610/t20261002_12035354.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/201201/t20120121_7680467.shtml.
+  - name: Fu Fengshan
+    post: consul-general in Vancouver
+    source: http://vancouver.china-consulate.gov.cn/news/202610/t20261010_12037740.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/202110/t20211024_9876539.shtml.
+  - name: Wang Baodong
+    post: consul-general in Chicago
+    source: http://chicago.china-consulate.gov.cn/zlshd/202609/t20260923_12029098.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/200710/t20071010_7680448.shtml.
+  - name: Chen Li
+    post: consul-general in New York
+    source: http://newyork.china-consulate.gov.cn/zlshd/202610/t20261010_12037680.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/xybf_674765/200803/t20080314_7680454.shtml. A short name (two syllables) with a very common surname, so namesakes are likely. The Guardian's Taipei reporter Yu-chen Li (three stored author fields) carries it inside a hyphenated name, which name matching does not count since the hyphen rule of 2026-10-12.
+  - name: Lan Heping
+    post: consul-general in Recife
+    source: https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/dozy_674767/201503/t20150325_9889303.shtml
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/dozy_674767/201503/t20150325_9889303.shtml. Named on the ministry page only; not found on the consulate homepage on 2026-10-12.
+  - name: Tian Min
+    post: consul-general in Rio de Janeiro
+    source: http://riodejaneiro.china-consulate.gov.cn/zlgxw/202610/t20261012_12038297.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/dozy_674767/200608/t20060815_9889302.shtml. A short name (two syllables), so namesakes are likely.
+  - name: Yu Peng
+    post: consul-general in Sao Paulo
+    source: http://saopaulo.china-consulate.gov.cn/zlgxw/202610/t20261010_12037737.htm
+    note: Named on the foreign ministry page https://www.mfa.gov.cn/web/zwjg_674741/zwzlg_674757/dozy_674767/200710/t20071010_7680481.shtml. A short name (two syllables), so namesakes are likely.

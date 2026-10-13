@@ -4,7 +4,7 @@ import sqlite3
 
 from pipeline import classify_llm, config, labels, store
 
-SESSION = "claude-sonnet-5 (session)"
+SESSION = "claude-sonnet-5 (session, prompt %s)" % classify_llm.PROMPT_VERSION
 
 
 def _db():
@@ -57,7 +57,8 @@ def test_label_applies_exactly_as_the_api_path(tmp_path):
     data = {k: lab_b[k] for k in ("category", "confidence", "evidence_quote", "reasoning", "china_sources_cited",
                                   "independent_confirmation_present", "confirmation_evidence")}
     data["_raw"] = json.dumps(lab_b)
-    classify_llm.store_result(conn, via_api, data, SESSION)
+    # prompt_version=None, as labels.ingest passes: a session label names its own prompt or none.
+    classify_llm.store_result(conn, via_api, data, SESSION, prompt_version=None)
     a, b = _row(conn, via_file), _row(conn, via_api)
     for k in ("id", "article_id", "classified_at"):
         a.pop(k), b.pop(k)
@@ -163,7 +164,8 @@ def test_main_prints_counts(tmp_path, monkeypatch, capsys):
     labels.main(["ingest", "--dir", str(_write(tmp_path, [_label(h)]))])
     out = json.loads(capsys.readouterr().out)
     assert out["applied"] == 1
-    assert set(out) >= {"files", "lines", "malformed", "applied", "already_classified", "not_awaiting", "unknown", "by_category"}
+    assert set(out) >= {"files", "lines", "malformed", "applied", "already_classified", "not_awaiting", "unknown",
+                        "older_prompt", "by_category"}
 
 
 def test_api_first_loader_skips_malformed_lines(tmp_path):
@@ -190,3 +192,108 @@ def test_api_first_file_is_never_ingested_as_labels(tmp_path):
                name=labels.API_FIRST_FILE)
     counts = labels.ingest(conn, d)
     assert counts["files"] == 0 and counts["lines"] == 0 and counts["malformed"] == 0 and counts["applied"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Session labels under the current prompt
+# ---------------------------------------------------------------------------
+
+def test_session_model_version_names_session_and_current_prompt():
+    mv = labels.session_model_version()
+    assert mv == "%s (session, prompt %s)" % (config.LLM_MODEL, classify_llm.PROMPT_VERSION)
+    # The session marker and the prompt tag are read together by the same parser the relabel queue uses.
+    assert classify_llm.prompt_version_of(mv) == classify_llm.PROMPT_VERSION
+    assert classify_llm.on_current_prompt(mv) and labels.validate(_label("a" * 32, model_version=mv)) is None
+    # Stored unchanged: a label that names its prompt is not tagged a second time.
+    assert classify_llm.with_prompt_version(mv) == mv
+
+
+def test_model_version_must_name_the_session(tmp_path):
+    conn = _db()
+    aid, h = _article(conn, 1)
+    _, h2 = _article(conn, 2)
+    api_like = classify_llm.with_prompt_version(config.LLM_MODEL)    # what an API label carries
+    counts = labels.ingest(conn, _write(tmp_path, [_label(h2, model_version=api_like), _label(h)]))
+    assert counts["malformed"] == 1 and "does not name the session" in counts["malformed_samples"][0]
+    assert counts["applied"] == 1 and _row(conn, aid)["model_version"] == SESSION
+
+
+def test_older_prompt_session_labels_counted_and_skipped(tmp_path):
+    conn = _db()
+    current, h1 = _article(conn, 1)
+    untagged, h2 = _article(conn, 2)
+    older, h3 = _article(conn, 3)
+    lines = [_label(h1), _label(h2, model_version="claude-sonnet-5 (session)"),
+             _label(h3, model_version="claude-sonnet-5 (session, prompt 2026-01-01)")]
+    d = _write(tmp_path, lines)
+    counts = labels.ingest(conn, d)
+    assert counts["applied"] == 1 and counts["older_prompt"] == 2 and counts["malformed"] == 0
+    assert _row(conn, current)["model_version"] == SESSION
+    for aid in (untagged, older):
+        art = conn.execute("SELECT status, llm_pending FROM articles WHERE id=?", (aid,)).fetchone()
+        assert (art["status"], art["llm_pending"]) == ("awaiting_llm", 1), "left in the queue for the current prompt"
+        assert store.current_classification(conn, aid) is None
+    # Not fatal, and a second ingest counts them the same way without inserting anything.
+    again = labels.ingest(conn, d)
+    assert again["older_prompt"] == 2 and again["already_classified"] == 1 and again["applied"] == 0
+    assert conn.execute("SELECT ok FROM run_log WHERE stage='labels_ingest'").fetchall()[-1][0] == 1
+
+
+def test_older_prompt_is_only_counted_for_a_label_that_would_apply(tmp_path):
+    conn = _db()
+    done, h = _article(conn, 1)
+    store.insert_classification(conn, done, "rules", "A", 1.0, signatures_fired=["xinhua_dateline"])
+    counts = labels.ingest(conn, _write(tmp_path, [_label(h, model_version="claude-sonnet-5 (session)"),
+                                                   _label("0" * 32, model_version="claude-sonnet-5 (session)")]))
+    assert counts["already_classified"] == 1 and counts["unknown"] == 1 and counts["older_prompt"] == 0
+
+
+def test_prompt_bump_makes_yesterdays_session_labels_older(tmp_path, monkeypatch):
+    conn = _db()
+    aid, h = _article(conn, 1)
+    monkeypatch.setattr(classify_llm, "PROMPT_VERSION", "2099-01-01")
+    counts = labels.ingest(conn, _write(tmp_path, [_label(h)]))    # tagged with the 2026-10-12 prompt
+    assert counts["older_prompt"] == 1 and counts["applied"] == 0
+    assert labels.session_model_version() == "%s (session, prompt 2099-01-01)" % config.LLM_MODEL
+
+
+def test_export_prompt_writes_the_live_prompt_and_schema(tmp_path):
+    out = tmp_path / "pass" / "prompt"
+    info = labels.export_prompt(out)
+    version = classify_llm.PROMPT_VERSION
+    assert info["prompt_version"] == version and info["model_version"] == labels.session_model_version()
+    text = (out / labels.PROMPT_FILE).read_text(encoding="utf-8")
+    header, prompt = text.split("\n---\n\n", 1)
+    assert prompt == classify_llm.SYSTEM_PROMPT, "the prompt is copied unchanged"
+    assert header.startswith("# Classifier system prompt, prompt version %s\n" % version)
+    assert "prompt_version: %s" % version in header and labels.session_model_version() in header
+    assert info["system_prompt_sha256"] in header
+    schema = json.loads((out / labels.SCHEMA_FILE).read_text(encoding="utf-8"))
+    comment = schema.pop("$comment")
+    assert schema == classify_llm.OUTPUT_SCHEMA
+    assert "prompt version %s" % version in comment and info["output_schema_sha256"] in comment
+
+
+def test_export_prompt_follows_the_code_not_an_old_copy(tmp_path, monkeypatch):
+    labels.export_prompt(tmp_path)
+    monkeypatch.setattr(classify_llm, "PROMPT_VERSION", "2099-01-01")
+    monkeypatch.setattr(classify_llm, "SYSTEM_PROMPT", "A changed prompt.")
+    info = labels.export_prompt(tmp_path)
+    text = (tmp_path / labels.PROMPT_FILE).read_text(encoding="utf-8")
+    assert text.endswith("\n---\n\nA changed prompt.") and "prompt version 2099-01-01" in text
+    assert info["model_version"].endswith("(session, prompt 2099-01-01)")
+
+
+def test_main_export_prompt_needs_no_database(tmp_path, monkeypatch, capsys):
+    def no_db(*a, **k):
+        raise AssertionError("export-prompt must not open the database")
+    monkeypatch.setattr(store, "connect", no_db)
+    assert labels.main(["export-prompt", "--out", str(tmp_path)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["prompt_version"] == classify_llm.PROMPT_VERSION
+    assert (tmp_path / labels.PROMPT_FILE).is_file() and (tmp_path / labels.SCHEMA_FILE).is_file()
+    try:
+        labels.main(["export-prompt"])
+        raise AssertionError("expected a usage error")
+    except SystemExit as exc:
+        assert exc.code == 2

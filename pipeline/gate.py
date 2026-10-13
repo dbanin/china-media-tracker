@@ -12,6 +12,13 @@ Rules, all from pipeline/keywords.yaml:
     are listed under, so a Singapore or Malaysia outlet's news about its own
     Chinese community ("Chinese New Year", "Malaysian Chinese") does not read
     as coverage of China
+  - in a sports section (sports_sections, read from the item's URL path), one
+    China term found only in the summary does not admit the item on its own
+  - the summary is read without the boilerplate its feed repeats in most of its
+    items (pipeline/boilerplate.py), when the caller passes it
+  - an item judged on its title alone (title_only: a news sitemap entry) is also
+    admitted by the "title_only" terms, Chinese cities, companies, fairs and
+    state media brands that a headline names where a summary would say China
 
 An item whose title or summary already carries a state origin signature
 (pipeline/signatures.yaml) passes whatever its keywords say. Short wire and
@@ -21,6 +28,7 @@ gate must never discard the material the instrument exists to find.
 import re
 from functools import lru_cache
 from typing import List, Optional, Tuple
+from urllib.parse import urlparse
 
 import yaml
 
@@ -43,7 +51,30 @@ def _load():
     # Longest phrase first, so "Malaysian Chinese Association" goes before "Malaysian Chinese".
     phrases = {k: [_phrase_pattern(p) for p in sorted(v, key=len, reverse=True)]
                for k, v in (data.pop("home_phrases", {}) or {}).items()}
+    data.pop("sports_sections", None)   # read by _sports_sections; not a language list
+    data.pop("title_only", None)        # read by _title_only_patterns; not a language list
     return data, nowb, weak, regex, home, phrases, csens
+
+
+@lru_cache(maxsize=None)
+def _sports_sections():
+    """(path segments, terms that admit alone) of the sports_sections block in keywords.yaml."""
+    with open(config.KEYWORDS_PATH, "r", encoding="utf-8") as fh:
+        block = (yaml.safe_load(fh) or {}).get("sports_sections") or {}
+    return ({s.lower() for s in block.get("segments") or []}, set(block.get("admit_alone") or []))
+
+
+SPORTS_SECTION_MARK = "sports_section:uncorroborated"
+
+
+def sports_section(url: Optional[str]) -> bool:
+    """Whether the URL path has a sports section segment. The last segment is the article's own
+    slug and is not read, so a headline slug that happens to contain "sport" does not count."""
+    if not url:
+        return False
+    path = urlparse(url).path.lower()
+    segments = [s for s in path.split("/") if s][:-1]
+    return any(s in _sports_sections()[0] for s in segments)
 
 
 def weak_terms() -> set:
@@ -77,6 +108,26 @@ def _capitalised_source(term: str) -> str:
     return out
 
 
+def _term_pattern(term: str, language: str, nowb: set, csens: set):
+    # Short terms (<=3 chars) are case sensitive to avoid matching "bri" inside prose in
+    # languages where BRI is not an acronym. Terms listed under "capitalised" carry their
+    # case rule in the pattern source instead, because a lowercase homograph makes them
+    # useless while an all-capitals headline must still match.
+    esc = _capitalised_source(term) if term in csens else re.escape(term)
+    flags = 0 if (len(term) <= 3 or term in csens) else re.IGNORECASE
+    if language in nowb and not _LATIN_TERM_RE.search(term):
+        # Native script term in a language that writes without spaces: substring matching,
+        # which is the only way to reach a noun carrying a particle or a counter.
+        pat = re.compile(esc, flags | re.UNICODE)
+    elif language in nowb:
+        pat = re.compile(r"(?<!%s)%s(?!%s)" % (_LATIN_EDGE, esc, _LATIN_EDGE), flags | re.UNICODE)
+    else:
+        # Unicode aware word boundary. \b is unreliable for non-Latin scripts, so use
+        # lookarounds on word characters.
+        pat = re.compile(r"(?<!\w)%s(?!\w)" % esc, flags | re.UNICODE)
+    return pat
+
+
 @lru_cache(maxsize=None)
 def _patterns(language: str):
     data, nowb, weak, regex, _, _, csens = _load()
@@ -91,26 +142,40 @@ def _patterns(language: str):
         if term in seen:
             continue
         seen.add(term)
-        # Short terms (<=3 chars) are case sensitive to avoid matching "bri" inside prose in
-        # languages where BRI is not an acronym. Terms listed under "capitalised" carry their
-        # case rule in the pattern source instead, because a lowercase homograph makes them
-        # useless while an all-capitals headline must still match.
-        esc = _capitalised_source(term) if term in csens else re.escape(term)
-        flags = 0 if (len(term) <= 3 or term in csens) else re.IGNORECASE
-        if language in nowb and not _LATIN_TERM_RE.search(term):
-            # Native script term in a language that writes without spaces: substring matching,
-            # which is the only way to reach a noun carrying a particle or a counter.
-            pat = re.compile(esc, flags | re.UNICODE)
-        elif language in nowb:
-            pat = re.compile(r"(?<!%s)%s(?!%s)" % (_LATIN_EDGE, esc, _LATIN_EDGE), flags | re.UNICODE)
-        else:
-            # Unicode aware word boundary. \b is unreliable for non-Latin scripts, so use
-            # lookarounds on word characters.
-            pat = re.compile(r"(?<!\w)%s(?!\w)" % esc, flags | re.UNICODE)
-        compiled.append((term, pat))
+        compiled.append((term, _term_pattern(term, language, nowb, csens)))
     for label, rx in regex.items():
         compiled.append((label, re.compile(rx, re.UNICODE)))
     return compiled
+
+
+TITLE_ONLY_MARK = "title_only:"
+
+
+@lru_cache(maxsize=None)
+def _title_only_patterns(language: str):
+    """Compiled terms of the title_only block in keywords.yaml for this language: its "all" list,
+    the language's own list and, as for the main lists, the English one."""
+    with open(config.KEYWORDS_PATH, "r", encoding="utf-8") as fh:
+        block = (yaml.safe_load(fh) or {}).get("title_only") or {}
+    _, nowb, _, _, _, _, csens = _load()
+    terms = list(block.get("all") or []) + list(block.get(language) or [])
+    if language != "en":
+        terms += list(block.get("en") or [])
+    out, seen = [], set()
+    for term in terms:
+        if term not in seen:
+            seen.add(term)
+            out.append((term, _term_pattern(term, language, nowb, csens)))
+    return out
+
+
+def title_only_terms(title: str, language: str, country: Optional[str] = None) -> List[str]:
+    """The title_only terms in a title, each as "title_only:<term>". Home terms and home phrases
+    are set aside as in check."""
+    ignore = _load()[4].get(country or "", set())
+    text = mask_home_phrases(title or "", country)
+    return [TITLE_ONLY_MARK + term for term, pat in _title_only_patterns(language)
+            if term not in ignore and pat.search(text)]
 
 
 def strip_html(text: str) -> str:
@@ -136,12 +201,31 @@ def state_origin_signature(title: str, summary: str) -> Optional[str]:
     return (strong or [m["id"] for m in res["matches"]])[0]
 
 
-def check(title: str, summary: str, language: str, country: Optional[str] = None) -> Tuple[bool, List[str]]:
+def check(title: str, summary: str, language: str, country: Optional[str] = None,
+          url: Optional[str] = None, feed_boilerplate=None, title_only: bool = False) -> Tuple[bool, List[str]]:
     """Return (relevant, matched_terms). matched_terms lists every term that hit, weak ones
     included, so the audit trail shows why an item passed or failed. An item let through by a
-    state origin signature carries "state_origin_signature:<id>" among its terms."""
+    state origin signature carries "state_origin_signature:<id>" among its terms.
+
+    With the item's url, an item in a sports section (sports_sections in keywords.yaml) whose only
+    China term is one found in the summary alone is not admitted on it: it needs a term in the
+    headline, two distinct terms, or a state media name. Such an item carries
+    "sports_section:uncorroborated" among its terms. A state origin signature still admits it.
+
+    feed_boilerplate, the shingles the item's feed repeats in most of its summaries
+    (pipeline/boilerplate.py, FeedBoilerplate.shingles), are removed from the summary before the
+    terms are matched. The state origin signature check reads the whole summary.
+
+    title_only, for an item that carries a title and nothing else (a news sitemap entry,
+    pipeline/news_sitemap.py): the title_only terms in keywords.yaml also admit it when its title
+    names one, each recorded as "title_only:<term>". A headline names a Chinese city, company,
+    event or state media brand where a summary would have said China."""
     plain_summary = strip_html(summary or "")
-    text = mask_home_phrases("%s\n%s" % (title or "", plain_summary), country)
+    kw_summary = plain_summary
+    if feed_boilerplate:
+        from pipeline import boilerplate
+        kw_summary = boilerplate.strip(plain_summary, feed_boilerplate)
+    text = mask_home_phrases("%s\n%s" % (title or "", kw_summary), country)
     weak, home = _load()[2], _load()[4]
     ignore = home.get(country or "", set())
     hits = []
@@ -151,6 +235,15 @@ def check(title: str, summary: str, language: str, country: Optional[str] = None
         if pat.search(text):
             hits.append(term)
     strong = [h for h in hits if h not in weak]
+    if strong and sports_section(url) and not set(strong) & _sports_sections()[1]:
+        distinct, _, in_title = count(title, kw_summary, language, country)
+        if distinct < 2 and not in_title:
+            strong = []
+            hits = hits + [SPORTS_SECTION_MARK]
+    if title_only:
+        # Read after the sports section rule: a title_only term is in the headline by definition.
+        extra = title_only_terms(title, language, country)
+        hits, strong = hits + extra, strong + extra
     if not strong:
         sig = state_origin_signature(title, plain_summary)
         if sig:

@@ -44,6 +44,13 @@ USER_AGENT = (
 # Polite fetching
 MIN_SECONDS_PER_DOMAIN = 3.0
 JITTER_SECONDS = 1.0
+# A robots.txt Crawl-delay for this crawler (or for "*") raises a domain's gap above the minimum.
+# Values above the cap are read as the cap and logged: one fetch every ten minutes is already as
+# slow as a run can usefully go, and a typo such as 86400 would otherwise park the domain for a day.
+CRAWL_DELAY_CAP_SECONDS = 600.0
+# Threads that serve domains with a Crawl-delay above the minimum. They spend nearly all their time
+# asleep between slots, so they sit beside the ordinary fetch workers rather than taking their places.
+SLOW_DOMAIN_THREADS = 64
 FETCH_TIMEOUT = 20
 FEED_TIMEOUT = 20
 MAX_RETRIES = 2
@@ -84,6 +91,12 @@ LLM_BODY_CHAR_LIMIT = 12000
 # October the hold is off by default: the budget is sized for the API to take every waiting article,
 # and the session route is a fallback for when the budget is spent.
 LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "0"))
+# When the classifier prompt changes (classify_llm.PROMPT_VERSION), current model labels made under
+# an older prompt are judged again (unchecked state sourcing labels first, then oldest first within
+# each tier; classify_llm.RELABEL_PRIORITY) and keep their old label until the new one arrives.
+# They take what the new articles leave of each run's calls, and never more than this share of the
+# day's binding cap (the lower of the call ceiling and the budget cap), paced over the day.
+LLM_RELABEL_DAY_SHARE = float(_env("TRACKER_LLM_RELABEL_SHARE", "0.5"))
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
 KAPPA_WARNING_THRESHOLD = 0.6
 
@@ -92,7 +105,63 @@ KAPPA_WARNING_THRESHOLD = 0.6
 # classification, and keeping every one of them would grow the database by tens of
 # megabytes a day.
 GATED_OUT_RETENTION_DAYS = 3
+# Except a random share of them, kept permanently so the gate's recall can be audited over any
+# period, not only the last GATED_OUT_RETENTION_DAYS. Membership is decided by a salted hash of
+# the item's url_hash (store.gate_audit_keep), so it is reproducible, the same on the relay and
+# the hosted side, and independent of outlet, country and language. At about 80,000 to 90,000
+# rejections a day, 2 percent is roughly 1,700 rows a day; measured on the 2026-10-12 database at
+# about 1.07 KB a row with indexes, that is about 1.8 MB a day, some 50 to 55 MB a month.
+# Changing the share affects only items not yet decided.
+GATE_AUDIT_KEEP_SHARE = 0.02
+# The address of every item a prune deletes is remembered (store.seen_urls), so a feed that still lists
+# it does not bring it in, and count it, a second time. Until 2026-10-12 nothing was remembered: a feed
+# that listed an item for longer than GATED_OUT_RETENTION_DAYS brought it back after every prune, into
+# the articles table and into the discovery counts. Comparing the database snapshots of 2026-09-30 to
+# 2026-10-12 found 73,763 such repeats among the 905,252 discoveries of 2026-10-01 to 2026-10-11 (8.2
+# percent; 89 percent of se_sr's, 99 percent of gb_economist's), at least 123,682 since collection began.
+# Nearly all came back at the first poll after the prune (99 percent within 3.5 days of the previous
+# sighting, none after more than 6.5 within the window the snapshots cover without a gap), and one in ten
+# was published more than 100 days before it was seen again. So the clock runs from the latest sighting,
+# not from publication: an address seen again is kept SEEN_URL_RETENTION_DAYS after its latest sighting,
+# however long a feed keeps listing it, and one never seen again after its discovery is dropped
+# SEEN_URL_UNSEEN_DAYS after it, twice the longest gap measured. At about 60,000 pruned rejections a day
+# and about 21 bytes a row, that is some 20 to 30 MB.
+SEEN_URL_RETENTION_DAYS = 120
+SEEN_URL_UNSEEN_DAYS = 14
+# What the repeats above did to the discovery counts, which stay as they were (the pruned addresses that
+# would show which items came back are gone). Measured on the 2026-10-12 database and its snapshots: at
+# least 123,682 of the 3,008,671 items screened since collection began were such repeats (4.1 percent,
+# the items the snapshots show coming back), and applying each outlet's share of repeats in 2026-10-01 to
+# 2026-10-11 (8.2 percent overall) to the whole period puts it near 8 percent, about 240,000. The share
+# differs by country (about 72 percent in the Cayman Islands, 50 in Sweden, 47 in Kuwait, 28 in Uruguay,
+# 18 in Vietnam, 16 in Britain), so every share of a country's output read before the fix is low by
+# that country's share. export.rediscovery puts these in meta.rediscovery for the site and the
+# methodology. REDISCOVERY_FIXED_FROM is used only when the database does not record the first run
+# that remembered pruned addresses (store schema_migrations, "seen_urls.remembering").
+REDISCOVERY_ESTIMATED_SHARE = 0.08
+REDISCOVERY_MEASURED_FLOOR = 123682
+REDISCOVERY_MEASURED_OF = 3008671
+REDISCOVERY_WINDOW_SHARE = 0.082
+REDISCOVERY_FIXED_FROM = "2026-10-13"
 EXPORT_DIR_AUDIT = ROOT / "data" / "export"
+
+# Day of record for items a backfill read brings in. Every figure counts an item on the UTC day it was
+# discovered (export._day). A reader that reads a dated listing back to a past date, like the AAP
+# release reader (section_pages.aap_entries), whose first run reads back to 2026-09-03 and finds about
+# 1,459 releases for each of ten mastheads, would put weeks of output on one day, in the counts and in
+# the "% of all its news" denominators alike. An item from such a read that was discovered more than
+# BACKFILL_LAG_HOURS after its published time, and published on or after COLLECTION_START, counts on its
+# publication day instead, in both (store.backfill_day, stored in articles.day_of_record at insert).
+# The rule is for backfill reads only. Measured on the 2026-10-12 database, the same lag rule applied to
+# every item would have moved 1,473 of 80,272 classified articles (1.8 percent; 23 percent in Kazakhstan,
+# 18 in Australia), and could not have moved the denominators of days whose rejected items are already
+# pruned, so numerator and denominator would have parted.
+BACKFILL_LAG_HOURS = 36
+COLLECTION_START = "2026-09-03"     # the first day of discovery; no item counts on an earlier day
+# A feed's first successful poll ever, and its first successful poll after more than BACKFILL_GAP_DAYS
+# without one, are backfill reads too (fetch_feeds.backfill_poll): a new outlet or section, or a feed
+# back from an outage, delivers dozens of items at once that were published while nobody was reading it.
+BACKFILL_GAP_DAYS = 3
 
 # Paywall threshold above which a country is flagged as not comparable
 PAYWALL_FLAG_SHARE = 0.33
@@ -108,9 +177,10 @@ FEED_FAILURE_WARNING_SHARE = 0.5
 # behind its denominator. Below it the share describes a handful of feeds and is not shown.
 MIN_OUTLETS_FOR_OUTPUT_SHARE = 5
 
-# Until a reliability study has run, unverified relay is shown as provisional: real counts, marked
+# Until the hand coding study has passed, unverified relay is shown as provisional: real counts, marked
 # everywhere as one model's judgement that has not been checked. Provisional means not checked yet, never
-# checked and failed: once any study has produced a kappa, the counts are either published or withheld.
+# checked and failed: a hand coding kappa below the threshold, or a model stability check on the current
+# prompt below it, withholds the counts. A passing stability check leaves them provisional.
 RELAY_PROVISIONAL_DISPLAY = _env("TRACKER_RELAY_PROVISIONAL", "1") == "1"
 
 # The reliability study runs by itself (pipeline.second_rater auto) when it is needed and the monthly
@@ -139,10 +209,24 @@ RELAY_STALE_HOURS = 6
 # poll, above which the country is warned that items were probably lost between polls.
 FEED_SATURATION_WARNING_SHARE = 0.25
 
-# Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml changes meaning.
+# The missed-items estimator (pipeline/fetch_feeds.py saturation) a feed_polls row was made by, kept on
+# the row (feed_polls.estimator; "v1" for every row made before 2026-10-12, which inflated batch
+# publishers and short windows and cannot be recomputed, since single poll times are not kept). The
+# export reports the estimate only from rows made by this version, from the first day it was used.
+# Bump it whenever the estimator changes meaning.
+MISSED_ESTIMATOR_VERSION = "2026-10-12"
+
+# Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml or diplomats.yaml changes meaning.
 # Must match ruleset_version in signatures.yaml: a label records the version the signatures carried,
 # while reclassify() compares against this one, so a mismatch would reclassify the same rows forever.
-RULESET_VERSION = "2026.09.9"
+RULESET_VERSION = "2026.10.1"
+
+# Current extraction version, recorded on every stored body (articles.extract_version; NULL for bodies
+# stored before it existed). Bump it whenever pipeline/extract.py reads an outlet's template
+# differently, and list the template in extract.EXTRACTION_CHANGES: a body of that template stored
+# under an older version is extracted again from the saved page, or fetched again politely, before it
+# is classified (classify_rules.ensure_body). Templates not listed keep their bodies.
+EXTRACT_VERSION = "2026.10.1"
 
 # Current relevance gate version. Separate from the ruleset: the ruleset decides an article's label
 # and is stored on every classification row, while the gate decides what enters the corpus at all.
@@ -150,5 +234,5 @@ RULESET_VERSION = "2026.09.9"
 # must not trigger reclassification; it does move the boundary of what is collected, which is why the
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
-GATE_VERSION = "2026.09.7"
-SCHEMA_VERSION = 11   # 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+GATE_VERSION = "2026.10.1"
+SCHEMA_VERSION = 12   # 12: each day in the daily files carries underlying_items, the item ids behind its state origin and unchecked state sourcing counts per country, and latest.json uniqA and uniqAB count each item once per window and, in the totals, once across countries; 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

@@ -1,0 +1,44 @@
+{
+ "ar_clarin": {
+  "error": null,
+  "fetched_at": "2026-10-12T21:28:24+00:00",
+  "status": 200,
+  "url": "https://www.clarin.com/sitemaps/sitemap_google_news.xml"
+ },
+ "br_riotimes": {
+  "error": null,
+  "fetched_at": "2026-10-12T21:28:18+00:00",
+  "status": 200,
+  "url": "https://www.riotimesonline.com/news-sitemap.xml"
+ },
+ "pk_dailytimes": {
+  "error": "http_403",
+  "fetched_at": "2026-10-12T21:28:28+00:00",
+  "status": 403,
+  "url": "https://dailytimes.com.pk/sitemap-news.xml"
+ },
+ "rs_telegraf": {
+  "error": null,
+  "fetched_at": "2026-10-12T21:28:32+00:00",
+  "status": 200,
+  "url": "https://www.telegraf.rs/xml/news"
+ },
+ "sg_asiaone": {
+  "error": null,
+  "fetched_at": "2026-10-12T21:28:37+00:00",
+  "status": 200,
+  "url": "https://www.asiaone.com/googlenews.xml"
+ },
+ "us_prnewswire": {
+  "children_listed": 8,
+  "children_read": [
+   "https://www.prnewswire.com/sitemap-news.xml?page=1",
+   "https://www.prnewswire.com/sitemap-news.xml?page=2",
+   "https://www.prnewswire.com/sitemap-news.xml?page=3"
+  ],
+  "error": null,
+  "fetched_at": "2026-10-12T21:28:03+00:00",
+  "status": 200,
+  "url": "https://www.prnewswire.com/sitemap-news.xml"
+ }
+}

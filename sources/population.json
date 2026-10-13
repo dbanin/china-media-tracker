@@ -1,5 +1,5 @@
 {
-"note": "Resident population used for the per million people metrics. World Bank SP.POP.TOTL 2024 where available; territories the World Bank does not cover use UN World Population Prospects 2024 or the territory's own statistics office, rounded. Uninhabited territories (ATA, ATF, BVT, HMD, SGS, UMI) have no entry and get no per capita value.",
+"note": "Resident population. No figure on the site is divided by it and no value is shown on the page: it is exported per country in latest.json and written only to the population column of the CSV of the current view, and the method page cites the sources below under Population figures. World Bank SP.POP.TOTL 2024 where available; territories the World Bank does not cover use UN World Population Prospects 2024 or the territory's own statistics office, rounded. Uninhabited territories (ATA, ATF, BVT, HMD, SGS, UMI) have no entry, so their population column is blank.",
 "population": {
 "ABW": 107995,
 "AFG": 42647492,
