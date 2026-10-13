@@ -85,7 +85,7 @@
   - diplomat_list_author
   - diplomat_byline_head
   note: Hard negative for the authored by state group. A reporter's account of a minister receiving the Chinese ambassador.
-    Names the ambassador with his full title in the first sentence, but the journalist formed the editorial view. Not A.
+    Names the ambassador with his full title in the first sentence, but the journalist wrote it and no state entity authored or commissioned it. Not A.
 - file: nst_branded_content_nav.txt
   author: Asila Jalil
   labels: nst_branded_content_nav.labels.txt
@@ -174,3 +174,764 @@
   - xinhua_writer_byline
   note: Hard negative, credit and dateline group. The outlet's own explainer, bylined Rana Atef, citing a report by a Xinhua
     reporter in mid sentence. A wire byline must stand where a byline stands.
+- file: antara_crionline_release.txt
+  author: Antaranews Com; PR Wire
+  source: https://en.antaranews.com/news/433117/the-14th-forum-on-china-asean-technology-transfer-and-collaborative-innovation
+  expect_decision: A
+  expect_ids_include:
+  - cri_credit
+  note: 'True positive, credit and dateline group. A China Radio International release carried by Antara, opening "A news
+    report from CRIOnline:" and closing "Source: CRIOnline". Before ruleset 2026.10.1 cri_credit knew only the spaced "CRI
+    Online" and the row was labelled independent journalism by the rules.'
+- file: crienglish_site_footer.txt
+  source: https://web.archive.org/web/20161229005138/http://english.cri.cn/
+  expect_decision: A
+  expect_ids_include:
+  - cri_name_head_tail
+  note: True positive, credit and dateline group. The description and footer of CRI's own English site in 2016, which named
+    itself CRIENGLISH.com. From ruleset 2026.10.1 the footer "Copyright by CRIENGLISH.com" fires cri_name_head_tail, because
+    cri_credit no longer reads the CRI names outside a credit line or dateline.
+- file: chilango_cri_cri_online.txt
+  author: Michelle Galeana
+  source: https://www.chilango.com/ocio/cri-cri-en-linea/
+  expect_decision: none
+  expect_ids_exclude:
+  - cri_credit
+  note: 'Hard negative, credit and dateline group. A Mexican listing for the Cri-Cri ballet, "ver Cri Cri online". The case
+    insensitive "CRI Online" in cri_credit matched it before ruleset 2026.10.1; the acronym must now be upper case.'
+- file: crocerossa_liguria_cri_online.txt
+  source: https://cri.it/liguria/wp-content/uploads/sites/10/2022/01/Bando_corsi_di_formazione_per_formatori_trasversali_CRI_online_FCRIOL.pdf
+  expect_decision: none
+  expect_ids_exclude:
+  - cri_credit
+  note: Hard negative, credit and dateline group. The title of an Italian Red Cross notice for its online trainer course, where
+    CRI is Croce Rossa Italiana and "online" is lower case. Matched cri_credit before ruleset 2026.10.1.
+- file: cnnportugal_cri_inclusao.txt
+  source: https://cnnportugal.iol.pt/criancas-com-necessidades/centros-de-recursos-para-a-inclusao/milhares-de-criancas-com-necessidades-especiais-em-risco-de-ficar-sem-apoio-por-falta-de-financiamento-aos-cri/20261009/6ac8d563d34e53c759c75b10
+  expect_decision: none
+  expect_ids_exclude:
+  - cri_credit
+  note: Hard negative, credit and dateline group. Title and summary of a Portuguese report on the Centros de Recursos para a
+    Inclusao, written CRI.
+- file: oubangui_fondation_cri_de_coeur.txt
+  author: Oubangui Médias
+  source: https://oubanguimedias.com/2026/10/06/en-fin-de-mission-lambassadeur-de-chine-li-qinfeng-apporte-un-appui-a-la-fondation-cri-de-coeur-dune-mere/
+  expect_decision_not: A
+  expect_ids_exclude:
+  - cri_credit
+  note: 'Hard negative, credit and dateline group. A French report on the Chinese ambassador''s gift to the Fondation Cri de Coeur
+    d''une Mere in Bangui; "Cri" is the French word for a cry.'
+- file: byline_head_singapore_envoy_to_china.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision_not: A
+  expect_ids_exclude:
+  - diplomat_byline_head
+  - diplomat_list_author
+  note: 'Hard negative, authored by state group. "By Li Dong, Ambassador of Singapore to China": Singapore''s envoy, with China
+    only as the host country. diplomat_byline_head took any China word within 80 characters after the title before ruleset
+    2026.10.1 and fired here; the title phrase must now make the person China''s diplomat. Li Dong is also a listed name
+    (consul-general in Adelaide), so the byline check of the diplomat list must not fire either.'
+- file: byline_head_chile_envoy_en_china.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision_not: A
+  expect_ids_exclude:
+  - diplomat_byline_head
+  note: 'Hard negative, authored by state group. "Por Juan Pablo Soto, Embajador de Chile en China": China as the host country
+    after "en" does not make the signer China''s diplomat. Fired diplomat_byline_head before ruleset 2026.10.1.'
+- file: byline_head_xiao_qian_en.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - diplomat_byline_head
+  note: True positive, authored by state group. English byline "By Xiao Qian, Ambassador of the People's Republic of China to
+    Australia" at the top of the body.
+- file: byline_head_chen_daojiang_es.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - diplomat_byline_head
+  note: True positive, authored by state group. Spanish byline "Por Chen Daojiang, Embajador de China en México".
+- file: byline_head_deng_li_fr.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - diplomat_byline_head
+  note: True positive, authored by state group. French byline "Par Deng Li, Ambassadeur de Chine en France".
+- file: byline_head_hou_yue_it.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - diplomat_byline_head
+  note: True positive, authored by state group. Italian byline "Di Hou Yue, Ambasciatore della Repubblica Popolare Cinese in
+    Italia".
+- file: swm_source_xinhua_named_writer.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  author: Li Wei
+  labels: swm_source_xinhua_named_writer.labels.txt
+  expect_decision: A
+  expect_ids_include:
+  - state_outlet_source_label
+  expect_ids_exclude:
+  - xinhua_co_credit_author
+  - xinhua_author_field
+  note: 'True positive, credit and dateline group. A named writer on a Seven West Media page whose own page data credits
+    the article to Xinhua ("source: Xinhua" in the page labels), with no credit in the body. extract.wire_author leaves a
+    named writer alone, so before ruleset 2026.10.1 no signature fired.'
+- file: swm_source_cgtn_co_credit.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  author: Digital Staff
+  labels: swm_source_cgtn_co_credit.labels.txt
+  expect_decision: A
+  expect_ids_include:
+  - state_outlet_source_label
+  note: True positive, credit and dateline group. The page data credits the article to AAP and CGTN; a state outlet named
+    as one item of the source list is a credit, as a co-credit in the author field is.
+- file: swm_source_aap_body_cites_xinhua.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  author: Staff Writers; AAP
+  labels: swm_source_aap_body_cites_xinhua.labels.txt
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_outlet_source_label
+  expect_triggers_include:
+  - cites_xinhua
+  note: Hard negative, credit and dateline group. The page data credits AAP and the body cites a Xinhua report; a citation
+    goes to the model, and only the source line names the outlet the copy came from.
+- file: swm_photo_credit_xinhua.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  author: Staff Writers; Reuters
+  labels: swm_photo_credit_xinhua.labels.txt
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_outlet_source_label
+  note: 'Hard negative, credit and dateline group. The page data credits Reuters, and Xinhua appears only in page chrome as
+    a picture credit and as a capitalised "Source:" caption; the signature reads only the lower case "source: " line that
+    extract.page_labels writes from the article''s own source field.'
+- file: cgtn_radio_source_line.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - cgtn_credit
+  note: 'True positive, credit and dateline group. "Source: CGTN Radio", the name China Radio International''s English service
+    now carries. cgtn_credit needed "CGTN" alone on the line before ruleset 2026.10.1 and matched nothing here.'
+- file: cgtn_africa_dateline.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - cgtn_credit
+  note: True positive, credit and dateline group. Dateline "NAIROBI, Oct. 12 (CGTN Africa) --", which the dateline form of
+    cgtn_credit missed before ruleset 2026.10.1.
+- file: cgtn_africa_byline_author.txt
+  author: CGTN Africa
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - cgtn_author
+  note: True positive, credit and dateline group. "CGTN Africa" in the author field, the byline CGTN's own Africa pages
+    (newsaf.cgtn.com) carry.
+- file: cgtn_europe_prose_mention.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - cgtn_credit
+  - cgtn_bare_line_tail
+  expect_triggers_include:
+  - cites_cgtn
+  note: Hard negative, credit and dateline group. A sentence that opens with "CGTN Europe" is a report about the broadcaster,
+    not a credit; it goes to the model as a citation.
+- file: cri_native_entity_sponsored_zh.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - sponsored_en
+  - publisher_not_reviewed_disclosure
+  note: True positive, two weak groups. A sponsored piece that names China Radio International only in Chinese script,
+    中国国际广播电台. Before ruleset 2026.10.1 the name was not in the native state entity test, so the two weak signals
+    stayed a model candidate.
+- file: cri_guoji_zaixian_sponsored_zh.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_triggers_include:
+  - cites_china_media_group
+  note: True positive, two weak groups. The same sponsored piece naming CRI's site as a source, "据国际在线报道".
+- file: cri_online_education_sponsored_zh.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A_candidate
+  expect_triggers: []
+  note: Hard negative for the native state entity test. "国际在线教育平台" is an international online education platform,
+    not CRI's site; 国际在线 counts only before punctuation or a source word such as 消息, 报道 or 记者.
+- file: cri_online_mention_mid_body.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - cri_credit
+  - cri_name_head_tail
+  - cri_author
+  expect_triggers_include:
+  - cites_china_media_group
+  note: 'Hard negative, credit and dateline group. "In an interview with CRI Online last week" in the middle of a local
+    story. Before ruleset 2026.10.1 the CRI names anywhere in the body fired cri_credit and labelled the story state origin;
+    a mention now sends it to the model.'
+- file: cri_english_mention_head.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - cri_credit
+  - cri_name_head_tail
+  expect_triggers_include:
+  - cites_china_media_group
+  note: 'Hard negative, credit and dateline group. A mention in the first sentence, "talked with Chinese media CRI English
+    about the outcome of the trial": in the head the CRI names count only in credit form (before a colon, alone on a line,
+    after a copyright mark).'
+- file: cri_online_author.txt
+  author: CRI Online
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - cri_author
+  note: True positive, credit and dateline group. "CRI Online" in the author field, a credit position.
+- file: abc_china_commerce_ministry_statement.txt
+  source: https://www.abc.net.au/news/2026-09-29/us-china-agree-to-tariff-cuts-on-60-billion-of-goods/107206860
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_en
+  note: 'True positive for the state body trigger. "China''s commerce ministry said in a statement" matched no official sourcing
+    trigger before ruleset 2026.10.1 and the row was labelled by the rules as independent journalism without the model seeing
+    it (Australian audit).'
+- file: perthnow_police_weibo_statement.txt
+  source: https://www.perthnow.com.au/news/disaster-and-emergency/chinese-police-find-seven-dead-in-an-abandoned-mine-c-22972278
+  author: Staff Writers AP
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_police_statement
+  note: True positive for the police statement trigger. An article sourced entirely to a county police statement released on
+    Weibo, where the platform is the only Chinese entity in the sentence. Matched nothing before ruleset 2026.10.1.
+- file: ko_commerce_ministry_notice.txt
+  source: https://www.newsis.com (kr_newsis, article 237381)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_other
+  note: True positive for the state body trigger in Korean. A Chinese commerce ministry notice on an anti-dumping ruling.
+- file: chinaproject_taiwan_defense_ministry_chinese_warplanes.txt
+  source: https://thechinaproject.com (hk_thechinaproject, article 24691)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the state body trigger. "Taiwan's defense ministry said it had tracked around 35 Chinese warplanes";
+    the Chinese entity must be attached to the body, so another government's ministry reporting on China does not fire.
+- file: ko_state_council_vice_premier.txt
+  source: https://www.donga.com (kr_donga, article 978318)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the state body trigger in Korean. "중국 국무원 부총리" is the vice premier's title, not a State Council
+    statement; the statement in the sentence is the US Treasury Secretary's.
+- file: lowy_kcna_handout_via_xinhua.txt
+  source: https://www.lowyinstitute.org/the-interpreter/headline-trump-s-57-nukes-and-the-hollowing-out-of-north-korean-denuclearisation
+  expect_decision: none
+  expect_triggers: []
+  note: Photo credit exclusion. "(KCNA/Handout via Xinhua)" is a picture credit; before ruleset 2026.10.1 it fired cites_xinhua
+    and sent the article to the model for nothing.
+- file: lowy_cns_vcg_via_getty_caption.txt
+  source: https://www.lowyinstitute.org/the-interpreter/losing-face-licensing-and-governing-ai-content-in-china
+  expect_decision: none
+  expect_triggers: []
+  note: Photo credit exclusion. "(Wang Gang/China News Service/VCG via Getty Images)" is a picture credit; it fired
+    cites_china_media_group before ruleset 2026.10.1.
+- file: abc_reuters_china_daily_caption.txt
+  source: https://www.abc.net.au/news/2026-09-16/usa-space-weapons-china-russia/107157436
+  expect_decision: none
+  expect_triggers: []
+  note: 'Photo credit exclusion. The ABC figure caption "( Reuters: China Daily )", the "(source: photographer)" form. The stored
+    body of this article does not carry the caption, but a body that does must not reach the model through it.'
+- file: rthk_afp_xinhua_text_credit.txt
+  source: https://news.rthk.hk (hk_rthk, article 838038)
+  expect_decision: none
+  expect_triggers_include:
+  - cites_xinhua
+  note: Hard negative for the photo credit exclusions. The closing text credit "(AFP/Xinhua)" is a wire credit, not a picture
+    credit, and must still be read.
+- file: cgtn_source_fullwidth_colon_date.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - cgtn_credit
+  note: 'True positive, credit and dateline group. "Source：CGTN 2026-09-06", the credit line english.sdchina.com carries, with a
+    full width colon and a date after the name. cgtn_credit took only an ASCII colon and the name at the end of the line before
+    ruleset 2026.10.1 and matched nothing here.'
+- file: cgtn_source_line_prose.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - cgtn_credit
+  expect_triggers_include:
+  - cites_cgtn
+  note: 'Hard negative, credit and dateline group. A line that opens "Source: CGTN 2026" and goes on as a sentence is not a
+    credit; the date allowed after the name must end the line.'
+- file: xinhua_source_fullwidth_colon_date.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - xinhua_credit_line
+  note: 'True positive, credit and dateline group. The same gap in the other Latin credit lines: "Source：Xinhua | 2026-09-06
+    10:23" matched no credit signature before ruleset 2026.10.1.'
+- file: cri_zh_credit_line_date.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - state_outlet_credit_line_native
+  note: 'True positive, credit and dateline group. "来源：国际在线 2026-09-06", CRI''s site named as the source of the text, with a
+    date. The native credit line did not carry the CRI names before ruleset 2026.10.1.'
+- file: cri_zh_credit_line_traditional.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - state_outlet_credit_line_native
+  note: True positive, credit and dateline group. The traditional script credit "來源：中國國際廣播電臺".
+- file: cri_zh_online_education_credit_line.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - state_outlet_credit_line_native
+  expect_triggers: []
+  note: Hard negative, credit and dateline group. "来源：国际在线教育" credits an international online education company, not CRI's
+    site; the name must end the credit line.
+- file: cri_zh_mention_mid_body.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - state_outlet_credit_line_native
+  - state_outlet_wire_end_native
+  expect_triggers_include:
+  - cites_china_media_group
+  note: Hard negative, credit and dateline group. An interview with 中国国际广播电台 mentioned in the running text is a citation, which
+    goes to the model, not a credit.
+- file: cri_ja_credit_line.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - state_outlet_credit_line_native
+  note: True positive, credit and dateline group. CRI's Japanese name as the source, "出典：中国国際放送局".
+- file: cri_ja_entity_sponsored.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - sponsored_en
+  - publisher_not_reviewed_disclosure
+  expect_triggers_include:
+  - cites_china_media_group
+  note: True positive, two weak groups. A sponsored piece that names CRI only by its Japanese name, 中国国際放送局, which was not in
+    the native state entity test before ruleset 2026.10.1, so the two weak signals stayed a model candidate.
+- file: cri_ja_mention.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - state_outlet_credit_line_native
+  expect_triggers_include:
+  - cites_china_media_group
+  note: Hard negative, credit and dateline group. An interview with 中国国際放送局 in the running text is a citation for the model,
+    not a credit. It matched no trigger before ruleset 2026.10.1.
+- file: cri_ko_entity_sponsored.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A
+  expect_ids_include:
+  - sponsored_en
+  - publisher_not_reviewed_disclosure
+  expect_triggers_include:
+  - cites_china_media_group
+  note: True positive, two weak groups. A sponsored piece that names CRI only by its Korean name, 중국국제방송.
+- file: cri_ko_mention.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: none
+  expect_ids_exclude:
+  - state_outlet_credit_line_native
+  expect_triggers_include:
+  - cites_china_media_group
+  note: Hard negative, credit and dateline group. "중국국제방송과의 인터뷰에서" in the running text is a citation for the model, not a
+    credit.
+- file: cri_ko_equipment_fair_sponsored.txt
+  source: constructed (ruleset 2026.10.1 regression case)
+  expect_decision: A_candidate
+  expect_triggers: []
+  note: Hard negative for the native state entity test. 중국국제방송장비전시회 is a broadcasting equipment fair; the Korean CRI name
+    counts only before a particle or a non Hangul character.
+- file: islandtimes_chinese_authorities_said_toll.txt
+  source: https://islandtimes.org/nepali-teacher-saved-hundreds-of-students-from-flood-minutes-before-it-arrived/ (pw_islandtimes, article
+    73710)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_en
+  note: True positive for the generic official attribution trigger. "Chinese authorities said 16 people were killed", the casualty figure
+    carried only by Chinese authorities, matched no official sourcing trigger before.
+- file: seattletimes_ap_china_said_tuesday.txt
+  source: https://www.seattletimes.com/business/china-expands-export-control-on-drug-precursors-ahead-of-trump-xi-meeting/ (us_seattletimes,
+    article 1405490)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_en
+  note: True positive for the generic official attribution trigger. "China said Tuesday that it is now requiring permits", a day between
+    subject and verb.
+- file: diariocorreo_autoridades_chinas_informaron.txt
+  source: https://diariocorreo.pe/mundo/nepal-y-china-elevan-a-1384-los-muertos-tras-devastadoras-riadas-en-el-himalaya-noticia/ (pe_diariocorreo,
+    article 217470)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_es
+  note: True positive for the generic official attribution trigger in Spanish. "las autoridades chinas informaron de 43 fallecidos".
+- file: brasildefato_a_china_confirmou.txt
+  source: https://www.brasildefato.com.br/2026/09/11/o-que-importa-informar/ (br_brasildefato, article 558626)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_pt
+  note: True positive for the generic official attribution trigger in Portuguese. "a China confirmou 43 mortos".
+- file: lapresse_pekin_a_confirme.txt
+  source: https://www.lapresse.ca/international/2026-09-21/visite-aux-etats-unis/le-president-chinois-en-quete-de-stabilite-strategique.php
+    (ca_lapresse, article 1313033)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_fr
+  note: True positive for the generic official attribution trigger in French. "Pékin a confirmé lundi le voyage".
+- file: politico_de_nach_angaben_pekings.txt
+  source: https://www.politico.eu/article/china-und-die-eu-haben-nach-angaben-pekings-eine-einigung-zu-hybrid-autos-erzielt/ (be_politico_eu,
+    article 2855649)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_de
+  note: True positive for the generic official attribution trigger in German. "nach Angaben Pekings" in a headline.
+- file: formiche_secondo_pechino.txt
+  source: https://formiche.net/2026/09/byd-auto-cine-europa-industria/ (it_formiche, article 554)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_it
+  note: True positive for the generic official attribution trigger in Italian. "secondo Pechino".
+- file: alroya_ar_chinese_authorities_said.txt
+  source: https://alroya.om/post/393447/%D9%85%D8%B5%D8%B1%D8%B9-%D9%8811-%D9%85%D9%81%D9%82%D9%88%D8%AF%D8%A7-%D8%AC%D8%B1%D8%A7%D8%A1-%D8%A7%D9%86%D9%87%D9%8A%D8%A7%D8%B1-%D8%B7%D9%8A%D9%86%D9%8A-%D9%81%D9%8A-%D8%A5%D9%82%D9%84%D9%8A%D9%85-%D8%B5%D9%8A%D9%86%D9%8A
+    (om_alroya, article 145201)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_other
+  note: True positive for the generic official attribution trigger in Arabic. "قالت السلطات الصينية إن".
+- file: mk_ko_chinese_government_said.txt
+  source: https://www.mk.co.kr/news/world/12149622 (kr_mk, article 449936)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_other
+  note: True positive for the generic official attribution trigger in Korean. "중국 정부가 10일 밝혔다", an institutional subject.
+- file: thanhnien_vi_trung_quoc_cho_biet.txt
+  source: https://thanhnien.vn/hy-vong-van-chua-tat-sau-con-lu-du-o-nepal-185260902210333633.htm (vn_thanhnien, article 63549)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_other
+  note: True positive for the generic official attribution trigger in Vietnamese. "Trung Quốc cho biết" at the head of a clause.
+- file: ria_ru_said_in_beijing.txt
+  source: https://ria.ru/20260910/kitay-2116789660.html (ru_ria, article 453175)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_other
+  note: True positive for the generic official attribution trigger in Russian. "заявили в Пекине" in a headline.
+- file: detik_id_otoritas_china.txt
+  source: https://news.detik.com/internasional/d-8672738/xi-jinping-kunjungi-as-untuk-bertemu-trump-pekan-ini (id_detik, article 1320597)
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_official_attribution_other
+  note: True positive for the generic official attribution trigger in Indonesian. "Otoritas China mengonfirmasi".
+- file: nst_china_coach_says.txt
+  source: https://www.nst.com.my/sports/football/2026/10/1546984/china-coach-says-future-bright-after-first-football-medal-28-years
+    (my_nst, article 2365312)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger, sports. "China coach says": China names the team, and the verb
+    belongs to the coach.'
+- file: macaonews_mgm_china_reported.txt
+  source: https://macaonews.org/news/business/mgm-china-to-issue-us750-million-in-seven-year-bonds/ (mo_macaonews, article 36862)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the generic official attribution trigger. "MGM China reported" is a company; a capitalised word before China
+    makes it a name.
+- file: mothership_hyrox_china_said.txt
+  source: https://mothership.sg/2026/09/hyrox-beijing-athlete-feces/ (sg_mothership, article 744399)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the generic official attribution trigger. "Hyrox China said" is a race organiser.
+- file: yahoo_held_in_china_says.txt
+  source: https://sg.news.yahoo.com/exclusive-wife-us-seismologist-held-001735078.html (sg_yahoo, article 1458710)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger. "seismologist held in China says": China after a preposition is
+    not the speaker.'
+- file: arabnews_us_ambassador_to_china_said.txt
+  source: https://www.arabnews.com/world/trump-offered-to-sell-arms-to-china-us-ambassador-to-fox-news-3003483 (sa_arabnews, article
+    1856445)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the generic official attribution trigger. "the US ambassador to China said".
+- file: hkfp_chinese_authorities_penalised.txt
+  source: https://hongkongfp.com/2026/08/31/china-penalises-10-people-for-misinformation-over-deadly-mudslide-near-nepal-border/ (hk_hkfp,
+    article 24405)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the generic official attribution trigger. "Chinese authorities penalised 10 people" is an action, not a reporting
+    verb.
+- file: infobae_embajador_en_china_afirma.txt
+  source: https://www.infobae.com/america/agencias/2026/09/28/el-embajador-de-eeuu-en-china-afirma-que-trump-ofrecio-a-xi-comprar-armas-estadounidenses/
+    (ar_infobae, article 1871329)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger in Spanish. "El embajador de EEUU en China afirma": the speaker
+    is the US ambassador.'
+- file: canaln_autoridades_declararon_alerta.txt
+  source: https://canaln.pe/internacionales/china-alerta-maxima-inundaciones-paso-tifon-n494737 (pe_canaln, article 44439)
+  expect_decision: none
+  expect_triggers: []
+  note: Hard negative for the generic official attribution trigger in Spanish. "Las autoridades de China declararon el estado de alerta
+    máxima" declares an alert; "declararon" counts only before "que". It was the one false route in the sample of 40 read when the trigger
+    was measured.
+- file: rtp_detida_na_china_diz.txt
+  source: https://www.rtp.pt/noticias/mundo/jornalista-desaparecida-ha-tres-anos-estara-detida-na-china-diz-reporteres-sem-fronteiras_n1765722
+    (pt_rtp, article 939445)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger in Portuguese. "detida na China diz Repórteres Sem Fronteiras":
+    the speaker is RSF.'
+- file: kontan_dandong_china_mengatakan.txt
+  source: https://internasional.kontan.co.id/news/kabur-dari-china-gara-gara-tarif-as-perusahaan-kini-mulai-kembali (id_kontan, article
+    770815)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger in Indonesian. "berbasis di Dandong China mengatakan": the speaker
+    is a company executive.'
+- file: kmib_ko_china_side_reported_by_wsj.txt
+  source: https://www.kmib.co.kr/article/view.asp?arcid=9000019707 (kr_kmib, article 2416517)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger in Korean. "중국 측이 ... 요구했다고 전했다": the verb is the Wall Street Journal''s
+    report, not a statement by the Chinese side.'
+- file: kathmandupost_said_chinese_authorities_had.txt
+  source: https://kathmandupost.com/province-no-3/2026/09/03/114-nepalis-stranded-in-china-return-through-tatopani-border (np_kathmandupost,
+    article 42532)
+  expect_decision: none
+  expect_triggers: []
+  note: 'Hard negative for the generic official attribution trigger. "Padamraj Timilsina, chief of the Tatopani Immigration Office,
+    said Chinese authorities had brought": a Nepali official is speaking.'
+- file: hr_foreign_ministry_announced.txt
+  source: https://www.tportal.hr/vijesti/clanak/kinezi-potvrdili-xi-putuje-u-posjet-trumpu-20260921
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive for the state body trigger in Croatian. "priopćilo je kinesko ministarstvo vanjskih poslova" matched no official
+    sourcing trigger and the row was labelled independent journalism by the rules.
+- file: hr_consulate_general_kine.txt
+  source: https://www.index.hr/vijesti/clanak/kineski-umjetnici-iz-protesta-napustili-umjetnicki-bijenale-u-juznoj-koreji/2830766.aspx
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_embassy_quoted_more
+  note: True positive for the embassy trigger in Croatian. "Generalni konzulat Kine u Gwangjuu poručio je" quotes a Chinese consulate.
+- file: hr_kineska_drzavna_televizija_cctv.txt
+  source: https://www.jutarnji.hr/vijesti/svijet/kina-otkriva-icbm-silose-fokus-na-drugi-udar-15747201
+  expect_decision: none
+  expect_triggers_include:
+  - cites_state_media_more
+  - state_media_reported_more
+  note: 'True positive in Croatian. "Kineska državna televizija CCTV": CCTV with a Chinese state broadcaster word in Croatian, which
+    cites_cctv does not read.'
+- file: bs_glasnogovornik_ministarstva_vanjskih_poslova.txt
+  source: https://fena.ba/article/1696618/iranski-ministar-vanjskih-poslova-abbas-araghchi-posjetit-ce-sutra-kinu
+  expect_decision: none
+  expect_triggers_include:
+  - mofa_spokesperson_more
+  note: True positive for the spokesperson trigger in Bosnian. "glasnogovornik kineskog Ministarstva vanjskih poslova".
+- file: sr_ministarstvo_trgovine_kine.txt
+  source: https://biznis.rs/novac/kina-upozorila-da-ce-uzvratiti-ako-eu-uvede-ogranicenja-njenim-firmama/
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive for the state body trigger in Serbian. "Ministarstvo trgovine Kine je danas najavilo".
+- file: mk_sinhua_cyrillic.txt
+  source: https://novamakedonija.com.mk/svet/djinping-za-vojnata-na-bliskiot-istok-zemjite-od-briks-da-zastanat-na-vistinskata-strana-na-istorijata/
+  expect_decision: none
+  expect_triggers_include:
+  - cites_state_media_more
+  note: True positive in Macedonian. Xinhua written Синхуа, which cites_xinhua (Синьхуа) does not read.
+- file: bg_sinhua_cyrillic.txt
+  source: https://www.24chasa.bg/biznes/article/23510793
+  expect_decision: none
+  expect_triggers_include:
+  - cites_state_media_more
+  note: True positive in Bulgarian. "пред агенция Синхуа".
+- file: bg_mfa_spokesperson_guo_jiakun.txt
+  source: https://www.24chasa.bg/mezhdunarodni/article/23570521
+  expect_decision: none
+  expect_triggers_include:
+  - mofa_spokesperson_more
+  - chinese_state_body_more
+  note: True positive in Bulgarian. "говорителят на китайското Външно министерство Гуо Дзякун".
+- file: uk_mfa_china_announced.txt
+  source: https://epravda.com.ua/svit/ogolosili-domovlenosti-za-rezultatom-vizitu-si-do-trampa-826015/
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive for the state body trigger in Ukrainian. "повідомило Міністерство закордонних справ Китаю".
+- file: uk_mzs_spokesperson_guo.txt
+  source: https://espreso.tv/svit-kitay-oburivsya-cherez-pidtrimaniy-kongresom-ssha-zakonoproekt-lindsi-grema-pro-sanktsii-proti-rf
+  expect_decision: none
+  expect_triggers_include:
+  - mofa_spokesperson_more
+  note: True positive for the spokesperson trigger in Ukrainian. "За словами речника МЗС Китаю Гоу Цзякуня".
+- file: el_mfa_spokesperson_mao_ning.txt
+  source: https://www.iefimerida.gr/kosmos/sto-neo-delhi-poytin-pezeskian?utm_source=rss
+  expect_decision: none
+  expect_triggers_include:
+  - mofa_spokesperson_more
+  note: True positive in Greek. "η εκπρόσωπος του κινεζικού υπουργείου Εξωτερικών Μάο Νινγκ".
+- file: el_chinese_embassy_spokesperson.txt
+  source: https://www.efsyn.gr/kosmos/1458301/reuters-i-cosco-kataskopeyei-yper-tis-kinas-ypokleptei-stratiotikes-epikoinonies-se-ipa-kai-eyropi/
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_embassy_quoted_more
+  note: True positive in Greek. "δήλωσε εκπρόσωπος της κινεζικής πρεσβείας".
+- file: pl_commerce_ministry_rejected.txt
+  source: https://tvn24.pl/biznes/tech/sluzby-usa-ostrzegaja-agresywne-dzialania-chinskich-firm-st9228058?source=rss
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive in Polish. "Ministerstwo Handlu Chin odrzuciło w środę oskarżenia USA".
+- file: cs_chinese_embassy_london.txt
+  source: https://ct24.ceskatelevize.cz/clanek/svet/britska-tajna-sluzba-mi5-varuje-pred-vlivem-ciny-na-univerzitach-378122
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_embassy_quoted_more
+  note: True positive in Czech. "Čínské velvyslanectví v Londýně obvinění odmítlo".
+- file: hu_commerce_ministry_said.txt
+  source: https://www.portfolio.hu/gazdasag/20261012/feszult-a-helyzet-az-autoiparban-rendkivuli-egyeztetest-tartott-az-eu-es-kina-868994
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive in Hungarian. "közölte hétfőn a kínai kereskedelmi minisztérium".
+- file: ro_commerce_ministry_declared.txt
+  source: https://www.libertatea.ro/stiri/china-ancheta-antidumping-impotriva-ue-pentru-un-compus-chimic-vslr14k
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive in Romanian. "Ministerul Comerțului chinez a declarat".
+- file: tr_commerce_ministry_announced.txt
+  source: https://www.ekonomim.com/dunya/brics-hattinda-dev-rekor-cinin-yatirim-hacmi-82-milyar-dolari-asti-haberi-917785
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: 'True positive in Turkish. "Çin Ticaret Bakanlığı ... ulaştığını duyurdu": the verb ends a long Turkish sentence, so the gap
+    is wider than in English.'
+- file: th_commerce_ministry_announced.txt
+  source: https://www.matichon.co.th/foreign/news_5912241
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive in Thai. "กระทรวงพาณิชย์จีนประกาศตอบโต้อียู".
+- file: fa_foreign_ministry_announced.txt
+  source: https://www.ilna.ir/fa/tiny/news-1837634
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_state_body_more
+  note: True positive in Persian. "وزارت امور خارجه چین روز جمعه اعلام کرد".
+- file: fa_state_media.txt
+  source: https://www.khabaronline.ir/news/2277201/%D8%A8%D8%A8%DB%8C%D9%86%DB%8C%D8%AF-%DA%86%DB%8C%D9%86-%DB%B9-%D9%85%D8%A7%D9%87%D9%88%D8%A7%D8%B1%D9%87-%D8%A8%D9%87-%D9%81%D8%B6%D8%A7-%D9%BE%D8%B1%D8%AA%D8%A7%D8%A8-%DA%A9%D8%B1%D8%AF
+  expect_decision: none
+  expect_triggers_include:
+  - state_media_reported_more
+  note: True positive in Persian. "طبق گزارش رسانه‌های دولتی چین".
+- file: hi_chinese_state_media.txt
+  source: https://www.abplive.com/news/world/nepal-flash-flood-thirty-countries-people-and-tourist-missing-in-details-3181010
+  expect_decision: none
+  expect_triggers_include:
+  - state_media_reported_more
+  note: True positive in Hindi. "चीन के सरकारी मीडिया के अनुसार", which state_media_reported_other (चीनी सरकारी मीडिया) does not read.
+- file: ko_chinese_embassy_statement.txt
+  source: https://www.newsis.com/view/NISX20260903_0003775777
+  expect_decision: none
+  expect_triggers_include:
+  - chinese_embassy_quoted_more
+  note: 'True positive in Korean. "주한 중국대사관도 이날 성명을 내고": chinese_embassy_quoted reads 중국 대사관 only with a space.'
+- file: sr_ambassador_not_embassy.txt
+  source: https://www.rts.rs/vesti/politika/6052416/kina-ambasador-jubilej-ekonomija-sila.html
+  expect_decision: none
+  expect_triggers_exclude: &id001
+  - cites_state_media_more
+  - mofa_spokesperson_more
+  - chinese_embassy_quoted_more
+  - state_media_reported_more
+  - chinese_state_body_more
+  note: Hard negative for the embassy trigger. "Амбасадор Кине у Србији Ли Минг" is the ambassador, not the embassy; the ambassador
+    is read by the diplomat list, not by this trigger.
+- file: sr_joint_police_patrol_no_statement.txt
+  source: https://www.danas.rs/vesti/drustvo/mup-srbije-od-danas-do-13-oktobra-zajednicke-srpsko-kineske-patrole-u-beogradu-i-novom-sadu/
+  expect_decision: none
+  expect_triggers_exclude: *id001
+  note: Hard negative for the state body trigger. Serbian and Chinese police officers on a joint patrol, with no statement by the Chinese
+    ministry.
+- file: bs_state_owned_carmaker_not_media.txt
+  source: https://www.klix.ba/auto/gac-prosiruje-proizvodnju-u-evropi-predstavio-je-aion-v-i-aion-ut-na-francuskom-trzistu/260923036
+  expect_decision: none
+  expect_triggers_exclude: *id001
+  note: Hard negative for the state media trigger. "Kineski državni proizvođač automobila GAC" is a state owned carmaker, not state
+    media.
+- file: tr_foreign_minister_not_ministry.txt
+  source: https://www.evrensel.net/haber/6000621/iran-disisleri-bakani-arakci-cini-ziyaret-edecek?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_syndication
+  expect_decision: none
+  expect_triggers_exclude: *id001
+  note: Hard negative for the state body trigger. "Çin Dışişleri Bakanı Wang Yi" is the minister being visited, not a ministry statement.
+- file: pl_us_ambassador_in_china.txt
+  source: https://www.bankier.pl/wiadomosc/Szokujace-propozycja-Trumpa-dla-Xi-Chcialbys-kupic-amerykanska-bron-9203390.html?utm_source=RSS&utm_medium=RSS&utm_campaign=Wiadomosci
+  expect_decision: none
+  expect_triggers_exclude: *id001
+  note: Hard negative for the embassy trigger. "ambasador USA w Chinach David Perdue" is the American ambassador.
+- file: ko_korean_embassy_in_china.txt
+  source: https://www.newsis.com/view/NISX20260907_0003779873
+  expect_decision: none
+  expect_triggers_exclude: *id001
+  note: Hard negative for the embassy trigger. "주중국대사관" is the Korean embassy in China. The opening of the article only; its later mention
+    of 주한 중국대사관 is a true positive.
+- file: cs_iranian_state_media.txt
+  source: http://www.ceskenoviny.cz/zpravy/iran-tvrdi-ze-v-hormuzskem-prulivu-najel-tanker-na-namorni-minu/2885756
+  expect_decision: none
+  expect_triggers_exclude:
+  - state_media_reported_other
+  - state_media_reported_more
+  note: Hard negative for the state media triggers. "S odvoláním na íránská státní média" is Iranian state media; state_media_reported_other
+    read the bare "státní média" before ruleset 2026.10.1.
+- file: hu_russian_state_media.txt
+  source: https://www.portfolio.hu/global/20261010/putyin-allitolag-kozvetitette-az-irani-bekejavaslatot-trumpnak-868880
+  expect_decision: none
+  expect_triggers_exclude:
+  - state_media_reported_other
+  - state_media_reported_more
+  note: Hard negative for the state media triggers. "az orosz állami média szombati beszámolóiból" is Russian state media.
+- file: hu_hungarian_state_media_oversight.txt
+  source: https://mandiner.hu/belfold/2026/09/radnai-mark-belebegtette-nem-kellenek-az-ellenzek-jeloltjei-igy-is-felallhat-az-allami-media-felugyelete
+  expect_decision: none
+  expect_triggers_exclude:
+  - state_media_reported_other
+  - state_media_reported_more
+  note: Hard negative for the state media triggers. "az állami média felügyelete" is the oversight of Hungary's own public media.
+- file: el_iranian_state_media.txt
+  source: https://www.ertnews.gr/eidiseis/diethni/to-iran-xaraktirizei-aneparki-tin-apantisi-ton-ipa-stin-protasi-tou-gia-tin-epanaleitourgia-ton-stenon-tou-ormouz/
+  expect_decision: none
+  expect_triggers_exclude:
+  - state_media_reported_other
+  - state_media_reported_more
+  note: Hard negative for the state media triggers. "αναφέρθηκαν από τα κρατικά μέσα ενημέρωσης" are Iran's state media.
+- file: ko_cambodian_state_media.txt
+  source: https://www.ohmynews.com/NWS_Web/View/at_pg.aspx?CNTN_CD=A0003269957
+  expect_decision: none
+  expect_triggers_exclude:
+  - state_media_reported_other
+  - state_media_reported_more
+  note: Hard negative for the state media triggers. "캄보디아 친정부 성향 매체 <프레시뉴스>와 관영 매체 등에 따르면" is Cambodian state media;
+    the article names China in other sentences (a Chinese-born tycoon, a casino owned by a Chinese national), which does not count.
+- file: cs_chinese_port_local_state_media.txt
+  source: https://www.ceskenoviny.cz/zpravy/-nova-cina-pozar-na-lodi-v-cinskem-pristavu-si-vyzadal-nejmene-25-obeti-/2872694
+  expect_triggers_include:
+  - state_media_reported_other
+  note: True positive in Czech. "v čínském přístavu Čching-tao, uvádí místní státní média" names China in the same sentence as the state media.
+- file: ko_zhong_state_media_headline.txt
+  source: https://www.newsis.com/view/NISX20260918_0003795195
+  expect_triggers_include:
+  - state_media_reported_other
+  note: True positive in Korean. "中 관영 매체" in the headline, with 中 as the usual abbreviation for China, which state_media_reported_more
+    (중국 관영 매체) does not read.

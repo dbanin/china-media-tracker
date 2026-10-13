@@ -1,0 +1,51 @@
+[
+ {
+  "name": "fr_lemonde_challenge",
+  "url": "https://www.lemonde.fr/international/article/2026/09/03/apres-les-inondations-dans-l-himalaya-la-chine-impose-un-controle-strict-des-informations-liees-au-tibet_6765213_3210.html",
+  "title": "Après les inondations dans l’Himalaya, la Chine impose un contrôle strict des informations liées au Tibet",
+  "paywall": null,
+  "unreadable": "challenge page: Client Challenge"
+ },
+ {
+  "name": "en_tw_digitimes_blocked",
+  "url": "https://www.digitimes.com/news/a20260930PD229/donald-trump-2026-xi-jinping-supply-chain.html?chid=10",
+  "title": "US-China trade truce extension draws orders back to China, threatening Taiwanese booking volumes",
+  "paywall": null,
+  "unreadable": "challenge page: Access denied"
+ },
+ {
+  "name": "en_tw_digitimes_teaser",
+  "url": "https://www.digitimes.com/news/a20260930PD201/automakers-donald-trump-xi-jinping-market-europe.html",
+  "title": "Chinese EV tech is set to challenge US market barriers over time",
+  "paywall": "interstitial marker with short body: The article requires paid subscription",
+  "unreadable": null
+ },
+ {
+  "name": "ja_jp_asahi_teaser",
+  "url": "https://www.asahi.com/articles/ASV923JJCV92UHBI02GM.html?ref=rss",
+  "title": "土石流災害、中国がデマを一挙摘発　当局「公式発表を基準に」",
+  "paywall": "interstitial marker with short body: 有料会員になると続き",
+  "unreadable": null
+ },
+ {
+  "name": "ja_jp_nhk_terms",
+  "url": "http://www3.nhk.or.jp/news/html/20260808/k10015199791000.html",
+  "title": "台湾軍 中国による侵攻を想定した大規模演習を公開",
+  "paywall": "interstitial marker with short body: NHK ONEはどなたでもご利用になれます",
+  "unreadable": null
+ },
+ {
+  "name": "ar_lb_nna_loading",
+  "url": "https://nna-leb.gov.lb/ar/news/short/559936",
+  "title": "فقدان 90 أميركيًا في فيضانات الصين ونيبال",
+  "paywall": null,
+  "unreadable": "no article text: 67 characters of running prose"
+ },
+ {
+  "name": "cz_seznam_consent",
+  "url": "https://www.seznamzpravy.cz/clanek/zahranicni-cinske-hrozby-zenou-japonsko-do-akce-vyzbrojuje-ostrovy-u-tchaj-wanu-316076",
+  "title": "110\u00a0kilometrů od Tchaj-wanu. Japonsko mění ostrovy v\u00a0obrannou linii",
+  "paywall": null,
+  "unreadable": "consent wall"
+ }
+]

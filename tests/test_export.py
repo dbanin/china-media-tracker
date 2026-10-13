@@ -1,4 +1,5 @@
 """Schema validation for the generated JSON and an export run on an empty database."""
+import datetime as dt
 import json
 import sqlite3
 from pathlib import Path
@@ -292,6 +293,48 @@ def test_findings_all_time_totals_and_state_share(tmp_path):
     assert meta["findings"]["since"] == "2026-09-10"
 
 
+def test_daily_files_through_the_last_complete_day_give_the_all_time_findings(tmp_path):
+    """The site's all time cards and summary sum the daily files up to the last complete day, the day the
+    map's All time view ends (allTimeInWindow in docs/compute.js), and fall back to findings.all_time. The
+    two agree on every total and its wires part except for the partial export day, which only the
+    export's totals hold."""
+    conn = store.connect(tmp_path / "at.db")
+    outlets = _outlets_for_findings()
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(40))
+    _insert_state_origin(conn, "it_wire", "ITA", _days_ago(2))
+    _insert_state_origin(conn, "fr_state", "FRA", _days_ago(1))
+    for day in (_days_ago(3), _days_ago(0)):
+        aid = store.insert_discovered(conn, {"url": "https://x.test/ind/%s" % day, "outlet_id": "it_wire", "country": "ITA",
+                                             "language": "it", "title": "Independent %s" % day, "status": "fetched", "gate_relevant": 1})
+        conn.execute("UPDATE articles SET discovered_at=? WHERE id=?", (day + "T09:00:00+00:00", aid))
+        store.insert_classification(conn, aid, "rules", "C", 0.8)
+    for _ in range(3):
+        _insert_state_origin(conn, "fr_state", "FRA", _days_ago(0))   # the partial export day
+    conn.commit()
+    export.rebuild_rollups(conn, outlets)
+    latest = export.build_latest(conn, outlets, [])
+    f = export.build_meta(conn, outlets, [], latest)["findings"]["all_time"]
+    last_complete = _days_ago(1)
+    total = {"A": 0, "B": 0, "C": 0}
+    wires = {"A": 0, "B": 0, "C": 0}
+    partial = {"A": 0, "B": 0, "C": 0}
+    for m in export.build_daily(conn, outlets).values():
+        for d, v in m["days"].items():
+            for iso, k in v["countries"].items():
+                for cat in total:
+                    if d <= last_complete:
+                        total[cat] += k[cat]
+                        if iso == "WLD":
+                            wires[cat] += k[cat]
+                    else:
+                        partial[cat] += k[cat]
+    assert total == {"A": 3, "B": 0, "C": 1} and wires == {"A": 1, "B": 0, "C": 1} and partial == {"A": 3, "B": 0, "C": 1}
+    assert f["state_origin"] == total["A"] + partial["A"] and f["independent"] == total["C"] + partial["C"]
+    assert f["china_total"] == sum(total.values()) + sum(partial.values())
+    assert f["state_origin_wires"] == wires["A"] and f["independent_wires"] == wires["C"] + partial["C"]
+    assert f["china_total_wires"] == sum(wires.values()) + partial["C"]
+
+
 def test_findings_unchecked_is_null_when_relay_not_visible(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "RELAY_PROVISIONAL_DISPLAY", False)
     conn = store.connect(tmp_path / "r.db")
@@ -326,13 +369,17 @@ def test_findings_by_ownership_matches_lean_model_measure_a(tmp_path):
     assert meta["findings"]["by_ownership"]["top"]["id"] == "private"
 
 
+def _days_ago(n):
+    return (dt.date.fromisoformat(export._today()) - dt.timedelta(days=n)).isoformat()
+
+
 def test_findings_top_country_last30_excludes_wires(tmp_path):
     conn = store.connect(tmp_path / "t.db")
-    today = export._today()
-    _insert_state_origin(conn, "it_big", "ITA", today)
-    _insert_state_origin(conn, "it_big", "ITA", today)
-    _insert_state_origin(conn, "it_wire", "ITA", today)   # must not inflate ITA's top_country figures
-    _insert_state_origin(conn, "fr_state", "FRA", today)
+    yesterday = _days_ago(1)   # the export day itself is partial and outside the findings' window
+    _insert_state_origin(conn, "it_big", "ITA", yesterday)
+    _insert_state_origin(conn, "it_big", "ITA", yesterday)
+    _insert_state_origin(conn, "it_wire", "ITA", yesterday)   # must not inflate ITA's top_country figures
+    _insert_state_origin(conn, "fr_state", "FRA", yesterday)
     outlets = _outlets_for_findings()
     export.rebuild_rollups(conn, outlets)
     latest = export.build_latest(conn, outlets, [])
@@ -342,16 +389,81 @@ def test_findings_top_country_last30_excludes_wires(tmp_path):
     assert top["top_outlet"] == {"id": "it_big", "name": "Big Italian Outlet"}
 
 
+def test_findings_top_country_counts_complete_days_only(tmp_path):
+    """The site's map and ranked list open on the 30 complete days before the export day, so the top
+    country card and the findings sentence count the same days. On 2026-10-12 the card said Italy 436
+    while the map said 423: the 13 extra articles were the partial export day."""
+    conn = store.connect(tmp_path / "p.db")
+    outlets = _outlets_for_findings() + [
+        {"id": "it_small", "name": "Small Italian Outlet", "country": "ITA", "language": "it", "feeds": [],
+         "tier": "national", "active": True, "ownership": "private"}]
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(30))   # the first day of the window
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(1))
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(1))
+    _insert_state_origin(conn, "it_wire", "ITA", _days_ago(1))   # the stratum: in the world, never the country
+    _insert_state_origin(conn, "fr_state", "FRA", _days_ago(1))
+    for _ in range(5):
+        _insert_state_origin(conn, "fr_state", "FRA", _days_ago(31))   # before the window
+        _insert_state_origin(conn, "fr_state", "FRA", _days_ago(0))    # the partial export day
+    for _ in range(3):
+        _insert_state_origin(conn, "it_small", "ITA", _days_ago(0))    # would tie it_big and win on its id
+    export.rebuild_rollups(conn, outlets)
+    latest = export.build_latest(conn, outlets, [])
+    assert latest["countries"]["FRA"]["last_30d"]["A"] == 6, "latest.json's own last_30d still keeps the partial day"
+    f = export.build_meta(conn, outlets, [], latest)["findings"]
+    top = f["top_country"]
+    assert top["iso"] == "ITA" and top["state_origin"] == 3, top
+    assert top["top_outlet"] == {"id": "it_big", "name": "Big Italian Outlet"}
+    assert f["last_30d"] == {"state_origin": 5, "state_origin_wires": 1,
+                             "window_start": _days_ago(30), "window_end": _days_ago(1)}
+    assert top["share_of_world"] == round(3 / 5, 4), "the denominator is the complete day world total, wires included"
+    # the same days the site sums: the daily files from window_start to window_end
+    days = {}
+    for m in export.build_daily(conn, outlets).values():
+        days.update(m["days"])
+    site = sum(v["countries"].get("ITA", {}).get("A", 0) for d, v in days.items() if _days_ago(30) <= d <= _days_ago(1))
+    assert site == top["state_origin"]
+
+
 def test_top_carrier_excludes_wires(tmp_path):
     conn = store.connect(tmp_path / "c.db")
-    today = export._today()
-    _insert_state_origin(conn, "it_big", "ITA", today)
-    _insert_state_origin(conn, "it_wire", "ITA", today)
+    yesterday = _days_ago(1)   # the export day itself is partial and outside the carriers' window
+    _insert_state_origin(conn, "it_big", "ITA", yesterday)
+    _insert_state_origin(conn, "it_wire", "ITA", yesterday)
     outlets = _outlets_for_findings()
     export.rebuild_rollups(conn, outlets)
     latest = export.build_latest(conn, outlets, [])
     assert latest["countries"]["ITA"]["top_carrier"] == {"id": "it_big", "name": "Big Italian Outlet", "count": 1}
     assert latest["countries"]["ITA"]["top_route"] == {"id": "wire_credit", "count": 1}
+
+
+def test_top_carrier_and_route_count_complete_days_only(tmp_path):
+    """The map tooltip's "Carried mostly by" and "Mostly arrives as" sit beside the 30 complete days the
+    map opens on, so they count those days: not the partial export day, not the day before the window."""
+    conn = store.connect(tmp_path / "cw.db")
+    outlets = _outlets_for_findings() + [
+        {"id": "it_small", "name": "Small Italian Outlet", "country": "ITA", "language": "it", "feeds": [],
+         "tier": "national", "active": True, "ownership": "private"}]
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(30), route="wire_credit")   # the first day of the window
+    _insert_state_origin(conn, "it_big", "ITA", _days_ago(1), route="wire_credit")    # the last day of the window
+    for _ in range(3):
+        _insert_state_origin(conn, "it_small", "ITA", _days_ago(0), route="diplomatic_byline")   # the partial export day
+        _insert_state_origin(conn, "it_small", "ITA", _days_ago(31), route="diplomatic_byline")  # before the window
+    export.rebuild_rollups(conn, outlets)
+    latest = export.build_latest(conn, outlets, [])
+    start, until = export.complete_window_30d(latest)
+    assert (start, until) == (_days_ago(30), _days_ago(0))
+    ita = latest["countries"]["ITA"]
+    assert ita["top_carrier"] == {"id": "it_big", "name": "Big Italian Outlet", "count": 2}, ita["top_carrier"]
+    assert ita["top_route"] == {"id": "wire_credit", "count": 2}, ita["top_route"]
+    # the same days as the figure beside it: the state origin the daily files hold for the window
+    days = {}
+    for m in export.build_daily(conn, outlets).values():
+        days.update(m["days"])
+    window = sum(v["countries"].get("ITA", {}).get("A", 0) for d, v in days.items() if start <= d < until)
+    assert window == ita["top_carrier"]["count"]
+    # no end still means every day from the start, as before
+    assert export._country_top_carriers(conn, outlets, start)["ITA"]["top_carrier"]["id"] == "it_small"
 
 
 def _long_xinhua_span(n_extra_words=39):
@@ -393,3 +505,378 @@ def test_examples_unchecked_omitted_when_relay_not_visible(tmp_path, monkeypatch
     outlets = _outlets_for_findings()
     examples = export.build_examples(conn, outlets)
     assert "B" not in examples and examples["A"] == []
+
+
+def test_examples_snippet_replaces_bare_urls_with_their_host(tmp_path):
+    # A press release quote that ends in a long attachment link once made the page scroll sideways
+    # on a phone; the snippet now carries only the link's host, and the highlight still lines up.
+    conn = store.connect(tmp_path / "url.db")
+    span = ("BEIJING, Sept. 2 (Xinhua) -- The full report is available at: "
+            "https://www.globenewswire.com/NewsRoom/AttachmentNg/6bf50962-0c1e-4a3b-9d2f-7e8a1b2c3d4e.")
+    _insert_state_origin(conn, "it_big", "ITA", "2026-09-10", evidence_quote=span, signatures_fired=["xinhua_dateline"])
+    tell = export.build_examples(conn, _outlets_for_findings())["A"][0]["tell"]
+    assert "http" not in tell["snippet"] and "NewsRoom" not in tell["snippet"]
+    assert tell["snippet"].endswith("available at: globenewswire.com.")
+    assert "Xinhua" in tell["snippet"][tell["start"]:tell["end"]]
+
+
+def test_shorten_urls_shifts_offsets_and_keeps_a_matched_url_whole():
+    text = "See https://www.example.com/a/very/long/path?x=1 and www.other.org/p, then (Xinhua) says."
+    i = text.index("(Xinhua)")
+    out, s, e = export._shorten_urls(text, i, i + len("(Xinhua)"))
+    assert out == "See example.com and other.org, then (Xinhua) says."
+    assert out[s:e] == "(Xinhua)"
+    # A URL inside the highlighted match is left as it is, offsets unchanged.
+    text2 = "Source: http://xinhuanet.com/english/2026-09/02/c_1.htm today"
+    j = text2.index("http")
+    assert export._shorten_urls(text2, j, j + 10) == (text2, j, j + 10)
+
+
+def test_tell_moves_the_highlight_onto_the_host_when_the_match_is_inside_the_url():
+    # The live case: the wire stamp pattern matched "globenewswire" inside the attachment link, so the
+    # link itself carried the highlight. The snippet keeps only the host, highlighted.
+    span = ("Files accompanying this announcement are available at:\n"
+            "https://www.globenewswire.com/NewsRoom/AttachmentNg/6bf50962-ffc1-42c9-935b-013101055")
+    tell = export._tell("B", None, None, json.dumps({"triggers": ["wire_stamp_alone"], "spans": [span]}))
+    # The stored span is a window cut on both sides (60 or more characters around the match), so the
+    # snippet carries an ellipsis at each end; the cut link's host survives.
+    assert tell["snippet"] == "\u2026 Files accompanying this announcement are available at:\nglobenewswire.com \u2026"
+    assert tell["snippet"][tell["start"]:tell["end"]].lower() == "globenewswire"
+
+
+def _rules_window(text, phrase, at=0):
+    # The span the rules store: 60 characters either side of the match, stripped (classify_rules).
+    i = text.index(phrase, at)
+    return text[max(0, i - 60):i + len(phrase) + 60].strip()
+
+
+def test_tell_snippet_cut_mid_word_at_both_ends_starts_and_ends_on_whole_words():
+    # The live case: "ttend the summit ... Wang's first" came from a window that began inside "attend".
+    text = ("Wang Yi will travel to Azerbaijan, Croatia, Montenegro and Bulgaria and attend the summit on "
+            "Thursday, Foreign Ministry spokesperson Mao Ning said Monday, adding that GlobeNewswire carried "
+            "the notice to subscribers across these regions before the formal announcement this weekend.")
+    span = _rules_window(text, "GlobeNewswire")
+    assert not text[text.index(span) - 1].isspace() and not text[text.index(span) + len(span)].isspace()
+    tell = export._tell("B", None, None, json.dumps({"triggers": ["wire_stamp_alone"], "spans": [span]}))
+    snip = tell["snippet"]
+    assert snip.startswith("\u2026 ") and snip.endswith(" \u2026")
+    assert snip[tell["start"]:tell["end"]] == "GlobeNewswire"
+    words = text.split()
+    assert all(w in words for w in snip.split() if w != "\u2026")
+    # The cut words themselves are gone, not shown in part.
+    assert span.split()[0] not in snip.split() and span.split()[-1] not in snip.split()
+
+
+def test_trim_keeps_a_highlight_near_each_edge_exact():
+    text = "abc def Xinhua ghi jkl mno pqr stu vwx yz1 yz2 end Xinhua zz"
+    # Near the left edge, beside a partial word that is dropped.
+    out, s, e = export._trim_to_words(text, 8, 14, cut_left=True, cut_right=True)
+    assert out == "\u2026 def Xinhua ghi jkl mno pqr stu vwx yz1 yz2 end Xinhua \u2026"
+    assert out[s:e] == "Xinhua"
+    # Near the right edge, beside a partial word that is dropped.
+    j = text.rindex("Xinhua")
+    out, s, e = export._trim_to_words(text, j, j + 6, cut_left=True, cut_right=True)
+    assert out[s:e] == "Xinhua" and out.endswith("end Xinhua \u2026") and out.startswith("\u2026 def ")
+    # A match that reaches into the cut word keeps it whole, since the matched text must stay.
+    out, s, e = export._trim_to_words(text, 0, 3, cut_left=True, cut_right=False)
+    assert out.startswith("\u2026 abc def") and out[s:e] == "abc"
+    # Cut by the word budget at both sides: an ellipsis marks each, counted in the 25, offsets exact.
+    long = " ".join("w%d" % i for i in range(60))
+    k = long.index("w3 ")
+    out, s, e = export._trim_to_words(long, k, k + 2)
+    assert out.startswith("w0 w1 w2 w3 ") and out.endswith(" \u2026") and out[s:e] == "w3"
+    assert len(out.split()) <= 25
+    k = long.index("w58")
+    out, s, e = export._trim_to_words(long, k, k + 3)
+    assert out.startswith("\u2026 ") and out.endswith("w58 w59") and out[s:e] == "w58" and len(out.split()) <= 25
+
+
+def test_tell_cjk_snippet_is_cut_on_characters():
+    text = ("\u636e\u62a5\u9053\uff0c\u4e2d\u56fd\u4e0e\u4e1c\u76df\u56fd\u5bb6\u5728\u7ecf\u6d4e\u3001\u8d38\u6613"
+            "\u548c\u6295\u8d44\u9886\u57df\u7684\u5408\u4f5c\u4e0d\u65ad\u6df1\u5316\uff0c\u53cc\u65b9\u8d38\u6613"
+            "\u989d\u6301\u7eed\u589e\u957f\u3002\u65b0\u534e\u793e\u62a5\u9053\u79f0\uff0c\u5404\u65b9\u5c06\u5728"
+            "\u672a\u6765\u4e00\u5e74\u5185\u7ee7\u7eed\u63a8\u8fdb\u57fa\u7840\u8bbe\u65bd\u5efa\u8bbe\u548c\u4eba"
+            "\u6587\u4ea4\u6d41\u5408\u4f5c\uff0c\u52a0\u5feb\u81ea\u8d38\u533a\u5347\u7ea7\u8fdb\u7a0b\uff0c\u4fc3"
+            "\u8fdb\u5730\u533a\u7ecf\u6d4e\u4e00\u4f53\u5316\u53d1\u5c55\u548c\u5171\u540c\u7e41\u8363\u3002") * 2
+    span = _rules_window(text, "\u65b0\u534e\u793e", at=60)
+    tell = export._tell("B", None, None, json.dumps({"triggers": ["cites_xinhua"], "spans": [span]}))
+    snip = tell["snippet"]
+    assert snip[tell["start"]:tell["end"]] == "\u65b0\u534e\u793e"
+    # No space between the ellipsis and the characters, and nothing in between dropped: what is shown
+    # is a run of the original text, at most 50 characters (half a word each, ellipses counted).
+    assert snip.startswith("\u2026") and not snip.startswith("\u2026 ") and snip.endswith("\u2026")
+    assert snip.strip("\u2026") in text
+    assert len(snip.strip("\u2026")) <= 46
+    # A Thai vowel mark stays on its consonant; a mark orphaned by the cut is dropped.
+    thai = "\u0e34\u0e19\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48 Xinhua"
+    out, s, e = export._trim_to_words(thai, 9, 15, cut_left=True)
+    assert out == "\u2026\u0e19\u0e17\u0e35\u0e48\u0e19\u0e35\u0e48 Xinhua" and out[s:e] == "Xinhua"
+
+
+def _xinhua_tell(span):
+    return export._tell("B", None, None, json.dumps({"triggers": ["cites_xinhua"], "spans": [span]}))
+
+
+def test_tell_keeps_every_word_of_a_span_the_rules_widened_to_whole_words():
+    from pipeline import classify_rules
+    # The window's left edge falls inside "attend", a lowercase word the old trim had to drop.
+    text = ("Wang Yi will travel to Azerbaijan, Croatia, Montenegro and Bulgaria and attend the summit on "
+            "Thursday, adding that the visits, which Xinhua carried to subscribers, follows months of "
+            "preparation in the regions before the formal announcement this weekend.")
+    i = text.index("Xinhua")
+    old = _rules_window(text, "Xinhua")
+    assert old.startswith("ttend") and not text[text.index(old) + len(old)].isspace()
+    span = classify_rules.evidence_span(text, i, i + 6)
+    assert span.startswith("\u2026 attend the summit") and span.endswith(" \u2026")
+    tell = _xinhua_tell(span)
+    snip = tell["snippet"]
+    assert snip[tell["start"]:tell["end"]] == "Xinhua"
+    # Nothing is dropped as if cut: the snippet is the span's words, an ellipsis at each end.
+    assert snip == span
+    # A span stored before the marks still goes through the old fix: the half words go.
+    tell_old = _xinhua_tell(old)
+    assert tell_old["snippet"].startswith("\u2026 the summit") and "ttend" not in tell_old["snippet"]
+    assert tell_old["snippet"][tell_old["start"]:tell_old["end"]] == "Xinhua"
+
+
+def test_tell_of_a_span_cut_inside_a_long_url_drops_the_partial_token():
+    from pipeline import classify_rules
+    text = ("Read more at https://example.com/files/" + "x" * 90 + " where Xinhua reported the talks would "
+            "resume next week, see https://example.org/" + "y" * 90 + " ok")
+    i = text.index("Xinhua")
+    span = classify_rules.evidence_span(text, i, i + 6)
+    # No boundary within reach on either side: the character window, marked as cut inside a token.
+    assert span == "\u2026" + _rules_window(text, "Xinhua") + "\u2026"
+    tell = _xinhua_tell(span)
+    assert tell["snippet"] == "\u2026 where Xinhua reported the talks would resume next week, see \u2026"
+    assert tell["snippet"][tell["start"]:tell["end"]] == "Xinhua"
+
+
+def test_tell_of_cjk_and_thai_spans_is_unchanged_by_the_marks():
+    from pipeline import classify_rules
+    cjk = ("\u636e\u62a5\u9053\uff0c\u4e2d\u56fd\u4e0e\u4e1c\u76df\u56fd\u5bb6\u5728\u7ecf\u6d4e\u3001\u8d38\u6613"
+           "\u548c\u6295\u8d44\u9886\u57df\u7684\u5408\u4f5c\u4e0d\u65ad\u6df1\u5316\uff0c\u65b0\u534e\u793e"
+           "\u62a5\u9053\u79f0\uff0c\u5404\u65b9\u5c06\u5728\u672a\u6765\u4e00\u5e74\u5185\u7ee7\u7eed\u63a8\u8fdb") * 3
+    i = cjk.index("\u65b0\u534e\u793e", 60)
+    span = classify_rules.evidence_span(cjk, i, i + 3)
+    assert span == _rules_window(cjk, "\u65b0\u534e\u793e", at=60)
+    tell = _xinhua_tell(span)
+    assert "\u2026 " not in tell["snippet"] and tell["snippet"].strip("\u2026") in cjk
+    assert tell["snippet"][tell["start"]:tell["end"]] == "\u65b0\u534e\u793e"
+    thai = ("\u0e2a\u0e33\u0e19\u0e31\u0e01\u0e02\u0e48\u0e32\u0e27\u0e0b\u0e34\u0e19\u0e2b\u0e31\u0e27"
+            "\u0e23\u0e32\u0e22\u0e07\u0e32\u0e19\u0e27\u0e48\u0e32\u0e08\u0e35\u0e19\u0e41\u0e25\u0e30") * 6
+    k = thai.index("\u0e0b\u0e34\u0e19\u0e2b\u0e31\u0e27", 70)
+    span = classify_rules.evidence_span(thai, k, k + 6)
+    assert span == _rules_window(thai, "\u0e0b\u0e34\u0e19\u0e2b\u0e31\u0e27", at=70)
+    tell = _xinhua_tell(span)
+    assert tell["snippet"][tell["start"]:tell["end"]] == "\u0e0b\u0e34\u0e19\u0e2b\u0e31\u0e27"
+
+
+def _rendered_methodology(tmp_path, monkeypatch, **meta_changes):
+    from pipeline import methodology
+    db = tmp_path / "m.db"
+    monkeypatch.setattr(config, "DB_PATH", db)
+    out = tmp_path / "out"
+    export.run(store.connect(db), "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M0.md")
+    meta, latest = _load(out / "meta.json"), _load(out / "latest.json")
+    meta.update(meta_changes)
+    path = tmp_path / "M.md"
+    methodology.write(meta, latest, path=path)
+    return path.read_text(encoding="utf-8")
+
+
+def test_methodology_without_a_stale_stability_check_says_nothing_of_one(tmp_path, monkeypatch):
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_reliability_history=None)
+    assert "earlier version of the classifier's instructions" not in text
+    assert "kept as history" not in text
+
+
+def test_methodology_reports_a_stale_stability_check_as_history(tmp_path, monkeypatch):
+    """A stability check made under an older classifier prompt is named as history, with its date, size and
+    kappa, and the paragraph says how many current labels the next check waits for."""
+    hist = {"method": "same_model_rerun", "model_a": "m", "model_b": "m", "n": 225, "kappa_all": 0.7,
+            "kappa_bc": 0.41, "n_bc": 116, "computed_at": "2026-10-09T02:29:14+00:00", "stale": True,
+            "prompt_version": "2026-09-01", "role": "stability_check"}
+    study = {"auto": True, "sample": 225, "earliest": None, "state": "waiting_for_labels", "pool": 37,
+             "min_pool": config.RELIABILITY_MIN_POOL, "reason": "the classifier prompt changed"}
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_reliability=None,
+                                 relay_reliability_history=hist, relay_study=study)
+    assert ("Stability check. The last stability check (2026-10-09, 225 articles, kappa 0.41 on the unchecked "
+            "sourcing versus independent journalism judgement) was run under an earlier version of the classifier's "
+            "instructions, dated 2026-09-01, so it is kept as history") in text
+    assert ("A new check runs once %d articles have been labelled under the current instructions; 37 have been so far."
+            % config.RELIABILITY_MIN_POOL) in text
+    assert "—" not in text and "–" not in text
+
+
+def test_stability_history_text_follows_the_study_state():
+    from pipeline import methodology
+    hist = {"n": 50, "kappa_bc": 0.9, "computed_at": "2026-10-01T00:00:00+00:00", "stale": True, "prompt_version": None}
+    assert methodology.stability_history_text({"relay_reliability_history": None}) == ""
+    assert methodology.stability_history_text({"relay_reliability_history": dict(hist, stale=False)}) == ""
+    bare = methodology.stability_history_text({"relay_reliability_history": hist})
+    assert "instructions, so it is kept as history" in bare and "dated" not in bare
+    assert ("once %d articles have been labelled" % config.RELIABILITY_MIN_POOL) in bare and "so far" not in bare
+    due = methodology.stability_history_text({"relay_reliability_history": hist, "relay_study": {
+        "auto": True, "state": "waiting_for_budget", "earliest": "2026-11-01", "min_pool": 200}})
+    assert "Enough articles have now been labelled" in due and "2026-11-01 at the earliest" in due
+    sent = methodology.stability_history_text({"relay_reliability_history": hist, "relay_study": {"state": "submitted"}})
+    assert "has been submitted" in sent
+    manual = methodology.stability_history_text({"relay_reliability_history": hist, "relay_study": {
+        "auto": False, "state": "waiting_for_labels", "pool": 3, "min_pool": 200}})
+    assert "can be run by hand once 200 articles" in manual and "3 have been so far" in manual
+
+
+_PROVISIONAL = {"relay_measured": True, "relay_provisional": True, "relay_publishable": False,
+                "relay_withheld_languages": ["it"]}
+_STUDY_WAITING = {"auto": True, "sample": 225, "earliest": None, "state": "waiting_for_labels", "pool": 12,
+                  "min_pool": config.RELIABILITY_MIN_POOL, "reason": "the classifier prompt changed"}
+
+
+def test_methodology_provisional_paragraph_without_any_stability_check(tmp_path, monkeypatch):
+    """With neither a current nor an older stability check in meta, the provisional paragraph does not point to a
+    check "described below"; it says none has run and when one will, and the withheld languages sentence names
+    its subject."""
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_reliability=None, relay_reliability_history=None,
+                                 relay_study=_STUDY_WAITING, **_PROVISIONAL)
+    assert "described below" not in text and "\n\nStability check." not in text
+    assert ("No stability check has been run yet. A check runs once %d articles have been labelled under the current "
+            "instructions; 12 have been so far. When one runs, it never takes the provisional marking away."
+            % config.RELIABILITY_MIN_POOL) in text
+    assert "Unchecked state sourcing counts are withheld for outlets publishing in it, where" in text
+    assert " They are withheld for" not in text
+    assert "—" not in text and "–" not in text
+
+
+def test_methodology_provisional_paragraph_with_a_current_stability_check(tmp_path, monkeypatch):
+    rr = {"method": "same_model_rerun", "model_a": "m", "model_b": "m", "n": 225, "kappa_all": 0.8,
+          "kappa_bc": 0.71, "n_bc": 116, "computed_at": "2026-10-11T00:00:00+00:00"}
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_reliability=rr, relay_reliability_history=None,
+                                 relay_study=dict(_STUDY_WAITING, state="done"), **_PROVISIONAL)
+    assert "A stability check, described below, never takes the provisional marking away." in text
+    assert "\n\nStability check. The same model (m) judged a sample of 225 articles" in text
+    assert "No stability check has been run yet" not in text
+    assert "Unchecked state sourcing counts are withheld for outlets publishing in it, where" in text
+
+
+def test_methodology_provisional_paragraph_with_a_stale_stability_check(tmp_path, monkeypatch):
+    hist = {"method": "same_model_rerun", "model_a": "m", "model_b": "m", "n": 225, "kappa_all": 0.7,
+            "kappa_bc": 0.41, "n_bc": 116, "computed_at": "2026-10-09T02:29:14+00:00", "stale": True,
+            "prompt_version": "2026-09-01", "role": "stability_check"}
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_reliability=None, relay_reliability_history=hist,
+                                 relay_study=_STUDY_WAITING, **_PROVISIONAL)
+    assert "A stability check, described below, never takes the provisional marking away." in text
+    assert "\n\nStability check. The last stability check (2026-10-09, 225 articles" in text
+    assert "No stability check has been run yet" not in text
+    assert "A new check runs once %d articles" % config.RELIABILITY_MIN_POOL in text
+
+
+def test_methodology_lists_each_themes_version_from_meta(tmp_path, monkeypatch):
+    """The themes paragraph names every version in meta.themes_changes with its date and change, and says the
+    re-tagging leaves no break in the series while the timeline marks record when the method changed."""
+    from pipeline import themes
+    text = _rendered_methodology(tmp_path, monkeypatch)
+    for h in themes.changes():
+        assert "%s from %s (%s)" % (h["version"], h["date"], h["change"]) in text
+    assert ("2026.09.4 from 2026-09-15 (terms read anywhere in the body instead of the first 800 characters") in text
+    assert "the published series has no break at a version change" in text
+    assert "the marks on the theme timeline record when the method changed" in text
+    assert "{themes_changes_text}" not in text and "—" not in text and "–" not in text
+
+
+def test_methodology_renders_without_themes_changes(tmp_path, monkeypatch):
+    """An export made before meta.themes_changes existed still renders, with no version list and no marks claimed."""
+    text = _rendered_methodology(tmp_path, monkeypatch, themes_changes=None)
+    assert "Themes versions, each with the day it took effect" not in text
+    assert "the theme timeline shows no version mark" in text
+    assert "the published series has no break at a version change" in text
+    assert "{themes_changes_text}" not in text
+
+
+def _relay_outlet(oid, country, collector):
+    return {"id": oid, "name": oid, "country": country, "language": "it", "feeds": [], "tier": "national", "active": True,
+            "collector": collector}
+
+
+RELAY_SPLIT_OUTLETS = [_relay_outlet("it_relay", "ITA", "self_hosted"), _relay_outlet("it_shared", "ITA", "both"),
+                       _relay_outlet("de_shared", "DEU", "both"), _relay_outlet("de_shared2", "DEU", "both"),
+                       _relay_outlet("fr_hosted", "FRA", "hosted")]
+
+
+def _relay_split_db(tmp_path, hours_ago):
+    import datetime as dt
+    conn = store.connect(tmp_path / "rs.db")
+    t = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=hours_ago)).isoformat(timespec="seconds")
+    conn.execute("INSERT INTO relay_runs(started_at, finished_at, ok) VALUES (?,?,1)", (t, t))
+    conn.commit()
+    return conn
+
+
+def test_relay_status_states_relay_only_and_shared_outlets_apart(tmp_path):
+    rc = export.relay_status(_relay_split_db(tmp_path, 1), RELAY_SPLIT_OUTLETS)
+    assert (rc["outlets"], rc["countries"]) == (1, ["ITA"])
+    assert (rc["shared_outlets"], rc["shared_countries"]) == (3, ["DEU", "ITA"])
+    assert rc["stale"] is False
+
+
+def test_stale_relay_calls_only_relay_only_outlets_incomplete(tmp_path):
+    latest = export.build_latest(_relay_split_db(tmp_path, 9), RELAY_SPLIT_OUTLETS, [], population={})
+    ita, deu, fra = (latest["countries"][c] for c in ("ITA", "DEU", "FRA"))
+    assert (ita["relay_outlets"], ita["shared_outlets"], deu["relay_outlets"], deu["shared_outlets"]) == (1, 1, 0, 2)
+    by_type = lambda e: {w["type"]: w["text"] for w in e["warnings"]}
+    assert "1 of this country's outlets are collected only from the owner's machine" in by_type(ita)["relay_stale"]
+    assert "recent counts for them are incomplete" in by_type(ita)["relay_stale"]
+    shared = by_type(deu)["relay_stale_shared"]
+    assert shared.startswith("2 of this country's outlets are also polled from the owner's machine") and "hosted runner's hourly polls" in shared
+    assert "incomplete" not in shared and "relay_stale" not in by_type(deu)
+    assert not any(w["type"].startswith("relay") for w in fra["warnings"])
+    (tmp_path / "fresh").mkdir()
+    fresh = export.build_latest(_relay_split_db(tmp_path / "fresh", 1), RELAY_SPLIT_OUTLETS, [], population={})
+    assert not any(w["type"].startswith("relay_stale") for c in fresh["countries"].values() for w in c["warnings"])
+
+
+def test_methodology_states_relay_only_and_shared_outlets_apart(tmp_path, monkeypatch):
+    rc = {"outlets": 88, "countries": ["AUS", "ITA"], "shared_outlets": 148, "shared_countries": ["DEU", "FRA", "ITA"],
+          "last_run": "2026-10-12T08:06:06+00:00", "hours_since_last_run": 1.2, "incomplete_days": ["2026-10-01"]}
+    text = _rendered_methodology(tmp_path, monkeypatch, relay_collector=rc)
+    assert ("88 outlets collected only there, in 2 countries; 148 more polled there and by the hosted runner, in 3 countries; "
+            "last pass 2026-10-12T08:06:06+00:00 (1.2 hours before export); 1 incomplete days") in text
+    assert "whose outlets only it collects" in text and "The outlets it shares with the hosted runner are not marked" in text
+
+
+def test_rediscovery_dates_the_fix_from_the_first_run_that_remembered_pruned_addresses(tmp_path):
+    """meta.rediscovery: the day after the first run with seen_urls (schema_migrations), the config date when
+    the database has no such row, and nothing for a database with no discovery counted before that run."""
+    conn = store.connect(tmp_path / "r.db")
+    assert conn.execute("SELECT 1 FROM schema_migrations WHERE name='seen_urls.remembering'").fetchone()
+    assert export.rediscovery(conn) is None
+    assert export.build_meta(conn, [], [], export.build_latest(conn, [], []))["rediscovery"] is None
+    conn.execute("UPDATE schema_migrations SET applied_at='2026-10-12T15:00:00+00:00' WHERE name='seen_urls.remembering'")
+    conn.execute("INSERT INTO daily_discovery(date, country, discovered, gate_relevant) VALUES ('2026-09-01', 'ITA', 5, 0)")
+    conn.commit()
+    rd = export.build_meta(conn, [], [], export.build_latest(conn, [], []))["rediscovery"]
+    assert rd == {"fixed_from": "2026-10-13", "estimated_share": config.REDISCOVERY_ESTIMATED_SHARE,
+                  "measured_floor": config.REDISCOVERY_MEASURED_FLOOR, "measured_of": config.REDISCOVERY_MEASURED_OF,
+                  "window_share": config.REDISCOVERY_WINDOW_SHARE}
+    assert (rd["estimated_share"], rd["measured_floor"]) == (0.08, 123682)
+    conn.execute("DELETE FROM schema_migrations WHERE name='seen_urls.remembering'")
+    assert export.rediscovery(conn)["fixed_from"] == config.REDISCOVERY_FIXED_FROM
+    conn.execute("UPDATE daily_discovery SET date='2026-10-20'")
+    assert export.rediscovery(conn) is None
+
+
+def test_methodology_states_the_rediscovery_figures_the_site_shows(tmp_path, monkeypatch):
+    """The paragraph on items counted again after a prune reads the same date and share as the site's note
+    under the running total (compute.js rediscoveryNote: "Before <fixed_from>, ... an estimated 8 percent")."""
+    rd = {"fixed_from": "2026-10-14", "estimated_share": 0.08, "measured_floor": 123682, "measured_of": 3008671,
+          "window_share": 0.082}
+    text = " ".join(_rendered_methodology(tmp_path, monkeypatch, rediscovery=rd).split())
+    assert "a second time. Before 2026-10-14 it did: after every prune such an item came back as new." in text
+    assert "8.2 percent of the items screened were such repeats" in text
+    assert "at least 4.1 percent were (123,682 items" in text
+    assert "near 8 percent of the running total of items screened, and the site says so under that total" in text
+    assert "The counts before 2026-10-14 are left as they were" in text
+    assert "% of all its news" in text and "72 in the Cayman Islands" in text
+    (tmp_path / "x").mkdir()
+    fallback = " ".join(_rendered_methodology(tmp_path / "x", monkeypatch, rediscovery=None).split())
+    assert "Before %s it did" % config.REDISCOVERY_FIXED_FROM in fallback

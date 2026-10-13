@@ -28,11 +28,27 @@ outlets in Singapore and Malaysia do not pass it on phrases that describe their
 own Chinese communities ("Chinese New Year", "Malaysian Chinese Association"),
 so local news is not counted as coverage of China.
 
+Some busy outlets are also read through their Google News sitemap, which lists
+every recent article with a title and no summary. For those sitemap items only,
+the gate also reads a short list of title terms (the title_only block of
+pipeline/keywords.yaml): Chinese places, state issuers, trade fairs and
+initiatives, and some companies. Where a feed summary would say China, a
+sitemap headline often names only the city, the fair or the company, so that
+name is the only signal there is. Items from ordinary feeds, which carry a
+summary, are never judged on this list. A company is kept on it only where,
+among the stored titles it alone would admit, those labelled as China coverage
+at least match those labelled not about China; most car, phone, appliance,
+solar and drug makers fail that test and are left out. A match is recorded as
+"title_only:<term>" among the item's gate terms. On stored PR Newswire titles
+the list raised the gate's recall of state origin releases from 103 to 145 of
+210, at a cost of about 8 to 25 extra article fetches a day.
+
 The gate has its own version, {gate_version}, separate from the ruleset: it
 decides what enters the corpus, not how an article is labelled. Gate decisions
 are recorded per item and never revisited, so a change to the gate applies only
 to items discovered after it. Items an earlier gate rejected are not
-re-examined, and rejected items are pruned after {retention} days. Re-running a
+re-examined, and rejected items are pruned after {retention} days, except a
+random {audit_keep_pct} percent kept permanently for the gate audit. Re-running a
 new gate over the rejections still stored measures only what is recoverable
 from them; it cannot speak for items already pruned, or for feed entries that
 rolled off a feed before any poll saw them, so a small recovery is never
@@ -45,7 +61,9 @@ polled as well, and its items skip the gate: RSS feeds usually carry editorial
 coverage only, while paid placements sit in those sections. {release_text}
 
 Items that pass the gate are fetched in full, honoring robots.txt, at most one
-request per domain every three seconds, with an identifying user agent. Pages
+request per domain every three seconds, or less often where the site's
+robots.txt sets a longer Crawl-delay (honored up to ten minutes; feed polling is
+paced the same way), with an identifying user agent. Pages
 that declare themselves not free in schema.org metadata, or that present a
 paywall interstitial with a short body, are recorded as paywalled and never
 retrieved by any other route. Paywalled articles are never classified, so they
@@ -66,13 +84,19 @@ Daily, CCTV or People's Daily; a quoted Ministry of Foreign Affairs
 spokesperson, Chinese embassy or named official spokesperson; or a
 "state media reported" construction in any registry language), routes the
 article to a language model for the unchecked state sourcing versus independent
-journalism judgement. Articles with no
-signature and no trigger are labelled independent journalism by rules when
+journalism judgement. An article with neither whose headline, feed summary or body
+nearly repeats a state origin item another outlet ran from eleven days before it to eleven
+days after it goes to the model as a possible copy of state text run without its
+credit line (pipeline/lookalike.py), and the model is shown that item's headline and
+outlet. Articles with no
+signature, no trigger and no such match are labelled independent journalism by rules when
 the body substantively concerns China (at least three distinct China terms,
 or five occurrences, or a term in the headline with two occurrences),
 otherwise not relevant. That threshold applies only to articles no signature
 has claimed. Those residual labels carry confidence below 1.0 and are eligible
 for the reliability study like every other label.
+
+{candidate_recall_text}
 
 The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
@@ -109,6 +133,8 @@ reliability study rules as every other model label.
 
 {session_order_text}
 
+{prompt_text}
+
 The instrument exists to find two kinds of article: state placements and
 local pieces that carry Chinese official or state media claims without
 checking them. Ordinary China coverage is only the denominator. Articles whose
@@ -131,20 +157,30 @@ The critical distinction is between unchecked state sourcing and independent
 journalism, and it is a judgement about verification, not about topic or tone.
 An article highly critical of China that repeats an unverified Xinhua claim is
 still unchecked state sourcing. An article sympathetic to China that independently
-confirms every claim is independent journalism. In the database and the data
+confirms every claim is independent journalism. Only a factual claim central
+to the article counts: "Exports rose 8.7 percent in September, China's commerce
+ministry said", reported as the figure with no other source, is unchecked state
+sourcing, while "China's foreign ministry warned Manila it would take resolute
+measures to defend its sovereignty", reported without outside comment, is
+independent journalism, because it passes on a position and not a fact the
+outlet failed to check. In the database and the data
 files these four labels are stored as the codes A, B, C and not_relevant, in
 that order, for compactness; the interface never shows the codes. Unchecked
 state sourcing is the interface's name for what the codebook and the model
-prompt call unverified relay; the prompt is left as it was written so labels
-stay comparable, and the data files keep the column name unverified_relay.
+prompt call unverified relay; the prompt keeps that name, and the data files
+keep the column name unverified_relay.
 
 ## How state origin arrived
 
 Every state origin label stores its route: the mechanism named by the
 signature that established it. A wire credit line or dateline, a press release
 distribution stamp, a sponsored or partner disclosure, or a byline by a Chinese
-diplomat. A state origin label the model gave without any signature is
-unattributed. Separately, every article records its arrival: an editorial feed,
+diplomat. A state origin label the model gave to an article the lookalike
+check sent, a near repeat of a state origin item another outlet ran with its
+credit line, has the route uncredited copy: state text republished without
+that credit, judged by the model. Any other state origin label the model gave
+without a signature is unattributed. Separately, every article records its
+arrival: an editorial feed,
 or one of the outlet's press release, sponsored or partner sections. The two are
 different variables, and both are exported per day and per country and on each
 article, so penetration can be analysed by the routes available in a country
@@ -189,10 +225,13 @@ rather than by the country alone.
 ## What the numbers mean
 
 The default measure is state origin only, because it is the one label decided
-without the model. State-linked articles add unchecked state sourcing and the candidates
-still waiting for the verification judgement; that measure mixes a measured
-quantity with an unmeasured pile whose composition varies by country, and is
-labelled as such.
+without the model. There is no combined state-linked measure: adding the
+candidates still waiting for the verification judgement to judged counts would
+mix a measured quantity with an unmeasured pile whose composition varies by
+country. The waiting candidates are shown only as their own figure, in the
+country panel and the CSV exports, and are not a finding.
+
+{backfill_day_text}
 
 Raw counts mostly measure how many outlets the registry happens to track in a
 country. Articles per monitored outlet corrects for registry density. The share
@@ -201,15 +240,21 @@ in their feeds in the window, whether or not it concerns China;
 the largest outlets are the {top_n} best audience ranks recorded in
 sources/outlets.yaml, and {ranked_text} A share of published items is not
 shown for a country with fewer than {min_outlets} outlets behind it, where it
-would describe a handful of feeds rather than a country. Articles per million
-people divide by the resident population ({population_source}); population
-measures people, not media saturation, so of the three denominators it is the
-least defensible, and it is offered last.
+would describe a handful of feeds rather than a country. No per capita figure
+is shown, because population is a poor denominator for what outlets publish.
+The resident population of each country is still exported, in the population
+column of the CSV of the current view, and no figure is divided by it.
 
 A syndicated wire item placed in thirty outlets and thirty separate items are
 different phenomena. Near-duplicate titles within a country are linked as one
 underlying item; the interface shows both the number of placements and the
-number of underlying items.
+number of underlying items. An underlying item counts once in a window
+however many of its days it was placed on, and once in a world figure however
+many countries carried it. It counts under each label it carries, so an item
+with a state origin placement and an unchecked state sourcing placement is in
+both counts.
+
+{body_dup_text}
 
 Global press release distribution services ({wire_outlets}) are not national
 newsrooms: their releases are written by their issuers and pushed to
@@ -222,8 +267,7 @@ attributed to the United States, where the services are registered, and never
 added into any individual country's numbers: a release reaches audiences in
 every monitored country, and adding it to each would count it once per
 country. World totals include it. Its share of monitored output divides by
-everything the wires themselves published, and no per capita value exists for
-it. {wire_counts_text} A Distribution toggle beside the Measure control shows
+everything the wires themselves published. {wire_counts_text} A Distribution toggle beside the Measure control shows
 the two apart: Both is the whole dataset, Country outlets leaves the wires out
 of every figure that sums across countries, and Worldwide wires shows the
 stratum alone, with the map left unfilled because a release reaches every
@@ -233,7 +277,11 @@ newsrooms only and never include the wires in any mode.
 The color scale is fixed for a measure and window across every date on the
 timeline: the darkest step starts at the 95th percentile of the values of all
 dates, not of the day shown, so a color means the same number on every date and
-the countries above the cap sit in an overflow step.
+the countries above the cap sit in an overflow step. The cap holds only until
+the next data update. Each update, about once a day, adds the newest days and
+recomputes the cap over the timeline as it then stands, so a color can stand
+for a different number from one week to the next. The theme counter's cap
+works the same way.
 
 Absence of data and absence of content are different things. A country with no
 monitored outlets is drawn with a hatch pattern. A country whose outlets all
@@ -249,10 +297,30 @@ Feeds carry only their most recent entries. When a poll returns a full window
 with nothing seen before, items published since the previous successful poll
 were probably missed; a skipped run costs a busy media market more than a quiet
 one. Every poll records whether that happened, and the estimated number of
-missed items is the feed's own publishing rate times the gap. The relay
+missed items is the feed's own publishing rate times the gap. The rate is taken
+over at least two hours, or over the feed's median window span in the last
+three days when that is shorter (never under a quarter of an hour), so a window
+stamped within minutes cannot imply hundreds of items an hour. One poll's
+estimate is at most twice the new items the feed delivered per day over the
+previous fourteen days, scaled up for a gap longer than a day. A feed polled at
+least three times a day that delivers no more than two and a half windows a
+day publishes in batches: a poll of it whose entries are stamped within an
+hour of one another counts only the batches that fell wholly between it and the
+previous successful poll, none when that poll came less than one batch
+interval earlier. Until 2026-10-12 the rate was taken over the window alone
+and five such batch feeds were booked about 15,000 phantom misses. Each day's
+poll record names the estimator that made it, and the older estimates cannot be
+made again because single poll times were not kept, so the published estimate
+counts only the polls made by the current estimator, from the day it was first
+used, while polls and full windows count every poll on record. The relay
 collector on the owner's machine records every hourly pass; a day on which it
 ran in fewer than {relay_min_hours} hours is marked incomplete for the countries
-whose outlets it collects, so a sleeping laptop never reads as a decline.
+whose outlets only it collects, so a sleeping laptop never reads as a decline.
+The outlets it shares with the hosted runner are not marked and carry no
+incomplete warning when it falls silent: the runner still polls their feeds on
+its hourly schedule and fetches their pages, so they lose only what a skipped
+or late runner poll loses, which the full window count above records. Their
+countries carry a milder warning while the relay is silent.
 
 Themes. Every article that concerns China is tagged with each theme whose
 terms appear in its headline, its feed summary or anywhere in its body
@@ -261,7 +329,8 @@ trade and economy, Belt and Road and investment, technology, energy and
 electric vehicles, military and security, Taiwan and Hong Kong, human rights,
 Chinese domestic politics, culture and tourism, and disasters and health.
 Until themes version 2026.09.4 only the first 800 characters of the body were
-read, which favored whatever an article names early. An article can carry
+read, which favored whatever an article names early.
+{themes_changes_text} An article can carry
 several themes, so theme counts do not add up to article counts; one with none
 is Other. Theme terms exist for {theme_languages}; articles in other languages
 are matched on the English terms only. The tags are keyword matches, not a
@@ -291,9 +360,62 @@ are extracted at fetch time and stored with the article, so they survive
 without the HTML. The permanent record in git is data/export, one JSON line per
 gated article per month with its current classification, route and arrival,
 plus the site data under docs/data. One deliberate exception to the never-delete
-rule: items the relevance gate rejected are pruned after {retention} days, once
-they have served the gate audit. They carry no classification.
+rule: items the relevance gate rejected are pruned after {retention} days. They
+carry no classification. A random {audit_keep_pct} percent of them is kept for
+audit, permanently: the choice is made by a hash of the item's address, so it is
+reproducible and does not depend on outlet, country or language, and each kept
+item keeps its title, summary, address, outlet, country, language and the gate
+terms it was judged on. pipeline/gate_audit.py draws its hand-checked sample from
+that set, stratified by language, over any period, so the gate's recall can be
+measured for months already past and not only for the last {retention} days.
+The address of every pruned item is remembered, for {seen_days} days after a
+feed last listed it, or {seen_unseen_days} days after its discovery when no feed
+lists it again, so a feed that keeps an item listed for weeks does not bring it
+in, and count it among the items screened, a second time. Before
+{rediscovery_from} it did: after every prune such an item came back as new. From
+2026-10-01 to 2026-10-11, {rediscovery_window_pct} percent of the items screened
+were such repeats, from almost nothing in Serbia and Croatia to half in Sweden
+and nearly three quarters in the Cayman Islands. Since collection began at
+least {rediscovery_floor_pct} percent were ({rediscovery_floor} items the stored
+database snapshots show coming back); applying each outlet's share in those
+eleven days to the whole period puts it near {rediscovery_est_pct} percent of
+the running total of items screened, and the site says so under that total.
+The counts before {rediscovery_from} are left as they were: the addresses that
+would show which items came back were pruned with the items, so they cannot be
+corrected item by item, and a correction of only the days the snapshots cover
+would put a step into every series. Each country's share of its own output (%
+of all its news) divides by these counts, so over days before
+{rediscovery_from} it reads low by that country's share of repeats, which is
+uneven: about 16 percent in Britain, 18 in Vietnam, 28 in Uruguay, 47 in
+Kuwait, 50 in Sweden and 72 in the Cayman Islands. The map's key says so for
+any window that reaches back before {rediscovery_from}.
 """
+
+
+def body_dup_text() -> str:
+    """The second near-duplicate pass, on body text, from the constants pipeline.body_dups runs with."""
+    from pipeline import body_dups as bd
+    return (
+        "Titles are the first pass. An outlet often rewrites a wire headline, so a second pass compares "
+        "the fetched text. Every body is cut into overlapping %d word shingles (%d character shingles in "
+        "scripts written without spaces) and summarised as a %d value MinHash signature. Two articles from "
+        "different outlets, in any countries, discovered within %d days of each other, are linked as one "
+        "underlying item when their signatures estimate that at least %d percent of their shingles are "
+        "shared. Pairs from the same outlet are left to title matching, and a body that matches another "
+        "article of its own outlet under a different headline is treated as page template text and never "
+        "linked. Measured on 6,855 stored bodies on 2026-10-12, the body pass linked 124 pairs of articles "
+        "that title matching had left apart, 104 of them across countries, and none of a hand checked sample "
+        "of 30 of those pairs joined two different items (one joined two successive versions of one wire "
+        "story, and one a newspaper's rewrite of a news agency's copy); below the threshold, pairs began to join different versions or different "
+        "stories about one event. Translations are not matched: a translated copy shares almost no words "
+        "with its original, and matching it would need machine translation, which the tracker does not do. "
+        "Body links change no category count, and the model's label is copied only within a title group, "
+        "never along a body link. Body links can only lower the number of underlying items, and only where the "
+        "linked placements fall in the same figure and the same category: in a country's figure when both "
+        "placements are in that country, and in a world figure wherever they are. A link across countries "
+        "marks both placements as syndicated and leaves each country's own figure as it was. Underlying items "
+        "are counted once per window, so a story placed on several days of a window is one item, not one per day."
+        % (bd.SHINGLE_WORDS, bd.SHINGLE_CHARS, bd.SIG_BINS, bd.WINDOW_DAYS, round(bd.JACCARD_THRESHOLD * 100)))
 
 
 def planted_text(meta: Dict) -> str:
@@ -337,8 +459,104 @@ def session_order_text(grace_days: int) -> str:
             "is used only when the budget runs out.")
 
 
+def candidate_recall_text(meta: Dict) -> str:
+    """What the candidate gate cannot see, and the latest hand measured miss rate, or not yet measured."""
+    head = ("The gate in front of the model cannot see uncredited relay. Agency copy that a newsroom runs "
+            "without a credit line names no state outlet, spokesperson or embassy, so it trips no signature "
+            "and no trigger and, unless another outlet carried the same text as state origin, is labelled by "
+            "rules, usually as independent journalism, without the model ever reading it; outlets that habitually run wire copy unattributed are where this is most "
+            "common, and where the counts of state origin and unchecked state sourcing are most likely to "
+            "be too low. The recall of the gate is measured by hand (pipeline/recall_audit.py): a seeded "
+            "random sample of the articles the rules settled without a model call, stratified by language "
+            "and oversampling outlets with a wire copy habit and articles whose headline or summary nearly "
+            "repeats a state origin item already in the database, is coded by a person who does not see "
+            "the rule label, and the share placed in state origin or unchecked state sourcing, weighted back "
+            "to the population, is the gate's miss rate.")
+    r = meta.get("candidate_recall")
+    if not r or not r.get("n_coded"):
+        return head + " The miss rate is not yet measured."
+    text = (" The latest audit (%s, %d articles coded of %d settled by rules) found %d in state origin or "
+            "unchecked state sourcing: a miss rate of %.1f percent, 95 percent interval %.1f to %.1f percent."
+            % ((r.get("computed_at") or "")[:10], r["n_coded"], r.get("population") or 0, r.get("n_missed") or 0,
+               100 * (r.get("rate") or 0), 100 * (r.get("ci_low") or 0), 100 * (r.get("ci_high") or 0)))
+    langs = [(l, v) for l, v in sorted((r.get("by_language") or {}).items()) if (v.get("n") or 0) >= 10]
+    if langs:
+        text += " By language, where at least ten were coded: " + "; ".join(
+            "%s %.1f percent (%d of %d)" % (l, 100 * (v.get("rate") or 0), v.get("missed") or 0, v.get("n") or 0)
+            for l, v in langs) + "."
+    return head + text
+
+
+def backfill_day_text(meta: Dict) -> str:
+    """The day of record and its backfill exception (export._day, store.backfill_day)."""
+    gate = meta.get("gate_version") or config.GATE_VERSION
+    gap = getattr(config, "BACKFILL_GAP_DAYS", None)
+    reads = "the AAP release reader's catch-up reads" + (
+        (", a feed's first poll, and its first poll after more than %d days without one" % gap) if gap else "")
+    return (
+        "Every figure counts an item on the UTC day it was discovered, the only date the instrument "
+        "observes. The exception is an item brought in by a backfill read (%s) and discovered more than %d "
+        "hours after it was published, which counts on its publication day if that is on or after %s, in the "
+        "counts and in the share of monitored output denominator alike, because a backfill would otherwise "
+        "put weeks of items on one day. A backfilled item on a day before a gate change marked on the timeline "
+        "was admitted by the gate in force when it was read (version %s at this export), not by the earlier "
+        "gate that applied to the other items of that day." % (reads, config.BACKFILL_LAG_HOURS, config.COLLECTION_START, gate))
+
+
+def themes_changes_text(meta: Dict) -> str:
+    """Each themes version with the day it took effect and what changed (meta.themes_changes), and why a
+    version change leaves no break in the published theme series."""
+    hist = [h for h in (meta.get("themes_changes") or []) if h and h.get("version") and h.get("date")]
+    retag = ("Every export re-tags each relevant article whose tags were made under another version, so every "
+             "article carries the tags of the current version and the published series has no break at a version change")
+    if not hist:
+        return ("This export carries no record of earlier themes versions, so the theme timeline shows no version mark. "
+                + retag + ".")
+    listed = "; ".join("%s from %s (%s)" % (h["version"], h["date"], (h.get("change") or "change not described").rstrip("."))
+                       for h in hist)
+    return ("Themes versions, each with the day it took effect: " + listed + ". " + retag
+            + "; the marks on the theme timeline record when the method changed, and a theme count read or "
+            "downloaded before a mark was made under the earlier version.")
+
+
 def _fmt_kappa(v):
     return "n/a" if v is None else "%.2f" % v
+
+
+def stability_history_text(meta: Dict) -> str:
+    """The stability check made under an older classifier prompt, kept as history, and when the next
+    one runs. Empty when meta carries no such study (relay_reliability_history)."""
+    hist = meta.get("relay_reliability_history") or {}
+    if not hist or not hist.get("stale"):
+        return ""
+    version = hist.get("prompt_version")
+    text = ("The last stability check (%s, %d articles, kappa %s on the unchecked sourcing versus independent "
+            "journalism judgement) was run under an earlier version of the classifier's instructions%s, so it is "
+            "kept as history and neither withholds nor supports any count." % (
+                (hist.get("computed_at") or "")[:10] or "date unknown", hist.get("n") or 0,
+                _fmt_kappa(hist.get("kappa_bc")), (", dated %s" % version) if version else ""))
+    return text + _next_stability_check_text(meta, "new check")
+
+
+def _next_stability_check_text(meta: Dict, noun: str) -> str:
+    """When the next stability check runs, from meta.relay_study, as one or two sentences each with a
+    leading space. noun is "new check" after an earlier check and "check" when none has run."""
+    st = meta.get("relay_study") or {}
+    state = st.get("state")
+    need = st.get("min_pool") or config.RELIABILITY_MIN_POOL
+    runs = "can be run by hand" if st.get("auto") is False else "runs"
+    if state == "waiting_for_labels":
+        text = " A %s %s once %d articles have been labelled under the current instructions" % (noun, runs, need)
+        return text + (("; %d have been so far." % st["pool"]) if st.get("pool") is not None else ".")
+    if state in ("due", "waiting_for_budget"):
+        return (" Enough articles have now been labelled under the current instructions (at least %d), and a %s "
+                "%s when the daily model allowance permits%s." % (
+                    need, noun, runs, (", on %s at the earliest" % st["earliest"]) if st.get("earliest") else ""))
+    if state == "submitted":
+        return " A %s under the current instructions has been submitted and is reported when it returns." % noun
+    if state in ("done", "not_needed"):
+        return " No %s is needed, because the hand coding study decides publication." % noun
+    return " A %s %s once %d articles have been labelled under the current instructions." % (noun, runs, need)
 
 
 def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None:
@@ -360,71 +578,93 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
             kappa_text += " Unchecked state sourcing versus independent journalism by language: " + "; ".join(
                 "%s %s (n = %d)" % (lang, _fmt_kappa(v.get("kappa")), v.get("n") or 0) for lang, v in sorted(by_lang.items())) + "."
     else:
-        kappa_text = ("No article has been hand coded, and none is planned: the owner's decision is that this "
-                      "instrument runs without a human in the loop, so nothing here is validated against human "
-                      "judgement. What is measured instead is reliability, whether a second model applies the same "
-                      "codebook to the same articles and reaches the same labels, which is a weaker claim and is "
-                      "described next. pipeline/agreement.py remains the hand coding path if that decision is ever "
-                      "revisited.")
+        hs = meta.get("relay_human_study") or {}
+        sample = hs.get("sample") or {}
+        kappa_text = ("No hand coding study has reported yet. The owner and two research assistants code a fixed random "
+                      "sample drawn by pipeline/agreement.py: about %d articles in each language with at least %d model "
+                      "labelled articles, stratified by language and, within each language, by the model's current "
+                      "category, from articles with an extracted body, and seeded so the draw can be repeated. The "
+                      "stratification puts unchecked state sourcing, rare in most languages, into the sample in numbers "
+                      "that can test it, so the kappa describes that sample and not the proportions of the whole "
+                      "dataset. Coders work blind: the sheet carries headline, link, outlet and language, never the "
+                      "model's label, and data/reviews/CODING_GUIDE.md sets out how they decide." % (
+                          hs.get("per_language") or 200, hs.get("min_labelled") or 300))
+        if sample.get("languages"):
+            kappa_text += " The current sample, %s, holds %d articles: %s." % (
+                sample.get("file"), sample.get("n") or 0,
+                ", ".join("%s %d" % (lang, n or 0) for lang, n in sample["languages"].items()))
+        kappa_text += " Until that study reports, nothing here is validated against human judgement."
+    hs = meta.get("relay_human_study") or {}
+    min_pos = hs.get("min_positive") or 10
+    min_lang = meta.get("kappa_min_language_items", config.KAPPA_MIN_LANGUAGE_ITEMS)
+    rule = ("published if kappa on the unchecked state sourcing versus independent journalism distinction is at "
+            "least %.1f, with at least %d articles on each side, overall and in every language with at least %d "
+            "items in that comparison, and withheld if it is not" % (threshold, min_pos, min_lang))
+    rr = meta.get("relay_reliability") or {}
+    history = stability_history_text(meta)
+    if rr or history:
+        stability_clause = "A stability check, described below, never takes the provisional marking away."
+    else:
+        stability_clause = ("No stability check has been run yet." + _next_stability_check_text(meta, "check")
+                            + " When one runs, it never takes the provisional marking away.")
     if not meta.get("relay_measured"):
         relay_text = ("The verification stage has not run, so unchecked state sourcing is not measured. The interface shows it as not yet "
                       "measured, never as zero, and the default measure is state origin only.")
     elif meta.get("relay_provisional"):
-        study = meta.get("relay_study") or {}
-        when = {"submitted": "A reliability study has been submitted and its result is awaited.",
-                "waiting_for_budget": "A reliability study is queued and runs by itself once the monthly model budget allows, not before %s." % (study.get("earliest") or "next month"),
-                "due": "A reliability study is due and runs at the next export."}.get(study.get("state"), "No reliability study has run yet.")
-        relay_text = ("Unchecked state sourcing counts are shown as provisional: they are one model's judgement and nothing has "
-                      "checked them yet. Every figure that contains them is marked provisional in the interface and carries "
-                      "relay_status provisional in the CSV export. %s Provisional means not checked yet, never checked and "
-                      "failed: once a study reports, the counts are published if kappa on the unchecked state sourcing versus "
-                      "independent journalism distinction is at least %.1f and withheld if it is not. Before a study there "
-                      "is no per language result, so no language is withheld." % (when, threshold))
+        relay_text = ("Unchecked state sourcing counts are shown as provisional: they are one model's judgement and no "
+                      "hand coding has checked them yet. Every figure that contains them is marked provisional in the "
+                      "interface and carries relay_status provisional in the CSV export. %s If the study reports "
+                      "kappa below %.1f, overall or in a language with at least %d items in that comparison, the counts "
+                      "are withheld there. %s" % (meta.get("relay_provisional_reason") or "", threshold, min_lang,
+                                                  stability_clause))
     elif not meta.get("relay_publishable"):
-        relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely annotated, until a "
-                      "study gives kappa on the unchecked state sourcing versus independent journalism distinction of at least "
-                      "%.1f. That boundary is where classification error concentrates." % threshold)
-    elif meta.get("relay_basis") == "model_vs_model":
-        rr = meta.get("relay_reliability") or {}
-        relay_text = (
-            "Unchecked state sourcing counts are published, on the strength of a reliability study rather than a "
-            "validation one. A second model (%s) re-judged a sample of %s articles already judged by %s, "
-            "seeing the same prompt, headline and body and no outlet or country, and the two agreed at "
-            "kappa %s on the unchecked sourcing versus independent journalism judgement, at or above the %.1f threshold. "
-            "What that licenses is narrow: the two models apply the codebook consistently. It is not "
-            "evidence that they apply it correctly. No article in this project has been read by a person, "
-            "and two models of one family can share a bias that no amount of agreement between them "
-            "reveals, so an unchecked state sourcing count here should be read as consistent rather than verified. Both raters' "
-            "labels are stored for every sampled article, so the disagreements can be read rather than "
-            "inferred from a coefficient." % (
-                rr.get("model_b", "a second model"), rr.get("n", 0), rr.get("model_a", "the first"),
-                _fmt_kappa(rr.get("kappa_bc")), threshold))
-    elif meta.get("relay_basis") == "same_model_rerun":
-        rr = meta.get("relay_reliability") or {}
-        relay_text = (
-            "Unchecked state sourcing counts are published on the strength of a rerun, which is weaker than "
-            "either a validation study or a two model one. The same model (%s) judged a sample of %s articles "
-            "a second time, seeing the same prompt, headline and body and no outlet, country or earlier label, "
-            "and agreed with itself at kappa %s on the unchecked sourcing versus independent journalism "
-            "judgement, at or above the %.1f threshold. What that licenses is narrower still: the judgement is "
-            "stable. A rerun detects randomness in a model's own reading and can say nothing about a mistake it "
-            "makes every time, which is the failure this instrument most needs to catch. No article in this "
-            "project has been read by a person. Both passes are stored for every sampled article." % (
-                rr.get("model_a", "the model"), rr.get("n", 0), _fmt_kappa(rr.get("kappa_bc")), threshold))
+        if hs.get("state") == "failed":
+            relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely "
+                          "annotated: the hand coding study put kappa on the unchecked state sourcing versus independent "
+                          "journalism distinction at %s, below the %.1f threshold. That boundary is where classification "
+                          "error concentrates." % (_fmt_kappa(hs.get("kappa_bc")), threshold))
+        elif rr.get("kappa_bc") is not None and rr["kappa_bc"] < threshold:
+            relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely "
+                          "annotated: the stability check put the model's agreement with %s at kappa %s, below the %.1f "
+                          "threshold, and a judgement that does not hold still is not shown even as provisional. Hand "
+                          "coding decides publication once it reports." % (
+                              "itself" if rr.get("method") == "same_model_rerun" else "a second model",
+                              _fmt_kappa(rr.get("kappa_bc")), threshold))
+        else:
+            relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely "
+                          "annotated, until the hand coding study reports. They are then %s. That boundary is where "
+                          "classification error concentrates." % rule)
     elif meta.get("relay_basis") == "human_coding":
         relay_text = ("Unchecked state sourcing counts are published, because kappa on the unchecked state sourcing versus "
-                      "independent journalism distinction, from hand coding of a random sample, is at least %.1f." % threshold)
+                      "independent journalism distinction, from hand coding of the fixed sample described above, is at "
+                      "least %.1f, with at least %d articles on each side." % (threshold, min_pos))
     else:
-        relay_text = ("Unchecked state sourcing counts are published, but the study behind them was not recorded with a "
-                      "method, so this file cannot say what they rest on. Treat them as unverified until it can.")
-    if meta.get("relay_study_inconclusive"):
-        relay_text += (" A study has run and could not produce a figure: the sample held too few items on the "
-                       "unchecked sourcing side of the distinction for a coefficient to mean anything. The counts "
-                       "stay withheld until a study that can test the distinction reports.")
+        relay_text = ("Unchecked state sourcing counts are published, but not on the strength of hand coding, which is "
+                      "the only basis this version accepts. Treat them as provisional until a hand coding study reports.")
+    if rr:
+        same = rr.get("method") == "same_model_rerun"
+        relay_text += (
+            "\n\nStability check. %s judged a sample of %s articles a second time, seeing the same prompt, headline "
+            "and body and no outlet, country or earlier label, and agreed %s at kappa %s on the unchecked sourcing "
+            "versus independent journalism judgement. No temperature is set, so both passes run at the API default. "
+            "%s It is recorded and shown and never unlocks publication; a figure below %.1f withholds the "
+            "provisional counts. Both passes are stored for every sampled article." % (
+                ("The same model (%s)" % rr.get("model_a", "the model")) if same else
+                ("A second model (%s)" % rr.get("model_b", "a second model")),
+                rr.get("n", 0), "with its own earlier labels" if same else ("with %s" % rr.get("model_a", "the first")),
+                _fmt_kappa(rr.get("kappa_bc")),
+                "A rerun measures whether the judgement is stable, not whether it is correct: it detects randomness "
+                "in the model's own reading and can say nothing about a mistake it makes every time, which is the "
+                "failure this instrument most needs to catch." if same else
+                "Two models agreeing measures whether they apply the codebook the same way, not whether they apply "
+                "it correctly, and two models of one family can share a bias neither reveals.",
+                threshold))
     withheld = meta.get("relay_withheld_languages") or []
     if withheld:
-        relay_text += (" They are withheld for outlets publishing in %s, where the per language kappa on at least %d items is below the threshold."
+        relay_text += (" Unchecked state sourcing counts are withheld for outlets publishing in %s, where the per language kappa on at least %d items is below the threshold."
                        % (", ".join(withheld), meta.get("kappa_min_language_items", config.KAPPA_MIN_LANGUAGE_ITEMS)))
+    if history:
+        relay_text += "\n\nStability check. " + history
 
     routes = meta.get("routes") or []
     totals = meta.get("route_totals") or {}
@@ -440,14 +680,26 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     else:
         release_text = "No outlet had been searched for such sections at export time."
     fs = meta.get("feed_saturation") or {}
-    saturation_text = ("%d of %d polls, an estimated %d items missed" % (fs.get("saturated", 0), fs.get("polls", 0), fs.get("missed_estimate", 0))
-                       if fs.get("polls") else "not yet measured")
-    rc = meta.get("relay_collector") or {}
-    if rc.get("last_run"):
-        relay_collector_text = "%d outlets; last pass %s (%s hours before export); %d incomplete days" % (
-            rc.get("outlets", 0), rc["last_run"], rc.get("hours_since_last_run"), len(rc.get("incomplete_days") or []))
+    if not fs.get("polls"):
+        saturation_text = "not yet measured"
+    elif fs.get("estimated_polls"):
+        saturation_text = "%d of %d polls; an estimated %d items missed over the %d polls estimated since %s" % (
+            fs.get("saturated", 0), fs["polls"], fs.get("missed_estimate", 0), fs["estimated_polls"],
+            fs.get("missed_estimate_since") or fs.get("estimator"))
     else:
-        relay_collector_text = "%d outlets; no heartbeat received yet" % rc.get("outlets", 0)
+        saturation_text = "%d of %d polls; items missed not yet estimated by the estimator of %s" % (
+            fs.get("saturated", 0), fs["polls"], fs.get("estimator") or "2026-10-12")
+    rc = meta.get("relay_collector") or {}
+    # Relay only outlets (only the owner's machine collects them) and shared ones (the hosted runner
+    # polls them too and fetches their pages) are stated apart: a silent relay leaves only the first
+    # uncollected.
+    relay_outlets_text = "%d outlets collected only there, in %d countries; %d more polled there and by the hosted runner, in %d countries" % (
+        rc.get("outlets", 0), len(rc.get("countries") or []), rc.get("shared_outlets", 0), len(rc.get("shared_countries") or []))
+    if rc.get("last_run"):
+        relay_collector_text = "%s; last pass %s (%s hours before export); %d incomplete days" % (
+            relay_outlets_text, rc["last_run"], rc.get("hours_since_last_run"), len(rc.get("incomplete_days") or []))
+    else:
+        relay_collector_text = "%s; no heartbeat received yet" % relay_outlets_text
     mix = meta.get("ruleset_mix") or {}
     ruleset_mix_text = ", ".join("%s: %d" % (v, n) for v, n in sorted(mix.items())) or "none"
     if mix and not meta.get("reclassification_complete"):
@@ -469,9 +721,31 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
                                % (sl["total"], ", ".join("%s: %d" % (v, n) for v, n in sorted((sl.get("by_model_version") or {}).items()))))
     else:
         session_labels_text = "At export time no label had come in this way."
+    prompt_text = (
+        "The model prompt is dated %s, and every model label records in its model version the date of the "
+        "prompt it was made under. The prompt of 2026-10-12 added the factual-claim rule given under the categories below. When the prompt "
+        "changes, current model labels made under an older one are judged again through the API: unchecked state "
+        "sourcing labels first, since the factual-claim rule changes that figure most, then independent journalism "
+        "labels that cite official Chinese sources with no independent confirmation, then state origin labels, then "
+        "the rest, oldest first within each, "
+        "with what the new articles leave of each run's calls and never more than %d percent of the day's call "
+        "cap, paced over the day. Each keeps its old label until the new one is stored, so no article is left "
+        "without a label in between, and the timeline marks the days whose labels still carry an older prompt. "
+        "At export time %s current model labels did."
+        % (meta.get("llm_prompt_version") or "not recorded", int(round(config.LLM_RELABEL_DAY_SHARE * 100)),
+           "{:,}".format(meta["labels_on_older_prompt"]) if meta.get("labels_on_older_prompt") is not None else "an unrecorded number of"))
 
+    # The same figures the site's note under the running total reads (export.rediscovery); the config
+    # values when this database holds nothing counted before the fix.
+    rd = meta.get("rediscovery") or {
+        "fixed_from": config.REDISCOVERY_FIXED_FROM, "estimated_share": config.REDISCOVERY_ESTIMATED_SHARE,
+        "measured_floor": config.REDISCOVERY_MEASURED_FLOOR, "measured_of": config.REDISCOVERY_MEASURED_OF,
+        "window_share": config.REDISCOVERY_WINDOW_SHARE}
     text = TEMPLATE.format(
+        body_dup_text=body_dup_text(),
         session_labels_text=session_labels_text,
+        prompt_text=prompt_text,
+        candidate_recall_text=candidate_recall_text(meta),
         session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
         planted_text=planted_text(meta),
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
@@ -495,12 +769,19 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         last_successful_run=meta["last_successful_run"] or "none",
         pending_n=meta.get("official_sourcing_pending", 0), pending_countries=meta.get("official_sourcing_pending_countries", 0),
         retention=config.GATED_OUT_RETENTION_DAYS,
+        audit_keep_pct=("%g" % (100 * config.GATE_AUDIT_KEEP_SHARE)),
+        seen_days=config.SEEN_URL_RETENTION_DAYS, seen_unseen_days=config.SEEN_URL_UNSEEN_DAYS,
+        rediscovery_from=rd["fixed_from"], rediscovery_window_pct=("%g" % round(100 * rd["window_share"], 1)),
+        rediscovery_floor="{:,}".format(rd["measured_floor"]),
+        rediscovery_floor_pct=("%.1f" % (100.0 * rd["measured_floor"] / rd["measured_of"])),
+        rediscovery_est_pct=("%g" % round(100 * rd["estimated_share"])),
         gate_version=meta.get("gate_version", config.GATE_VERSION),
         gate_changes_text=(("The gate last changed on %s, to version %s." % (gc[-1]["date"], gc[-1]["version"]))
                            if (gc := meta.get("gate_changes")) else "No gate change has been recorded yet."),
         themes_version=meta.get("themes_version", "not recorded"),
+        themes_changes_text=themes_changes_text(meta),
+        backfill_day_text=backfill_day_text(meta),
         theme_languages=", ".join(meta.get("theme_languages") or []) or "no language yet",
-        population_source=meta.get("population_source", "not recorded"),
         top_n=meta.get("top_outlets_per_country", 30),
         min_outlets=meta.get("min_outlets_for_output_share", config.MIN_OUTLETS_FOR_OUTPUT_SHARE),
         ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))

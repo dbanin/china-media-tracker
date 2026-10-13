@@ -12,17 +12,46 @@ earns it back (section_feed_flooding).
 import datetime as dt
 import json
 import re
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 
-from pipeline import extract, gate, registry, store
+from pipeline import boilerplate, extract, gate, registry, store
 from pipeline.feeds_util import fetch_feed
 
 TITLE_JACCARD_THRESHOLD = 0.7
 # One poll's estimate of items lost between polls is capped, so a feed with nonsense dates cannot
 # dominate a country's total.
 MAX_MISSED_ESTIMATE = 500.0
+# Every feed_polls row records the estimator version that made it (config.MISSED_ESTIMATOR_VERSION,
+# which a change of meaning here must bump), and the export reports only the current version's estimate.
+# The estimate is guarded three ways (saturation, feed_history). Up to 2026-10-12 it was the window's
+# own rate times the gap, and a publisher that replaces a short feed wholesale once a day made every
+# batch look saturated with a window a few minutes wide: Newsmada delivered 118 new items in 30 days
+# and was booked 7,953 missed, and five such feeds about 15,000 between them.
+# The rate is taken over at least the median span of the feed's full windows seen over the last
+# MISSED_SPAN_DAYS (never under MISSED_SPAN_MIN_HOURS), or MISSED_MIN_SPAN_HOURS when that is shorter
+# or fewer than three full windows are on record, so a window stamped within minutes cannot imply
+# hundreds of items an hour while a busy feed whose windows always span under an hour keeps its rate.
+MISSED_MIN_SPAN_HOURS = 2.0
+MISSED_SPAN_DAYS = 3
+MISSED_SPAN_MIN_HOURS = 0.25
+# One poll's estimate is at most MISSED_DAILY_MULTIPLE times the items the feed delivered per day
+# over the trailing MISSED_HISTORY_DAYS of the feed_polls ledger (or this poll's own count when
+# larger), times the gap in days when the gap is longer than a day.
+MISSED_HISTORY_DAYS = 14
+MISSED_DAILY_MULTIPLE = 2.0
+# A batch publisher: over the trailing MISSED_HISTORY_DAYS it was polled at least
+# BATCH_MIN_POLLS_PER_DAY times a day yet delivered no more than BATCH_MAX_WINDOWS_PER_DAY full
+# windows a day, so its new items come in one or two bursts. A poll of such a feed whose dated entries
+# are mostly (BATCH_SHARE) within BATCH_SPREAD_HOURS of one another is a batch; it misses nothing
+# when the previous successful poll came less than one batch interval (a day divided by the windows
+# delivered per day) before it, and otherwise one window for each whole interval skipped.
+BATCH_MIN_POLLS_PER_DAY = 3.0
+BATCH_MAX_WINDOWS_PER_DAY = 2.5
+BATCH_SPREAD_HOURS = 1.0
+BATCH_SHARE = 0.8
 
 # Per section feed relevance guard. The gate exemption assumes a section feed is small and that what
 # it carries is placements. Discovery sometimes registers a whole editorial desk instead: Index.hr's
@@ -119,18 +148,92 @@ def _aware(t: str) -> Optional[dt.datetime]:
     return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
 
 
+def feed_history(conn, feed_url: str, now: Optional[dt.datetime] = None,
+                 outlet_id: Optional[str] = None) -> Optional[Dict]:
+    """The feed's delivery over the trailing MISSED_HISTORY_DAYS whole days of the feed_polls ledger
+    (today, still being polled, is left out): days with a poll, new items delivered per such day,
+    polls per day, entries per poll, whether it is a batch publisher (see the note above the
+    constants), and the span floor for its rate (min_span_h). None when the ledger has no polls
+    for it. outlet_id, when given, only narrows the articles lookup to the outlet's index."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    day = now.date()
+    # A feed both collectors poll has a ledger row per collector and day: days are distinct dates, polls
+    # and entries add up, and new items are the larger collector's, since an item new to one
+    # collector's database is often new to the other's too (as in section_feed_flooding).
+    days, polls, entries, new = conn.execute(
+        """SELECT COUNT(DISTINCT date), COALESCE(SUM(polls), 0), COALESCE(SUM(entries), 0),
+                  (SELECT COALESCE(MAX(n), 0) FROM (SELECT SUM(new_items) n FROM feed_polls
+                     WHERE feed_url=:f AND date>=:a AND date<:b GROUP BY collector))
+           FROM feed_polls WHERE feed_url=:f AND date>=:a AND date<:b""",
+        {"f": feed_url, "a": (day - dt.timedelta(days=MISSED_HISTORY_DAYS)).isoformat(), "b": day.isoformat()}).fetchone()
+    if not days or not polls:
+        return None
+    per_day, window, polls_per_day = new / float(days), entries / float(polls), polls / float(days)
+    batch = (days >= 3 and polls_per_day >= BATCH_MIN_POLLS_PER_DAY and 0 < per_day
+             and per_day <= BATCH_MAX_WINDOWS_PER_DAY * window)
+    return {"days": days, "per_day": per_day, "polls_per_day": polls_per_day, "window": window, "batch": batch,
+            "min_span_h": _span_floor(conn, feed_url, window, now, outlet_id)}
+
+
+def _span_floor(conn, feed_url: str, window: float, now: dt.datetime, outlet_id: Optional[str] = None) -> float:
+    """MISSED_MIN_SPAN_HOURS, or the median span in hours of the feed's full windows over the last
+    MISSED_SPAN_DAYS when that is shorter (never under MISSED_SPAN_MIN_HOURS). A full window is a poll
+    whose new items (articles discovered within five minutes of one another) number the feed's usual
+    entries per poll; gated out rows are kept three days, so every such poll is still on record."""
+    size = max(2, int(round(window)))
+    where, args = "feed_url=? AND discovered_at>=? AND discovered_at<?", [feed_url]
+    if outlet_id:
+        where, args = "outlet_id=? AND " + where, [outlet_id, feed_url]
+    args += [(now - dt.timedelta(days=MISSED_SPAN_DAYS)).isoformat(), now.isoformat()]
+    polls, last = [], None
+    for disc, pub in conn.execute("SELECT discovered_at, published_at FROM articles WHERE %s ORDER BY discovered_at" % where,
+                                  args):
+        d = _aware(disc)
+        if d is None:
+            continue
+        if last is None or (d - last).total_seconds() > 300:
+            polls.append([])
+        last = d
+        polls[-1].append(_aware(pub) if pub else None)
+    spans = []
+    for p in polls:
+        dated = sorted(s for s in p if s is not None)
+        if len(p) >= size and len(dated) >= 2:
+            spans.append((dated[-1] - dated[0]).total_seconds() / 3600.0)
+    if len(spans) < 3:
+        return MISSED_MIN_SPAN_HOURS
+    spans.sort()
+    mid = len(spans) // 2
+    median = spans[mid] if len(spans) % 2 else (spans[mid - 1] + spans[mid]) / 2.0
+    return min(MISSED_MIN_SPAN_HOURS, max(MISSED_SPAN_MIN_HOURS, median))
+
+
+def _burst(stamps: List[dt.datetime]) -> bool:
+    """Whether at least BATCH_SHARE of the (sorted) stamps fall within BATCH_SPREAD_HOURS of one another."""
+    spread, best, j = BATCH_SPREAD_HOURS * 3600, 0, 0
+    for i, s in enumerate(stamps):
+        while (s - stamps[j]).total_seconds() > spread:
+            j += 1
+        best = max(best, i - j + 1)
+    return len(stamps) >= 3 and best >= BATCH_SHARE * len(stamps)
+
+
 def saturation(prev, linked: int, new_here: int, times: List[str],
-               now: Optional[dt.datetime] = None) -> Tuple[bool, float]:
+               now: Optional[dt.datetime] = None, history: Optional[Dict] = None) -> Tuple[bool, float]:
     """Whether a poll came back as a full window with nothing seen before, and an estimate of
     the items lost between this poll and the previous successful one.
 
     A feed carries only its most recent entries. When every entry of a poll is new, the window
     did not reach back to the previous successful poll, so whatever was published in between
     was never seen; a skipped run costs a busy feed more than a quiet one. The estimate is the
-    feed's own publishing rate across the returned window times the stretch between the previous
-    successful poll and the oldest entry returned. The first successful poll of a feed has
-    nothing to overlap with and is never saturated. A window with fewer than two dated entries is
-    saturated with no estimate."""
+    feed's own publishing rate across the returned window, taken over at least
+    MISSED_MIN_SPAN_HOURS (or the feed's own median window span when shorter, from feed_history),
+    times the stretch between the previous successful poll and the oldest entry returned. With the
+    feed's ledger history (feed_history) the estimate is capped by what the feed delivers per day,
+    and a batch poll of a batch publisher counts only the batches that fell wholly between the two
+    polls. The first successful poll of a feed has nothing to overlap
+    with and is never saturated. A window with fewer than two dated entries, or with every entry
+    dated the same instant, is saturated with no estimate."""
     if prev is None or not prev["last_ok"] or linked == 0 or new_here < linked:
         return False, 0.0
     last_ok = _aware(prev["last_ok"])
@@ -142,7 +245,69 @@ def saturation(prev, linked: int, new_here: int, times: List[str],
     gap = (stamps[0] - last_ok).total_seconds()
     if span <= 0 or gap <= 0:
         return True, 0.0
-    return True, round(min(MAX_MISSED_ESTIMATE, (len(stamps) - 1) / span * gap), 2)
+    cap = MAX_MISSED_ESTIMATE
+    if history:
+        cap = min(cap, MISSED_DAILY_MULTIPLE * max(history["per_day"], linked) * max(1.0, gap / 86400.0))
+        if history["batch"] and _burst(stamps):
+            interval = 86400.0 * history["window"] / history["per_day"]
+            return True, round(min(cap, (gap // interval) * linked), 2)
+    floor_h = history.get("min_span_h", MISSED_MIN_SPAN_HOURS) if history else MISSED_MIN_SPAN_HOURS
+    rate = (len(stamps) - 1) / max(span, floor_h * 3600)
+    return True, round(min(cap, rate * gap), 2)
+
+
+def previous_poll(conn, feed_url: str, prev):
+    """The previous successful poll of a feed polled by both collectors, as saturation() takes it:
+    this collector's own (feed_health.last_ok) or the latest logged poll by either collector,
+    whichever is later. Judged against its own last poll alone, a collector that polls a feed
+    every few hours would book as lost what the other collector picked up in between."""
+    logged = store.last_poll_at(conn, feed_url)
+    own = prev["last_ok"] if prev is not None else None
+    if logged and (not own or (_aware(own) and _aware(logged) and _aware(logged) > _aware(own))):
+        return {"last_ok": logged}
+    return prev
+
+
+def backfill_poll(conn, feed_url: str, prev, now: Optional[dt.datetime] = None) -> Optional[str]:
+    """Whether this successful poll of a feed is a backfill read, whose items published more than
+    config.BACKFILL_LAG_HOURS ago count on their publication day (store.backfill_day): "first" for the
+    feed's first successful poll ever, "gap" for its first after more than config.BACKFILL_GAP_DAYS
+    without one, None for an ordinary poll, whose items count on the discovery day. prev is the feed's
+    feed_health row as it stood before this poll was recorded.
+
+    The first poll is judged by the polls ledger alone (feed_polls, which only successful polls write,
+    and feed_poll_log for a shared feed's polls by either collector), not by feed_health.last_ok:
+    validate_sources records feed health, last_ok included, for every feed it checks without collecting
+    anything, so a feed added and validated before its first discovery poll already has a last_ok. The
+    last successful poll is the latest of the three; a ledger day counts as polled to its end."""
+    from pipeline import config
+    now = now or dt.datetime.now(dt.timezone.utc)
+    day = conn.execute("SELECT MAX(date) FROM feed_polls WHERE feed_url=?", (feed_url,)).fetchone()[0]
+    logged = store.last_poll_at(conn, feed_url)
+    if not day and not logged:
+        return "first"
+    stamps = [_aware(logged), _aware(prev["last_ok"]) if prev is not None and prev["last_ok"] else None]
+    if day:
+        stamps.append(dt.datetime.fromisoformat(day).replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1))
+    last = max((s for s in stamps if s is not None), default=None)
+    if last is None or (now - last).total_seconds() > config.BACKFILL_GAP_DAYS * 86400:
+        return "gap"
+    return None
+
+
+def rejudge(conn, row, prev_at: str) -> Tuple[bool, float]:
+    """A logged saturated poll judged again against a poll by the other collector at prev_at that came
+    to light later (it arrived in a relay bundle after this poll was judged). When the window's oldest
+    entry is no newer than that poll, the window reached it and nothing was lost; otherwise the poll
+    stays saturated and the estimate runs from that poll, with the same guards as saturation()."""
+    times = json.loads(row["times"] or "[]")
+    at = _aware(row["polled_at"])
+    stamps = sorted(min(s, at) for s in (_aware(t) for t in times) if s is not None)
+    p = _aware(prev_at)
+    if stamps and p and stamps[0] <= p:
+        return False, 0.0
+    history = feed_history(conn, row["feed_url"], now=at)
+    return saturation({"last_ok": prev_at}, row["entries"], row["entries"], times, now=at, history=history)
 
 
 def readmit_gated_out(conn, item: Dict) -> Optional[int]:
@@ -154,16 +319,16 @@ def readmit_gated_out(conn, item: Dict) -> Optional[int]:
     applied to an item seen editorially first and the item was pruned three days later.
 
     Returns the article id when it was re-admitted. Discovery is not counted again: the item was
-    counted on the day it was first seen, and only the gate-relevant side of that day's counters is
+    counted when it was first seen, on its day of record, and only the gate-relevant side of that day's counters is
     corrected, so the denominator does not move."""
     row = conn.execute(
-        "SELECT id, status, gate_relevant, discovered_at, country, outlet_id FROM articles WHERE url_hash=?",
+        "SELECT id, status, gate_relevant, discovered_at, day_of_record, country, outlet_id FROM articles WHERE url_hash=?",
         (store.url_hash(item["url"]),)).fetchone()
     if row is None or row["gate_relevant"] or row["status"] != "gated_out":
         return None
     conn.execute("UPDATE articles SET status='queued', gate_relevant=1, gate_terms=?, feed_url=? WHERE id=?",
                  (json.dumps(item.get("gate_terms") or []), item.get("feed_url"), row["id"]))
-    day = (row["discovered_at"] or "")[:10]
+    day = row["day_of_record"] or (row["discovered_at"] or "")[:10]
     if day:
         conn.execute("UPDATE daily_discovery SET gate_relevant=gate_relevant+1 WHERE date=? AND country=?",
                      (day, row["country"]))
@@ -179,8 +344,11 @@ def section_feed_flooding(conn, feed_url: str, now: Optional[dt.datetime] = None
     otherwise None. See the note above the constants."""
     now = now or dt.datetime.now(dt.timezone.utc)
     since = (now - dt.timedelta(days=SECTION_GUARD_DAYS)).isoformat()
-    ledger = conn.execute("SELECT COALESCE(SUM(new_items), 0) FROM feed_polls WHERE feed_url=? AND date>=?",
-                          (feed_url, since[:10])).fetchone()[0]
+    # One collector's ledger, the larger: a feed polled by both the runner and the relay has a row for
+    # each, and an item new to one collector's database is new to the other's too.
+    ledger = conn.execute(
+        """SELECT COALESCE(MAX(n), 0) FROM (SELECT SUM(new_items) n FROM feed_polls WHERE feed_url=? AND date>=?
+           GROUP BY collector)""", (feed_url, since[:10])).fetchone()[0]
     marks = ",".join("?" * len(SECTION_GUARD_PENDING))
     present, pending = conn.execute(
         "SELECT COUNT(*), COALESCE(SUM(status IN (%s)), 0) FROM articles WHERE feed_url=? AND discovered_at>=?" % marks,
@@ -197,15 +365,75 @@ def section_feed_flooding(conn, feed_url: str, now: Optional[dt.datetime] = None
     return {"resolved": resolved, "relevant": relevant}
 
 
+# Crawl-delay in feed polling. A feed host whose robots.txt asks for a long Crawl-delay (AsiaOne 60
+# seconds; five hosts in the registry ask for ten minutes or more) gets its first feed of the run
+# however long the wait, and further feeds only while their slots fall within
+# SLOW_FEED_WINDOW_SECONDS of the stage start and before the deadline. The others are deferred to a
+# later run (feeds_deferred, no health record either way) and an outlet's feeds on such a host take
+# turns by the hour, so none is left out for good. The waits are slept without a worker permit
+# (fetch_articles.paced), so the other workers keep polling everything else.
+SLOW_FEED_WINDOW_SECONDS = 600
+_slow_feeds: Dict = {"started": None, "deadline": None, "polled": {}}
+_slow_lock = threading.Lock()
+
+
+def _slow_host(url: str) -> bool:
+    """Whether the feed's host asks for a Crawl-delay above the minimum. Loads its robots.txt (once
+    per host and run, as fetch_feed would) so the delay is known before the first request."""
+    from pipeline import config, fetch_articles as fa
+    fa.can_fetch(url)
+    return fa.domain_gap(fa.domain_of(url)) > config.MIN_SECONDS_PER_DOMAIN
+
+
+def _defer_feed(url: str) -> bool:
+    """Whether this run leaves the feed for a later one (see the note above). Only within run()."""
+    from pipeline import fetch_articles as fa
+    if _slow_feeds["started"] is None or not _slow_host(url):
+        return False
+    domain = fa.domain_of(url)
+    at = time.time() + fa.slot_in(domain)
+    with _slow_lock:
+        if _slow_feeds["deadline"] and at > _slow_feeds["deadline"]:
+            return True
+        if _slow_feeds["polled"].get(domain) and at - _slow_feeds["started"] > SLOW_FEED_WINDOW_SECONDS:
+            return True
+        _slow_feeds["polled"][domain] = _slow_feeds["polled"].get(domain, 0) + 1
+    return False
+
+
+def _take_turns(entries: List[Dict]) -> List[Dict]:
+    """The outlet's feeds on slow hosts rotated by the hour among their own places in the list."""
+    if _slow_feeds["started"] is None:
+        return entries
+    slow = [i for i, fe in enumerate(entries) if fe.get("type", "rss") == "rss" and _slow_host(fe["url"])]
+    if len(slow) < 2:
+        return entries
+    k = int(_slow_feeds["started"] // 3600) % len(slow)
+    turned = [entries[i] for i in slow[k:] + slow[:k]]
+    out = list(entries)
+    for i, fe in zip(slow, turned):
+        out[i] = fe
+    return out
+
+
 def poll_outlet(outlet: Dict) -> List[Dict]:
     out = []
-    for fe in registry.feed_entries(outlet):
-        if fe.get("type", "rss") == "rss":
-            r = fetch_feed(fe["url"])
+    for fe in _take_turns(registry.feed_entries(outlet)):
+        if fe.get("type", "rss") in ("rss", "news_sitemap"):
+            if _defer_feed(fe["url"]):
+                out.append({"outlet": outlet, "feed_url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL),
+                            "result": None, "deferred": True})
+                continue
+            if fe.get("type") == "news_sitemap":
+                from pipeline import news_sitemap  # a Google News sitemap read as a feed
+                r = news_sitemap.fetch_entries(fe["url"])
+            else:
+                r = fetch_feed(fe["url"])
         else:
             from pipeline import section_pages  # section index pages without a feed
-            r = section_pages.fetch_entries(fe["url"])
-        out.append({"outlet": outlet, "feed_url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL), "result": r})
+            r = section_pages.fetch_entries(fe["url"], fe.get("type"))
+        out.append({"outlet": outlet, "feed_url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL), "result": r,
+                    "type": fe.get("type", "rss")})
     return out
 
 
@@ -215,17 +443,39 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     if outlets is None:
         outlets = registry.collectable(registry.load_outlets())
     store.sync_outlets(conn, registry.load_outlets())
+    store.prune_poll_log(conn)
+    from pipeline import section_pages
+    section_pages.aap_start(conn, outlets)   # how far back this run reads the shared AAP release listing
     counts = {"feeds": 0, "feeds_ok": 0, "items_seen": 0, "items_new": 0,
               "gate_relevant": 0, "near_duplicates": 0, "feeds_saturated": 0, "section_items": 0,
               "outlets": len(outlets), "outlets_polled": 0, "readmitted_section": 0,
-              "section_feeds_guarded": 0}
+              "section_feeds_guarded": 0, "feeds_deferred": 0}
+    # The shared AAP release listing is read once here, before any worker starts, within a share of the
+    # time left (section_pages.AAP_PREREAD_SHARE); read lazily under a lock, its first backfill held
+    # most of the workers for minutes. aap_finish records where it got to once a masthead has used it.
+    aap = section_pages.aap_preread(conn, deadline)
+    if aap is not None:
+        counts["aap_listing"] = aap
     # ThreadPoolExecutor.map submits every outlet up front and the with block joins on exit, so
     # breaking out of the consumer loop at the deadline stopped the database writes but not the
     # polling: a run given 35 minutes could overshoot into the job's 55 minute timeout and be
     # killed, losing the fetch and classify stages with it. shutdown(cancel_futures=True) drops
     # the outlets not started yet, and wait=False leaves only the polls already in flight.
-    pool = ThreadPoolExecutor(max_workers=workers)
-    futures = [pool.submit(poll_outlet, o) for o in outlets]
+    # Hosts with a long Crawl-delay sleep without a permit (fetch_articles.paced), so the pool has
+    # SLOW_DOMAIN_THREADS threads beyond the `workers` that poll at any one time; `stopped` keeps a
+    # thread that only gets its permit after the deadline from polling at all.
+    from pipeline import config, fetch_articles
+    _slow_feeds.update(started=time.time(), deadline=deadline, polled={})
+    permits = threading.BoundedSemaphore(workers)
+    # Each feed's summary boilerplate (pipeline/boilerplate.py), which the keyword gate does not read.
+    boiler = boilerplate.FeedBoilerplate(conn)
+    stopped = threading.Event()
+
+    def poll(o):
+        return [] if stopped.is_set() else poll_outlet(o)
+
+    pool = ThreadPoolExecutor(max_workers=workers + config.SLOW_DOMAIN_THREADS)
+    futures = [pool.submit(fetch_articles.paced(permits, poll), o) for o in outlets]
     try:
         for fut in as_completed(futures):
             try:
@@ -235,7 +485,15 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                 counts["last_outlet_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
                 continue
             counts["outlets_polled"] += 1
+            # What the outlet's Google News sitemap listed this run, for the RSS saturation estimate, and the
+            # titles on record, loaded at the sitemap's turn (pipeline/news_sitemap.py, the note there).
+            from pipeline import news_sitemap
+            covered = news_sitemap.cover([g["result"] for g in group if g.get("type") == news_sitemap.NEWS_SITEMAP])
+            titles = None
             for g in group:
+                if g.get("deferred"):
+                    counts["feeds_deferred"] += 1
+                    continue
                 outlet, feed_url, kind, r = g["outlet"], g["feed_url"], g["kind"], g["result"]
                 counts["feeds"] += 1
                 prev = store.feed_health_row(conn, feed_url)
@@ -243,24 +501,47 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                 if not r["ok"]:
                     continue
                 counts["feeds_ok"] += 1
-                section = kind in registry.GATE_EXEMPT_KINDS
+                # The feed's first successful poll ever, or its first after a long outage, is a backfill
+                # read whatever the reader (backfill_poll, config.BACKFILL_GAP_DAYS).
+                reread = backfill_poll(conn, feed_url, prev)
+                if reread:
+                    counts["feeds_backfill_" + reread] = counts.get("feeds_backfill_" + reread, 0) + 1
+                backfill = bool(r.get("backfill") or reread)
+                # A reader that sets keyword_gate (the AAP release listing, section_pages) keeps the gate.
+                section = kind in registry.GATE_EXEMPT_KINDS and not r.get("keyword_gate")
                 if section and section_feed_flooding(conn, feed_url):
                     # Flooding: the keyword gate applies to this feed until it earns the exemption back.
                     section = False
                     counts["section_feeds_guarded"] += 1
                 linked, new_here, times = 0, 0, []
+                is_map, known, links = g.get("type") == news_sitemap.NEWS_SITEMAP, (), []
+                if is_map:
+                    known = news_sitemap.known_hashes(conn, [e.get("link") for e in r["entries"]])
+                    titles = news_sitemap.known_titles(conn, outlet["id"]) if titles is None else titles
                 for entry in r["entries"]:
                     link = entry.get("link")
                     if not link or not link.startswith("http"):
                         continue
                     linked += 1
                     counts["items_seen"] += 1
+                    links.append(link)
+                    if is_map:
+                        if store.url_hash(link) in known:
+                            continue            # on record: a sitemap lists two days of items on every poll
+                        if news_sitemap.duplicate_title(titles, entry.get("title"), link):
+                            counts["sitemap_same_title"] = counts.get("sitemap_same_title", 0) + 1
+                            continue            # the same article under another address
                     title = (entry.get("title") or "").strip()
                     summary = _entry_summary(entry)
                     if section:
                         relevant, terms = True, ["section:%s" % kind]
                     else:
-                        relevant, terms = gate.check(title, summary, outlet["language"], outlet["country"])
+                        # A sitemap entry has a title and nothing else: the gate also reads its title_only terms.
+                        relevant, terms = gate.check(title, summary, outlet["language"], outlet["country"], url=link,
+                                                     feed_boilerplate=boiler.shingles(outlet["id"], feed_url),
+                                                     title_only=is_map)
+                        if relevant and r.get("keyword_gate") and kind in registry.GATE_EXEMPT_KINDS:
+                            terms = terms + ["section:%s" % kind]   # it still arrived by the section
                     item = {
                         "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
                         "language": outlet["language"], "feed_url": feed_url, "title": title,
@@ -269,9 +550,24 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         "status": "queued" if relevant else "gated_out",
                         "gate_relevant": 1 if relevant else 0, "gate_terms": terms,
                     }
+                    # A backfill read (the result's "backfill", set by the AAP release reader, or a feed's
+                    # first poll or first after an outage, backfill_poll) dates an item published well
+                    # before it was seen by its publication day, in the counts and the discovery totals
+                    # alike (store.backfill_day, config.BACKFILL_LAG_HOURS).
+                    item["day_of_record"] = store.backfill_day(item["published_at"]) if backfill else None
                     if item["published_at"]:
                         times.append(item["published_at"])
                     new_id = store.insert_discovered(conn, item)
+                    if new_id is not None and item.get("seen_day"):
+                        # Rejected and pruned before, relevant now: back in the corpus on the day its
+                        # discovery was counted, which is not counted again (store.insert_discovered).
+                        store.record_relevant_again(conn, outlet["country"], outlet["id"], item["seen_day"])
+                        counts["readmitted_after_prune"] = counts.get("readmitted_after_prune", 0) + 1
+                        if section:
+                            counts["section_items"] += 1
+                        if link_near_duplicates(conn, new_id, title, outlet["country"]):
+                            counts["near_duplicates"] += 1
+                        continue
                     if new_id is None:
                         # Known URL. On a gate-exempt section feed it may be one the gate rejected
                         # when it arrived on an editorial feed; re-admit it there and then.
@@ -281,25 +577,49 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                             counts["section_items"] += 1
                             if link_near_duplicates(conn, readmitted, title, outlet["country"]):
                                 counts["near_duplicates"] += 1
+                        elif relevant and not is_map and outlet.get("news_sitemaps"):
+                            # The outlet's news sitemap brought it first and the gate read its title alone;
+                            # an RSS feed now brings its summary too, and the gate passes.
+                            again = readmit_gated_out(conn, item)
+                            if again:
+                                counts["readmitted_editorial"] = counts.get("readmitted_editorial", 0) + 1
+                                if link_near_duplicates(conn, again, title, outlet["country"]):
+                                    counts["near_duplicates"] += 1
                         continue
                     new_here += 1
                     counts["items_new"] += 1
-                    store.record_discovery(conn, outlet["country"], relevant, outlet["id"])
+                    store.record_discovery(conn, outlet["country"], relevant, outlet["id"], item["day_of_record"])
                     if section:
                         counts["section_items"] += 1
                     if relevant:
                         counts["gate_relevant"] += 1
                         if link_near_duplicates(conn, new_id, title, outlet["country"]):
                             counts["near_duplicates"] += 1
-                saturated, missed = saturation(prev, linked, new_here, times)
+                # A feed both collectors poll (registry collector: both) is judged against the previous
+                # poll by either of them, and every poll of it is logged so the other side can do the same.
+                shared = registry.is_shared(outlet)
+                if shared:
+                    prev = previous_poll(conn, feed_url, prev)
+                history = feed_history(conn, feed_url, outlet_id=outlet["id"]) if linked and new_here >= linked else None
+                saturated, missed = saturation(prev, linked, new_here, times, history=history)
+                if covered is not None and not is_map and kind == registry.EDITORIAL:
+                    # The sitemap listed what this RSS poll lost, except the part of the stream it leaves out.
+                    saturated, missed, scaled = news_sitemap.covered_saturation(prev, saturated, missed, links, covered)
+                    counts["saturation_covered"] = counts.get("saturation_covered", 0) + (1 if scaled else 0)
                 counts["feeds_saturated"] += 1 if saturated else 0
                 store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked, new_here, saturated, missed)
+                if shared:
+                    store.log_feed_poll(conn, feed_url, config.COLLECTOR, store.utcnow(), outlet["id"], outlet["country"],
+                                        linked, new_here, times, prev["last_ok"] if prev is not None else None,
+                                        saturated, missed)
                 conn.commit()
             if deadline and time.time() > deadline:
                 counts["stopped_at_deadline"] = True
                 break
     finally:
+        stopped.set()
         pool.shutdown(wait=False, cancel_futures=True)
+    section_pages.aap_finish(conn)
     counts["outlets_skipped"] = counts["outlets"] - counts["outlets_polled"]
     store.finish_stage(conn, log_id, True, counts)
     return counts

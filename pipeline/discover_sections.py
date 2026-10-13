@@ -10,6 +10,7 @@ Results are written as they arrive to a JSON file, so a long run survives interr
 and merged into sources/outlets.yaml only with --apply:
   release_sections  {searched_on, status, sections}   recorded for every searched outlet
   section_feeds     [{url, kind, section}]            feeds the collector then polls
+A section or feed recorded as rejected in release_sections is never registered again (rejections).
 
 Usage:
   python -m pipeline.discover_sections probe [--limit N] [--only id,id] [--out data/sections_probe.json]
@@ -30,23 +31,25 @@ MAX_SECTIONS_PER_OUTLET = 4
 FEED_SUFFIXES = ("feed", "rss", "feed/", "rss.xml")
 
 # Link text or URL path naming a section. Matched case insensitively against the anchor text
-# and against the URL path with separators turned into spaces.
+# and against the URL path with separators turned into spaces. Section names take the plural too
+# ("Business Wires", AsiaOne's old release section; "Advertorials"; "Partner Contents"), but a wire
+# needs its PR qualifier: a bare "Newswire" or "Wires" is an agency desk or an outlet (newswire.lk).
 KIND_PATTERNS: List[Tuple[str, re.Pattern]] = [
     ("press_release", re.compile(
-        r"\b(press[ -]?releases?|news[ -]?releases?|media[ -]?releases?|pr[ -]?newswire|business[ -]?wire|globe[ -]?newswire|"
-        r"ein[ -]?presswire|accesswire|newsfile|communiqu[eé]s?( de presse)?|comunicados?( de prensa| de imprensa)?|notas? de prensa|"
+        r"\b(press[ -]?releases?|news[ -]?releases?|media[ -]?releases?|pr[ -]?news[ -]?wires?|business[ -]?wires?|globe[ -]?news[ -]?wires?|"
+        r"ein[ -]?press[ -]?wires?|press[ -]?wires?|pr[ -]?wires?|accesswires?|newsfile|communiqu[eé]s?( de presse)?|comunicados?( de prensa| de imprensa)?|notas? de prensa|"
         r"comunicati( stampa)?|comunicato stampa|pressemitteilung(en)?|persberichten?|pressmeddelanden?|tiedotteet|"
         r"press ?release|пресс[- ]?релиз\w*|بيانات? صحفي\w*|siaran pers|komunikat(y)? prasow\w*|tiskov[aáé] zpr[aá]v\w*|"
         r"basın b[uü]lteni|δελτ[ιί]α τ[υύ]που|immediapress|prnewswire|xinhua silk road)\b", re.I)),
     ("sponsored", re.compile(
-        r"\b(sponsored( content| stories| posts?)?|paid (post|content|partner)|advertorial|native advertising|branded content|"
-        r"brand ?studio|contenu(s)? sponsoris[eé]s?|publi[- ]?reportages?|publirreportajes?|contenidos? patrocinados?|"
+        r"\b(sponsored( contents?| stor(y|ies)| posts?)?|paid (posts?|contents?|partner(s|ships?)?)|advertorials?|native advertising|"
+        r"branded contents?|brand ?studios?|contenu(s)? sponsoris[eé]s?|publi[- ]?reportages?|publirreportajes?|contenidos? patrocinados?|"
         r"conte[uú]dos? patrocinados?|publieditorial|contenuti sponsorizzati|contenuto sponsorizzato|redazionale|"
         r"gesponsert|sonderver[oö]ffentlichung(en)?|anzeige|advertentie|gesponsord|sponsrat|спецпроект\w*|на правах рекламы|"
         r"محتوى (مدفوع|برعاية)|konten bersponsor|artikel bersponsor|konten sponsor|reklam içerik|sponsorlu i[cç]erik|"
         r"cairorcs studio|telegraph spotlight|china watch)\b", re.I)),
     ("partner", re.compile(
-        r"\b(partner(ed)? content|partner stories|in partnership( with)?|content partner|contenu partenaire|contenido de socios|"
+        r"\b(partner(ed)? contents?|partner stor(y|ies)|in partnership( with)?|content partner|contenu partenaire|contenido de socios|"
         r"conte[uú]do (de )?parceiros?|partnerinhalte?|special (report|supplement|feature)s? (by|from)|supplements?|"
         r"media partner|studio partners?)\b", re.I)),
 ]
@@ -184,8 +187,50 @@ def _feed_ok(url: str) -> bool:
     allowed, _ = fetch_articles.can_fetch(url)
     if not allowed:
         return False
-    fetch_articles._rate_wait(fetch_articles.domain_of(url))
-    return fetch_feed(url)["ok"]
+    return fetch_feed(url)["ok"]     # fetch_feed takes the domain's rate limited slot itself
+
+
+# Section feed types discovery chooses between on its own: a feed, or the section's index page. Any
+# other type (aap_widget, read from the AAP release listing) names a special reader a section needs;
+# apply keeps such an entry as registered and never turns it back into a page or feed.
+GENERIC_TYPES = ("rss", "page")
+
+# A section page that embeds the AAP release widget is an empty shell the widget fills in the reader's
+# browser (the "Press Releases from AAP" page of every Australian Community Media masthead), so it is
+# read from the AAP release listing (section_pages.AAP_WIDGET), not for its own links or feeds.
+_AAP_WIDGET_SCRIPT = re.compile(r"newsroom\.aap\.com\.au/static/aaprwidget\.js", re.I)
+
+# A section or section feed found to be something else is recorded in the outlet's release_sections with
+# the reason (sources/outlets.yaml, the one list of them; pipeline/section_retag.py reads it too):
+#   rejected: true       the page is not a section of its kind (a desk crediting a sponsor, a topic page,
+#                        a single story). Never registered again, as a page or a feed.
+#   rejected_feed: url   a feed registered for the section that is not its feed (often the site-wide feed).
+#                        Never registered again for any of the outlet's sections, and the section is
+#                        registered again only on another feed, never on its page in the feed's place.
+# probe_outlet and apply both skip them, and apply keeps every rejection whatever a probe finds.
+REJECTION_FIELDS = ("rejected", "rejected_feed", "rejected_feed_language", "rejected_on", "reason")
+
+
+def _url_key(url: str) -> str:
+    """A URL compared without scheme, www. or a trailing slash."""
+    p = urlsplit(url or "")
+    host = p.netloc.lower()
+    host = host[4:] if host.startswith("www.") else host
+    return host + p.path.rstrip("/") + ("?" + p.query if p.query else "")
+
+
+def rejections(outlet: Dict) -> Tuple[Dict[str, Dict], set]:
+    """The outlet's section records that carry a rejection, by section URL key, and the URL keys of every
+    feed or page discovery must never register for it: each rejected feed and each rejected section."""
+    records, never = {}, set()
+    for s in (outlet.get("release_sections") or {}).get("sections") or []:
+        if s.get("rejected") or s.get("rejected_feed"):
+            records[_url_key(s["url"])] = s
+            if s.get("rejected_feed"):
+                never.add(_url_key(s["rejected_feed"]))
+            if s.get("rejected"):
+                never.add(_url_key(s["url"]))
+    return records, never
 
 
 def probe_outlet(outlet: Dict, homepage: Optional[str]) -> Dict:
@@ -206,19 +251,34 @@ def probe_outlet(outlet: Dict, homepage: Optional[str]) -> Dict:
         rec["reason"] = err
         return rec
     existing = set(outlet.get("feeds") or [])
-    for sec in section_links(html, homepage)[:MAX_SECTIONS_PER_OUTLET]:
+    # A section already registered with a special reader keeps it: no feed is looked for on its page.
+    special = {f.get("section") or f["url"]: f["type"] for f in outlet.get("section_feeds") or []
+               if f.get("type", "rss") not in GENERIC_TYPES}
+    # A rejected section found again is recorded as such and not visited, and takes none of the slots.
+    _, never = rejections(outlet)
+    links = section_links(html, homepage)
+    for sec in links:
+        if _url_key(sec["url"]) in never:
+            rec["sections"].append({"url": sec["url"], "kind": sec["kind"], "label": sec["label"], "feed": None,
+                                    "reachable": False, "rejected": True})
+    for sec in [s for s in links if _url_key(s["url"]) not in never][:MAX_SECTIONS_PER_OUTLET]:
         feed = None
         reachable = False
         ok_page, _ = fetch_articles.can_fetch(sec["url"])
         if ok_page:
             page, _, _ = fetch_articles.get_page(sec["url"])
             reachable = page is not None
+            if sec["url"] in special or (page and _AAP_WIDGET_SCRIPT.search(page)):
+                from pipeline import section_pages
+                rec["sections"].append({"url": sec["url"], "kind": sec["kind"], "label": sec["label"], "feed": None,
+                                        "reachable": reachable, "type": special.get(sec["url"], section_pages.AAP_WIDGET)})
+                continue
             candidates = feed_links(page or "", sec["url"])
             if not candidates:
                 root = sec["url"].rstrip("/") + "/"
                 candidates = [root + s for s in FEED_SUFFIXES[:2]]
             for c in candidates[:3]:
-                if c in existing or site_wide_feed(c):
+                if c in existing or site_wide_feed(c) or _url_key(c) in never:
                     continue
                 if _feed_ok(c):
                     feed = c
@@ -291,19 +351,46 @@ def apply(out_path) -> Dict:
         if not rec:
             continue
         # Results from an earlier probe version are filtered again, so single stories, advertising sales
-        # pages, desks crediting a sponsor and site-wide feeds recorded then never become sections.
-        rec = dict(rec, sections=[dict(s, feed=None if s.get("feed") and site_wide_feed(s["feed"]) else s.get("feed"))
-                                  for s in rec["sections"] if plausible_section(s["url"]) and classify_link(s.get("label") or "", s["url"])])
+        # pages, desks crediting a sponsor and site-wide feeds recorded then never become sections. Nor
+        # does a rejected section or feed (rejections), whichever probe recorded it.
+        rejected, never = rejections(o)
+        rec = dict(rec, sections=[dict(s, feed=None if s.get("feed") and (site_wide_feed(s["feed"]) or _url_key(s["feed"]) in never) else s.get("feed"))
+                                  for s in rec["sections"] if plausible_section(s["url"]) and classify_link(s.get("label") or "", s["url"])
+                                  and _url_key(s["url"]) not in never])
         if rec["status"] == "found" and not any(s.get("reachable", True) for s in rec["sections"]):
             rec["status"] = "none_found"
-        o["release_sections"] = {
-            "searched_on": rec["searched_on"], "status": rec["status"],
-            "sections": [{"url": s["url"], "kind": s["kind"], "feed": s.get("feed"), "label": s.get("label") or ""}
-                         for s in rec["sections"] if s.get("reachable", True)],
-        }
-        # A section with a feed is polled on the feed; one without is polled on its index page.
-        feeds = [{"url": s["feed"] or s["url"], "kind": s["kind"], "section": s["url"], "type": "rss" if s.get("feed") else "page"}
-                 for s in rec["sections"] if s.get("reachable", True)]
+        # A section feed with a special reader (a type other than rss or page, such as aap_widget) stays
+        # exactly as registered, whatever this probe found on the section: a probe that sees the same
+        # page, or misses it, never turns it back into a page or feed. Its section record stays with it.
+        old_sections = {s["url"]: s for s in (o.get("release_sections") or {}).get("sections", [])}
+        special = {}
+        for f in o.get("section_feeds") or []:
+            if f.get("type", "rss") not in GENERIC_TYPES:
+                special.setdefault(f.get("section") or f["url"], dict(f))
+        sections = [{"url": s["url"], "kind": s["kind"], "feed": s.get("feed"), "label": s.get("label") or ""}
+                    for s in rec["sections"] if s.get("reachable", True)]
+        for s in sections:
+            if s["url"] in special and "readable" in old_sections.get(s["url"], {}):
+                s["readable"] = old_sections[s["url"]]["readable"]
+        sections += [dict(old_sections[u]) for u in special if u in old_sections and u not in {s["url"] for s in sections}]
+        # Every rejection stays recorded with its reason: on the section the probe found again, or as it was.
+        for s in sections:
+            old = rejected.get(_url_key(s["url"]))
+            if old:
+                if not s.get("feed") and "readable" in old:
+                    s["readable"] = old["readable"]
+                s.update({k: old[k] for k in REJECTION_FIELDS if k in old})
+        sections += [dict(r) for k, r in rejected.items() if k not in {_url_key(s["url"]) for s in sections}]
+        o["release_sections"] = {"searched_on": rec["searched_on"], "status": rec["status"], "sections": sections}
+        # A section with a feed is polled on the feed; one without is polled on its index page; one the
+        # probe recorded with a special type (a page embedding the AAP release widget) on that reader.
+        feeds = [special.pop(s["url"]) if s["url"] in special else
+                 {"url": s["feed"] or s["url"], "kind": s["kind"], "section": s["url"],
+                  "type": s.get("type") or ("rss" if s.get("feed") else "page")}
+                 for s in rec["sections"] if s.get("reachable", True)
+                 and (s.get("feed") or s.get("type") or s["url"] in special or _url_key(s["url"]) not in rejected)]
+        # (A section whose feed was rejected is polled again only on another feed the probe found.)
+        feeds += list(special.values())
         if feeds:
             o["section_feeds"] = feeds
             changed["section_feeds"] += len(feeds)
@@ -324,18 +411,17 @@ MAX_EDITORIAL_OVERLAP = 0.5
 
 def check_section_feed(outlet: Dict, feed: Dict, editorial_links: set) -> Tuple[bool, str]:
     """Whether a registered section feed or page really yields that section's items."""
-    from pipeline import fetch_articles, section_pages
+    from pipeline import section_pages
     from pipeline.feeds_util import fetch_feed
-    if feed.get("type", "rss") == "page":
-        r = section_pages.fetch_entries(feed["url"])
+    if feed.get("type", "rss") in ("page", section_pages.AAP_WIDGET):
+        r = section_pages.fetch_entries(feed["url"], feed.get("type"))
         n = len(r["entries"])
         if n < MIN_PAGE_ENTRIES:
             return False, "page yields %d article links" % n
         return True, "page yields %d article links" % n
     if COMMENT_FEED.search(feed["url"]):
         return False, "comments feed"
-    fetch_articles._rate_wait(fetch_articles.domain_of(feed["url"]))
-    r = fetch_feed(feed["url"])
+    r = fetch_feed(feed["url"])      # one slot, taken inside fetch_feed; a second here doubled a Crawl-delay
     if not r["ok"]:
         return False, r["error"] or "feed failed"
     titles = [(e.get("title") or "") for e in r["entries"]]
@@ -350,7 +436,6 @@ def check_section_feed(outlet: Dict, feed: Dict, editorial_links: set) -> Tuple[
 def verify(workers: int = 16) -> Dict:
     """Fetch every registered section feed and page once and keep only those that yield the section's
     own items. Removed entries stay in release_sections with readable: false."""
-    from pipeline import fetch_articles
     from pipeline.feeds_util import fetch_feed
     outlets = registry.load_outlets()
     todo = [o for o in outlets if o.get("section_feeds")]
@@ -360,7 +445,6 @@ def verify(workers: int = 16) -> Dict:
     def one(o):
         editorial = set()
         for u in o.get("feeds", []):
-            fetch_articles._rate_wait(fetch_articles.domain_of(u))
             r = fetch_feed(u)
             editorial |= {store.canonical_url(e.get("link") or "") for e in r["entries"] if e.get("link")}
         verdicts = []

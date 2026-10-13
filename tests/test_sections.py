@@ -176,6 +176,36 @@ def test_genuine_sections_still_classify():
     assert ds.classify_link("Sport sponsored by", "https://x.com/sponsored") == "sponsored"
 
 
+def test_plural_and_variant_section_names_classify():
+    # AsiaOne's old press release section was "Business Wires" at /business-wires.
+    assert ds.classify_link("Business Wires", "https://www.asiaone.com/x") == "press_release"
+    assert ds.classify_link("", "https://www.asiaone.com/business-wires") == "press_release"
+    for text in ("Business Wire", "BusinessWire", "PR Newswires", "PR News Wire", "GlobeNewswires", "Globe Newswires",
+                 "EIN Presswires", "Press Wire", "Press Wires", "PressWire", "PR Wire", "PR Wires", "Accesswires",
+                 "Media Releases", "Media Release", "Press Releases", "Press release", "News Releases"):
+        assert ds.classify_link(text, "https://x.com/s") == "press_release", text
+    for path in ("/pr-wire", "/press-wires", "/media-releases", "/category/business/business-wire", "/pr-newswires"):
+        assert ds.classify_link("", "https://x.com" + path) == "press_release", path
+    for text in ("Advertorials", "Sponsored Stories", "Sponsored story", "Sponsored contents", "Paid Posts",
+                 "Paid contents", "Paid partnerships", "Branded Contents", "Brand Studios"):
+        assert ds.classify_link(text, "https://x.com/s") == "sponsored", text
+    assert ds.classify_link("", "https://x.com/advertorials/ots") == "sponsored"
+    assert ds.classify_link("", "https://www.france24.com/en/sponsored-contents") == "sponsored"
+    for text in ("Partner Contents", "Partnered contents", "Partner Story", "Partner Stories"):
+        assert ds.classify_link(text, "https://x.com/p") == "partner", text
+    # The plural still yields to a desk crediting its sponsor.
+    assert ds.classify_link("Markets sponsored by Business Wires", "https://x.com/markets") is None
+
+
+def test_ordinary_desks_are_not_release_sections():
+    for text in ("Business", "Wires", "Wire", "Newswire", "Newswires", "News Wires", "Newsletter", "Newsletters",
+                 "News", "Press", "Business News", "Business Wireless", "Express Wire", "World Wires", "Partners",
+                 "Sponsors", "Stories", "Contents", "Releases", "Advertise", "Press freedom", "Media"):
+        assert ds.classify_link(text, "https://x.com/s") is None, text
+    for path in ("/business", "/wires", "/newswire", "/newsletters", "/business/wireless", "/partners"):
+        assert ds.classify_link("", "https://x.com" + path) is None, path
+
+
 def test_site_wide_feeds():
     for url in ("https://www.mirror.co.uk/rss.xml", "https://news.liga.net/ua/all/rss.xml", "https://novayagazeta.eu/feed/rss",
                 "https://asiaplus.news/feed/", "https://www.interfax.ru/rss", "https://x.com/feed", "https://x.com/feeds/feed.xml",
@@ -228,3 +258,103 @@ def test_registry_has_no_site_wide_or_sponsor_credit_section_feeds():
         for f in o.get("section_feeds") or []:
             assert not (f.get("type", "rss") == "rss" and ds.site_wide_feed(f["url"])), (o["id"], f["url"])
             assert ds.classify_link(labels.get(f["section"], ""), f["section"]), (o["id"], f["section"])
+
+
+def _acm_outlet():
+    return {"id": "au_x", "name": "X", "country": "AUS", "language": "en", "feeds": ["https://x.com.au/rss.xml"],
+            "tier": "regional", "active": True,
+            "section_feeds": [{"url": "https://x.com.au/press-releases", "kind": "press_release",
+                               "section": "https://x.com.au/press-releases", "type": "aap_widget"}],
+            "release_sections": {"searched_on": "2026-09-15", "status": "found", "sections": [
+                {"url": "https://x.com.au/press-releases", "kind": "press_release", "feed": None,
+                 "label": "Press Releases from AAP", "readable": True}]}}
+
+
+def _apply(tmp_path, monkeypatch, outlets, probe):
+    import json
+    saved = {}
+    monkeypatch.setattr(registry, "load_outlets", lambda: [dict(o) for o in outlets])
+    monkeypatch.setattr(registry, "save_outlets", lambda os_: saved.setdefault("o", os_))
+    p = tmp_path / "probe.json"
+    p.write_text(json.dumps(probe))
+    ds.apply(p)
+    return saved["o"][0]
+
+
+def test_apply_keeps_a_special_section_feed_when_the_probe_finds_the_same_page(tmp_path, monkeypatch):
+    probe = {"au_x": {"id": "au_x", "searched_on": "2026-10-12", "status": "found", "sections": [
+        {"url": "https://x.com.au/press-releases", "kind": "press_release", "label": "Press Releases from AAP", "feed": None, "reachable": True},
+        {"url": "https://x.com.au/sponsored", "kind": "sponsored", "label": "Sponsored", "feed": None, "reachable": True}]}}
+    o = _apply(tmp_path, monkeypatch, [_acm_outlet()], probe)
+    assert o["section_feeds"] == [
+        {"url": "https://x.com.au/press-releases", "kind": "press_release", "section": "https://x.com.au/press-releases", "type": "aap_widget"},
+        {"url": "https://x.com.au/sponsored", "kind": "sponsored", "section": "https://x.com.au/sponsored", "type": "page"}]
+    assert o["release_sections"]["searched_on"] == "2026-10-12"
+    assert o["release_sections"]["sections"][0]["readable"] is True
+
+
+def test_apply_keeps_a_special_section_feed_the_probe_missed(tmp_path, monkeypatch):
+    probe = {"au_x": {"id": "au_x", "searched_on": "2026-10-12", "status": "unreachable", "sections": []}}
+    o = _apply(tmp_path, monkeypatch, [_acm_outlet()], probe)
+    assert o["section_feeds"] == _acm_outlet()["section_feeds"]
+    assert o["release_sections"]["status"] == "unreachable"
+    assert [s["url"] for s in o["release_sections"]["sections"]] == ["https://x.com.au/press-releases"]
+
+
+def test_apply_registers_a_probed_aap_widget_section(tmp_path, monkeypatch):
+    outlet = dict(_acm_outlet())
+    outlet.pop("section_feeds")
+    outlet.pop("release_sections")
+    probe = {"au_x": {"id": "au_x", "searched_on": "2026-10-12", "status": "found", "sections": [
+        {"url": "https://x.com.au/press-releases", "kind": "press_release", "label": "Press Releases from AAP", "feed": None,
+         "reachable": True, "type": "aap_widget"}]}}
+    o = _apply(tmp_path, monkeypatch, [outlet], probe)
+    assert o["section_feeds"] == _acm_outlet()["section_feeds"]
+    assert "type" not in o["release_sections"]["sections"][0]
+
+
+def test_probe_records_a_page_embedding_the_aap_widget(monkeypatch):
+    from pipeline import fetch_articles
+    pages = {"https://x.com.au/": '<a href="/press-releases">Press Releases from AAP</a><a href="/sponsored">Sponsored</a>',
+             "https://x.com.au/press-releases": '<link rel="alternate" type="application/rss+xml" href="/press-releases/feed">'
+                                                '<div id="aapr-widget"></div>'
+                                                '<script src="https://newsroom.aap.com.au/static/aaprwidget.js"></script>',
+             "https://x.com.au/sponsored": "<p>sponsored</p>"}
+    looked = []
+    monkeypatch.setattr(fetch_articles, "can_fetch", lambda u: (True, None))
+    monkeypatch.setattr(fetch_articles, "get_page", lambda u: (pages.get(u), 200 if u in pages else 404, None))
+    monkeypatch.setattr(ds, "_feed_ok", lambda u: looked.append(u) or False)
+    rec = ds.probe_outlet({"id": "au_x", "feeds": []}, "https://x.com.au/")
+    secs = {s["url"]: s for s in rec["sections"]}
+    assert secs["https://x.com.au/press-releases"]["type"] == section_pages.AAP_WIDGET
+    assert secs["https://x.com.au/press-releases"]["feed"] is None and secs["https://x.com.au/press-releases"]["reachable"]
+    assert "type" not in secs["https://x.com.au/sponsored"]
+    assert not any(u.startswith("https://x.com.au/press-releases") for u in looked)   # no feed sought on the widget page
+
+
+def test_probe_keeps_a_registered_special_type_for_the_same_section(monkeypatch):
+    from pipeline import fetch_articles
+    pages = {"https://x.com.au/": '<a href="/press-releases">Press Releases</a>',
+             "https://x.com.au/press-releases": '<link rel="alternate" type="application/rss+xml" href="/press-releases/feed">'}
+    monkeypatch.setattr(fetch_articles, "can_fetch", lambda u: (True, None))
+    monkeypatch.setattr(fetch_articles, "get_page", lambda u: (pages.get(u), 200 if u in pages else 404, None))
+    monkeypatch.setattr(ds, "_feed_ok", lambda u: True)
+    outlet = {"id": "au_x", "feeds": [], "section_feeds": [dict(_acm_outlet()["section_feeds"][0], type="future_reader")]}
+    sec = ds.probe_outlet(outlet, "https://x.com.au/")["sections"][0]
+    assert sec["type"] == "future_reader" and sec["feed"] is None
+
+
+def test_registry_aap_widget_sections_survive_a_reapply_of_the_saved_probe(monkeypatch):
+    from pipeline import config
+    probe_path = config.ROOT / "data" / "sections_probe.json"
+    if not probe_path.exists():
+        return
+    before = {o["id"]: o["section_feeds"] for o in registry.load_outlets()
+              if any(f.get("type") == section_pages.AAP_WIDGET for f in o.get("section_feeds") or [])}
+    saved = {}
+    monkeypatch.setattr(registry, "save_outlets", lambda os_: saved.setdefault("o", os_))
+    ds.apply(probe_path)
+    after = {o["id"]: o.get("section_feeds") for o in saved["o"] if o["id"] in before}
+    for oid, feeds in before.items():
+        assert [f for f in after[oid] if f.get("type") == section_pages.AAP_WIDGET] == \
+            [f for f in feeds if f.get("type") == section_pages.AAP_WIDGET], oid

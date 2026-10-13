@@ -183,6 +183,7 @@ jobs:
           git pull --rebase --autostash -X theirs origin ${{ github.ref_name }} || { git rebase --abort; exit 1; }
           git push
       - name: Save database for the next run
+        id: save_db
         if: always()
         uses: actions/cache/save@v5
         with:
@@ -190,6 +191,13 @@ jobs:
             data/tracker.db
             data/bodies
           key: tracker-db-${{ github.run_id }}
+      - name: Acknowledge the relay bundles the saved database holds
+        # Only once the database is saved: the relay's next bundle then carries only what changed since
+        # (pipeline.relay.push_ack, the relay-ack branch). A failed acknowledgement only makes the next
+        # bundle whole again; it never fails the run.
+        if: always() && steps.save_db.outcome == 'success'
+        continue-on-error: true
+        run: python -m pipeline.relay ack
       - uses: actions/configure-pages@v5
         if: env.STAGE == 'export'
       - uses: actions/upload-pages-artifact@v4

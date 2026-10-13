@@ -3,7 +3,10 @@
 Builds a throwaway database in a temporary directory from
 tests/fixtures/dryrun/feed.xml and the HTML pages it links, runs the gate,
 extraction, the rules classifier, the LLM stage with the fake client, the
-rollups and the export, and prints the counts.
+rollups and the export, and prints the counts. The gate reads each item as
+pipeline/fetch_feeds.py does: in the outlet's language and country, with the
+item's url, and without its feed's summary boilerplate (pipeline/boilerplate.py),
+learnt from the feed's items already in the database (`earlier`, none by default).
 
   python -m pipeline.dryrun
 """
@@ -14,12 +17,15 @@ from pathlib import Path
 
 import feedparser
 
-from pipeline import config, classify_llm, classify_rules, export, extract, gate, store
+from pipeline import boilerplate, config, classify_llm, classify_rules, export, extract, gate, store
 
 FIXTURES = config.ROOT / "tests" / "fixtures" / "dryrun"
 
 
-def run(out_dir: Path = None, keep: bool = False) -> dict:
+def run(out_dir: Path = None, keep: bool = False, feed: Path = None, earlier=()) -> dict:
+    """feed: the feed to poll (tests/fixtures/dryrun/feed.xml); its links name pages in the fixtures.
+    earlier: items the feed carried before this poll ({"url", "title", "summary"}, gated out unless
+    they say otherwise), stored first, as a live run finds them in the database."""
     tmp = Path(tempfile.mkdtemp(prefix="tracker-dryrun-"))
     db = tmp / "tracker.db"
     bodies = tmp / "bodies"
@@ -34,14 +40,23 @@ def run(out_dir: Path = None, keep: bool = False) -> dict:
         outlet = {"id": "xx_fixture", "name": "Fixture Daily", "country": "ITA", "language": "en", "tier": "national_daily",
                   "feeds": ["fixture://feed.xml"], "active": True, "notes": "dry run"}
         store.sync_outlets(conn, [outlet])
-        parsed = feedparser.parse(str(FIXTURES / "feed.xml"))
+        feed_url = outlet["feeds"][0]
+        for e in earlier:
+            store.insert_discovered(conn, dict({"outlet_id": outlet["id"], "country": outlet["country"],
+                                                "language": outlet["language"], "feed_url": feed_url,
+                                                "status": "gated_out", "gate_relevant": 0}, **e))
+        conn.commit()
+        parsed = feedparser.parse(str(feed or FIXTURES / "feed.xml"))
         counts = {"items": 0, "relevant": 0, "fetched": 0, "paywalled": 0}
+        # One for the run, as in fetch_feeds.run: each feed's summary boilerplate, which the gate does not read.
+        boiler = boilerplate.FeedBoilerplate(conn)
         for entry in parsed.entries:
             counts["items"] += 1
             title = entry.get("title", "")
-            relevant, terms = gate.check(title, entry.get("summary", ""), "en")
+            relevant, terms = gate.check(title, entry.get("summary", ""), outlet["language"], outlet["country"],
+                                         url=entry.link, feed_boilerplate=boiler.shingles(outlet["id"], feed_url))
             aid = store.insert_discovered(conn, {"url": entry.link, "outlet_id": outlet["id"], "country": "ITA", "language": "en",
-                                                 "title": title, "summary": entry.get("summary", ""), "status": "queued" if relevant else "gated_out",
+                                                 "feed_url": feed_url, "title": title, "summary": entry.get("summary", ""), "status": "queued" if relevant else "gated_out",
                                                  "gate_relevant": 1 if relevant else 0, "gate_terms": terms})
             if not relevant or aid is None:
                 continue

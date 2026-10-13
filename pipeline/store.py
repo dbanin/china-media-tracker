@@ -56,7 +56,10 @@ CREATE TABLE IF NOT EXISTS articles (
     llm_pending INTEGER NOT NULL DEFAULT 0,
     llm_trigger TEXT,
     page_labels TEXT,
-    themes TEXT                       -- JSON {"v": themes version, "t": [theme ids]}
+    themes TEXT,                      -- JSON {"v": themes version, "t": [theme ids]}
+    audit_keep INTEGER,               -- gated-out only: 1 kept permanently for the gate audit, 0 not, NULL undecided
+    extract_version TEXT,             -- config.EXTRACT_VERSION the stored body was extracted under; NULL before 2026-10-12
+    day_of_record TEXT                -- publication day of an item a backfill read brought in (backfill_day); NULL means the discovery day
 );
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_country_date ON articles(country, published_at);
@@ -81,6 +84,7 @@ CREATE TABLE IF NOT EXISTS classifications (
     is_current INTEGER NOT NULL DEFAULT 1,
     raw_response TEXT,
     route TEXT,                       -- state origin only: how the item arrived (classify_rules.ROUTE_IDS)
+    body_refreshed TEXT,              -- model labels only: "<UTC time> <why>" when the body the label was made on, a stub, was since replaced (classify_rules.note_body_refresh)
     FOREIGN KEY(article_id) REFERENCES articles(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_article ON classifications(article_id, is_current);
@@ -158,6 +162,17 @@ CREATE TABLE IF NOT EXISTS relay_seen (
     seen_at TEXT NOT NULL
 );
 
+-- Articles a prune deleted (store.prune_gated_out; on the relay also relay.prune_handed_off), so a feed
+-- that still lists one does not insert it, and count it, a second time (config.SEEN_URL_RETENTION_DAYS).
+-- h is the first 15 hex digits of the url_hash as an integer (seen_key); days are YYYYMMDD integers.
+CREATE TABLE IF NOT EXISTS seen_urls (
+    h INTEGER PRIMARY KEY,
+    first_day INTEGER NOT NULL,       -- the day of record its discovery was counted on
+    last_day INTEGER NOT NULL,        -- the latest day it was seen: its discovery, then each sighting since
+    seen_again INTEGER NOT NULL DEFAULT 0, -- 1 once a feed listed it again after the prune
+    relevant INTEGER NOT NULL DEFAULT 0    -- 1 when it was in the corpus (the relay's handed-off rows)
+);
+
 CREATE TABLE IF NOT EXISTS feed_health (
     feed_url TEXT PRIMARY KEY,
     outlet_id TEXT NOT NULL,
@@ -168,6 +183,13 @@ CREATE TABLE IF NOT EXISTS feed_health (
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
     total_checks INTEGER NOT NULL DEFAULT 0,
     total_failures INTEGER NOT NULL DEFAULT 0
+);
+
+-- Where the shared AAP release listing read got to (pipeline.section_pages): key 'gap' holds the
+-- stretch a read cut short at its time budget has still to cover, as JSON {page, oldest, target}.
+CREATE TABLE IF NOT EXISTS aap_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS run_log (
@@ -258,8 +280,13 @@ CREATE TABLE IF NOT EXISTS llm_sampling (
     PRIMARY KEY(date, country)
 );
 
--- Per feed per day: polls, polls that came back as a full window with nothing seen before
--- (saturated), and the estimated number of items lost between polls.
+-- Per feed per day and per collector: polls, polls that came back as a full window with nothing
+-- seen before (saturated), and the estimated number of items lost between polls. collector is the
+-- process that made the polls (config.COLLECTOR: hosted, or self_hosted for the relay on the
+-- owner's machine, whose rows arrive in its bundle), so a feed polled by both keeps one row each.
+-- estimator is the missed-items estimator the row's estimates were made by
+-- (config.MISSED_ESTIMATOR_VERSION; v1 for rows made before 2026-10-12, mixed for a row that holds
+-- polls estimated by two versions); the export reports the estimate only from rows of the current one.
 CREATE TABLE IF NOT EXISTS feed_polls (
     date TEXT NOT NULL,
     feed_url TEXT NOT NULL,
@@ -270,7 +297,36 @@ CREATE TABLE IF NOT EXISTS feed_polls (
     entries INTEGER NOT NULL DEFAULT 0,
     new_items INTEGER NOT NULL DEFAULT 0,
     missed_estimate REAL NOT NULL DEFAULT 0,
-    PRIMARY KEY(date, feed_url)
+    collector TEXT NOT NULL DEFAULT 'hosted',
+    estimator TEXT NOT NULL DEFAULT 'v1',
+    PRIMARY KEY(date, feed_url, collector)
+);
+
+-- Every poll of a feed that both collectors poll (registry collector: both), one row each, kept for
+-- POLL_LOG_DAYS. A poll is saturated only when its window misses the previous poll by either
+-- collector, so each collector's polls are judged against the other's too: the runner's at poll
+-- time, against the relay polls already ingested, and the relay's when its bundle is ingested
+-- (pipeline.relay.reconcile_poll), which also rejudges a runner poll the late relay poll preceded.
+-- saturated_own and missed_own are the verdict the collector reached alone; saturated and
+-- missed_estimate the verdict against both, which is what feed_polls holds. times is the window's
+-- entry dates (JSON), so a poll can be judged again; prev_poll_at the poll it was judged against;
+-- estimator the missed-items estimator missed_estimate was made by, as in feed_polls.
+CREATE TABLE IF NOT EXISTS feed_poll_log (
+    feed_url TEXT NOT NULL,
+    collector TEXT NOT NULL,
+    polled_at TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    country TEXT NOT NULL,
+    entries INTEGER NOT NULL DEFAULT 0,
+    new_items INTEGER NOT NULL DEFAULT 0,
+    times TEXT,
+    prev_poll_at TEXT,
+    saturated_own INTEGER NOT NULL DEFAULT 0,
+    missed_own REAL NOT NULL DEFAULT 0,
+    saturated INTEGER NOT NULL DEFAULT 0,
+    missed_estimate REAL NOT NULL DEFAULT 0,
+    estimator TEXT NOT NULL DEFAULT 'v1',
+    PRIMARY KEY(feed_url, polled_at, collector)
 );
 
 -- Discovery passes the relay collector on the owner's machine completed, from its bundle.
@@ -305,6 +361,33 @@ CREATE TABLE IF NOT EXISTS planted_state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Body text fingerprints and the near-duplicate links found from them (pipeline.body_dups).
+-- shingles is -1 when the body file was missing; sig is NULL when the body is too short to compare.
+CREATE TABLE IF NOT EXISTS body_fingerprints (
+    article_id INTEGER PRIMARY KEY,
+    version INTEGER NOT NULL,
+    shingles INTEGER NOT NULL,
+    sig BLOB,                         -- 64 x uint32 one permutation MinHash, little endian
+    discovered_at TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    template INTEGER NOT NULL DEFAULT 0,  -- matches its own outlet's text under another headline
+    checked_at TEXT,                  -- NULL until the linking pass has compared it
+    computed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bodyfp_discovered ON body_fingerprints(discovered_at);
+
+-- One row per pair of articles (a < b) from different outlets whose bodies overlap. They join title
+-- groups for the underlying item counts; articles.dup_group_id stays the title group.
+CREATE TABLE IF NOT EXISTS body_links (
+    a INTEGER NOT NULL,
+    b INTEGER NOT NULL,
+    similarity REAL NOT NULL,
+    version INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (a, b)
+);
+CREATE INDEX IF NOT EXISTS idx_bodylinks_b ON body_links(b);
 """
 
 
@@ -347,15 +430,70 @@ def connect(path: Path = config.DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+def _columns(conn: sqlite3.Connection, table: str) -> set:
+    return {r[1] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+
+
+def _once(conn: sqlite3.Connection, name: str, needed=None) -> bool:
+    """Whether this connection is to run the one-time migration step `name` now.
+
+    Each step runs once per database and is recorded in schema_migrations. The check and the run
+    happen under BEGIN IMMEDIATE, so of several connections opened at once on one database (the
+    fetch workers each open their own) exactly one runs the step; the others wait for the write
+    lock, then find the row and skip it. When this returns True the row is already written in that
+    open transaction and the caller's work joins it: the next commit stores both, and a failure
+    before it leaves neither. `needed(conn)`, checked under the lock, says whether this database
+    has anything for the step to do; when it has not (a new database, or one an earlier version
+    already migrated) the step is recorded as run and skipped for good."""
+    if conn.execute("SELECT 1 FROM schema_migrations WHERE name=?", (name,)).fetchall():
+        return False
+    conn.commit()   # the previous step's work, with its row
+    conn.execute("BEGIN IMMEDIATE")
+    if conn.execute("SELECT 1 FROM schema_migrations WHERE name=?", (name,)).fetchall():
+        conn.commit()
+        return False
+    run = needed is None or bool(needed(conn))
+    conn.execute("INSERT INTO schema_migrations(name, applied_at) VALUES (?,?)", (name, utcnow()))
+    if not run:
+        conn.commit()
+    return run
+
+
+def _add_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> None:
+    """ALTER TABLE table ADD COLUMN column decl, as a one-time step (_once) so that of several
+    connections opened at once on a database without the column, one adds it and the rest skip it
+    instead of failing with "duplicate column name". The caller checks the column first, so a
+    database that already has it never takes the write lock."""
+    if _once(conn, "%s.%s" % (table, column), lambda c: column not in _columns(c, table)):
+        conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, decl))
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
-    """Additive migrations for databases created by earlier schema versions."""
+    """Additive migrations for databases created by earlier schema versions. A step that changes
+    data (a seed or a backfill) is guarded by _once, so it runs once per database however many
+    connections are opened at the same time; so is every column it adds (_add_column), since a
+    second ALTER TABLE ADD COLUMN for the same column fails with "duplicate column name"."""
+    conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)")
     cols = {r[1] for r in conn.execute("PRAGMA table_info(articles)")}
     if "page_labels" not in cols:
-        conn.execute("ALTER TABLE articles ADD COLUMN page_labels TEXT")
+        _add_column(conn, "articles", "page_labels", "TEXT")
     if "themes" not in cols:
-        conn.execute("ALTER TABLE articles ADD COLUMN themes TEXT")
+        _add_column(conn, "articles", "themes", "TEXT")
+    if "audit_keep" not in cols and _once(conn, "articles.audit_keep", lambda c: "audit_keep" not in _columns(c, "articles")):
+        conn.execute("ALTER TABLE articles ADD COLUMN audit_keep INTEGER")
+        mark_gate_audit_keep(conn, commit=False)   # the rejections still stored; later ones at prune time
+    if "day_of_record" not in cols:
+        # The publication day of an item a backfill read brought in (backfill_day); NULL means the
+        # discovery day, which is every item inserted before 2026-10-12.
+        _add_column(conn, "articles", "day_of_record", "TEXT")
+    if "extract_version" not in cols:
+        # The extraction version a stored body was made under (config.EXTRACT_VERSION). NULL for every
+        # body stored before 2026-10-12; extract.stale_extraction says which of those are stale.
+        _add_column(conn, "articles", "extract_version", "TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_articles_audit_keep ON articles(discovered_at) WHERE audit_keep=1")
     od = {r[1] for r in conn.execute("PRAGMA table_info(daily_outlet_discovery)")}
-    if "gate_relevant" not in od:
+    if "gate_relevant" not in od and _once(conn, "daily_outlet_discovery.gate_relevant",
+                                           lambda c: "gate_relevant" not in _columns(c, "daily_outlet_discovery")):
         conn.execute("ALTER TABLE daily_outlet_discovery ADD COLUMN gate_relevant INTEGER NOT NULL DEFAULT 0")
         # Relevant articles are never pruned, so their per outlet-day counts are exactly recoverable.
         conn.execute(
@@ -365,16 +503,20 @@ def _migrate(conn: sqlite3.Connection) -> None:
         )
     cls = {r[1] for r in conn.execute("PRAGMA table_info(classifications)")}
     if "route" not in cls:
-        conn.execute("ALTER TABLE classifications ADD COLUMN route TEXT")   # filled by classify_rules.ensure_routes
+        _add_column(conn, "classifications", "route", "TEXT")   # filled by classify_rules.ensure_routes
+    if "body_refreshed" not in cls:
+        # Set on a current model label when the stub it was made on is replaced (classify_rules.note_body_refresh),
+        # which queues the article for the model again (classify_llm.relabel_candidates). NULL on every older row.
+        _add_column(conn, "classifications", "body_refreshed", "TEXT")
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
     batches = {r[1] for r in conn.execute("PRAGMA table_info(llm_batches)")}
     if "kind" not in batches:
-        conn.execute("ALTER TABLE llm_batches ADD COLUMN kind TEXT NOT NULL DEFAULT 'classify'")
+        _add_column(conn, "llm_batches", "kind", "TEXT NOT NULL DEFAULT 'classify'")
     for col in ("top_discovered", "top_target", "top_china", "top_a", "top_b"):
         if col not in cov:
-            conn.execute("ALTER TABLE daily_coverage ADD COLUMN %s INTEGER NOT NULL DEFAULT 0" % col)
+            _add_column(conn, "daily_coverage", col, "INTEGER NOT NULL DEFAULT 0")
     usage = {r[1] for r in conn.execute("PRAGMA table_info(llm_usage)")}
-    if "cost_usd" not in usage:
+    if "cost_usd" not in usage and _once(conn, "llm_usage.cost_usd", lambda c: "cost_usd" not in _columns(c, "llm_usage")):
         conn.execute("ALTER TABLE llm_usage ADD COLUMN cache_creation_tokens INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE llm_usage ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0")
         conn.execute("ALTER TABLE llm_usage ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0")
@@ -389,30 +531,92 @@ def _migrate(conn: sqlite3.Connection) -> None:
             priced = max(0, r["calls"] - outstanding.get(r["date"], 0))
             conn.execute("UPDATE llm_usage SET cost_usd=? WHERE date=?", (priced * config.LLM_MEASURED_COST_PER_CALL, r["date"]))
         conn.commit()
+    polls = {r[1] for r in conn.execute("PRAGMA table_info(feed_polls)")}
+    if polls and "collector" not in polls and _once(conn, "feed_polls.collector",
+                                                    lambda c: "collector" not in _columns(c, "feed_polls")):
+        # feed_polls gained collector on 2026-10-12, inside its primary key, so the relay's polls of a
+        # feed (from its bundle) and the runner's own polls of the same feed are kept apart. SQLite
+        # cannot change a primary key in place, so the table is rebuilt. Every row recorded before
+        # then was made by the process that owns this database: the runner for the main database,
+        # the relay for its own.
+        conn.execute("ALTER TABLE feed_polls RENAME TO feed_polls_pre_collector")
+        start = SCHEMA.index("CREATE TABLE IF NOT EXISTS feed_polls")
+        conn.execute(SCHEMA[start:SCHEMA.index(");", start) + 2])
+        conn.execute(
+            """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items,
+                                     missed_estimate, collector)
+               SELECT date, feed_url, outlet_id, country, polls, saturated, entries, new_items, missed_estimate, ?
+               FROM feed_polls_pre_collector""", (config.COLLECTOR,))
+        conn.execute("DROP TABLE feed_polls_pre_collector")
+        conn.commit()
+    # The missed-items estimator a row's estimates were made by, added 2026-10-12. Every row already
+    # recorded was made by the earlier estimator and takes the column's default, v1.
+    if polls and "estimator" not in _columns(conn, "feed_polls"):
+        _add_column(conn, "feed_polls", "estimator", "TEXT NOT NULL DEFAULT 'v1'")
+    if "estimator" not in _columns(conn, "feed_poll_log"):
+        _add_column(conn, "feed_poll_log", "estimator", "TEXT NOT NULL DEFAULT 'v1'")
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if "planted_flags" not in tables or "planted_state" not in tables:
         # Databases opened without the schema script. Both statements are CREATE IF NOT EXISTS.
         start = SCHEMA.index("CREATE TABLE IF NOT EXISTS planted_flags")
         conn.executescript(SCHEMA[start:])
-    if conn.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0 and \
-            conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
+    if "body_fingerprints" not in tables or "body_links" not in tables:
+        # Body near-duplicate tables (pipeline.body_dups), added 2026-10-12. CREATE IF NOT EXISTS only.
+        start = SCHEMA.index("CREATE TABLE IF NOT EXISTS body_fingerprints")
+        conn.executescript(SCHEMA[start:])
+    # Nothing to do, only a record: its applied_at is when this database was first opened by code that
+    # remembers pruned addresses (seen_urls), so the export can say from which day the discovery counts
+    # stop counting a pruned item again (export.rediscovery, config.REDISCOVERY_FIXED_FROM).
+    _once(conn, "seen_urls.remembering", lambda c: False)
+    # The two seeds below are for a database made before the discovery tables existed. They run once
+    # (on a new database they find no articles and are recorded as done); every later discovery is
+    # counted at insert time by record_discovery.
+    if _once(conn, "daily_discovery.seed", lambda c: c.execute("SELECT COUNT(*) FROM daily_discovery").fetchone()[0] == 0
+             and c.execute("SELECT COUNT(*) FROM articles").fetchone()[0]):
         # Seed from whatever rows survive. Days already pruned are undercounted and stay so.
         conn.execute(
             """INSERT INTO daily_discovery(date, country, discovered, gate_relevant)
-               SELECT substr(discovered_at, 1, 10), country, COUNT(*), COALESCE(SUM(gate_relevant), 0)
+               SELECT COALESCE(day_of_record, substr(discovered_at, 1, 10)), country, COUNT(*),
+                      COALESCE(SUM(gate_relevant), 0)
                FROM articles GROUP BY 1, 2"""
         )
-    if conn.execute("SELECT COUNT(*) FROM daily_outlet_discovery").fetchone()[0] == 0 and \
-            conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]:
+    if _once(conn, "daily_outlet_discovery.seed", lambda c: c.execute("SELECT COUNT(*) FROM daily_outlet_discovery").fetchone()[0] == 0
+             and c.execute("SELECT COUNT(*) FROM articles").fetchone()[0]):
         conn.execute(
             """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered)
-               SELECT substr(discovered_at, 1, 10), outlet_id, country, COUNT(*) FROM articles GROUP BY 1, 2, 3"""
+               SELECT COALESCE(day_of_record, substr(discovered_at, 1, 10)), outlet_id, country, COUNT(*)
+               FROM articles GROUP BY 1, 2, 3"""
         )
     conn.commit()
 
 
-def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool, outlet_id: Optional[str] = None) -> None:
-    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+def backfill_day(published_at: Optional[str], now: Optional[dt.datetime] = None) -> Optional[str]:
+    """The day of record of an item a backfill read brings in: its publication day (UTC) when it is
+    discovered more than config.BACKFILL_LAG_HOURS after it was published and was published on or
+    after config.COLLECTION_START; otherwise None, which means the discovery day. A published time
+    that cannot be read, or that lies after discovery, is not credible and leaves the discovery day.
+    The caller stores the result in articles.day_of_record and passes it to record_discovery, so the
+    item's count and its share of the discovery denominator move together."""
+    if not published_at:
+        return None
+    try:
+        pub = dt.datetime.fromisoformat(published_at.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    pub = pub if pub.tzinfo else pub.replace(tzinfo=dt.timezone.utc)
+    pub = pub.astimezone(dt.timezone.utc)
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if pub.date().isoformat() < config.COLLECTION_START or pub > now:
+        return None
+    if (now - pub).total_seconds() <= config.BACKFILL_LAG_HOURS * 3600:
+        return None
+    return pub.date().isoformat()
+
+
+def record_discovery(conn: sqlite3.Connection, country: str, relevant: bool, outlet_id: Optional[str] = None,
+                     day: Optional[str] = None) -> None:
+    """Count one newly discovered item on its day of record: `day` (backfill_day) or today."""
+    today = day or dt.datetime.now(dt.timezone.utc).date().isoformat()
     conn.execute(
         """INSERT INTO daily_discovery(date, country, discovered, gate_relevant) VALUES (?,?,1,?)
            ON CONFLICT(date, country) DO UPDATE SET discovered=discovered+1,
@@ -463,21 +667,102 @@ def sync_outlets(conn: sqlite3.Connection, outlets: List[Dict]) -> None:
 # Articles
 # ---------------------------------------------------------------------------
 
+def seen_key(h: str) -> int:
+    """The seen_urls key of a url_hash: its first 15 hex digits as an integer (60 bits; among ten million
+    addresses the chance that any two share a key is about one in twenty thousand)."""
+    try:
+        return int(h[:15], 16)
+    except (TypeError, ValueError):
+        return int(hashlib.sha256(str(h).encode("utf-8")).hexdigest()[:15], 16)
+
+
+def _day_int(day: Optional[str] = None) -> int:
+    """A YYYY-MM-DD day (or the start of an ISO time; today when None) as the integer YYYYMMDD."""
+    return int((day or dt.datetime.now(dt.timezone.utc).date().isoformat())[:10].replace("-", ""))
+
+
+def seen_before(conn: sqlite3.Connection, h: str) -> Optional[tuple]:
+    """For a pruned article with this url_hash: (the day of record, YYYY-MM-DD, its discovery was counted
+    on, whether it was gate relevant then); None for any other."""
+    r = conn.execute("SELECT first_day, relevant FROM seen_urls WHERE h=?", (seen_key(h),)).fetchone()
+    if r is None:
+        return None
+    s = "%08d" % r[0]
+    return "%s-%s-%s" % (s[:4], s[4:6], s[6:]), bool(r[1])
+
+
+def touch_seen(conn: sqlite3.Connection, h: str) -> None:
+    """A feed lists a pruned article again: it is remembered from today (config.SEEN_URL_RETENTION_DAYS).
+    At most one write per article a day."""
+    today = _day_int()
+    conn.execute("UPDATE seen_urls SET last_day=?, seen_again=1 WHERE h=? AND (last_day<? OR seen_again=0)",
+                 (today, seen_key(h), today))
+
+
+def forget_seen(conn: sqlite3.Connection, h: str) -> None:
+    conn.execute("DELETE FROM seen_urls WHERE h=?", (seen_key(h),))
+
+
+def remember_pruned(conn: sqlite3.Connection, where: str, params) -> int:
+    """Before a `DELETE FROM articles WHERE <where>`: remember every row it will delete in seen_urls, on
+    the day of record its discovery was counted on, last seen on its discovery day. Returns the rows."""
+    rows = conn.execute("SELECT url_hash, day_of_record, discovered_at, gate_relevant FROM articles WHERE " + where,
+                        params).fetchall()
+    conn.executemany("INSERT OR IGNORE INTO seen_urls(h, first_day, last_day, seen_again, relevant) VALUES (?,?,?,0,?)",
+                     [(seen_key(r[0]), _day_int(r[1] or r[2]), _day_int(r[2]), 1 if r[3] else 0) for r in rows])
+    return len(rows)
+
+
+def expire_seen(conn: sqlite3.Connection, now: Optional[dt.datetime] = None) -> int:
+    """Forget what no feed has listed for config.SEEN_URL_RETENTION_DAYS, and what no feed listed again
+    within config.SEEN_URL_UNSEEN_DAYS of its discovery."""
+    today = (now or dt.datetime.now(dt.timezone.utc)).date()
+    again = _day_int((today - dt.timedelta(days=config.SEEN_URL_RETENTION_DAYS)).isoformat())
+    once = _day_int((today - dt.timedelta(days=config.SEEN_URL_UNSEEN_DAYS)).isoformat())
+    return conn.execute("DELETE FROM seen_urls WHERE last_day < (CASE seen_again WHEN 1 THEN ? ELSE ? END)",
+                        (again, once)).rowcount
+
+
+def record_relevant_again(conn: sqlite3.Connection, country: str, outlet_id: Optional[str], day: str) -> None:
+    """A pruned rejected article back in the corpus: its discovery was counted on `day` when it was first
+    seen, so only the gate relevant side of that day's counters moves (as fetch_feeds.readmit_gated_out)."""
+    conn.execute("UPDATE daily_discovery SET gate_relevant=gate_relevant+1 WHERE date=? AND country=?", (day, country))
+    if outlet_id:
+        conn.execute("UPDATE daily_outlet_discovery SET gate_relevant=gate_relevant+1 WHERE date=? AND outlet_id=?",
+                     (day, outlet_id))
+
+
 def insert_discovered(conn: sqlite3.Connection, item: Dict) -> Optional[int]:
-    """Insert a discovered item. Returns the new id, or None if already known."""
+    """Insert a discovered item. Returns the new id, or None if already known.
+
+    An article a prune deleted (seen_urls) is known too. Still outside the gate, it is not inserted
+    again, and the sighting keeps it remembered. Now inside it (a gate-exempt section feed, or a summary
+    its first sighting lacked), it is inserted on the day of record it was first counted on, and
+    item["seen_day"] names that day: the caller counts no discovery for it (record_relevant_again). One
+    pruned while relevant (the relay's handed-off rows) is never inserted again."""
     h = url_hash(item["url"])
+    seen = seen_before(conn, h)
+    if seen is not None:
+        if seen[1] or not item.get("gate_relevant"):
+            touch_seen(conn, h)
+            return None
+        seen = seen[0]
+        item["day_of_record"] = seen
     cur = conn.execute(
         """INSERT OR IGNORE INTO articles
            (url, url_hash, outlet_id, country, language, feed_url, title, summary, author,
-            published_at, discovered_at, status, gate_relevant, gate_terms)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            published_at, discovered_at, status, gate_relevant, gate_terms, day_of_record)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (item["url"], h, item["outlet_id"], item["country"], item["language"], item.get("feed_url"),
          item.get("title"), item.get("summary"), item.get("author"), item.get("published_at"),
          utcnow(), item.get("status", "discovered"), item.get("gate_relevant"),
-         json.dumps(item.get("gate_terms") or [])),
+         json.dumps(item.get("gate_terms") or []), item.get("day_of_record")),
     )
     if cur.rowcount == 0:
         return None
+    if seen is not None:
+        forget_seen(conn, h)        # stored again, as relevant, and relevant articles are never pruned
+        item["seen_day"] = seen
     return cur.lastrowid
 
 
@@ -636,16 +921,69 @@ def feed_health_row(conn: sqlite3.Connection, feed_url: str) -> Optional[sqlite3
     return conn.execute("SELECT * FROM feed_health WHERE feed_url=?", (feed_url,)).fetchone()
 
 
+# A feed_polls row whose polls were estimated by more than one estimator version (the day an
+# estimator changed): its estimate belongs to neither, so the export leaves it out. ESTIMATOR_MERGE is
+# the upsert clause that keeps a row's estimator while every poll added agrees with it.
+ESTIMATOR_MIXED = "mixed"
+ESTIMATOR_MERGE = ("estimator=CASE WHEN estimator=excluded.estimator THEN estimator ELSE '%s' END"
+                   % ESTIMATOR_MIXED)
+
+# How long feed_poll_log keeps a poll. Longer than the relay bundle carries polls
+# (pipeline.relay.POLL_EVENT_DAYS), so a poll sent again is recognised and never counted twice.
+POLL_LOG_DAYS = 5
+
+
+def last_poll_at(conn: sqlite3.Connection, feed_url: str, before: Optional[str] = None) -> Optional[str]:
+    """The latest logged successful poll of the feed by either collector, before `before` if given."""
+    if before:
+        r = conn.execute("SELECT MAX(polled_at) FROM feed_poll_log WHERE feed_url=? AND polled_at<?",
+                         (feed_url, before)).fetchone()
+    else:
+        r = conn.execute("SELECT MAX(polled_at) FROM feed_poll_log WHERE feed_url=?", (feed_url,)).fetchone()
+    return r[0] if r else None
+
+
+def log_feed_poll(conn: sqlite3.Connection, feed_url: str, collector: str, polled_at: str, outlet_id: str,
+                  country: str, entries: int, new_items: int, times: List[str], prev_poll_at: Optional[str],
+                  saturated_own: bool, missed_own: float, saturated: Optional[bool] = None,
+                  missed_estimate: Optional[float] = None, estimator: Optional[str] = None) -> bool:
+    """Log one poll of a shared feed. Returns False when it is logged already. estimator is the
+    missed-items estimator the estimate was made by (config.MISSED_ESTIMATOR_VERSION unless given)."""
+    cur = conn.execute(
+        """INSERT OR IGNORE INTO feed_poll_log(feed_url, collector, polled_at, outlet_id, country, entries, new_items,
+             times, prev_poll_at, saturated_own, missed_own, saturated, missed_estimate, estimator)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (feed_url, collector, polled_at, outlet_id, country, entries, new_items, json.dumps(sorted(times or [])),
+         prev_poll_at, 1 if saturated_own else 0, missed_own or 0.0,
+         1 if (saturated_own if saturated is None else saturated) else 0,
+         (missed_own if missed_estimate is None else missed_estimate) or 0.0,
+         estimator or config.MISSED_ESTIMATOR_VERSION))
+    return cur.rowcount == 1
+
+
+def prune_poll_log(conn: sqlite3.Connection, days: int = POLL_LOG_DAYS) -> int:
+    cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).replace(microsecond=0).isoformat()
+    return conn.execute("DELETE FROM feed_poll_log WHERE polled_at<?", (cutoff,)).rowcount
+
+
 def record_feed_poll(conn: sqlite3.Connection, outlet_id: str, country: str, feed_url: str, entries: int,
-                     new_items: int, saturated: bool, missed_estimate: float) -> None:
+                     new_items: int, saturated: bool, missed_estimate: float, collector: Optional[str] = None,
+                     estimator: Optional[str] = None) -> None:
+    """One poll of a feed, added to today's row for this feed and the collector that made it
+    (config.COLLECTOR unless given). estimator is the missed-items estimator the estimate was made by
+    (config.MISSED_ESTIMATOR_VERSION unless given); a row that already holds polls estimated by
+    another version becomes mixed (ESTIMATOR_MIXED), which the export leaves out of the estimate."""
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     conn.execute(
-        """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items, missed_estimate)
-           VALUES (?,?,?,?,1,?,?,?,?)
-           ON CONFLICT(date, feed_url) DO UPDATE SET outlet_id=excluded.outlet_id, country=excluded.country,
+        """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items, missed_estimate,
+                                  collector, estimator)
+           VALUES (?,?,?,?,1,?,?,?,?,?,?)
+           ON CONFLICT(date, feed_url, collector) DO UPDATE SET outlet_id=excluded.outlet_id, country=excluded.country,
              polls=polls+1, saturated=saturated+excluded.saturated, entries=entries+excluded.entries,
-             new_items=new_items+excluded.new_items, missed_estimate=missed_estimate+excluded.missed_estimate""",
-        (today, feed_url, outlet_id, country, 1 if saturated else 0, entries, new_items, missed_estimate or 0.0),
+             new_items=new_items+excluded.new_items, missed_estimate=missed_estimate+excluded.missed_estimate,
+             """ + ESTIMATOR_MERGE,
+        (today, feed_url, outlet_id, country, 1 if saturated else 0, entries, new_items, missed_estimate or 0.0,
+         collector or config.COLLECTOR, estimator or config.MISSED_ESTIMATOR_VERSION),
     )
 
 
@@ -735,14 +1073,50 @@ def latest_model_agreement(conn: sqlite3.Connection) -> Optional[sqlite3.Row]:
     return conn.execute("SELECT * FROM model_agreement_studies ORDER BY id DESC LIMIT 1").fetchone()
 
 
+def gate_audit_keep(h: str, share: Optional[float] = None) -> bool:
+    """Whether the rejected item with url_hash `h` belongs to the permanent gate audit sample.
+    A salted SHA-256 of the url_hash, read as a uniform number in [0, 1), is compared with the
+    share: reproducible, the same on every machine, and blind to outlet, country and language."""
+    share = config.GATE_AUDIT_KEEP_SHARE if share is None else share
+    d = hashlib.sha256(("gate_audit_keep:" + (h or "")).encode("utf-8")).digest()
+    return int.from_bytes(d[:8], "big") / 2.0 ** 64 < share
+
+
+def mark_gate_audit_keep(conn: sqlite3.Connection, commit: bool = True) -> int:
+    """Decide audit_keep for every gated-out item not yet decided. Rows reach the table by more
+    than one path (discovery, the relay), so the decision is taken here rather than at insert.
+    Returns the number newly marked as kept."""
+    rows = conn.execute(
+        "SELECT id, url_hash FROM articles WHERE status='gated_out' AND gate_relevant=0 AND audit_keep IS NULL").fetchall()
+    if not rows:
+        return 0
+    marks = [(1 if gate_audit_keep(r[1]) else 0, r[0]) for r in rows]
+    conn.executemany("UPDATE articles SET audit_keep=? WHERE id=?", marks)
+    if commit:
+        conn.commit()
+    return sum(m for m, _ in marks)
+
+
 def prune_gated_out(conn: sqlite3.Connection, days: int = config.GATED_OUT_RETENTION_DAYS) -> int:
     """Delete items the gate rejected more than `days` ago. Relevant items are never deleted, and
     neither is a rejected item that carries a planted byline flag: the flag is about the byline,
-    not about China, and the row it points at has to stay readable."""
+    not about China, and the row it points at has to stay readable. Nor is the random share
+    (config.GATE_AUDIT_KEEP_SHARE) kept for the gate audit, with every field it was rejected with.
+    Nor is a rejected item that holds a label or a human review, current or withdrawn: an item
+    gated out after it was classified (pipeline/section_retag.py) keeps its labels, which are never
+    deleted, and the foreign keys would refuse the whole statement.
+    Each deleted item's address is remembered (seen_urls), so a feed that still lists it does not
+    bring it back and count it again; addresses no feed lists any more are forgotten (expire_seen)."""
+    mark_gate_audit_keep(conn, commit=False)
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).isoformat()
-    cur = conn.execute(
-        """DELETE FROM articles WHERE gate_relevant=0 AND status='gated_out' AND discovered_at<?
-           AND id NOT IN (SELECT article_id FROM planted_flags)""", (cutoff,))
+    where = """gate_relevant=0 AND status='gated_out' AND discovered_at<?
+           AND COALESCE(audit_keep, 0)=0
+           AND id NOT IN (SELECT article_id FROM planted_flags)
+           AND id NOT IN (SELECT article_id FROM classifications)
+           AND id NOT IN (SELECT article_id FROM human_reviews)"""
+    remember_pruned(conn, where, (cutoff,))
+    cur = conn.execute("DELETE FROM articles WHERE " + where, (cutoff,))
+    expire_seen(conn)
     conn.commit()
     return cur.rowcount
 

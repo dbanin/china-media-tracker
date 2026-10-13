@@ -31,6 +31,24 @@ def version() -> str:
     return load()["version"]
 
 
+# Every themes version and the day it took effect, so the theme timeline can mark the day the
+# method changed, the way ruleset and gate changes are marked. A version change re-tags every
+# stored article (ensure), so each day's counts follow the current version; the mark says when
+# figures read or downloaded before it were made under different terms or a different reading.
+# Bumping version in themes.yaml needs an entry here; a test fails until it has one.
+HISTORY = [
+    {"version": "2026.09.3", "date": "2026-09-14",
+     "change": "theme counter introduced; terms read in the title, the feed summary and the first 800 characters of the body"},
+    {"version": "2026.09.4", "date": "2026-09-15",
+     "change": "terms read anywhere in the body instead of the first 800 characters; every article re-tagged"},
+]
+
+
+def changes() -> List[Dict]:
+    """The themes version history, oldest first, for meta.themes_changes."""
+    return sorted((dict(h) for h in HISTORY), key=lambda h: h["date"])
+
+
 def catalog() -> List[Dict]:
     """Ordered [{id, label, short}], Other last."""
     data = load()

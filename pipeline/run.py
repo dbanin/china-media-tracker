@@ -35,11 +35,57 @@ def _planted_scan(conn, counts, deadline=None):
         print("planted scan failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
 
 
+def _body_links(conn, counts, deadline=None):
+    """Link this stage's new bodies to near-duplicates from other outlets (pipeline.body_dups), and
+    fingerprint older stored bodies that have none, for at most body_dups.STAGE_SECONDS. A failure
+    is recorded in the stage's counts and never stops the run."""
+    try:
+        from pipeline import body_dups
+        counts["body_links"] = body_dups.run(conn, deadline=deadline)
+    except Exception as exc:  # noqa: BLE001  the underlying item figures can wait for the next run
+        counts["body_links"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
+        print("body link pass failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+
+
+def _language_retag(conn):
+    """Articles stored under another language than their feed's are set right before the prune, so a
+    gated-out item the gate now passes in its language is re-admitted before it is deleted, and their
+    residual rules labels are judged again by this run's rules stage (pipeline/language_retag.py). A
+    failure is recorded and never stops the run."""
+    try:
+        from pipeline import language_retag
+        return language_retag.run(conn)
+    except Exception as exc:  # noqa: BLE001  the correction waits for the next run
+        conn.rollback()
+        print("language retag failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+        return {"error": "%s: %s" % (type(exc).__name__, exc)}
+
+
+def _junk_feeds(conn):
+    """Items from feeds that stopped carrying their outlet's news (registry junk_feed) are withdrawn
+    with their labels, and their discovery taken off the per day counts, before the prune, so a junk
+    item the gate rejected is withdrawn and kept rather than pruned (pipeline/junk_feeds.py). A
+    failure is recorded and never stops the run."""
+    try:
+        from pipeline import junk_feeds
+        return junk_feeds.run(conn)
+    except Exception as exc:  # noqa: BLE001  the correction waits for the next run
+        conn.rollback()
+        print("junk feed correction failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+        return {"error": "%s: %s" % (type(exc).__name__, exc)}
+
+
 def cmd_discover(conn, run_id, args, deadline):
     from pipeline import fetch_feeds
+    retagged = _language_retag(conn)
+    junk = _junk_feeds(conn)
     pruned = store.prune_gated_out(conn)
     counts = fetch_feeds.run(conn, run_id, deadline=deadline)
     counts["pruned_gated_out"] = pruned
+    if retagged:
+        counts["language_retag"] = retagged
+    if junk:
+        counts["junk_feeds"] = junk
     _planted_scan(conn, counts, deadline)
     print("discover:", json.dumps(counts))
     return counts
@@ -49,6 +95,7 @@ def cmd_fetch(conn, run_id, args, deadline):
     from pipeline import fetch_articles
     counts = fetch_articles.run(conn, run_id, deadline=deadline, limit=args.limit)
     _planted_scan(conn, counts, deadline)
+    _body_links(conn, counts, deadline)
     print("fetch:", json.dumps(counts))
     return counts
 

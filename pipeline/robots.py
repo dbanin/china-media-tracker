@@ -10,6 +10,14 @@ The crawler also used to require both its own group and the "*" group to allow a
 standard a group naming the crawler replaces the "*" group; it does not stack on top of it.
 
 The result is still a crawler that does what each site asks, now read the way the site means it.
+
+Crawl-delay is not in RFC 9309, but it is widely used and a site that sets it is asking to be
+fetched more slowly (AsiaOne asks for 60 seconds). It is read from the same group the Allow and
+Disallow rules come from: the groups naming the crawler, else the "*" groups. A Crawl-delay line
+does not end a group, so the grouping of Allow and Disallow rules is unchanged; where a "*" record
+holding only a Crawl-delay runs straight into a record naming the crawler, the two share one group
+and the crawler takes the delay, which errs on the slow side. pipeline.fetch_articles paces each
+domain at the larger of its own minimum and this delay.
 """
 import re
 from typing import List, Optional, Tuple
@@ -19,8 +27,20 @@ Rule = Tuple[bool, str]          # (allow, path pattern)
 
 
 class Robots:
-    def __init__(self, groups: List[Tuple[List[str], List[Rule]]]):
+    def __init__(self, groups: List[Tuple[List[str], List[Rule]]], delays: Optional[List[Optional[float]]] = None):
         self.groups = groups
+        # Crawl-delay seconds per group, aligned with groups; None where the group sets none.
+        self.delays = list(delays) if delays is not None else [None] * len(groups)
+
+    def crawl_delay(self, token: str) -> Optional[float]:
+        """Crawl-delay in seconds for the crawler, chosen like rules_for: the groups naming it, else
+        the "*" groups. The largest value when several apply; None when the chosen groups set none."""
+        token = token.lower()
+        named = [d for (agents, _), d in zip(self.groups, self.delays) if any(a != "*" and a == token for a in agents)]
+        if not named:
+            named = [d for (agents, _), d in zip(self.groups, self.delays) if "*" in agents]
+        values = [d for d in named if d is not None]
+        return max(values) if values else None
 
     def rules_for(self, token: str) -> Optional[List[Rule]]:
         """Rules of every group naming the crawler, merged; else of every "*" group; else None."""
@@ -54,8 +74,10 @@ class Robots:
 
 def parse(lines: List[str]) -> Robots:
     groups: List[Tuple[List[str], List[Rule]]] = []
+    delays: List[Optional[float]] = []
     agents: List[str] = []
     rules: List[Rule] = []
+    delay: Optional[float] = None
     in_rules = False
     for raw in lines:
         line = raw.split("#", 1)[0].strip()
@@ -66,8 +88,13 @@ def parse(lines: List[str]) -> Robots:
         if field == "user-agent":
             if in_rules:
                 groups.append((agents, rules))
-                agents, rules, in_rules = [], [], False
+                delays.append(delay)
+                agents, rules, delay, in_rules = [], [], None, False
             agents.append(value.lower())
+        elif field == "crawl-delay":
+            seconds = _seconds(value)
+            if agents and seconds is not None:  # outside any group it applies to no one
+                delay = seconds if delay is None else max(delay, seconds)
         elif field in ("allow", "disallow"):
             if not agents:
                 continue                      # a rule before any user-agent line belongs to no group
@@ -76,7 +103,14 @@ def parse(lines: List[str]) -> Robots:
                 rules.append((field == "allow", value))
     if agents:
         groups.append((agents, rules))
-    return Robots(groups)
+        delays.append(delay)
+    return Robots(groups, delays)
+
+
+def _seconds(value: str) -> Optional[float]:
+    """A Crawl-delay value in seconds: the leading number ("10", "0.5", "10 seconds"), else None."""
+    m = re.match(r"\d+(?:\.\d+)?", value.strip())
+    return float(m.group(0)) if m else None
 
 
 _cache = {}

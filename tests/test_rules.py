@@ -31,6 +31,8 @@ def test_fixture(case):
         assert i not in ids, ids
     for i in case.get("expect_triggers_include", []):
         assert i in trig, trig
+    for i in case.get("expect_triggers_exclude", []):
+        assert i not in trig, trig
     if "expect_triggers" in case:
         assert trig == case["expect_triggers"]
 
@@ -393,3 +395,114 @@ def test_bharian_nav_menu_boilerplate_exclusion_strips_furniture_not_disclosure(
     assert "bharian_nav_menu_boilerplate" not in fired2
     assert "iklan" in cleaned2
 
+
+
+SOURCE_LABEL_BODY = "Officials said the new line would open to passengers next month.\n"
+
+
+@pytest.mark.parametrize("value", [
+    "Xinhua", "XINHUA", "Xinhua News Agency", "Agenzia Xinhua", "CGTN", "China Global Television Network",
+    "China Daily", "China Daily Global", "Global Times", "the Global Times", "People's Daily", "Peoples Daily Online",
+    "China News Service", "ECNS", "China Radio International", "CRIOnline", "CRI English", "China Plus",
+    "China Media Group", "AAP, Xinhua", "Reuters/Xinhua", "AP and CGTN",
+])
+def test_page_data_source_naming_a_state_outlet_is_a(value):
+    """The "source: X" line extract.page_labels writes from the article's own page data (ruleset 2026.10.1)."""
+    res = cr.match_signatures("", SOURCE_LABEL_BODY, "Li Wei", labels="Headline | PerthNow\nsource: %s\nnews" % value)
+    assert res["decision"] == "A"
+    assert "state_outlet_source_label" in [m["id"] for m in res["matches"]]
+
+
+@pytest.mark.parametrize("labels", [
+    "Headline | PerthNow\nsource: AAP\nnews",
+    "Headline | PerthNow\nsource: PerthNow\nXinhua",
+    "Headline | PerthNow\nSource: Xinhua",
+    "Headline | PerthNow\nPicture: AP, Xinhua",
+    "Headline | PerthNow\ncredit: AP, Xinhua",
+    "Open source: Xinhua",
+    "source: Xinhuanet",
+    "source: Xinhua reports a record harvest",
+    "source: China Plus One",
+    "source: Cri Cri online",
+    "source: CRI",
+])
+def test_source_line_lookalikes_are_not_the_source_label(labels):
+    res = cr.match_signatures("", SOURCE_LABEL_BODY, "Li Wei", labels=labels)
+    assert "state_outlet_source_label" not in [m["id"] for m in res["matches"]]
+    assert res["decision"] != "A"
+
+
+# Evidence spans (evidence_span): the window around a match widens to whole words, capped.
+SPAN_TEXT = ("Wang Yi will travel to Azerbaijan, Croatia, Montenegro and Bulgaria and attend the summit on "
+             "Thursday, foreign ministry spokesperson Mao Ning said Monday, adding that Xinhua carried the "
+             "notice to subscribers across these regions before the formal announcement this weekend.")
+
+
+def _old_window(text, i, j):
+    return text[max(0, i - 60):j + 60].strip()
+
+
+def test_evidence_span_starts_and_ends_on_whole_words():
+    res = cr.match_signatures("", SPAN_TEXT, None)
+    span = next(t["span"] for t in res["triggers"] if t["id"] == "cites_xinhua")
+    i = SPAN_TEXT.index("Xinhua")
+    # The old raw window began and ended inside a word; the new one is marked as cut on a boundary.
+    old = _old_window(SPAN_TEXT, i, i + 6)
+    assert not SPAN_TEXT[SPAN_TEXT.index(old) - 1].isspace()
+    assert span.startswith("… ") and span.endswith(" …")
+    core = span[2:-2]
+    at = SPAN_TEXT.index(core)
+    assert SPAN_TEXT[at - 1].isspace() and SPAN_TEXT[at + len(core)].isspace()
+    assert old in core and len(core) - len(old) <= 2 * cr.SPAN_REACH
+    # An edge already on a word boundary is not widened; a match near the start keeps the text's start.
+    j = SPAN_TEXT.index("summit")
+    assert cr.evidence_span(SPAN_TEXT, j, j + 6).startswith("\u2026 Azerbaijan, Croatia")
+    assert cr.evidence_span(SPAN_TEXT, 0, 4).startswith("Wang Yi will")
+
+
+def test_evidence_span_cjk_and_thai_keep_the_character_window():
+    cjk = ("据报道，中国与东盟国家在经济、贸易"
+           "和投资领域的合作不断深化，双方贸易") * 4
+    i = cjk.index("合作", 70)
+    assert cr.evidence_span(cjk, i, i + 2) == _old_window(cjk, i, i + 2)
+    thai = ("สำนักข่าวซินหัว"
+            "รายงานว่าจีนและ") * 6
+    k = thai.index("ซินหัว", 70)
+    assert cr.evidence_span(thai, k, k + 6) == _old_window(thai, k, k + 6)
+    res = cr.match_signatures("", thai, None)
+    spans = [t["span"] for t in res["triggers"] if t["id"] == "cites_xinhua"]
+    assert spans and "…" not in spans[0]
+
+
+def test_evidence_span_is_capped_inside_a_long_url():
+    text = ("Read more at https://example.com/files/" + "x" * 90 + " where Xinhua reported the talks would "
+            "resume next week, see https://example.org/" + "y" * 90 + " ok")
+    i = text.index("Xinhua")
+    span = cr.evidence_span(text, i, i + 6)
+    old = _old_window(text, i, i + 6)
+    # Neither edge reaches a boundary within SPAN_REACH, so both stay the character window, marked as a
+    # cut inside a token: the ellipsis right against the text.
+    assert span == "…" + old + "…"
+    assert len(span) <= 2 * cr.SPAN_CONTEXT + 6 + 2 * cr.SPAN_REACH + 2
+
+
+def test_bare_state_media_phrases_need_china_in_the_sentence():
+    # state_media_reported_other: the bare phrases count only with China, Beijing or a Chinese state outlet
+    # in the same sentence. No stored Polish or Turkish row names another country's state media, so these
+    # two hard negatives are written for the test.
+    def fires(text, t_id="state_media_reported_other"):
+        return t_id in [t["id"] for t in cr.match_signatures("", text, None)["triggers"]]
+    assert not fires("Rosyjskie państwowe media podały w czwartek, że Putin spotkał się z Trumpem.")
+    assert not fires("İran devlet medyasına göre saldırıda 12 kişi hayatını kaybetti.")
+    assert not fires("Čína takový obsah zatím necenzuruje. Státní média ale před idealizováním minulosti varují.")
+    assert fires("powiedział chiński przywódca Xi Jinping, cytowany w czwartek przez państwowe media.")
+    assert fires("Bilgiler büyük ölçüde Çin hükümeti ve devlet medyasının açıklamalarına dayanıyor.")
+    assert fires("σύμφωνα με κρατικά μέσα ενημέρωσης του Πεκίνου")
+    assert fires("중국 국가이민관리국은 관영 매체를 통해 적극 해명하고 나섰다.")
+    assert fires("中国の国営メディアが伝えた。")
+    # Hungarian kínál (to offer) is not Kína.
+    assert not fires("Az állami média kínálata bővül.")
+    # The forms with China attached that moved out of state_media_reported_other still route.
+    for text in ("potrivit presa de stat chineză", "สื่อของรัฐจีนรายงาน", "चीनी सरकारी मीडिया के अनुसार",
+                 "Çin devlet medyası bildirdi", "중국 관영 매체가 보도했다"):
+        assert fires(text, "state_media_reported_more"), text

@@ -8,7 +8,7 @@
 
   var EMPTY = {A: 0, B: 0, C: 0, N: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
                fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
-               tdisc: 0, ttarget: 0, tchina: 0, ta: 0, tb: 0, polls: 0, sat: 0, miss: 0};
+               tdisc: 0, ttarget: 0, tchina: 0, ta: 0, tb: 0, polls: 0, sat: 0, miss: 0, mpolls: 0};
 
   function emptyCounts() { var o = {}; for (var k in EMPTY) o[k] = 0; return o; }
 
@@ -73,12 +73,21 @@
 
   /* Sum per-country counts over the window ending at endDate.
      windowDays null means all time up to and including endDate.
-     distribution (optional) drops the countries the Distribution toggle hides; absent means both. */
+     distribution (optional) drops the countries the Distribution toggle hides; absent means both.
+
+     Underlying items (uniqA, uniqAB) are not summed: a story placed on several days of the window would
+     count once per day. Each day of a schema 12 export carries the item ids behind its counts
+     (underlying_items), and a country's figure is the number of distinct ids over the window. world holds
+     the same figures across every country kept, where a story placed in several countries is one item.
+     A day from an older export carries no ids; its per day figures are then added as they are, and
+     underlyingSummed says that the window's underlying items are a per day sum, an upper bound. */
   function aggregateWindow(months, endDate, windowDays, distribution) {
-    var out = {countries: {}, reviewed: {}, routes: {}, arrivals: {}, ceilingDays: [], relayIncompleteDays: [], olderRulesetDays: []};
+    var out = {countries: {}, reviewed: {}, routes: {}, arrivals: {}, ceilingDays: [], relayIncompleteDays: [], olderRulesetDays: [],
+               world: {uniqA: 0, uniqAB: 0}, underlyingSummed: false};
     if (!endDate) return out;
     var start = windowDays ? shiftDate(endDate, -(windowDays - 1)) : null;
     var keep = function (iso) { return distributionKeeps(distribution, iso); };
+    var ids = {}, worldIds = {A: {}, B: {}}, summed = {}, worldSummed = {A: 0, B: 0};
     listDays(months).forEach(function (d) {
       if (d > endDate) return;
       if (start && d < start) return;
@@ -87,9 +96,22 @@
       if (e.llm_ceiling_hit) out.ceilingDays.push(d);
       if (e.relay_incomplete) out.relayIncompleteDays.push(d);
       if (e.labels_on_older_ruleset) out.olderRulesetDays.push(d);
+      var items = e.underlying_items;
       Object.keys(e.countries || {}).filter(keep).forEach(function (c) {
         if (!out.countries[c]) out.countries[c] = emptyCounts();
         addInto(out.countries[c], e.countries[c]);
+        var k = e.countries[c] || {};
+        if (!items || (!items[c] && (k.uniqA || k.uniqAB))) {
+          var s = summed[c] || (summed[c] = {A: 0, B: 0});
+          var sb = Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0));
+          s.A += k.uniqA || 0; s.B += sb; worldSummed.A += k.uniqA || 0; worldSummed.B += sb;
+          if (k.uniqA || k.uniqAB) out.underlyingSummed = true;
+          return;
+        }
+        var own = ids[c] || (ids[c] = {A: {}, B: {}}), src = items[c] || {};
+        ["A", "B"].forEach(function (cat) {
+          (src[cat] || []).forEach(function (id) { own[cat][id] = 1; worldIds[cat][id] = 1; });
+        });
       });
       Object.keys(e.reviewed || {}).filter(keep).forEach(function (c) {
         if (!out.reviewed[c]) out.reviewed[c] = {A: 0, B: 0, C: 0, N: 0};
@@ -99,6 +121,15 @@
       addNested(out.routes, pickKeys(e.routes, keep));
       addNested(out.arrivals, pickKeys(e.arrivals, keep));
     });
+    var size = function (o) { return Object.keys(o).length; };
+    Object.keys(out.countries).forEach(function (c) {
+      var own = ids[c] || {A: {}, B: {}}, s = summed[c] || {A: 0, B: 0};
+      var nA = size(own.A) + s.A, nB = size(own.B) + s.B;
+      out.countries[c].uniqA = nA;
+      out.countries[c].uniqAB = nA + nB;
+    });
+    var wA = size(worldIds.A) + worldSummed.A, wB = size(worldIds.B) + worldSummed.B;
+    out.world = {uniqA: wA, uniqAB: wA + wB};
     return out;
   }
   function pickKeys(obj, keep) {
@@ -113,43 +144,37 @@
   var MIN_ALL_ITEMS_DENOMINATOR = 50;
   /* ...and enough outlets that the stream describes a country rather than a handful of feeds. */
   var MIN_OUTLETS_FOR_OUTPUT_SHARE = 5;
-  /* Per capita values from a few thousand residents are noise and would set the whole color scale. */
-  var MIN_POPULATION = 100000;
 
-  /* measure: which count the metric reads (a, b, target, china). relay: the metric is unverified relay,
-     which is shown once a reliability study has cleared it, shown marked provisional before any study has
-     run, and withheld otherwise. relayInside: the metric is a sum that contains unverified relay without
+  /* measure: which count the metric reads (a, b, china). There is no combined state-linked measure: it added
+     candidates still waiting for the model to judged counts, mixing a measured quantity with an unmeasured
+     one, so the waiting candidates are shown only as their own row in the country panel and the CSV. relay: the metric is unverified relay,
+     which is shown once the hand coding study has cleared it, shown marked provisional until then, and
+     withheld when hand coding puts kappa below the threshold or a model stability check on the current
+     prompt does; a passing stability check never clears it. relayInside: the metric is a sum that contains unverified relay without
      being it. Such a metric is never withheld, because it is a real quantity either way, but it carries
      the provisional marking for as long as the relay count inside it is provisional. */
   var METRICS = {
     count_a: {label: "State origin articles", format: "int", measure: "a"},
     per_outlet_a: {label: "State origin articles per monitored outlet", format: "dec", measure: "a"},
     share_of_output_a: {label: "% of all its news: state origin articles as a share of every item the monitored outlets published", format: "pct", measure: "a", allItems: true},
-    per_million_a: {label: "State origin articles per million people", format: "dec", measure: "a", population: true},
     count_b: {label: "Unchecked state sourcing articles", format: "int", measure: "b", relay: true},
     per_outlet_b: {label: "Unchecked state sourcing articles per monitored outlet", format: "dec", measure: "b", relay: true},
     share_of_output_b: {label: "% of all its news: unchecked state sourcing articles as a share of every item the monitored outlets published", format: "pct", measure: "b", allItems: true, relay: true},
-    per_million_b: {label: "Unchecked state sourcing articles per million people", format: "dec", measure: "b", population: true, relay: true},
-    count_target: {label: "State-linked articles: state origin, confirmed unchecked state sourcing and sourcing candidates not yet verified", format: "int", measure: "target", relayInside: true},
-    per_outlet_target: {label: "State-linked articles per monitored outlet", format: "dec", measure: "target", relayInside: true},
-    share_of_output_target: {label: "% of all its news: state-linked articles as a share of every item the monitored outlets published", format: "pct", measure: "target", allItems: true, relayInside: true},
-    per_million_target: {label: "State-linked articles per million people", format: "dec", measure: "target", population: true, relayInside: true},
     count_china: {label: "All China coverage: every article that concerns China", format: "int", measure: "china", relayInside: true},
     per_outlet_china: {label: "All China coverage per monitored outlet", format: "dec", measure: "china", relayInside: true},
     share_of_output_china: {label: "% of all its news: all China coverage as a share of every item the monitored outlets published", format: "pct", measure: "china", allItems: true, relayInside: true},
-    per_million_china: {label: "All China coverage per million people", format: "dec", measure: "china", population: true, relayInside: true},
     share_a: {label: "Share of China coverage that is state origin", format: "pct", measure: "a"},
-    share_b: {label: "Share of China coverage that is unchecked state sourcing", format: "pct", measure: "b", relay: true},
-    share_target: {label: "Share of China coverage that is state origin, unchecked state sourcing or a sourcing candidate", format: "pct", measure: "target", relayInside: true}
+    share_b: {label: "Share of China coverage that is unchecked state sourcing", format: "pct", measure: "b", relay: true}
   };
 
   var RELAY_NOT_MEASURED = "Unchecked state sourcing has not been measured: the verification stage has not run. It is not zero.";
-  var RELAY_PROVISIONAL = "Provisional: unchecked state sourcing is one model's judgement and has not been reliability checked yet.";
-  var RELAY_WITHHELD = "Unchecked state sourcing counts are withheld until the agreement study shows the unchecked sourcing versus independent journalism judgement is reliable.";
+  var RELAY_PROVISIONAL = "Provisional: unchecked state sourcing is one model's judgement and has not been checked against hand coding yet.";
+  /* Said wherever underlying items are shown from data that predates the per day item ids (schema 12). */
+  var UNDERLYING_SUMMED = "Underlying items here are summed day by day, because this data predates the item ids that count each item once per window, so an item placed on several days counts once for each.";
+  var RELAY_WITHHELD = "Unchecked state sourcing counts are withheld until hand coding of a fixed sample puts agreement with the model on unchecked sourcing versus independent journalism at kappa 0.6 or above.";
 
-  /* Returns {value, chinaTotal, ab, a, b, pending, target, sparse, withheld, note} for one country under a metric and mode.
+  /* Returns {value, chinaTotal, ab, a, b, pending, sparse, withheld, note} for one country under a metric and mode.
      ctx carries what the counts do not:
-       population    residents, for the per million metrics
        topOutlets    outlets behind the published-items denominator
        relay         {measured, publishable, provisional} for this country; absent means publishable
        noRelayOutput the data predates the relay count among published items (schema 5), so that share is unknown
@@ -170,15 +195,13 @@
     var def = METRICS[metric] || {};
     var byRoute = ctx.routeCount !== undefined && ctx.routeCount !== null;
     var aSel = byRoute ? ctx.routeCount : a;
-    var population = ctx.population;
     var allItems = k.tdisc || 0;
     var relay = ctx.relay || {measured: true, publishable: true};
     /* Articles carrying official Chinese sourcing whose verification judgement is pending count as China
-       coverage and as targets. Once judged they become unchecked state sourcing or independent journalism. */
+       coverage and in no other measure. Once judged they become unchecked state sourcing or independent journalism. */
     var china = a + b + c + p;
-    var target = a + b + p;
     var value = null, sparse = false, note = null, withheld = false;
-    var num = def.measure === "a" ? aSel : def.measure === "b" ? b : def.measure === "china" ? china : target;
+    var num = def.measure === "a" ? aSel : def.measure === "b" ? b : def.measure === "china" ? china : null;
     var provisional = !!((def.relay || def.relayInside) && relay.provisional && !relay.publishable);
     if (def.relay && !(relay.publishable || relay.provisional)) {
       withheld = true;
@@ -188,16 +211,11 @@
       note = "The route filter applies to state origin only.";
     } else {
       switch (metric) {
-        case "count_a": case "count_b": case "count_target": case "count_china": value = num; break;
-        case "share_a": case "share_b": case "share_target":
+        case "count_a": case "count_b": case "count_china": value = num; break;
+        case "share_a": case "share_b":
           sparse = china > 0 && china < MIN_SHARE_DENOMINATOR; value = china >= MIN_SHARE_DENOMINATOR ? num / china : null; break;
-        case "per_outlet_a": case "per_outlet_b": case "per_outlet_target": case "per_outlet_china": value = outletsActive ? num / outletsActive : null; break;
-        case "per_million_a": case "per_million_b": case "per_million_target": case "per_million_china":
-          if (!population) { sparse = true; note = "No resident population is recorded for this territory, so a per capita value is not shown."; }
-          else if (population < MIN_POPULATION) { sparse = true; note = "Fewer than " + MIN_POPULATION.toLocaleString("en-US") + " residents, so a per capita value is not shown; a single article would dominate the scale."; }
-          else value = num / population * 1e6;
-          break;
-        case "share_of_output_a": case "share_of_output_b": case "share_of_output_target": case "share_of_output_china":
+        case "per_outlet_a": case "per_outlet_b": case "per_outlet_china": value = outletsActive ? num / outletsActive : null; break;
+        case "share_of_output_a": case "share_of_output_b": case "share_of_output_china":
           if (metric === "share_of_output_b" && ctx.noRelayOutput) { sparse = true; note = "This share needs data from a newer export, which counts unchecked state sourcing among the published items."; }
           else if (mode === "reviewed") { sparse = true; note = "The share of monitored output is not available for human-reviewed labels only."; }
           else if (byRoute) { sparse = true; note = "The share of monitored output is not available by route, because the published items are not split by route."; }
@@ -207,7 +225,7 @@
           } else if (allItems < MIN_ALL_ITEMS_DENOMINATOR) {
             sparse = allItems > 0 || china > 0;
             note = "Fewer than " + MIN_ALL_ITEMS_DENOMINATOR + " items were published by the monitored outlets in this window, so a share is not shown.";
-          } else value = (metric === "share_of_output_china" ? (k.tchina || 0) : metric === "share_of_output_a" ? (k.ta || 0) : metric === "share_of_output_b" ? (k.tb || 0) : (k.ttarget || 0)) / allItems;
+          } else value = (metric === "share_of_output_china" ? (k.tchina || 0) : metric === "share_of_output_a" ? (k.ta || 0) : (k.tb || 0)) / allItems;
           break;
         default: value = null;
       }
@@ -215,9 +233,9 @@
     if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
     if (provisional && !note) note = RELAY_PROVISIONAL;
     /* Underlying items are counted per label, so unchecked sourcing alone is the combined figure less state origin. */
-    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, target: target, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
+    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
             underlyingB: Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
-            allItems: allItems, allItemsA: k.ta || 0, allItemsTarget: k.ttarget || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0, population: population || null};
+            allItems: allItems, allItemsA: k.ta || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0};
   }
 
   /* State origin in the window for one route or arrival: filter {kind: "route" | "arrival", id}. */
@@ -228,7 +246,9 @@
   }
 
   /* Theme counts over the same window as aggregateWindow.
-     Returns {iso: {themeId: [all China coverage, state-linked articles, state origin, unchecked state sourcing]}}.
+     Returns {iso: {themeId: [all China coverage, combined slot, state origin, unchecked state sourcing]}}.
+     The combined slot (state origin, unchecked state sourcing and candidates still waiting for the model)
+     stays in the data files, but no measure reads it, since it mixes judged and unjudged counts.
      Files written before the fourth slot existed carry three; the relay slot then reads zero. */
   function aggregateThemes(months, endDate, windowDays, distribution) {
     var out = {};
@@ -250,21 +270,22 @@
     return out;
   }
   /* Which slot of a theme count each Measure reads. */
-  var MEASURE_INDEX = {china: 0, target: 1, a: 2, b: 3};
+  var MEASURE_INDEX = {china: 0, a: 2, b: 3};
 
-  /* The grid behind the Measure and Basis toggles. Per capita comes last: population measures people,
-     not media saturation, so it is the least defensible of the denominators. */
-  /* The denominators, widening from the country's own China coverage to its whole output to its people.
+  /* The grid behind the Measure and Basis toggles. No per capita basis is offered: population is a poor
+     denominator for what outlets publish. Population is still read, only for the population column of
+     the CSV of the current view (rankCountries). */
+  /* The denominators, widening from the country's own China coverage to its whole output.
      Share of China coverage is meaningless for the All China coverage measure, which is its own
      denominator, so GRID leaves that pair out and the interface disables the button. */
-  var BASES = ["count", "per_outlet", "share_of_china", "share_of_output", "per_million"];
+  var BASES = ["count", "per_outlet", "share_of_china", "share_of_output"];
   var GRID = {
-    a: {count: "count_a", per_outlet: "per_outlet_a", share_of_china: "share_a", share_of_output: "share_of_output_a", per_million: "per_million_a"},
-    b: {count: "count_b", per_outlet: "per_outlet_b", share_of_china: "share_b", share_of_output: "share_of_output_b", per_million: "per_million_b"},
-    target: {count: "count_target", per_outlet: "per_outlet_target", share_of_china: "share_target", share_of_output: "share_of_output_target", per_million: "per_million_target"},
-    china: {count: "count_china", per_outlet: "per_outlet_china", share_of_output: "share_of_output_china", per_million: "per_million_china"}
+    a: {count: "count_a", per_outlet: "per_outlet_a", share_of_china: "share_a", share_of_output: "share_of_output_a"},
+    b: {count: "count_b", per_outlet: "per_outlet_b", share_of_china: "share_b", share_of_output: "share_of_output_b"},
+    china: {count: "count_china", per_outlet: "per_outlet_china", share_of_output: "share_of_output_china"}
   };
-  /* An unavailable pair falls back within the same measure, never to another measure's number. */
+  /* An unavailable pair falls back within the same measure, never to another measure's number. A measure
+     that no longer exists (a saved view of the removed state-linked measure) falls back to state origin. */
   function gridMetric(measure, basis) { var g = GRID[measure] || GRID.a; return g[basis] || g.count || GRID.a.count; }
   function basisAvailable(measure, basis) { return !!(GRID[measure] || GRID.a)[basis]; }
 
@@ -301,7 +322,10 @@
 
   /* The color scale is fixed for a metric and window across the whole timeline: the cap is the 95th
      percentile of every positive value on every sampled end date, not of the day shown, so a shade
-     means the same number on every date. At most maxSamples end dates are read, spread evenly. */
+     means the same number on every date. At most maxSamples end dates are read, spread evenly.
+     The cap is a function of the shipped data alone, so it holds until the next export; each export
+     adds days and recomputes it, so it moves between updates, and CAP_UPDATE_NOTE says so in the keys. */
+  var CAP_UPDATE_NOTE = "Each data update, about once a day, recomputes the scale over the timeline as it then stands, so as new days arrive a shade can stand for a different number than it did a week earlier.";
   function scaleCap(months, endDates, latest, metric, windowDays, mode, ctxFor, maxSamples) {
     var dates = endDates || [], n = maxSamples || 60, pick = [];
     if (dates.length <= n) pick = dates.slice();
@@ -313,7 +337,7 @@
       Object.keys(countries).forEach(function (iso) {
         if (iso === WORLDWIDE_ISO) return;   /* the scale colors the map, and the stratum is drawn nowhere on it */
         var entry = countries[iso];
-        var ctx = ctxFor ? ctxFor(iso, entry, agg) : {population: entry.population};
+        var ctx = ctxFor ? ctxFor(iso, entry, agg) : {};
         var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
         if (fillClass(entry, mv) === "value") vals.push(mv.value);
       });
@@ -354,8 +378,28 @@
      A share of monitored output is a small fraction of one percent almost everywhere, so its key reads
      per 1,000 published items, as the tooltip does. */
   var KEY_STEPS = 7;
-  var MEASURE_NAMES = {a: "State origin", b: "Unchecked state sourcing", target: "State-linked articles", china: "All China coverage"};
-  var BASIS_NAMES = {count: "Number of articles", per_outlet: "Per outlet we monitor", share_of_china: "% of its China coverage", share_of_output: "% of all its news", per_million: "Per million people"};
+  var MEASURE_NAMES = {a: "State origin", b: "Unchecked state sourcing", china: "All China coverage"};
+  var BASIS_NAMES = {count: "Number of articles", per_outlet: "Per outlet we monitor", share_of_china: "% of its China coverage", share_of_output: "% of all its news"};
+  /* A sentence case label set inside a sentence: its first letter goes lower case unless the label opens
+     with a proper noun (China, Chinese, a place, or a country name passed in names) or an acronym. Every
+     other letter keeps its case, because a capital after the first word of a sentence case label is a
+     proper noun on purpose. Use this, never toLowerCase, on any label or unit placed mid-sentence. */
+  var PROPER_OPENERS = ["China", "Chinese", "Taiwan", "Hong Kong", "Macau", "Macao", "Tibet", "Xinjiang", "Beijing", "Belt and Road", "Xinhua"];
+  function lowerFirst(text, names) {
+    var s = String(text === null || text === undefined ? "" : text);
+    if (!s) return s;
+    var c0 = s.charAt(0), c1 = s.charAt(1);
+    if (c0.toLowerCase() === c0) return s;
+    if (c1 && c1.toUpperCase() === c1 && c1.toLowerCase() !== c1) return s;
+    var opens = function (n) {
+      n = String(n || "");
+      if (!n || s.indexOf(n) !== 0) return false;
+      var next = s.charAt(n.length);
+      return !next || !/[A-Za-z\u00C0-\u024F]/.test(next);
+    };
+    if (PROPER_OPENERS.some(opens) || (names || []).some(opens)) return s;
+    return c0.toLowerCase() + s.slice(1);
+  }
   /* The Measure and Basis a metric sits at in the grid, for naming it the way the buttons do. */
   function metricParts(metric) {
     var hit = {measure: (METRICS[metric] || {}).measure || null, basis: null};
@@ -477,7 +521,7 @@
     var countries = (latest && latest.countries) || {};
     distributionIsos(countries, distribution).forEach(function (iso) {
       var entry = countries[iso];
-      var ctx = ctxFor ? ctxFor(iso, entry, agg) : {population: entry.population};
+      var ctx = ctxFor ? ctxFor(iso, entry, agg) : {};
       var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
       var cls = fillClass(entry, mv);
       var status = relayStatus(ctx.relay), published = status === "published" || status === "provisional";
@@ -487,10 +531,11 @@
       var part = function (v) { return published || !carriesRelay ? v : ""; };
       var whole = function (v) { return byRoute ? "" : v; };
       var note = mv.note || (byRoute ? "Only state_origin is filtered by the route. The counts that are not split by route are left blank." : "");
+      if (agg.underlyingSummed && !byRoute && (mv.underlying || mv.underlyingB)) note = (note ? note + " " : "") + UNDERLYING_SUMMED;
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: part(mv.a), state_origin_underlying_items: whole(part(mv.underlying)),
-                 unverified_relay: whole(hasB(mv.b)), unverified_relay_underlying_items: whole(hasB(mv.underlyingB)), relay_status: status, official_sourcing_pending: whole(part(mv.pending)), target: whole(hasB(mv.target)), independent: whole(mv.c),
+                 unverified_relay: whole(hasB(mv.b)), unverified_relay_underlying_items: whole(hasB(mv.underlyingB)), relay_status: status, official_sourcing_pending: whole(part(mv.pending)), independent: whole(mv.c),
                  china_total: whole(hasB(mv.chinaTotal)), outlets_active: entry.outlets_active, population: entry.population || "",
-                 items_published_monitored_outlets: whole(mv.allItems), target_in_published_items: whole(hasB(mv.allItemsTarget)), china_in_published_items: whole(hasB(mv.allItemsChina)),
+                 items_published_monitored_outlets: whole(mv.allItems), china_in_published_items: whole(hasB(mv.allItemsChina)),
                  language_support: entry.language_support || "", note: note,
                  warnings: (entry.warnings || []).map(function (w) { return w.text; }).join("; ")});
     });
@@ -504,21 +549,19 @@
   /* The one line under the map legend for the worldwide distribution stratum, which the map cannot draw.
      mv is the stratum's metricValue for the view shown, so N follows the measure, basis, window, day and
      route exactly as a country's figure does; the noun follows the measure. Returns null when the stratum
-     holds nothing in the window, or is absent, so the caller hides the line. A per capita basis has no
-     meaning for a stratum with no population and says so. */
-  var WORLDWIDE_NOUNS = {a: "state-origin articles", b: "unchecked state sourcing articles", target: "state-linked articles", china: "China-related articles"};
+     holds nothing in the window, or is absent, so the caller hides the line. */
+  var WORLDWIDE_NOUNS = {a: "state-origin articles", b: "unchecked state sourcing articles", china: "China-related articles"};
   function worldwideLegendLine(mv, metric) {
     if (!mv) return null;
     var def = METRICS[metric] || {}, parts = metricParts(metric), measure = parts.measure || def.measure || "a";
-    var count = measure === "a" ? mv.a : measure === "b" ? mv.b : measure === "china" ? mv.chinaTotal : mv.target;
+    var count = measure === "b" ? mv.b : measure === "china" ? mv.chinaTotal : mv.a;
     if (!count || mv.withheld) return null;
     var noun = WORLDWIDE_NOUNS[measure] || "articles";
     var head = "Worldwide distribution via press release wires: ";
     var tail = " in this window, reaching every country and drawn in none.";
     var n = formatValue(mv.value, def.format);
     var body;
-    if (def.population) body = noun + " per million people not applicable, since the stratum has no population; " + count.toLocaleString("en-US") + " " + noun;
-    else if (mv.value === null || mv.value === undefined) body = count.toLocaleString("en-US") + " " + noun + ", with no " + (BASIS_NAMES[parts.basis] || "rate").toLowerCase() + " shown" + (mv.note ? " (" + mv.note.replace(/\.$/, "") + ")" : "");
+    if (mv.value === null || mv.value === undefined) body = count.toLocaleString("en-US") + " " + noun + ", with no " + lowerFirst(BASIS_NAMES[parts.basis] || "rate") + " shown" + (mv.note ? " (" + mv.note.replace(/\.$/, "") + ")" : "");
     else if (parts.basis === "per_outlet") body = n + " " + noun + " per wire monitored";
     else if (parts.basis === "share_of_china") body = noun + " at " + n + " of its China coverage";
     else if (parts.basis === "share_of_output") body = noun + " at " + n + " of every release the wires published";
@@ -576,6 +619,32 @@
             wires_all_time: typeof at.state_origin_wires === "number" ? at.state_origin_wires : null};
   }
 
+  /* findings.all_time recomputed from the daily files: agg is aggregateWindow over every day up to the map's
+     last complete day (windowDays null, distribution both), so the all time cards and the summary end on the
+     day the map's All time view ends, where the export's totals also count the partial day it ran. Returns
+     the fields of findings.all_time (state_origin, unchecked, independent, china_total, state_share_of_china
+     and each total's worldwide wires part), which distributionFindings then reads under the toggle: the
+     wires part is the stratum's own sum, so country outlets plus wires is Both, and each mode equals the sum
+     over the countries the map keeps under it. at is the export's findings.all_time: unchecked stays null
+     when the export withholds it, and with no aggregate (daily files absent) at is returned unchanged.
+     pending and pending_wires are the articles still awaiting the model over the same days: the map's All
+     China coverage counts them, the China-related total does not, so they are the whole difference. */
+  function allTimeInWindow(agg, at) {
+    at = at || {};
+    if (!agg || !agg.countries) return at;
+    var sum = {A: 0, B: 0, C: 0, pending: 0}, w = agg.countries[WORLDWIDE_ISO] || {};
+    Object.keys(agg.countries).forEach(function (iso) {
+      var k = agg.countries[iso] || {};
+      sum.A += k.A || 0; sum.B += k.B || 0; sum.C += k.C || 0; sum.pending += k.pending || 0;
+    });
+    var withheld = at.unchecked === null;
+    var china = sum.A + sum.B + sum.C;
+    return {state_origin: sum.A, unchecked: withheld ? null : sum.B, independent: sum.C, china_total: china,
+            state_share_of_china: china ? sum.A / china : null,
+            state_origin_wires: w.A || 0, unchecked_wires: withheld ? null : (w.B || 0), independent_wires: w.C || 0,
+            china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0), pending: sum.pending, pending_wires: w.pending || 0};
+  }
+
   /* State-origin articles over a window under the Distribution toggle: the sum of A over the countries
      of an aggregateWindow result, keeping only the countries the mode keeps, so it equals the sum of the
      ranked list for the same window and mode. When agg is null (no daily files loaded) it falls back to
@@ -593,6 +662,34 @@
     if (distribution === "wires") return last30 && typeof last30.state_origin_wires === "number" ? wires : (total === null ? null : 0);
     if (total === null) return null;
     return distribution === "country" ? total - wires : total;
+  }
+
+  /* The country with the most state origin over a window, an aggregateWindow result, and its share of
+     the state origin the Distribution toggle keeps there (stateOriginInWindow): under both the wires are
+     in the denominator, under country outlets they are not, and under worldwide wires no country is
+     ranked, so it returns null. The stratum is never the top country; a tie goes to the later code, as
+     in the export. top is findings.top_country: the daily files carry no outlets, so its outlet and route
+     are kept when it names the same country. With no aggregate (daily files absent) it falls back to top,
+     with the share distributionFindings takes from findings.last_30d. share_of_world keeps the export's
+     field name; under country outlets it is the share of the country outlets' total. */
+  function topCountryInWindow(agg, distribution, top, last30) {
+    if (distribution === "wires") return null;
+    if (!agg || !agg.countries) {
+      if (!top || !top.iso) return null;
+      return {iso: top.iso, state_origin: top.state_origin, share_of_world: distributionFindings(null, last30, top, distribution).top_share_of_world,
+              top_outlet: top.top_outlet || null, top_route: top.top_route || null};
+    }
+    var best = null;
+    distributionIsos(agg.countries, distribution).forEach(function (iso) {
+      if (iso === WORLDWIDE_ISO) return;
+      var a = (agg.countries[iso] && agg.countries[iso].A) || 0;
+      if (a > 0 && (!best || a > best.n || (a === best.n && iso > best.iso))) best = {iso: iso, n: a};
+    });
+    if (!best) return null;
+    var total = stateOriginInWindow(agg, null, distribution);
+    var same = !!(top && top.iso === best.iso);
+    return {iso: best.iso, state_origin: best.n, share_of_world: total ? best.n / total : null,
+            top_outlet: same ? top.top_outlet || null : null, top_route: same ? top.top_route || null : null};
   }
 
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
@@ -648,18 +745,23 @@
       });
     });
   }
-  /* The stored tell is a character window, so it can start and end inside a word. Trim both ends
-     back to whole words, mark each cut with an ellipsis, and fold line breaks into spaces, keeping
-     the matched phrase's offsets pointing at the same text. */
+  /* Older exports stored the tell as a raw character window, so it can start and end inside a word:
+     trim both ends back to whole words, mark each cut with an ellipsis, and fold line breaks into
+     spaces, keeping the matched phrase's offsets pointing at the same text. The export now trims on
+     word boundaries itself and marks every cut with an ellipsis, so a snippet with an ellipsis at
+     either edge is already whole words at both edges (an unmarked edge there is the text's own start
+     or end) and is only folded, never cut again: a whole lowercase or uncased word such as
+     "provincia" or Arabic text stays. */
   function wholeWordSnippet(snippet, start, end) {
     var s = String(snippet || ""), st = Math.max(0, Math.min(s.length, start || 0)), en = Math.max(st, Math.min(s.length, end || 0));
     var tidy = function (t) { return t.replace(/\s+/g, " "); };
     var pre = s.slice(0, st), mid = s.slice(st, en), post = s.slice(en), lead = false, trail = false;
-    if (pre && !/^[A-Z0-9"“(\[]/.test(pre)) {
+    var exported = /^\s*\u2026/.test(s) || /\u2026\s*$/.test(s);
+    if (pre && !exported && !/^[A-Z0-9"“(\[]/.test(pre)) {
       var sp = pre.search(/\s/);
       if (sp >= 0) { pre = pre.slice(sp); lead = true; }
     }
-    if (post && !/[.!?"”)\]]\s*$/.test(post)) {
+    if (post && !exported && !/[.!?"”)\]]\s*$/.test(post)) {
       var last = post.search(/\s\S*$/);
       if (last >= 0) { post = post.slice(0, last); trail = true; }
     }
@@ -686,6 +788,22 @@
   function contentRouteName(routes, id) {
     var r = routes && routes[id];
     return (r && r.plain_name) || id;
+  }
+  /* Routes the interface names even when the exported meta.routes predates them: uncredited_copy, a
+     model state origin label on an article the lookalike check sent (a near repeat of a credited
+     state origin item, run without the credit). withRouteFallbacks adds a missing one to a meta.routes
+     list, before unattributed as the pipeline orders it, so its card and select option always work. */
+  var ROUTE_FALLBACK_LABELS = {uncredited_copy: "Uncredited copy of a credited state item"};
+  function withRouteFallbacks(routes) {
+    var list = (routes || []).slice();
+    if (!list.length) return list;
+    Object.keys(ROUTE_FALLBACK_LABELS).forEach(function (id) {
+      if (list.some(function (r) { return r && r.id === id; })) return;
+      var at = list.length;
+      list.forEach(function (r, i) { if (r && r.id === "unattributed" && at === list.length) at = i; });
+      list.splice(at, 0, {id: id, label: ROUTE_FALLBACK_LABELS[id]});
+    });
+    return list;
   }
 
   /* Planted bylines: pure helpers for the section built from data/planted.json. A flag means the
@@ -730,23 +848,190 @@
       list_version: j.list_version || null
     };
   }
-  function plantedPlural(n, one, many) { return n + " " + (n === 1 ? one : many); }
   /* The sentence shown when no flag exists, including when the file has not been exported yet.
      The counts are left to the section's intro paragraph, which already states them. */
   function plantedEmptyState() {
     return "No byline in the monitored outlets has matched a listed persona since monitoring began.";
   }
+  /* Themes version changes placed on a timeline of days: each lands on its own date, or on the first
+     day after it when that date has no entry, and a change after the last day is left off. The title is
+     the mark's tooltip. */
+  function themesChangeMarks(days, changes) {
+    var out = [];
+    (changes || []).forEach(function (c) {
+      if (!c || !c.date || !c.version) return;
+      var idx = -1;
+      for (var i = 0; i < (days || []).length; i++) { if (days[i] >= c.date) { idx = i; break; } }
+      if (idx === -1) return;
+      out.push({index: idx, date: c.date, version: c.version,
+                title: "Themes version " + c.version + ": " + (c.change || "terms changed") + " (from " + c.date + ")"});
+    });
+    return out;
+  }
+
+  /* Where an outlet's political leaning comes from. Media Bias/Fact Check is a US based rater that
+     places outlets on a United States spectrum, so where it is the only source behind a leaning
+     outside the United States the leaning is shown with a caution. The export writes the mark as
+     leaning_source_weak (pipeline/registry.py leaning_source_weak); an older export without it is
+     read the same way from the source URL and the country. State controlled and not assessed are
+     not ratings, so they are never weak. */
+  var US_RATER_HOSTS = ["mediabiasfactcheck.com"];
+  var LEANING_NOT_RATED = {unassessed: true, state_controlled: true};
+  function urlHost(u) {
+    var m = /^[a-z]+:\/\/([^\/?#]+)/i.exec(String(u || ""));
+    var h = m ? m[1].toLowerCase() : "";
+    return h.indexOf("www.") === 0 ? h.slice(4) : h;
+  }
+  function isUsRater(u) {
+    var h = urlHost(u);
+    return US_RATER_HOSTS.some(function (r) { return h === r || h.slice(-(r.length + 1)) === "." + r; });
+  }
+  function leaningSourceWeak(o) {
+    if (!o) return false;
+    if (typeof o.leaning_source_weak === "boolean") return o.leaning_source_weak;
+    if (LEANING_NOT_RATED[o.political_leaning || "unassessed"]) return false;
+    if (o.country === "USA" || !isUsRater(o.leaning_source)) return false;
+    return !(o.leaning_second_source && !isUsRater(o.leaning_second_source));
+  }
+  /* The kind of source behind one outlet's leaning: ownership for state controlled (the ownership
+     source stands for it), us_rater, wikipedia, other, or null when not assessed. */
+  function leaningSourceKind(o) {
+    var lean = (o && o.political_leaning) || "unassessed";
+    if (lean === "unassessed") return null;
+    if (lean === "state_controlled") return "ownership";
+    if (isUsRater(o.leaning_source)) return "us_rater";
+    return /(^|\.)wikipedia\.org$/.test(urlHost(o.leaning_source)) ? "wikipedia" : "other";
+  }
+  /* The caution beside a leaning group in the table and its tooltip. */
+  function leaningWeakCaveat(weak, outlets) {
+    if (!weak) return "";
+    return (weak !== outlets ? weak + " of " + outlets : weak === 1 ? "Leaning" : "All " + weak) +
+      " from a US rater alone; treat with caution";
+  }
+  /* Tally of the leaning sources over a list of outlets, for the sentence that names them. */
+  function leaningSources(outlets) {
+    var t = {wikipedia: 0, us_rater: 0, us_rater_weak: 0, ownership: 0, other: 0, assessed: 0};
+    (outlets || []).forEach(function (o) {
+      var k = leaningSourceKind(o);
+      if (!k) return;
+      t[k] += 1; t.assessed += 1;
+      if (leaningSourceWeak(o)) t.us_rater_weak += 1;
+    });
+    return t;
+  }
+  function leaningSourcesSentence(t) {
+    if (!t || !t.assessed) return "";
+    var parts = [];
+    var n = function (k) { return t[k] + (t[k] === 1 ? " outlet" : " outlets"); };
+    if (t.wikipedia) parts.push("Wikipedia media lists for " + n("wikipedia"));
+    if (t.us_rater) parts.push("Media Bias/Fact Check, a US based rater, for " + n("us_rater") +
+      (t.us_rater_weak ? " (" + t.us_rater_weak + " of them outside the United States, where its US scale is a weak guide)" : ""));
+    if (t.other) parts.push("other named sources such as press freedom monitors, eurotopics and academic studies for " + n("other"));
+    if (t.ownership) parts.push("the ownership source for " + (t.ownership === 1 ? "the 1 state controlled outlet" : "the " + t.ownership + " state controlled outlets"));
+    var list = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+    return "Where the leanings come from: " + list + ". " +
+      (t.us_rater_weak ? "A leaning that rests on Media Bias/Fact Check alone outside the United States is marked in the table: treat it with caution. " : "");
+  }
+
+  /* The owner's machine collects some outlets alone (collector self_hosted, "relayed") and polls others
+     beside the hosted runner, which still polls them and fetches their pages (collector both). A silent
+     relay leaves only the first kind uncollected, so the two are never counted or badged as one. */
+  function collectorBadge(collector) {
+    if (collector === "self_hosted") return {label: "relayed", title: "Collected only from the owner's machine, because the hosted runner cannot reach it"};
+    if (collector === "both") return {label: "also relayed", title: "Also polled from the owner's machine; the hosted runner polls it too and fetches its pages"};
+    return null;
+  }
+  function nOf(k, one, many) { return k + " " + (k === 1 ? one : many); }
+  function relayOutletsSummary(rc) {
+    rc = rc || {};
+    return nOf(rc.outlets || 0, "outlet", "outlets") + " collected only there, " + (rc.shared_outlets || 0) + " also polled by the hosted runner";
+  }
+  /* The relay heartbeat as a short clause list and full sentences for the status block. Empty when the
+     owner's machine has no outlets of either kind. */
+  function relayCollectorNotes(rc) {
+    var out = {short: [], parts: []};
+    if (!rc) return out;
+    var only = rc.outlets || 0, shared = rc.shared_outlets || 0;
+    if (!only && !shared) return out;
+    var hours = Math.round(rc.hours_since_last_run || 0);
+    var sharedClause = shared ? "The " + nOf(shared, "outlet", "outlets") + " it also polls, in " + nOf((rc.shared_countries || []).length, "country", "countries") +
+      ", fall back to the hosted runner's hourly polls alone, which GitHub often runs late, so their short feeds may lose items between polls; their counts are not marked incomplete." : "";
+    if (!rc.last_run) {
+      out.short.push("the owner's collector has not reported yet");
+      out.parts.push("The collector on the owner's machine has not reported a heartbeat yet" +
+        (only ? ", so gaps in the " + nOf(only, "outlet", "outlets") + " only it collects, because the hosted runner cannot reach them, cannot yet be told from quiet days." : ".") +
+        (sharedClause ? " " + sharedClause : ""));
+    } else if (rc.stale) {
+      out.short.push("the owner's collector has been silent " + nOf(hours, "hour", "hours"));
+      out.parts.push("The collector on the owner's machine has not collected for " + nOf(hours, "hour", "hours") +
+        (only ? ", so recent counts for the " + nOf(only, "outlet", "outlets") + " only it collects, in " + nOf((rc.countries || []).length, "country", "countries") + ", are incomplete." : ".") +
+        (sharedClause ? " " + sharedClause : ""));
+    }
+    var gaps = (rc.incomplete_days || []).length;
+    if (gaps) out.parts.push("It ran in too few hours on " + nOf(gaps, "day", "days") + ", marked in red along the timeline" +
+      (only ? "; counts for the outlets only it collects are incomplete on those days" : "") +
+      (shared ? (only ? ", while" : ";") + " the hosted runner still polled the outlets it shares" : "") + ".");
+    return out;
+  }
+
+  /* The stability check state when no check under the current classifier instructions is on record, as
+     one sentence matching pipeline/methodology.py: an older-prompt check kept as history
+     (meta.relay_reliability_history), or none run yet, with when the next runs (meta.relay_study). Empty
+     when a current check exists (meta.relay_reliability), which is described on its own, or meta is absent. */
+  function stabilityStatusText(meta) {
+    if (!meta || meta.relay_reliability) return "";
+    var hist = meta.relay_reliability_history, st = meta.relay_study || {};
+    var old = !!(hist && hist.stale !== false);
+    var noun = old ? "a new one" : "one";
+    var runs = st.auto === false ? " can be run by hand" : " runs";
+    var need = st.min_pool, next = "";
+    if (st.state === "waiting_for_labels" && need) next = noun + runs + " once " + need + " articles are labelled under the current instructions" + (st.pool !== null && st.pool !== undefined ? " (" + st.pool + " so far)" : "");
+    else if (st.state === "due" || st.state === "waiting_for_budget") next = "enough articles are now labelled and " + noun + runs + " when the daily model allowance permits" + (st.earliest ? ", on " + st.earliest + " at the earliest" : "");
+    else if (st.state === "submitted") next = noun + " has been submitted and is reported when it returns";
+    else if (st.state === "done" || st.state === "not_needed") next = "none is needed, because the hand coding study decides publication";
+    if (!old) return "No stability check has been run under the current instructions yet" + (next ? "; " + next : "") + ".";
+    var kappa = hist.kappa_bc === null || hist.kappa_bc === undefined ? "n/a" : hist.kappa_bc.toFixed(2);
+    return "The last stability check (" + ((hist.computed_at || "").slice(0, 10) || "date unknown") + ", " + (hist.n || 0) + " articles, kappa " + kappa +
+      " on unchecked sourcing versus independent) was run under earlier instructions" + (hist.prompt_version ? ", dated " + hist.prompt_version : "") +
+      " and is kept as history: it neither supports nor withholds any count" + (next ? ", and " + next : "") + ".";
+  }
+
+  /* Before meta.rediscovery.fixed_from an item a feed kept listing was counted again after each prune of
+     rejected items, and those days stay as counted (pipeline/export.py rediscovery; the same figures in
+     pipeline/methodology.py). Null, and every sentence below empty, for an export without the field. */
+  function rediscoveryOf(meta) {
+    var r = meta && meta.rediscovery;
+    return r && typeof r.fixed_from === "string" && typeof r.estimated_share === "number" ? r : null;
+  }
+  /* The sentence under the running total of items screened. */
+  function rediscoveryNote(meta) {
+    var r = rediscoveryOf(meta);
+    return r ? "Before " + r.fixed_from + ", items a feed kept listing were counted again after a prune, an estimated " +
+      Math.round(r.estimated_share * 100) + " percent of this total; see the methodology." : "";
+  }
+  /* The same caveat for % of all its news, whose denominator carries the repeats unevenly by country, when
+     the window starts before fixed_from (a windowStart of "" or null means from the first day). */
+  function rediscoveryShareNote(meta, windowStart) {
+    var r = rediscoveryOf(meta);
+    if (!r || (windowStart && windowStart >= r.fixed_from)) return "";
+    return "Before " + r.fixed_from + ", items a feed kept listing were counted again after a prune, so the published items this share divides by are too many, by an estimated " +
+      Math.round(r.estimated_share * 100) + " percent overall and unevenly by country, and the share reads low over those days; see the methodology.";
+  }
+
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
   return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
-          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
-          MIN_POPULATION: MIN_POPULATION, RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL,
+          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+          RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL, UNDERLYING_SUMMED: UNDERLYING_SUMMED,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
-          formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap,
-          KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
+          formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
+          KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, lowerFirst: lowerFirst, PROPER_OPENERS: PROPER_OPENERS, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, planted: planted};
+          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
+          leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
+          collectorBadge: collectorBadge, relayOutletsSummary: relayOutletsSummary, relayCollectorNotes: relayCollectorNotes,
+          stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote};
 }));

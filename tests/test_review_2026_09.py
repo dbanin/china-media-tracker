@@ -161,10 +161,11 @@ def test_relay_is_withheld_until_measured_and_settled(tmp_path):
     assert meta["relay_basis"] == "human_coding" and "hand coding" in meta["relay_qualifier"]
 
 
-def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_path):
-    """Daniel ruled out hand coding, so a second model judges a sample instead. That measures whether
-    two raters apply the codebook the same way, not whether they apply it correctly, and everything
-    published has to say which kind of study it rests on."""
+def test_a_model_study_is_a_stability_check_and_never_opens_the_gate(tmp_path, monkeypatch):
+    """A second model, or the same model again, judging a sample measures whether the judgement is
+    stable, not whether it is correct. Since 12 October 2026 only hand coding publishes; a model study
+    is recorded and shown, and one that fails withholds the provisional counts."""
+    monkeypatch.setattr(agreement, "REVIEWS_DIR", tmp_path / "reviews")
     conn = store.connect(tmp_path / "r.db")
     aid = store.insert_discovered(conn, {"url": "https://x.test/1", "outlet_id": "o", "country": "ITA",
                                          "language": "it", "title": "t", "status": "fetched", "gate_relevant": 1})
@@ -173,7 +174,7 @@ def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_pat
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_measured"] is True and meta["relay_publishable"] is False and meta["relay_basis"] is None
     # Before any study the counts are shown, marked provisional, and the site can say when the study runs.
-    assert meta["relay_provisional"] is True and meta["relay_study"]["state"] in ("waiting_for_budget", "due")
+    assert meta["relay_provisional"] is True and meta["relay_study"]["state"] in ("waiting_for_budget", "due", "waiting_for_labels")
 
     weak = {"method": "model_vs_model", "model_a": "claude-sonnet-5", "model_b": "claude-opus-5",
             "sample_size": 300, "kappa_all": 0.7, "kappa_bc": 0.41, "n_bc": 120, "details": {}}
@@ -188,12 +189,16 @@ def test_a_second_model_can_open_the_gate_but_is_never_called_validation(tmp_pat
         {"article_id": aid, "category_a": "B", "confidence_a": 0.8, "evidence_a": "quote a",
          "category_b": "C", "confidence_b": 0.6, "evidence_b": "quote b"}])
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
-    assert meta["relay_publishable"] is True and meta["relay_basis"] == "model_vs_model"
-    assert meta["relay_provisional"] is False
+    assert meta["relay_publishable"] is False and meta["relay_basis"] is None, "a passing stability check publishes nothing"
+    assert meta["relay_provisional"] is True and "hand coded" in meta["relay_provisional_reason"]
+    assert "0.6" in meta["relay_provisional_reason"] and "stratified by language" in meta["relay_provisional_reason"]
+    assert meta["relay_human_study"]["state"] == "not_started"
+    assert export.relay_visible(conn) is True
     assert meta["relay_human_coded"] is False and meta["b_counts_settled"] is False
-    assert "never checked against human coding" in meta["relay_qualifier"]
+    assert meta["relay_qualifier"] is None
+    assert meta["relay_reliability"]["role"] == "stability_check" and "stability check" in meta["relay_reliability"]["note"]
     assert meta["relay_reliability"]["model_b"] == "claude-opus-5" and meta["relay_reliability"]["n"] == 300
-    # A language the two models read differently is withheld even when the overall figure passes.
+    # A language the two models read differently is withheld even while the counts are provisional.
     assert meta["relay_withheld_languages"] == ["it"]
     # Both raters' labels are kept, so a disagreement can be read rather than inferred.
     pair = conn.execute("SELECT category_a, category_b, evidence_b FROM model_agreement_labels WHERE study_id=?", (sid,)).fetchone()

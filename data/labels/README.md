@@ -6,13 +6,26 @@ identical system prompt (pipeline/classify_llm.py, SYSTEM_PROMPT) in an interact
 owner's machine, at no API cost. As on the API path, the model sees the headline and the body
 only, never the outlet, the country or the URL.
 
+The labelling agents must be given the current `SYSTEM_PROMPT` and `OUTPUT_SCHEMA` exactly as
+pipeline/classify_llm.py holds them on the day of the pass, never a copy kept from an earlier pass.
+Export both at the start of every session pass:
+
+```
+python -m pipeline.labels export-prompt --out <dir>
+```
+
+This writes `<dir>/SYSTEM_PROMPT.md` and `<dir>/OUTPUT_SCHEMA.json` from the live code. Each file
+is headed with `PROMPT_VERSION`, the sha256 of its content and the `model_version` the labels must
+carry; the agent gets everything below the `---` line of SYSTEM_PROMPT.md as its system prompt,
+and answers in the shape of OUTPUT_SCHEMA.json. Keep the exported files out of this directory.
+
 Each `*.jsonl` file here holds one JSON object per line, every field required:
 
 ```
 {"url_hash": "3f2a...", "category": "B", "confidence": 0.82,
  "evidence_quote": "...", "reasoning": "...", "china_sources_cited": ["Xinhua"],
  "independent_confirmation_present": false, "confirmation_evidence": null,
- "model_version": "claude-sonnet-5 (session)", "labelled_at": "2026-09-30T10:00:00Z",
+ "model_version": "claude-sonnet-5 (session, prompt 2026-10-12)", "labelled_at": "2026-10-13T10:00:00Z",
  "source": "session"}
 ```
 
@@ -20,14 +33,26 @@ Each `*.jsonl` file here holds one JSON object per line, every field required:
 
 - `category` is one of `A` (state origin), `B` (unchecked state sourcing), `C` (independent
   journalism) or `not_relevant`; `confidence` is a number from 0 to 1.
-- `model_version` must name the session, so these labels stay distinguishable from API labels.
+- `model_version` must be `"claude-sonnet-5 (session, prompt <PROMPT_VERSION>)"`, where
+  `<PROMPT_VERSION>` is the date in `PROMPT_VERSION` in pipeline/classify_llm.py, today
+  `"claude-sonnet-5 (session, prompt 2026-10-12)"`; export-prompt prints it. The word `session`
+  keeps these labels distinguishable from API labels, which carry `"claude-sonnet-5 (prompt
+  2026-10-12)"`, and a line whose `model_version` does not name the session is malformed. The
+  prompt tag is read by `classify_llm.prompt_version_of`. A label made under an older prompt, or
+  naming no prompt (every file before 2026-10-12), would only be queued for the API again, so the
+  ingest counts it as `older_prompt` and skips it; the article stays in the queue for a label
+  under the current prompt.
+- Under the 2026-10-12 prompt, `B` needs a factual claim attributed to a Chinese official or state
+  source, central to the article and passed on unchecked; a reported position, policy, warning,
+  threat, opinion or denial is `C` even without outside comment. State text republished without
+  its credit line is still `A` when the article is that text with no substantive alteration.
 - `labelled_at` is an ISO date or datetime.
 
 The hosted runner imports these files at the start of every run (`python -m pipeline.labels
 ingest`). A label is applied only to an article still waiting for the model and with no current
-classification, and it is stored exactly as an API reply would be. Everything else is counted and
-skipped, so the files are applied once and can be ingested any number of times without inserting
-anything twice. A malformed line is counted and skipped, never fatal. Keep the files committed:
+classification, and only when it names the current prompt; it is stored exactly as an API reply
+would be. Everything else is counted and skipped, so the files are applied once and can be
+ingested any number of times without inserting anything twice. A malformed line is counted and skipped, never fatal. Keep the files committed:
 they are the record of where these labels came from.
 
 ## api_first.jsonl

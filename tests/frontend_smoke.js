@@ -4,8 +4,8 @@ function assert(cond, msg) { if (!cond) { console.error("FAIL: " + msg); process
 var agg = C.aggregateWindow({}, null, 30);
 assert(Object.keys(agg.countries).length === 0, "empty aggregate");
 assert(C.listDays({}).length === 0, "no days");
-var mv = C.metricValue(undefined, "count_target", 0, "all", undefined);
-assert(mv.value === 0 && mv.pending === 0, "target count on empty");
+var mv = C.metricValue(undefined, "count_china", 0, "all", undefined);
+assert(mv.value === 0 && mv.pending === 0, "china count on empty");
 mv = C.metricValue(undefined, "share_b", 0, "all", undefined);
 assert(mv.value === null && mv.chinaTotal === 0, "share undefined on empty");
 assert(C.fillClass(undefined, mv) === "nocoverage", "no entry is nocoverage");
@@ -22,7 +22,7 @@ assert(a2.countries.ITA.A === 3 && a2.countries.ITA.B === 1 && a2.ceilingDays.le
 assert(a2.routes.ITA.wire_credit === 2 && a2.routes.ITA.diplomatic_byline === 1 && C.routeCount(a2, "ITA", {kind: "arrival", id: "press_release_section"}) === 1, "routes and arrivals");
 var a1 = C.aggregateWindow(months, "2026-09-02", 1);
 assert(a1.countries.ITA.A === 1, "single day");
-assert(Math.abs(C.metricValue(a2.countries.ITA, "share_target", 5, "all").value - 4 / 8) < 1e-9, "share");
+assert(Math.abs(C.metricValue(a2.countries.ITA, "share_a", 5, "all").value - 3 / 8) < 1e-9, "share");
 /* Unverified relay is never shown as zero when it has not been measured, and is withheld until publishable. */
 var unmeasured = C.metricValue(a2.countries.ITA, "count_b", 5, "all", undefined, {relay: {measured: false, publishable: false}});
 assert(unmeasured.value === null && unmeasured.withheld && unmeasured.note === C.RELAY_NOT_MEASURED, "relay not measured");
@@ -36,41 +36,44 @@ assert(rows[0].unverified_relay === "" && rows[0].relay_status === "not measured
 assert(C.metricValue(a2.countries.ITA, "count_a", 5, "all", undefined, {routeCount: 1}).value === 1, "route filter");
 assert(C.metricValue(a2.countries.ITA, "count_china", 5, "all", undefined, {routeCount: 1}).value === null, "route filter is state origin only");
 var withPending = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 3});
-var tv = C.metricValue(withPending, "count_target", 2, "all");
-assert(tv.value === 4 && tv.chinaTotal === 6 && tv.target === 4, "pending counts as target and as coverage");
-assert(Math.abs(C.metricValue(withPending, "share_target", 2, "all").value - 4 / 6) < 1e-9, "target share");
-var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_target", 1, "all");
+var tv = C.metricValue(withPending, "count_china", 2, "all");
+assert(tv.value === 6 && tv.chinaTotal === 6 && tv.pending === 3 && tv.target === undefined, "pending counts as coverage and in no other measure");
+assert(C.metricValue(withPending, "count_a", 2, "all").value === 1 && Math.abs(C.metricValue(withPending, "share_a", 2, "all").value - 1 / 6) < 1e-9, "state origin share");
+var tiny = C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "share_a", 1, "all");
 assert(tiny.value === null && tiny.sparse === true, "tiny denominator gives no share");
 assert(C.fillClass({coverage: "monitored", outlets_active: 1}, tiny) === "sparse", "sparse fill");
 assert(C.metricValue(Object.assign(C.emptyCounts(), {A: 2}), "count_a", 1, "all").value === 2, "count still shown");
-var pm = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 2000000});
-assert(Math.abs(pm.value - 2) < 1e-9, "per million people");
-var nopop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {});
-assert(nopop.value === null && nopop.sparse === true && nopop.note, "no population gives no value");
-var all = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 1, tdisc: 200, ttarget: 2, tchina: 4});
-assert(Math.abs(C.metricValue(all, "share_of_output_target", 2, "all", undefined, {topOutlets: 8}).value - 0.01) < 1e-9, "share of monitored output");
+var all = Object.assign(C.emptyCounts(), {A: 1, C: 2, pending: 1, tdisc: 200, ta: 2, ttarget: 3, tchina: 4});
+assert(Math.abs(C.metricValue(all, "share_of_output_a", 2, "all", undefined, {topOutlets: 8}).value - 0.01) < 1e-9, "share of monitored output");
 assert(Math.abs(C.metricValue(all, "share_of_output_china", 2, "all", undefined, {topOutlets: 8}).value - 0.02) < 1e-9, "china share of monitored output");
-var floor = C.metricValue(all, "share_of_output_target", 2, "all", undefined, {topOutlets: 4});
+var floor = C.metricValue(all, "share_of_output_a", 2, "all", undefined, {topOutlets: 4});
 assert(floor.value === null && floor.sparse === true && /Fewer than 5 monitored outlets/.test(floor.note), "outlet floor");
-var few = Object.assign(C.emptyCounts(), {A: 1, tdisc: 10, ttarget: 1});
-assert(C.metricValue(few, "share_of_output_target", 1, "all").value === null, "small stream gives no share");
-assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_output_target", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
+var few = Object.assign(C.emptyCounts(), {A: 1, tdisc: 10, ta: 1});
+assert(C.metricValue(few, "share_of_output_a", 1, "all").value === null, "small stream gives no share");
+assert(C.fillClass({coverage: "monitored", outlets_active: 1}, C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 300}), "share_of_output_a", 1, "all")) === "zero", "items but no China coverage is zero, not nodata");
 assert(C.fillClass({coverage: "monitored", outlets_active: 2, language_support: "none"}, C.metricValue(C.emptyCounts(), "count_a", 2, "all")) === "unreadable", "unreadable language");
-var tinyPop = C.metricValue(withPending, "per_million_target", 2, "all", undefined, {population: 3700});
-assert(tinyPop.value === null && tinyPop.sparse === true, "tiny population gives no per capita value");
 assert(Math.abs(C.percentile([1, 2, 3, 4, 100], 0.95) - 80.8) < 1e-9 && C.percentile([], 0.95) === null && C.percentile([5], 0.95) === 5, "percentile");
 assert(C.gridMetric("a", "share_of_output") === "share_of_output_a" && C.gridMetric("china", "count") === "count_china" && C.gridMetric("nope", "nope") === "count_a", "grid");
-assert(C.BASES[C.BASES.length - 1] === "per_million", "per capita is offered last");
+/* No per capita basis: a saved or stale per million selection falls back to Number of articles in the same measure. */
+assert(C.BASES.indexOf("per_million") === -1 && Object.keys(C.METRICS).every(function (k) { return k.indexOf("per_million") !== 0; }), "no per capita basis or metric");
+["a", "b", "china"].forEach(function (m) {
+  assert(!C.basisAvailable(m, "per_million") && C.gridMetric(m, "per_million") === C.GRID[m].count, "per million falls back to the count for " + m);
+  assert(C.BASIS_NAMES[C.metricParts(C.gridMetric(m, "per_million")).basis] === "Number of articles", "the fallback is named Number of articles for " + m);
+});
 /* Share of China coverage is a denominator like the others, and is meaningless for All China coverage. */
-assert(C.gridMetric("a", "share_of_china") === "share_a" && C.gridMetric("b", "share_of_china") === "share_b" &&
-       C.gridMetric("target", "share_of_china") === "share_target", "share of China coverage is a basis");
+assert(C.gridMetric("a", "share_of_china") === "share_a" && C.gridMetric("b", "share_of_china") === "share_b", "share of China coverage is a basis");
+/* No combined state-linked measure: it mixed judged counts with candidates still waiting for the model.
+   A saved or stale selection of it falls back to state origin, never to another sum. */
+assert(C.GRID.target === undefined && C.MEASURE_NAMES.target === undefined && C.MEASURE_INDEX.target === undefined &&
+       Object.keys(C.METRICS).every(function (k) { return k.indexOf("target") === -1 && C.METRICS[k].measure !== "target"; }), "no state-linked measure");
+assert(C.gridMetric("target", "count") === "count_a" && C.gridMetric("target", "share_of_china") === "share_a" && C.basisAvailable("target", "share_of_china"), "a state-linked selection falls back to state origin");
+assert(C.metricValue(Object.assign(C.emptyCounts(), {pending: 7}), "count_target", 3, "all").value === null, "a removed metric reads nothing");
 assert(C.basisAvailable("a", "share_of_china") && !C.basisAvailable("china", "share_of_china"), "not offered for All China coverage");
 assert(C.gridMetric("china", "share_of_china") === "count_china", "an unavailable pair falls back inside its own measure");
 assert(C.METRICS.count_ab === undefined && C.METRICS.share_ab === undefined, "the combined metrics are gone");
 var allA = Object.assign(C.emptyCounts(), {A: 2, C: 8, tdisc: 400, ttarget: 3, tchina: 10, ta: 2});
 assert(Math.abs(C.metricValue(allA, "share_of_output_a", 1, "all").value - 0.005) < 1e-9, "state origin share of monitored output");
 assert(C.metricValue(allA, "count_china", 1, "all").value === 10, "china count");
-assert(Math.abs(C.metricValue(allA, "per_million_china", 1, "all", undefined, {population: 5000000}).value - 2) < 1e-9, "china per million");
 assert(C.metricValue(allA, "per_outlet_china", 2, "all").value === 5, "china per outlet");
 /* The scale cap is pooled across dates, so it does not move with the day shown. */
 var latest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}, FRA: {coverage: "monitored", outlets_active: 5}}};
@@ -78,20 +81,29 @@ var scaleMonths = {"2026-09": {days: {"2026-09-01": {countries: {ITA: Object.ass
                                       "2026-09-02": {countries: {ITA: Object.assign(C.emptyCounts(), {A: 2, C: 1}), FRA: Object.assign(C.emptyCounts(), {A: 2, C: 1})}}}}};
 var s = C.scaleCap(scaleMonths, ["2026-09-01", "2026-09-02"], latest, "count_a", 1, "all");
 assert(s.values === 4 && s.max === 10 && Math.abs(s.cap - C.percentile([10, 1, 2, 2], 0.95)) < 1e-9, "pooled scale cap");
+/* The cap is a function of the published data alone: the same files give the same cap, and a data update
+   that adds a day recomputes it, so it moves between updates. Every key says so in the same words. */
+assert(C.scaleCap(scaleMonths, ["2026-09-01", "2026-09-02"], latest, "count_a", 1, "all").cap === s.cap, "scale cap repeats on the same data");
+var grownMonths = JSON.parse(JSON.stringify(scaleMonths));
+grownMonths["2026-09"].days["2026-09-03"] = {countries: {ITA: Object.assign(C.emptyCounts(), {A: 40, C: 1}), FRA: Object.assign(C.emptyCounts(), {A: 30, C: 1})}};
+var grown = C.scaleCap(grownMonths, ["2026-09-01", "2026-09-02", "2026-09-03"], latest, "count_a", 1, "all");
+assert(grown.cap > s.cap && grown.max === 40, "a data update that adds days moves the scale cap");
+assert(/each data update/i.test(C.CAP_UPDATE_NOTE) && /different number/.test(C.CAP_UPDATE_NOTE) && !/[–—]/.test(C.CAP_UPDATE_NOTE), "the keys say the cap moves between updates");
+
 var themeMonths = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [2, 1, 1]}}},
                                       "2026-09-02": {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [1, 1, 0], culture: [3, 0, 0]}}}}}};
 var th = C.aggregateThemes(themeMonths, "2026-09-02", 2);
 assert(th.ITA.diplomacy[0] === 3 && th.ITA.diplomacy[1] === 2 && th.ITA.diplomacy[2] === 1 && th.ITA.culture[0] === 3, "theme window sum");
 assert(C.aggregateThemes(themeMonths, "2026-09-02", 1).ITA.diplomacy[0] === 1, "theme single day");
-assert(Object.keys(C.aggregateThemes({}, null, 30)).length === 0 && C.MEASURE_INDEX.target === 1, "themes on empty");
-/* Unverified relay as a measure of its own, and the provisional state before any reliability study. */
-assert(C.gridMetric("b", "count") === "count_b" && C.gridMetric("b", "per_million") === "per_million_b" && C.MEASURE_INDEX.b === 3, "relay grid");
+assert(Object.keys(C.aggregateThemes({}, null, 30)).length === 0 && C.MEASURE_INDEX.target === undefined && C.MEASURE_INDEX.china === 0, "themes on empty");
+/* Unverified relay as a measure of its own, and the provisional state before hand coding has checked it. */
+assert(C.gridMetric("b", "count") === "count_b" && C.gridMetric("b", "share_of_output") === "share_of_output_b" && C.MEASURE_INDEX.b === 3, "relay grid");
 var relayCounts = Object.assign(C.emptyCounts(), {A: 1, B: 4, C: 5, uniqA: 1, uniqAB: 4, tdisc: 100, tb: 4});
 var PROV = {measured: true, publishable: false, provisional: true};
 var prov = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: PROV});
 assert(prov.value === 4 && prov.provisional === true && !prov.withheld && prov.underlyingB === 3 && prov.note === C.RELAY_PROVISIONAL, "provisional relay is shown and marked");
 assert(C.fillClass({coverage: "monitored", outlets_active: 5}, prov) === "value", "provisional relay colours the map");
-assert(C.metricValue(relayCounts, "count_target", 5, "all", undefined, {relay: PROV}).value === 5, "state-linked stays readable while provisional");
+assert(C.metricValue(relayCounts, "count_china", 5, "all", undefined, {relay: PROV}).value === 10, "all China coverage stays readable while provisional");
 var failed = C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: false}});
 assert(failed.value === null && failed.withheld && failed.note === C.RELAY_WITHHELD, "measured but neither publishable nor provisional stays withheld");
 assert(C.metricValue(relayCounts, "count_b", 5, "all", undefined, {relay: {measured: true, publishable: true}}).provisional === false, "published relay is not provisional");
@@ -118,27 +130,24 @@ var oldExport = C.metricValue(Object.assign(C.emptyCounts(), {A: 1, B: 2, C: 9, 
 assert(oldExport.value === null && oldExport.sparse === true && C.fillClass(monitored, oldExport) === "sparse", "a share the export cannot carry is not shown, never zero");
 var offRouteCount = C.metricValue(stream, "count_china", 6, "all", undefined, {routeCount: 2});
 assert(offRouteCount.value === null && offRouteCount.sparse === true, "the route filter leaves other measures not shown, never zero");
-/* A country that published items but classified no China coverage still has no per capita value. */
-var noPop = C.metricValue(Object.assign(C.emptyCounts(), {tdisc: 400}), "per_million_a", 6, "all", undefined, {});
-assert(noPop.value === null && noPop.sparse === true && C.fillClass(monitored, noPop) === "sparse", "no population is not shown, never zero");
 /* The sums that contain unchecked state sourcing are never withheld, and carry its provisional marking. */
-var insideProv = C.metricValue(relayCounts, "count_target", 5, "all", undefined, {relay: PROV});
-assert(insideProv.value === 5 && insideProv.provisional === true && !insideProv.withheld && insideProv.note === C.RELAY_PROVISIONAL, "state-linked articles are marked provisional while the relay count inside them is");
+var insideProv = C.metricValue(relayCounts, "share_of_output_china", 5, "all", undefined, {relay: PROV, topOutlets: 6});
+assert(insideProv.provisional === true && !insideProv.withheld && insideProv.note === C.RELAY_PROVISIONAL, "a share of all China coverage is marked provisional while the relay count inside it is");
 assert(C.metricValue(relayCounts, "count_china", 5, "all", undefined, {relay: PROV}).provisional === true, "all China coverage is marked provisional too");
 assert(C.metricValue(relayCounts, "count_a", 5, "all", undefined, {relay: PROV}).provisional === false, "state origin contains no relay count, so it is not marked");
-assert(C.METRICS.count_target.relayInside && C.METRICS.count_china.relayInside && !C.METRICS.count_a.relayInside, "which metrics contain the relay count");
+assert(C.METRICS.count_china.relayInside && !C.METRICS.count_a.relayInside, "which metrics contain the relay count");
 /* A withheld count cannot be reconstructed from the columns beside it. */
 var WITHHELD = {measured: true, publishable: false, provisional: false};
 var wLatest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}}};
 var wAgg = {countries: {ITA: relayCounts}, reviewed: {}};
 var wa = C.rankCountries(wAgg, wLatest, "count_a", "all", {}, function () { return {relay: WITHHELD}; })[0];
-assert(wa.unverified_relay === "" && wa.target === "" && wa.china_total === "" && wa.target_in_published_items === "" && wa.china_in_published_items === "", "no sum containing a withheld count is written beside it");
+assert(wa.unverified_relay === "" && wa.target === undefined && wa.china_total === "" && wa.target_in_published_items === undefined && wa.china_in_published_items === "", "no sum containing a withheld count is written beside it");
 assert(wa.state_origin === 1 && wa.independent === 5, "state origin and independent journalism still travel when the shown value contains no relay count");
-var wt = C.rankCountries(wAgg, wLatest, "count_target", "all", {}, function () { return {relay: WITHHELD}; })[0];
-assert(wt.value === 5 && wt.state_origin === "" && wt.official_sourcing_pending === "", "the counts the shown sum would be differenced against leave with it");
+var wt = C.rankCountries(wAgg, wLatest, "count_china", "all", {}, function () { return {relay: WITHHELD}; })[0];
+assert(wt.value === 10 && wt.state_origin === "" && wt.official_sourcing_pending === "", "the counts the shown sum would be differenced against leave with it");
 /* A route narrows state origin and nothing else, so the counts it does not touch are not written beside it. */
 var rr = C.rankCountries({countries: {ITA: relayCounts}, reviewed: {}}, wLatest, "count_a", "all", {}, function () { return {relay: {measured: true, publishable: true}, routeCount: 1}; })[0];
-assert(rr.value === 1 && rr.state_origin === 1 && rr.target === "" && rr.china_total === "" && rr.state_origin_underlying_items === "" && rr.items_published_monitored_outlets === "" && /route/.test(rr.note), "a route filtered row carries only what the route filtered");
+assert(rr.value === 1 && rr.state_origin === 1 && rr.china_total === "" && rr.state_origin_underlying_items === "" && rr.items_published_monitored_outlets === "" && /route/.test(rr.note), "a route filtered row carries only what the route filtered");
 /* CSV: a lone carriage return breaks a row, and a leading =, +, - or @ runs as a formula. */
 assert(C.toCSV([{a: "one\rtwo"}], ["a"]) === 'a\n"one\rtwo"\n', "a carriage return is quoted");
 assert(C.toCSV([{a: "=1+1"}, {a: "@x"}, {a: "-lead"}], ["a"]) === 'a\n"\'=1+1"\n"\'@x"\n"\'-lead"\n', "a formula is quoted and marked as text");
@@ -166,7 +175,7 @@ function keyNumbers(label) { return (label.match(/[0-9][0-9,]*(\.[0-9]+)?/g) || 
 assert(C.keyTiers(1, C.WHOLE_UNIT).tiers.length === 1 && C.keyTiers(1, C.WHOLE_UNIT).tiers[0].label === "1 or more", "a cap of one gives one tier, not seven copies of it");
 assert(C.keyTiers(2, C.WHOLE_UNIT).tiers.map(function (t) { return t.label; }).join("|") === "1|2 or more", "a cap of two gives two tiers");
 /* Everything that is not an amount: distinct, increasing bounds at any scale, and never an "under 0". */
-["per_outlet_a", "share_a", "share_of_output_a", "share_of_output_b", "per_million_china"].forEach(function (metric) {
+["per_outlet_a", "share_a", "share_of_output_a", "share_of_output_b", "per_outlet_china"].forEach(function (metric) {
   [0.00003, 0.0004, 0.0021, 0.008, 0.05, 0.32, 1, 2.94, 17.8, 250, 12345].forEach(function (cap) {
     if (C.METRICS[metric].format === "pct" && cap > 1) return;
     var k = C.keyTiers(cap, C.keyUnit(metric));
@@ -190,12 +199,16 @@ assert(C.keyUnit("share_of_output_a").per1000 && C.keyUnit("share_of_output_a").
 assert(tinyShare[0] === "Above 0, under 0.16" && tinyShare[6] === "5.9 or more" && tinyShare.join("|").indexOf("%") === -1, "a share under one percent reads per 1,000: " + tinyShare.join(" | "));
 assert(C.keyTiers(0.45, C.keyUnit("share_a")).tiers[6].label === "33% or more" && C.keyTiers(0.012, C.keyUnit("share_a")).tiers[0].label === "Above 0, under 0.024%", "share of China coverage keeps percent, with precision to suit the cap");
 assert(C.formatKeyNumber(0.000114, C.keyUnit("share_of_output_a"), 3) === "0.114" && C.formatKeyNumber(255, C.WHOLE_UNIT) === "255" && C.formatKeyNumber(12500, C.WHOLE_UNIT) === "12,500", "key numbers");
-var parts = C.metricParts("share_of_output_target");
-assert(parts.measure === "target" && parts.basis === "share_of_output" && C.BASIS_NAMES[parts.basis] === "% of all its news" && C.MEASURE_NAMES.b === "Unchecked state sourcing", "the key names measure and basis as the buttons do");
+var parts = C.metricParts("share_of_output_b");
+assert(parts.measure === "b" && parts.basis === "share_of_output" && C.BASIS_NAMES[parts.basis] === "% of all its news" && C.MEASURE_NAMES.b === "Unchecked state sourcing", "the key names measure and basis as the buttons do");
 /* The theme counter's cap is pooled over dates and reads one measure slot. */
 var tsc = C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 1, 0, ["diplomacy", "culture"]);
 assert(tsc.values === 3 && tsc.max === 3 && Math.abs(tsc.cap - C.percentile([2, 1, 3], 0.95)) < 1e-9, "theme scale cap pools days");
 assert(C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 2, 2, null, "ITA").max === 1 && C.themeScaleCap({}, [], 1, 0).cap === null, "theme scale cap by slot and country");
+var grownThemes = JSON.parse(JSON.stringify(themeMonths));
+grownThemes["2026-09"].days["2026-09-03"] = {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [9, 0, 0], culture: [7, 0, 0]}}};
+assert(C.themeScaleCap(grownThemes, ["2026-09-01", "2026-09-02", "2026-09-03"], 1, 0, ["diplomacy", "culture"]).cap > tsc.cap, "a data update that adds days moves the theme cap too");
+
 /* The "What we found" box: fills the four findings_template sentences from meta.findings. */
 var findingsTemplates = ["Share {state_share_of_china} since {since}.", "{top_country} led, carried by {top_carrier}.",
   "State-controlled outlets published at roughly {rate_ratio} the rate.", "{top_ownership_group} outlets led."];
@@ -220,6 +233,29 @@ assert(C.fillFindingsTemplate(findingsTemplates, {all_time: {state_share_of_chin
 var ww = C.wholeWordSnippet(", presidente del Zoo.\nFoto: Agencia NA (Xinhua).\nEstamos encantados de dar la bienv", 39, 47);
 assert(ww.snippet === "\u2026 presidente del Zoo. Foto: Agencia NA (Xinhua). Estamos encantados de dar la \u2026", "snippet trimmed to whole words with ellipses: " + ww.snippet);
 assert(ww.snippet.slice(ww.start, ww.end) === "(Xinhua)", "highlight offsets still point at the matched phrase");
+/* An old export with a lowercase mid-word cut at both ends is still trimmed, highlight intact. */
+var wwOld = C.wholeWordSnippet("ancia en la provincia de Buenos Aires, según informó la agencia Xinhua en un comunicado del pa", 56, 70);
+assert(wwOld.snippet === "… en la provincia de Buenos Aires, según informó la agencia Xinhua en un comunicado del …", "old-style snippet still trimmed: " + wwOld.snippet);
+assert(wwOld.snippet.slice(wwOld.start, wwOld.end) === "agencia Xinhua", "old-style highlight intact");
+/* The export now trims on word boundaries and marks each cut with an ellipsis (spaced, or attached in
+   scripts without spaces). Such a snippet passes through unchanged, both edges, offsets the same:
+   a whole lowercase Spanish word or an Arabic word at the uncut edge is never cut again. */
+[
+  ["… en la provincia de Buenos Aires, según informó la agencia Xinhua en un comunicado oficial publicado este lunes por la tarde en …", 52, 66, "agencia Xinhua"],
+  ["provincia de Buenos Aires, según informó la agencia Xinhua en un comunicado oficial publicado este lunes por la tarde en …", 44, 58, "agencia Xinhua"],
+  ["… provincia de Buenos Aires, según informó la agencia Xinhua en un comunicado oficial publicado este lunes", 46, 60, "agencia Xinhua"],
+  ["الصينية شينخوا أن الرئيس الصيني شي جين بينغ التقى اليوم في بكين برئيس الوزراء …", 8, 14, "شينخوا"],
+  ["… الصينية شينخوا أن الرئيس الصيني شي جين بينغ التقى اليوم في بكين برئيس …", 10, 16, "شينخوا"],
+  ["…ข่าวจาก สำนักข่าวซินหัวรายงาน ว่าประธานาธิบดี…", 18, 24, "ซินหัว"]
+].forEach(function (c, i) {
+  var w = C.wholeWordSnippet(c[0], c[1], c[2]);
+  assert(c[0].slice(c[1], c[2]) === c[3], "exported case " + i + " fixture offsets");
+  assert(w.snippet === c[0], "exported snippet " + i + " passes through unchanged: " + w.snippet);
+  assert(w.start === c[1] && w.end === c[2] && w.snippet.slice(w.start, w.end) === c[3], "exported snippet " + i + " highlight intact");
+});
+/* An exported snippet with a line break is folded to a space and its highlight still lines up. */
+var wwFold = C.wholeWordSnippet("provincia de Buenos Aires.\nSegún la agencia Xinhua en un …", 36, 50);
+assert(wwFold.snippet === "provincia de Buenos Aires. Según la agencia Xinhua en un …" && wwFold.snippet.slice(wwFold.start, wwFold.end) === "agencia Xinhua", "exported snippet folded, not cut: " + wwFold.snippet);
 /* Translate links: only for outlets that do not publish in English, and the text is URL-encoded. */
 assert(C.translateLinks("en", "Hello", "https://a.example/x") === null, "no translate links for English outlets");
 assert(C.translateLinks(null, "Hola", "https://a.example/x") === null, "no translate links when the language is unknown");
@@ -232,6 +268,14 @@ var contentRoutes = {wire_credit: {plain_name: "Wire credit"}, distribution_stam
 assert(C.contentRouteName(contentRoutes, "wire_credit") === "Wire credit", "route name lookup");
 assert(C.contentRouteName(contentRoutes, "unattributed") === "unattributed", "route name lookup falls back to the id when not named");
 assert(C.contentRouteName(null, "wire_credit") === "wire_credit", "route name lookup survives a missing routes object");
+/* uncredited_copy: named by content.routes, by a fallback label, and added to an older meta.routes before unattributed. */
+assert(C.contentRouteName({uncredited_copy: {plain_name: "Uncredited copy"}}, "uncredited_copy") === "Uncredited copy", "uncredited copy route name lookup");
+assert(C.ROUTE_FALLBACK_LABELS.uncredited_copy === "Uncredited copy of a credited state item", "uncredited copy fallback label");
+var oldRoutes = [{id: "wire_credit", label: "Wire credit line or dateline"}, {id: "unattributed", label: "No signature; model judgement"}];
+var fullRoutes = C.withRouteFallbacks(oldRoutes);
+assert(fullRoutes.map(function (r) { return r.id; }).join(",") === "wire_credit,uncredited_copy,unattributed", "uncredited copy is added before unattributed");
+assert(oldRoutes.length === 2 && C.withRouteFallbacks(fullRoutes).length === 3, "the fallback never mutates its input or adds a route twice");
+assert(C.withRouteFallbacks(null).length === 0 && C.withRouteFallbacks([]).length === 0, "no routes exported, none invented");
 /* Planted bylines: the helpers behind the section built from data/planted.json. */
 assert(C.planted.detectorLabel("author_field") === "byline in the author field", "planted: author_field in plain words");
 assert(C.planted.detectorLabel("byline_head") === "byline at the top of the text", "planted: byline_head in plain words");
@@ -284,9 +328,6 @@ var wCtx = function (iso, entry, agg) { return {population: entry.population, to
 var wRows = C.rankCountries(wAgg, wLatest, "count_a", "all", wNames, wCtx);
 assert(wRows.length === 2 && wRows[0].iso === "WLD" && wRows[0].name === "Worldwide distribution" && wRows[0].value === 5 && wRows[0].population === "", "rankCountries lists the stratum by name with its own count");
 assert(wRows[1].iso === "ITA" && wRows[1].value === 2, "and the country keeps its own count, with nothing from the wires added");
-var wPm = C.metricValue(wAgg.countries.WLD, "per_million_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
-assert(wPm.value === null && wPm.sparse && /population/.test(wPm.note), "per million is null for the stratum, with a note");
-assert(C.fillClass(wLatest.countries.WLD, wPm) === "sparse", "a stratum with no population is sparse under per million, never an observed zero");
 var wShare = C.metricValue(wAgg.countries.WLD, "share_of_output_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
 assert(Math.abs(wShare.value - 5 / 900) < 1e-9, "the stratum's share of output divides by what the wires published, two outlets notwithstanding");
 var wShareCountry = C.metricValue(wAgg.countries.WLD, "share_of_output_a", 2, "all", undefined, {population: null, topOutlets: 2});
@@ -296,7 +337,6 @@ assert(wCap.max === 2 && wCap.values === 1, "the map's color scale ignores the s
 var wCount = C.metricValue(wAgg.countries.WLD, "count_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
 var wLine = C.worldwideLegendLine(wCount, "count_a");
 assert(wLine === "Worldwide distribution via press release wires: 5 state-origin articles in this window, reaching every country and drawn in none.", "legend line for a count: " + wLine);
-assert(/not applicable/.test(C.worldwideLegendLine(wPm, "per_million_a")) && /5 state-origin articles/.test(C.worldwideLegendLine(wPm, "per_million_a")), "legend line says per million is not applicable and still gives the count");
 assert(/0\.6% of every release the wires published/.test(C.worldwideLegendLine(wShare, "share_of_output_a")), "legend line follows the share of output basis: " + C.worldwideLegendLine(wShare, "share_of_output_a"));
 assert(/2\.50 state-origin articles per wire monitored/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "per_outlet_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "per_outlet_a")), "legend line follows the per outlet basis");
 assert(/China-related articles/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "count_china", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "count_china")), "legend line follows the measure");
@@ -384,4 +424,182 @@ assert(C.stateOriginInWindow(null, s30, "country") === 1151, "fallback under cou
 assert(C.stateOriginInWindow(null, s30, "wires") === 177, "fallback under worldwide wires is the wires alone");
 assert(C.stateOriginInWindow(null, {state_origin: 1328}, "country") === 1328 && C.stateOriginInWindow(null, {state_origin: 1328}, "wires") === 0, "a last_30d without the wires field reads as zero wires");
 assert(C.stateOriginInWindow(null, null, "both") === null && C.stateOriginInWindow(null, {}, "wires") === null, "no source gives null");
+/* The top country card and the findings sentence count the 30 complete days the map opens on, not the
+   export's window, which also held the partial export day (Italy 436 on the card, 423 on the map, on
+   2026-10-12). Its share is of stateOriginInWindow for the same days and mode. */
+var pMonths = JSON.parse(JSON.stringify(sMonths));
+pMonths["2026-10"] = {days: {"2026-10-01": {countries: {FRA: Object.assign(C.emptyCounts(), {A: 10})}, reviewed: {}}}};
+var pTopExport = {iso: "FRA", state_origin: 13, share_of_world: 0.5, top_outlet: {id: "fr_x", name: "Le X"}, top_route: "wire_credit"};
+["both", "country"].forEach(function (mode) {
+  var pAgg = C.aggregateWindow(pMonths, "2026-09-30", 30, mode);   // 2026-10-01 is the partial export day
+  var t = C.topCountryInWindow(pAgg, mode, pTopExport, {state_origin: 26, state_origin_wires: 7});
+  var ranked = C.rankCountries(pAgg, sLatest, "count_a", "all", {}, sCtx, mode).filter(function (r) { return r.iso !== C.WORLDWIDE_ISO; });
+  ranked.sort(function (x, y) { return (y.value || 0) - (x.value || 0); });
+  assert(t.iso === "ITA" && t.state_origin === 5 && t.iso === ranked[0].iso && t.state_origin === ranked[0].value,
+         "top country under " + mode + " is the ranked list's top row over the complete days: " + JSON.stringify(t));
+  assert(t.share_of_world === 5 / C.stateOriginInWindow(pAgg, null, mode), "top country share under " + mode + " is over the complete day total");
+  assert(t.top_outlet === null && t.top_route === null, "the export's outlet is not lent to another country");
+});
+assert(C.topCountryInWindow(C.aggregateWindow(pMonths, "2026-09-30", 30, "both"), "both", null, null).share_of_world === 5 / 15, "both keeps the wires in the denominator");
+assert(C.topCountryInWindow(C.aggregateWindow(pMonths, "2026-09-30", 30, "country"), "country", null, null).share_of_world === 5 / 8, "country outlets leaves them out");
+assert(C.topCountryInWindow(C.aggregateWindow(pMonths, "2026-09-30", 30, "wires"), "wires", pTopExport, null) === null, "no country is ranked under worldwide wires");
+assert(C.topCountryInWindow(C.aggregateWindow(pMonths, "2026-10-01", 30, "both"), "both", pTopExport, null).iso === "FRA", "a window that ends on the partial day would have named France");
+var pSame = C.topCountryInWindow(C.aggregateWindow(pMonths, "2026-09-30", 30, "both"), "both", {iso: "ITA", state_origin: 6, share_of_world: 0.4, top_outlet: {id: "italpress", name: "Italpress"}, top_route: "wire_credit"}, null);
+assert(pSame.state_origin === 5 && pSame.top_outlet.name === "Italpress" && pSame.top_route === "wire_credit", "the window's count wins, the export's outlet is kept for the same country");
+var pFb = C.topCountryInWindow(null, "country", pTopExport, {state_origin: 26, state_origin_wires: 6});
+assert(pFb.iso === "FRA" && pFb.state_origin === 13 && pFb.share_of_world === 13 / 20 && pFb.top_outlet.name === "Le X", "fallback without daily files: " + JSON.stringify(pFb));
+assert(C.topCountryInWindow(null, "both", null, null) === null && C.topCountryInWindow(C.aggregateWindow({}, "2026-09-30", 30, "both"), "both", pTopExport, null) === null, "nothing to rank gives null");
+var pFilled = C.fillFindingsTemplate(["{top_country} {top_country_count} ({top_country_share})"], {all_time: {}, top_country: pSame}, {ITA: "Italy"}, {});
+assert(pFilled[0] === "Italy 5 (33%)", "the findings sentence reads the window's top country: " + pFilled[0]);
+/* The all time cards and the summary end on the map's last complete day: allTimeInWindow sums the daily files
+   up to it, where the export's findings.all_time also counted the partial export day (2026-10-01 here). Under
+   every Distribution mode each card equals the map's All time sum, the ranked list over the same days, and
+   country outlets plus worldwide wires equals Both. */
+var aMonths = JSON.parse(JSON.stringify(pMonths));
+aMonths["2026-09"].days["2026-09-10"].countries.ITA.B = 3;
+aMonths["2026-09"].days["2026-09-10"].countries.WLD.C = 4;
+aMonths["2026-09"].days["2026-09-10"].countries.FRA.pending = 2;
+aMonths["2026-10"].days["2026-10-01"].countries.WLD = Object.assign(C.emptyCounts(), {A: 52, B: 1, C: 2});
+var aExport = {state_origin: 999, unchecked: 99, independent: 99, china_total: 1197, state_share_of_china: 0.8,
+               state_origin_wires: 109, unchecked_wires: 1, independent_wires: 6, china_total_wires: 116};
+var aAll = C.allTimeInWindow(C.aggregateWindow(aMonths, "2026-09-30", null, "both"), aExport);
+assert(aAll.state_origin === 74 && aAll.unchecked === 3 && aAll.independent === 6 && aAll.china_total === 83 &&
+       aAll.state_origin_wires === 57 && aAll.unchecked_wires === 0 && aAll.independent_wires === 4 && aAll.china_total_wires === 61,
+       "allTimeInWindow sums every day to the last complete day, not the partial one: " + JSON.stringify(aAll));
+assert(Math.abs(aAll.state_share_of_china - 74 / 83) < 1e-12, "the share is over the same days");
+var aModes = {};
+["both", "country", "wires"].forEach(function (mode) {
+  var got = C.distributionFindings(aAll, null, null, mode);
+  aModes[mode] = got;
+  var mapAgg = C.aggregateWindow(aMonths, "2026-09-30", null, mode);   // the map's All time view under the mode
+  var ranked = C.rankCountries(mapAgg, sLatest, "count_a", "all", {}, sCtx, mode).reduce(function (t, r) { return t + (r.value || 0); }, 0);
+  var sumOf = function (k) { return Object.keys(mapAgg.countries).reduce(function (t, iso) { return t + (mapAgg.countries[iso][k] || 0); }, 0); };
+  assert(got.state_origin === ranked && got.state_origin === sumOf("A"), "the state origin card under " + mode + " equals the map's All time sum: " + got.state_origin + " vs " + ranked);
+  assert(got.unchecked === sumOf("B") && got.independent === sumOf("C") && got.china_total === sumOf("A") + sumOf("B") + sumOf("C"),
+         "the other all time cards under " + mode + " equal the map's All time sums: " + JSON.stringify(got));
+});
+["state_origin", "unchecked", "independent", "china_total"].forEach(function (k) {
+  assert(aModes.country[k] + aModes.wires[k] === aModes.both[k], "country outlets plus wires is Both for " + k);
+});
+assert(aAll.pending === 2 && aAll.pending_wires === 0, "articles awaiting the model are counted over the same days");
+var aChina = C.rankCountries(C.aggregateWindow(aMonths, "2026-09-30", null, "both"), sLatest, "count_china", "all", {}, sCtx, "both").reduce(function (t, r) { return t + (r.value || 0); }, 0);
+assert(aChina === aAll.china_total + aAll.pending, "the map's All China coverage is the China-related card plus the articles awaiting the model: " + aChina);
+var aWithheld = C.allTimeInWindow(C.aggregateWindow(aMonths, "2026-09-30", null, "both"), Object.assign({}, aExport, {unchecked: null, unchecked_wires: null}));
+assert(aWithheld.unchecked === null && aWithheld.unchecked_wires === null && aWithheld.china_total === 83, "a withheld unchecked count stays withheld");
+assert(C.allTimeInWindow(null, aExport) === aExport, "without daily files the export's totals are the fallback");
+assert(C.fillFindingsTemplate(["{state_share_of_china} since {since}"], {all_time: aAll, since: "2026-08-31 through 2026-09-30"}, {}, {})[0] === "89.2% since 2026-08-31 through 2026-09-30",
+       "the summary sentence reads the complete day share and its span");
+/* Themes version changes on the theme timeline: on the change's own day, else the first day after it;
+   a change after the last day, or without a date, is left off. */
+var tDays = ["2026-09-13", "2026-09-14", "2026-09-16", "2026-09-17"];
+var tMarks = C.themesChangeMarks(tDays, [{version: "2026.09.3", date: "2026-09-14", change: "introduced"},
+                                         {version: "2026.09.4", date: "2026-09-15", change: "whole body instead of the first 800 characters"},
+                                         {version: "2026.10.1", date: "2026-10-01", change: "later"}, {version: "x"}]);
+assert(tMarks.length === 2 && tMarks[0].index === 1 && tMarks[1].index === 2, "themes marks land on their day or the next one: " + JSON.stringify(tMarks));
+assert(tMarks[1].title === "Themes version 2026.09.4: whole body instead of the first 800 characters (from 2026-09-15)", "themes mark tooltip: " + tMarks[1].title);
+assert(C.themesChangeMarks(tDays, undefined).length === 0 && C.themesChangeMarks([], [{version: "a", date: "2026-09-01"}]).length === 0, "no changes or no days, no marks");
+/* Leaning sources: Media Bias/Fact Check alone outside the US is weak; the export's flag wins when present. */
+var mb = "https://mediabiasfactcheck.com/x/";
+assert(C.leaningSourceWeak({country: "FRA", political_leaning: "centre", leaning_source: mb}), "non-US MBFC leaning is weak");
+assert(!C.leaningSourceWeak({country: "USA", political_leaning: "centre", leaning_source: mb}), "US MBFC leaning is not weak");
+assert(!C.leaningSourceWeak({country: "FRA", political_leaning: "state_controlled", leaning_source: mb}), "state controlled is not a rating");
+assert(!C.leaningSourceWeak({country: "FRA", political_leaning: "centre", leaning_source: "https://www.mediabiasfactcheck.com/x/", leaning_second_source: "https://en.wikipedia.org/wiki/X"}), "a second source lifts it");
+assert(!C.leaningSourceWeak({country: "FRA", political_leaning: "centre", leaning_source: mb, leaning_source_weak: false}), "export flag wins");
+assert(C.leaningSourceKind({political_leaning: "left", leaning_source: "https://fr.wikipedia.org/wiki/X"}) === "wikipedia" &&
+       C.leaningSourceKind({political_leaning: "state_controlled", leaning_source: mb}) === "ownership" &&
+       C.leaningSourceKind({political_leaning: "unassessed"}) === null, "leaning source kinds");
+var ls = C.leaningSources([{country: "FRA", political_leaning: "centre", leaning_source: mb}, {country: "USA", political_leaning: "right", leaning_source: mb},
+                           {country: "ITA", political_leaning: "left", leaning_source: "https://en.wikipedia.org/wiki/X"}, {country: "RUS", political_leaning: "state_controlled", leaning_source: "https://en.wikipedia.org/wiki/RT"},
+                           {country: "DEU", political_leaning: "centre", leaning_source: "https://www.eurotopics.net/x"}, {country: "DEU", political_leaning: "unassessed"}]);
+assert(ls.assessed === 5 && ls.us_rater === 2 && ls.us_rater_weak === 1 && ls.wikipedia === 1 && ls.ownership === 1 && ls.other === 1, "leaning sources tally " + JSON.stringify(ls));
+var lsText = C.leaningSourcesSentence(ls);
+assert(/Wikipedia media lists for 1 outlet, Media Bias\/Fact Check, a US based rater, for 2 outlets \(1 of them outside the United States/.test(lsText) &&
+       /the ownership source for the 1 state controlled outlet\./.test(lsText) && /treat it with caution/.test(lsText), "leaning sources sentence: " + lsText);
+assert(C.leaningSourcesSentence({assessed: 0}) === "", "no sentence without assessed outlets");
+assert(C.leaningWeakCaveat(3, 10) === "3 of 10 from a US rater alone; treat with caution" &&
+       C.leaningWeakCaveat(1, 1) === "Leaning from a US rater alone; treat with caution" && C.leaningWeakCaveat(0, 4) === "", "weak caveat text");
+/* Labels set mid-sentence lose only an ordinary first capital: China, Chinese, places, country names and
+   acronyms keep theirs, in the legend unit, the tooltip, the ranked list title and the theme captions. */
+assert(C.lowerFirst("China articles per active monitored outlet") === "China articles per active monitored outlet", "legend unit keeps China");
+assert(C.lowerFirst("Number of China articles in the window") === "number of China articles in the window", "ordinary first word goes lower case");
+assert(C.lowerFirst("State origin articles per active monitored outlet") === "state origin articles per active monitored outlet", "state origin unit");
+assert(C.lowerFirst("Chinese domestic politics") === "Chinese domestic politics" && C.lowerFirst("Taiwan and Hong Kong") === "Taiwan and Hong Kong" &&
+       C.lowerFirst("Belt and Road, investment and infrastructure") === "Belt and Road, investment and infrastructure", "theme labels keep proper nouns");
+assert(C.lowerFirst("Signed by a Chinese diplomat") === "signed by a Chinese diplomat", "route label keeps Chinese mid-sentence");
+assert(C.lowerFirst("Italy outlets", ["Italy"]) === "Italy outlets" && C.lowerFirst("United States outlets", ["United States"]) === "United States outlets" &&
+       C.lowerFirst("Unitedness", ["United States"]) === "unitedness" && C.lowerFirst("Chinatown") === "chinatown", "country names by whole word");
+assert(C.lowerFirst("EU members") === "EU members" && C.lowerFirst("") === "" && C.lowerFirst(null) === "", "acronyms and empty");
+["a", "b", "china"].forEach(function (m) {
+  C.BASES.forEach(function (b) {
+    var unit = C.lowerFirst(C.MEASURE_NAMES[m] + ", " + C.BASIS_NAMES[b]), basis = C.lowerFirst(C.BASIS_NAMES[b]);
+    assert(!/\bchina\b|\bchinese\b/.test(unit + " " + basis), "no lower case China in " + m + " " + b + ": " + unit + " / " + basis);
+    var noun = {a: "state origin articles", b: "unchecked state sourcing articles", china: "China articles"}[m];
+    var Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+    [Noun + " per active monitored outlet", Noun + " as a percent of the country\u2019s China coverage", "Number of " + noun + " in the window"].forEach(function (u) {
+      assert(!/\bchina\b/.test(C.lowerFirst(u)), "legend unit keeps China for " + m + " " + b + ": " + C.lowerFirst(u));
+    });
+  });
+});
+var wwNull = C.worldwideLegendLine({a: 3, chinaTotal: 9, value: null}, "share_a");
+assert(wwNull && wwNull.indexOf("China coverage") > 0 && !/\bchina\b/.test(wwNull), "worldwide line keeps China: " + wwNull);
+/* Underlying items count each item once per window and scope: story 7 placed in Italy on two days, in
+   Germany and on a wire is one item in each figure, never one per day or one per country. */
+var uc = function (a, ab, extra) { return Object.assign(C.emptyCounts(), {A: a, uniqA: a, uniqAB: ab}, extra || {}); };
+var um = {"2026-09": {days: {
+  "2026-09-01": {countries: {ITA: uc(2, 3, {B: 1}), DEU: uc(1, 1)}, reviewed: {}, underlying_items: {ITA: {A: [7, 8], B: [7]}, DEU: {A: [7]}}},
+  "2026-09-02": {countries: {ITA: uc(1, 2, {B: 1}), WLD: uc(1, 1)}, reviewed: {}, underlying_items: {ITA: {A: [7], B: [9]}, WLD: {A: [7]}}}}}};
+var u2 = C.aggregateWindow(um, "2026-09-02", 30);
+assert(u2.countries.ITA.A === 3 && u2.countries.ITA.uniqA === 2 && u2.countries.ITA.uniqAB === 4 && !u2.underlyingSummed, "a story on two days is one item in the window");
+assert(u2.countries.DEU.uniqA === 1 && u2.countries.WLD.uniqA === 1, "each country counts its own placements");
+assert(u2.world.uniqA === 2 && u2.world.uniqAB === 4, "the world counts a story carried in several countries once");
+var uMv = C.metricValue(u2.countries.ITA, "count_a", 5, "all");
+assert(uMv.underlying === 2 && uMv.underlyingB === 2, "the metric reads the distinct counts");
+assert(C.aggregateWindow(um, "2026-09-02", 1).countries.ITA.uniqA === 1, "a single day keeps its own figure");
+assert(C.aggregateWindow(um, "2026-09-02", 30, "country").world.uniqA === 2 && C.aggregateWindow(um, "2026-09-02", 30, "wires").world.uniqA === 1, "the world figure follows the Distribution toggle");
+/* An export before schema 12 carries no ids: the per day figures are summed and the view says so. */
+var uOld = {"2026-09": {days: {"2026-09-01": {countries: {ITA: uc(2, 2)}, reviewed: {}}, "2026-09-02": {countries: {ITA: uc(1, 1)}, reviewed: {}}}}};
+var uo = C.aggregateWindow(uOld, "2026-09-02", 30);
+assert(uo.countries.ITA.uniqA === 3 && uo.underlyingSummed && uo.world.uniqA === 3, "older data falls back to the per day sum, flagged");
+var uoRows = C.rankCountries(uo, {countries: {ITA: {coverage: "monitored", outlets_active: 5}}}, "count_a", "all", {});
+assert(uoRows[0].note.indexOf(C.UNDERLYING_SUMMED) >= 0, "the csv row says its underlying items are summed by day");
+assert(C.rankCountries(u2, {countries: {ITA: {coverage: "monitored", outlets_active: 5}}}, "count_a", "all", {})[0].note.indexOf(C.UNDERLYING_SUMMED) < 0, "and only then");
+/* Outlets the owner's machine collects alone and outlets it polls beside the hosted runner are badged
+   and counted apart, and a silent relay calls only the first kind incomplete. */
+assert(C.collectorBadge("self_hosted").label === "relayed" && C.collectorBadge("both").label === "also relayed" && C.collectorBadge("hosted") === null, "collector badges");
+assert(C.collectorBadge("both").title.indexOf("Also polled from the owner's machine") === 0, "the shared badge says the owner's machine also polls it");
+var rcStale = {outlets: 2, countries: ["AUS", "ITA"], shared_outlets: 3, shared_countries: ["DEU"], last_run: "2026-10-12T00:00:00+00:00", hours_since_last_run: 9.4, stale: true, incomplete_days: ["2026-10-10"]};
+var rn = C.relayCollectorNotes(rcStale);
+assert(rn.short.length === 1 && rn.short[0] === "the owner's collector has been silent 9 hours", "stale short clause");
+assert(rn.parts[0].indexOf("recent counts for the 2 outlets only it collects, in 2 countries, are incomplete.") >= 0, "stale names the relay only outlets as incomplete");
+assert(rn.parts[0].indexOf("The 3 outlets it also polls, in 1 country, fall back to the hosted runner's hourly polls alone") >= 0 && rn.parts[0].indexOf("not marked incomplete") >= 0, "shared outlets fall back to the runner");
+assert(rn.parts[1].indexOf("1 day") >= 0 && rn.parts[1].indexOf("outlets only it collects are incomplete on those days, while the hosted runner still polled") >= 0, "incomplete days apply to relay only outlets");
+var rnShared = C.relayCollectorNotes({outlets: 0, shared_outlets: 3, shared_countries: ["DEU", "ITA"], last_run: "x", hours_since_last_run: 7, stale: true, incomplete_days: []});
+assert(rnShared.parts.length === 1 && rnShared.parts[0].indexOf("are incomplete") < 0 && rnShared.parts[0].indexOf("not collected for 7 hours. The 3 outlets it also polls, in 2 countries") >= 0, "a relay with only shared outlets calls nothing incomplete");
+assert(C.relayCollectorNotes({outlets: 2, last_run: "x", stale: false, incomplete_days: []}).parts.length === 0 && C.relayCollectorNotes({outlets: 0, shared_outlets: 0, stale: true}).parts.length === 0, "nothing to say when fresh or empty");
+assert(C.relayCollectorNotes({outlets: 4, stale: null}).parts[0].indexOf("gaps in the 4 outlets only it collects") >= 0, "no heartbeat yet");
+assert(C.relayOutletsSummary(rcStale) === "2 outlets collected only there, 3 also polled by the hosted runner" && C.relayOutletsSummary({outlets: 1}) === "1 outlet collected only there, 0 also polled by the hosted runner", "technical notes summary, older data without shared counts");
+/* The stability check state, matching pipeline/methodology.py: a current check is described on its own,
+   an older-prompt check is named as history, and no check says when one runs. */
+var stHist = {method: "same_model_rerun", n: 225, kappa_bc: 0.6229, computed_at: "2026-10-09T02:29:14+00:00", prompt_version: null, stale: true};
+var stWait = {auto: true, state: "waiting_for_labels", pool: 37, min_pool: 200};
+assert(C.stabilityStatusText({relay_reliability: {n: 250, kappa_bc: 0.7}, relay_reliability_history: stHist, relay_study: stWait}) === "", "a current check is described elsewhere");
+assert(C.stabilityStatusText(null) === "" && C.stabilityStatusText(undefined) === "", "no meta, nothing to say");
+var sNone = C.stabilityStatusText({relay_reliability: null, relay_reliability_history: null, relay_study: stWait});
+assert(sNone === "No stability check has been run under the current instructions yet; one runs once 200 articles are labelled under the current instructions (37 so far).", "no check yet: " + sNone);
+var sOld = C.stabilityStatusText({relay_reliability: null, relay_reliability_history: stHist, relay_study: stWait});
+assert(sOld === "The last stability check (2026-10-09, 225 articles, kappa 0.62 on unchecked sourcing versus independent) was run under earlier instructions and is kept as history: it neither supports nor withholds any count, and a new one runs once 200 articles are labelled under the current instructions (37 so far).", "older-prompt check: " + sOld);
+assert(C.stabilityStatusText({relay_reliability_history: {n: 225, kappa_bc: 0.62, computed_at: "2026-10-09", prompt_version: "2026-10-11", stale: true}, relay_study: {state: "submitted"}}).indexOf("under earlier instructions, dated 2026-10-11 and is kept as history: it neither supports nor withholds any count, and a new one has been submitted and is reported when it returns.") >= 0, "prompt version and a submitted check");
+assert(C.stabilityStatusText({relay_study: {state: "waiting_for_budget", earliest: "2026-10-20", auto: false}}) === "No stability check has been run under the current instructions yet; enough articles are now labelled and one can be run by hand when the daily model allowance permits, on 2026-10-20 at the earliest.", "waiting for the allowance, run by hand");
+/* Older data: no history, no study, a history without kappa, date or stale flag. */
+assert(C.stabilityStatusText({}) === "No stability check has been run under the current instructions yet.", "older data with neither field");
+assert(C.stabilityStatusText({relay_reliability_history: {}, relay_study: {state: "waiting_for_labels"}}) === "The last stability check (date unknown, 0 articles, kappa n/a on unchecked sourcing versus independent) was run under earlier instructions and is kept as history: it neither supports nor withholds any count.", "history without fields, study without a pool size");
+assert(C.stabilityStatusText({relay_reliability_history: stHist, relay_study: {state: "done"}}).indexOf(", and none is needed, because the hand coding study decides publication.") >= 0, "no new check needed");
+assert(C.stabilityStatusText({relay_reliability_history: stHist, relay_study: {state: "waiting_for_labels", min_pool: 200}}).slice(-62) === "once 200 articles are labelled under the current instructions.", "no pool count, no so far");
+/* Items counted again after a prune before the fix: a note under the running total and in the % of all
+   its news key when the export carries meta.rediscovery, nothing for older data without it. */
+var rdMeta = {rediscovery: {fixed_from: "2026-10-13", estimated_share: 0.08, measured_floor: 123682, measured_of: 3008671, window_share: 0.082}};
+assert(C.rediscoveryNote(rdMeta) === "Before 2026-10-13, items a feed kept listing were counted again after a prune, an estimated 8 percent of this total; see the methodology.", "rediscovery note with the field");
+assert(C.rediscoveryNote({}) === "" && C.rediscoveryNote(null) === "" && C.rediscoveryNote({rediscovery: null}) === "" && C.rediscoveryOf({}) === null, "no rediscovery note without the field");
+assert(/^Before 2026-10-13, .*estimated 8 percent overall and unevenly by country/.test(C.rediscoveryShareNote(rdMeta, "2026-09-14")) && C.rediscoveryShareNote(rdMeta, "") !== "", "share note for a window reaching back before the fix");
+assert(C.rediscoveryShareNote(rdMeta, "2026-10-13") === "" && C.rediscoveryShareNote({}, "2026-09-14") === "", "no share note after the fix or without the field");
 console.log("frontend smoke ok");

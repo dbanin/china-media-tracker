@@ -312,6 +312,63 @@ sr:
   - Кина
   - кинески
   - Пекинг
+  # The other cases of the words above, Serbian, Croatian and Bosnian alike, and Xi Jinping and Mao
+  # as Serbian writes them (gate 2026.10.1). Before this "ZA KINU", "kineske trgovinske politike"
+  # and "Од Кине до Европе" named no term. Kinu, Kinom, Кине, Кини, Кину and Кином are also cases
+  # of kino, a cinema ("u kinu"), and are listed under capitalised. Pekinga is left out: on stored
+  # sr, hr and bs items it would have admitted 3 China related and 11 not relevant, nearly all the
+  # Beijing tennis tournament, and so are Šangaju and Šangaja (the Shanghai Masters) and Kinez,
+  # Kinezi and Kineskinja (athletes).
+  - Kinu
+  - Kinom
+  - kineske
+  - kineskog
+  - kineskoga
+  - kineskom
+  - kineskome
+  - kineskoj
+  - kinesku
+  - kineskim
+  - kineskima
+  - kineskih
+  - Pekingom
+  - Tajvana
+  - Tajvanu
+  - Tajvanom
+  - Si Đinping
+  - Si Đinpinga
+  - Si Đinpingu
+  - Si Đinpingom
+  - Mao Cedung
+  - Mao Cedunga
+  - Кине
+  - Кини
+  - Кину
+  - Кином
+  - кинеска
+  - кинеско
+  - кинеске
+  - кинеског
+  - кинескога
+  - кинеском
+  - кинескоме
+  - кинеској
+  - кинеску
+  - кинеским
+  - кинескима
+  - кинеских
+  - Пекингу
+  - Пекингом
+  - Тајван
+  - Тајвана
+  - Тајвану
+  - Тајваном
+  - Си Ђинпинг
+  - Си Ђинпинга
+  - Си Ђинпингу
+  - Си Ђинпингом
+  - Мао Цедунг
+  - Мао Цедунга
 hr:
   - Kina
   - Kine
@@ -323,6 +380,37 @@ hr:
   - Pekingu
   - Tajvan
   - Ujgur
+  # The other cases of the words above, and Xi Jinping and Mao as Croatian writes them, as in the
+  # sr list (gate 2026.10.1). Xi Jinpinga and the other cases of Xi Jinping need no entry, because
+  # "Xi" already matches them. Kinu and Kinom are also cases of kino, a cinema ("u kinu"), and are
+  # listed under capitalised, which applies in every language. Pekinga, Šangaja and Šangaju (the
+  # Beijing and Shanghai tennis tournaments) and Kinez, Kinezi, Kineze and Kineskinja (athletes) are
+  # left out, as in the sr list: on stored hr items the ones they alone would have admitted were
+  # mostly tennis and Asian Games reports.
+  - Kinu
+  - Kinom
+  - kineske
+  - kineskog
+  - kineskoga
+  - kineskom
+  - kineskome
+  - kineskoj
+  - kinesku
+  - kineskim
+  - kineskima
+  - kineskih
+  - Pekingom
+  - Tajvana
+  - Tajvanu
+  - Tajvanom
+  - Si Đinping
+  - Si Đinpinga
+  - Si Đinpingu
+  - Si Đinpingom
+  - Mao Zedong
+  - Mao Zedonga
+  - Mao Ce-tung
+  - Mao Ce-tunga
 bs:
   - Kina
   - Kine
@@ -334,6 +422,65 @@ bs:
   - Pekingu
   - Tajvan
   - Ujgur
+  # The other cases of the words above, Xi Jinping and Mao as Bosnian writes them, and the same in
+  # Cyrillic, as in the sr list (gate 2026.10.1). Kinu, Kinom, Кине, Кини, Кину and Кином are also
+  # cases of kino, a cinema, and are listed under capitalised, which applies in every language.
+  # Pekinga, Šangaja, Šangaju, Kinez, Kinezi, Kineze and Kineskinja are left out as in the hr list.
+  - Kinu
+  - Kinom
+  - kineske
+  - kineskog
+  - kineskoga
+  - kineskom
+  - kineskome
+  - kineskoj
+  - kinesku
+  - kineskim
+  - kineskima
+  - kineskih
+  - Pekingom
+  - Tajvana
+  - Tajvanu
+  - Tajvanom
+  - Si Đinping
+  - Si Đinpinga
+  - Si Đinpingu
+  - Si Đinpingom
+  - Mao Zedong
+  - Mao Zedonga
+  - Mao Cedung
+  - Mao Cedunga
+  - Кина
+  - Кине
+  - Кини
+  - Кину
+  - Кином
+  - кинески
+  - кинеска
+  - кинеско
+  - кинеске
+  - кинеског
+  - кинескога
+  - кинеском
+  - кинескоме
+  - кинеској
+  - кинеску
+  - кинеским
+  - кинескима
+  - кинеских
+  - Пекинг
+  - Пекингу
+  - Пекингом
+  - Тајван
+  - Тајвана
+  - Тајвану
+  - Тајваном
+  - Си Ђинпинг
+  - Си Ђинпинга
+  - Си Ђинпингу
+  - Си Ђинпингом
+  - Мао Цедунг
+  - Мао Цедунга
 sl:
   - Kitajska
   - Kitajske
@@ -764,6 +911,30 @@ capitalised:
   - Kine
   - Kini
   - Кина
+  # Accusative and instrumental of Kina, in the sr, hr and bs lists and under title_only (below); also cases of kino.
+  - Kinu
+  - Kinom
+  - Кину
+  - Кином
+  # Genitive and dative of Кина in the sr and bs lists, and of кино as well.
+  - Кине
+  - Кини
+
+# Sports sections, from gate 2026.10.1. An item whose URL path has one of these segments (the
+# final segment, the article's own slug, is not read) needs more than one China term found only
+# in its feed summary: a term in the headline, or two distinct terms, or one of the state media
+# names under admit_alone. Sports summaries name China in passing (a draw, a venue, an opponent,
+# "Djokovic in Beijing"), and over 2026-09-03 to 2026-10-12 the keyword gate admitted 1,125 such
+# items that were then fetched and found not relevant, against 219 independent journalism labels
+# and no state origin or unchecked state sourcing label. Lifestyle, travel and
+# entertainment paths are deliberately not listed: state promotional features run there (a
+# Xinhua-sourced bridge feature in a lifestyle magazine is unchecked state sourcing), and a single
+# term in their summaries still admits.
+sports_sections:
+  segments: [sport, sports, deportes, deporte, esportes, esporte, polideportivo, tenis, tennis, futbol, futebol,
+             football, soccer, fussball, calcio, cricket, rugby, basketball, baloncesto, motorsport, sukan, olahraga,
+             spor, the-thao]
+  admit_alone: [Xinhua, CGTN, Global Times, China Daily, Синьхуа, شينخوا, Tân Hoa Xã, ซินหัว, 新華社, 신화통신]
 
 # Regular expressions applied verbatim, case sensitive, to every language.
 # Plain "Sino" is the Spanish and Italian conjunction, so it must be the
@@ -775,7 +946,7 @@ regex:
 # newspaper's local news is not coverage of China for this study; without this
 # almost every item from those outlets passed the gate.
 home_terms:
-  HKG: [Hong Kong, Hongkong, 香港, 홍콩, Hồng Kông]
+  HKG: [Hong Kong, Hongkong, 香港, 홍콩, Hồng Kông, HKSAR, HKTDC, HKTB, HKUST, CUHK]
   MAC: [Macau, Macao, 澳門, 澳门, 마카오]
   TWN: [Taiwan, Taïwan, 台灣, 台湾, 대만, Đài Loan]
 
@@ -795,3 +966,234 @@ home_phrases:
         Chinese vernacular schools, Chinese-medium, Chinese independent schools, Chinese education, Chinese clan, Chinese clans,
         Chinese clan associations, Chinese temple, Chinese temples, Chinese Assembly Hall, Chinese Chamber of Commerce, Chinese cuisine,
         Tahun Baru Cina, masyarakat Cina, kaum Cina, etnik Cina, sekolah Cina, sekolah jenis kebangsaan Cina, pengundi Cina, persatuan Cina]
+
+# Terms read only when the gate has nothing but a title: gate.check with title_only, used for the
+# entries of a Google News sitemap (pipeline/news_sitemap.py), which carry no summary. Where a
+# summary says "China", a headline names the city, the company, the fair or the state media brand
+# that issued the item, and on its title alone the keyword gate passed 103 of PR Newswire's 210 past
+# state origin releases. These names are too narrow for the main lists, which also read every
+# summary. Matched like the main lists (word boundaries; terms of three characters or fewer, and
+# those under capitalised, keep their case); "all" applies to every language, and a language's own
+# list and the English one as for the main lists. Each hit is recorded as "title_only:<term>" among
+# the gate terms. On stored titles (2026-10-12 snapshot) the block raised title-only recall of PR
+# Newswire's state origin releases from 103 to 145 of 210 and admitted 3 more of its 229 items that
+# were labelled not relevant. Company names were kept only where, over every stored title, the
+# items they alone would admit were at least as often about China as not: car, phone, appliance,
+# solar and drug makers (Geely, Chery, Xiaomi, Hisense, Sungrow, Innovent and the like) were mostly
+# product news labelled not relevant and are left out, as are Serbian forms used mostly for the
+# Beijing tennis tournament (Pekinga) and for athletes (Kinez, Kinezi).
+title_only:
+  all:
+    # State media and state issuer brands that the main lists do not name
+    - CCTV+
+    - People's Daily
+    - People’s Daily
+    - Guangming Daily
+    - Qiushi
+    - ECNS
+    - Sixth Tone
+    - SZMG
+    - iChongqing
+    - InJiangsu
+    - iQingdao
+    - iHubei
+    - iShanghai
+    - iZhejiang
+    - GT Voice
+    - GT investigates
+    # Cities, districts and places, beyond the provinces and largest cities of the main list
+    - Kunshan
+    - Hefei
+    - Quzhou
+    - Luoyang
+    - Zhengzhou
+    - Jinan
+    - Changsha
+    - Nanchang
+    - Fuzhou
+    - Nanning
+    - Hohhot
+    - Urumqi
+    - Lhasa
+    - Xizang
+    - Shenyang
+    - Changchun
+    - Taiyuan
+    - Shijiazhuang
+    - Lanzhou
+    - Xining
+    - Yinchuan
+    - Guiyang
+    - Haikou
+    - Sanya
+    - Boao
+    - Ningbo
+    - Wenzhou
+    - Wuxi
+    - Changzhou
+    - Nantong
+    - Dongguan
+    - Foshan
+    - Zhuhai
+    - Shantou
+    - Jiaxing
+    - Shaoxing
+    - Huzhou
+    - Jinhua
+    - Yiwu
+    - Zhoushan
+    - Wuzhen
+    - Yantai
+    - Weifang
+    - Zibo
+    - Linyi
+    - Weihai
+    - Rizhao
+    - Binzhou
+    - Qufu
+    - Tangshan
+    - Xiong'an
+    - Xiong’an
+    - Xiongan
+    - Datong
+    - Ordos
+    - Baotou
+    - Xuzhou
+    - Yangzhou
+    - Lianyungang
+    - Yancheng
+    - Wuhu
+    - Ganzhou
+    - Jingdezhen
+    - Quanzhou
+    - Zhangzhou
+    - Yichang
+    - Xiangyang
+    - Zhuzhou
+    - Xiangtan
+    - Yueyang
+    - Liuzhou
+    - Guilin
+    - Zunyi
+    - Mianyang
+    - Yibin
+    - Luzhou
+    - Dunhuang
+    - Kashgar
+    - Turpan
+    - Lijiang
+    - Xishuangbanna
+    - Dandong
+    - Daqing
+    - Zhangjiajie
+    - Huangshan
+    - Zhouzhuang
+    - Yulin
+    - Pudong
+    - Lingang
+    - Nansha
+    - Qianhai
+    - Zhongguancun
+    - Optics Valley
+    - Kerung
+    - Gyirong
+    # Fairs, forums and state initiatives
+    - Canton Fair
+    - CIIE
+    - CIFTIS
+    - CIFIT
+    - CAEXPO
+    - CIExpo
+    - Boao Forum
+    - Pujiang Innovation Forum
+    - Lujiazui Forum
+    - World Internet Conference
+    - World Manufacturing Convention
+    - Global Civilization Initiative
+    - Global Development Initiative
+    - Global Security Initiative
+    - Global Governance Initiative
+    - Cross-Strait
+    - CPEC
+    - Pinglu Canal
+    - Liangzhu
+    # People
+    - He Lifeng
+    - Ding Xuexiang
+    - Zhao Leji
+    - Cai Qi
+    - Dong Jun
+    - Wang Wentao
+    - Lai Ching-te
+    - Kuomintang
+    - Mao Zedong
+    - Deng Xiaoping
+    # Hong Kong bodies (Hong Kong is in the main list; these are ignored for Hong Kong outlets
+    # through home_terms)
+    - HKSAR
+    - HKTDC
+    - HKTB
+    - HKUST
+    - CUHK
+    # Companies, state owned and private. A release by one of them names the company, not China.
+    - GAC
+    - XPENG
+    - SANY
+    - FOTON
+    - ZTE
+    - CRRC
+    - JINGDONG
+    - Ant Group
+    - Ping An
+    - PetroChina
+    - CNPC
+    - CSCEC
+    - Huaneng
+    - Proya
+    - Laopu Gold
+    - Evergrande
+    - Vanke
+    - King Long
+    - CFMOTO
+    - ECARX
+    - Lufax
+  es:
+    - antichina
+    - antichino
+    - gigante asiático
+    - sinoargentino
+    - sinoargentina
+    - Mao Tse-Tung
+  pt:
+    - antichinês
+    - gigante asiático
+    - sino-brasileiro
+    - sino-brasileira
+    - Mao Tsé-Tung
+  sr:
+    # Case forms of China, Chinese and Taiwan, and Xi Jinping and Mao as Serbian writes them, that
+    # the main sr list leaves out. Kinu and Kinom are also cases of kino, a cinema, and are listed
+    # under capitalised.
+    - Kinu
+    - Kinom
+    - kineske
+    - kineskog
+    - kineskom
+    - kineskoj
+    - kineskim
+    - kineskih
+    - Tajvana
+    - Tajvanu
+    - Si Đinping
+    - Si Đinpinga
+    - Si Đinpingom
+    - Si Đinpingu
+    - Si Djinping
+    - Mao Cedung
+    - Mao Cedunga
+    - Кину
+    - Кином
+    - кинеске
+    - кинеског
+    - кинеском
+    - Си Ђинпинг

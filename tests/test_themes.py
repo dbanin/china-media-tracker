@@ -74,3 +74,20 @@ def test_ensure_tags_and_retags_on_version_change(tmp_path, monkeypatch):
     assert themes.ensure(conn) == 0
     monkeypatch.setattr(themes, "version", lambda: "next")
     assert themes.ensure(conn) == 1
+
+
+def test_every_themes_version_has_a_dated_history_entry(tmp_path):
+    """The theme timeline marks each themes version the way ruleset and gate changes are marked on the
+    map timeline, so a version bump in themes.yaml without a HISTORY entry fails here."""
+    from pipeline import export
+    hist = themes.changes()
+    versions = [h["version"] for h in hist]
+    assert themes.version() == versions[-1]
+    assert len(set(versions)) == len(versions)
+    assert [h["date"] for h in hist] == sorted(h["date"] for h in hist)
+    assert all(h["change"] and "\u2014" not in h["change"] and "\u2013" not in h["change"] for h in hist)
+    switch = next(h for h in hist if h["version"] == "2026.09.4")
+    assert switch["date"] == "2026-09-15" and "800" in switch["change"]
+    conn = store.connect(tmp_path / "m.db")
+    meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
+    assert meta["themes_changes"] == hist and meta["themes_version"] == themes.version()

@@ -20,21 +20,59 @@ The API budget is kept for what the interactive session route (pipeline.labels) 
 articles listed in data/labels/api_first.jsonl, whose text the session could not fetch, are drawn
 first; other waiting articles are offered only once older than config.LLM_SESSION_GRACE_DAYS, and
 younger ones are held for the session (split_pools).
+
+Every label records the prompt it was made under (PROMPT_VERSION, in model_version). When the prompt
+changes, current model labels made under an older one are judged again, unchecked state sourcing
+labels first and oldest first within each tier (RELABEL_PRIORITY), with what the
+new articles leave of each run's calls and at most config.LLM_RELABEL_DAY_SHARE of the day's cap
+(relabel_candidates, relabel_allowance). The old label stays current until the new one is stored.
+A model label made on a stub whose body was since replaced by the article (classify_rules.note_body_refresh
+marks it body_refreshed) goes through the same queue, right after the unchecked state sourcing labels.
 """
 import datetime as dt
 import json
 import random
+import re
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 from pipeline import config, llm_cost, store
 
-CATEGORY_DEFINITIONS = """Category A, state origin. The text was written by an entity of the Chinese state and published essentially unaltered. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements paid for by Chinese state entities, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that nobody at the receiving publication formed an editorial view about the content.
+# The date of the system prompt below. Bump it whenever the prompt changes what a label means. Every
+# model label records it in its model_version text, "claude-sonnet-5 (prompt 2026-10-12)" (a session
+# label: "claude-sonnet-5 (session, prompt 2026-10-12)"), and a current model label made under an
+# older prompt, or carrying no prompt tag at all (every label before 2026-10-12), is queued for the
+# model again (relabel_candidates) while its old label stays current until the new one arrives.
+# 2026-10-12: the factual-claim rule for unverified relay, and the reworded state origin definition.
+PROMPT_VERSION = "2026-10-12"
+_PROMPT_TAG = re.compile(r"\bprompt (\d{4}-\d{2}-\d{2})\b")
 
-Category B, unverified relay. The article was written by the local outlet, but it passes on official Chinese sourcing without independent confirmation. A ministry spokesperson is quoted and nothing checks the claim. Xinhua is cited as the authority for a factual assertion with no second source. State media is described as reporting something, and the report is treated as the fact.
 
-Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say.
+def prompt_version_of(model_version: Optional[str]) -> Optional[str]:
+    """The prompt date a label's model_version records, or None when it records none."""
+    m = _PROMPT_TAG.search(model_version or "")
+    return m.group(1) if m else None
+
+
+def with_prompt_version(model_version: Optional[str], prompt_version: Optional[str] = PROMPT_VERSION) -> Optional[str]:
+    """model_version with the prompt date appended, "claude-sonnet-5 (prompt 2026-10-12)". Left as it
+    is when it already records a prompt, or when prompt_version is None."""
+    if not prompt_version or prompt_version_of(model_version):
+        return model_version
+    return "%s (prompt %s)" % ((model_version or "unrecorded").strip(), prompt_version)
+
+
+def on_current_prompt(model_version: Optional[str]) -> bool:
+    """True when a model label was made under the current PROMPT_VERSION (or a later one)."""
+    v = prompt_version_of(model_version)
+    return v is not None and v >= PROMPT_VERSION
+
+CATEGORY_DEFINITIONS = """Category A, state origin. The text was authored or commissioned by a Chinese state entity and published without substantive editorial alteration. Xinhua wire copy, CGTN promotional releases, China Daily and Global Times syndication, sponsored or branded placements commissioned by Chinese state entities, including those written to order by the publisher's own branded content studio, and signed opinion pieces by Chinese ambassadors and embassy officials. The defining property is that the words are the state's, written by it or to its order, and the receiving publication did not substantively alter them. Deciding to run a piece, or placing it on an opinion page, is not an alteration. State text republished without its credit line is still state origin when the article is that text with no substantive alteration.
+
+Category B, unverified relay. The article was written by the local outlet, and its central content is a factual claim attributed to a Chinese official or state source, passed on without independent confirmation. A factual claim is an assertion of fact about events, numbers or actions: what happened, how many, who did what. A ministry spokesperson or Xinhua is the only authority for such a fact and the article treats it as established, with no second source. A stated position, policy, warning, threat, opinion or denial is not a factual claim: an article that reports what Beijing said it wants, intends, condemns or rejects is reporting the statement itself, and that is independent journalism even when no outside voice comments on it. For example, "Exports rose 8.7 percent in September, China's commerce ministry said", reported as the figure with no other source, is B. "China's foreign ministry warned Manila it would take resolute measures to defend its sovereignty", reported without outside comment, is C, because the article passes on a position, not a fact it failed to check.
+
+Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say, and reporting of a position, policy, warning, threat, opinion or denial attributed to a Chinese official or state source, with or without outside comment.
 
 Not relevant. Does not concern China."""
 
@@ -42,11 +80,11 @@ SYSTEM_PROMPT = """You are a coder on an academic media study. You place one new
 
 """ + CATEGORY_DEFINITIONS + """
 
-The critical distinction is between B and C, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still B. An article sympathetic to China that independently confirms every claim is C. Do not let the tone of the article, its political stance, or the topic move your judgement. Ask only: does official Chinese sourcing carry a factual claim in this article, and does the article independently confirm, contextualize or contest that claim?
+The critical distinction is between B and C, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still B. An article sympathetic to China that independently confirms every claim is C. Do not let the tone of the article, its political stance, or the topic move your judgement. Ask only: does official Chinese sourcing carry a factual claim that is central to this article, and does the article independently confirm, contextualize or contest that claim? A position, policy, warning, threat, opinion or denial attributed to Beijing is not a factual claim, so an article that reports one is C whether or not anyone else comments.
 
-When you are genuinely uncertain between B and C, answer C. Under-counting B is the safer error for this study. Answer B only when you can quote a sentence in which an official Chinese source carries a factual assertion that the article treats as fact without any independent confirmation, contextualization or contest.
+When you are genuinely uncertain between B and C, answer C. Under-counting B is the safer error for this study. Answer B only when you can quote a sentence in which an official Chinese source carries a factual assertion, central to the article, that the article treats as fact without any independent confirmation, contextualization or contest. That confirmation, contextualization or contest must concern the claim itself: when a central claim such as a death toll, a figure or the account of an event rests only on a Chinese official or state source, other context or background in the article (details of a vessel or a company, analysts discussing what the figure means) does not make it C, because it takes the claim as given instead of checking it.
 
-Answer A only when the text itself is state-authored and unaltered, for example a wire item carrying a Xinhua credit, a sponsored placement by a Chinese state entity, or a signed piece by a Chinese diplomat. An article about state media, or one that quotes state media, is not A.
+Answer A only when the text itself was authored or commissioned by a Chinese state entity and published without substantive editorial alteration, for example a wire item carrying a Xinhua credit, a sponsored placement commissioned by a Chinese state entity, or a signed piece by a Chinese diplomat. An article about state media, or one that quotes state media, is not A.
 
 Answer not_relevant when the article does not concern China in any substantive way. A passing mention does not make an article relevant.
 
@@ -63,7 +101,7 @@ Worked examples.
 
 Example 1. Headline: "China's grain output hits record high". Text: "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday. The increase was attributed to expanded planting area and higher yields, the bureau said." Answer: {"category": "A", "confidence": 0.98, "evidence_quote": "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday.", "reasoning": "The text carries a Xinhua wire dateline and is wire copy published unaltered. No local editorial judgement is present.", "china_sources_cited": ["Xinhua", "National Bureau of Statistics"], "independent_confirmation_present": false, "confirmation_evidence": null}
 
-Example 2. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. She said the detentions violated the rights of Chinese citizens and demanded their immediate release. The two men were arrested in Manchester on Thursday." Answer: {"category": "B", "confidence": 0.86, "evidence_quote": "Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China.", "reasoning": "The outlet wrote the article but the only account of the men's status comes from the ministry spokesperson and nothing checks it. No second source, context or contest is offered.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": false, "confirmation_evidence": null}
+Example 2. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. She said the detentions violated the rights of Chinese citizens and demanded their immediate release. The two men were arrested in Manchester on Thursday." Answer: {"category": "C", "confidence": 0.8, "evidence_quote": "China has dismissed allegations that two nationals detained last week were working for its intelligence services.", "reasoning": "The article's central content is Beijing's denial and its demand for release, a stated position reported as a position, not an official factual claim treated as fact. Reporting a denial is independent journalism even though no outside source comments on it.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": false, "confirmation_evidence": null}
 
 Example 3. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison. Police declined to comment." Answer: {"category": "C", "confidence": 0.92, "evidence_quote": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison.", "reasoning": "The same spokesperson claim appears, but the outlet contests it with documents and an independent source. The official claim is not treated as fact.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": true, "confirmation_evidence": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison."}
 
@@ -91,20 +129,37 @@ OUTPUT_SCHEMA = {
 }
 
 
-def build_user_message(title: str, body: str) -> str:
-    """Headline and body only. No outlet, no country, no URL, no author."""
+def build_user_message(title: str, body: str, lookalike: Optional[Dict] = None) -> str:
+    """Headline and body only. No outlet, no country, no URL, no author of the article itself. An
+    article the rules sent because it nearly repeats a state origin item (pipeline/lookalike.py) also
+    carries that item's headline and outlet, the other outlet's and never its own, as context."""
     body = (body or "").strip()
     if len(body) > config.LLM_BODY_CHAR_LIMIT:
         body = body[:config.LLM_BODY_CHAR_LIMIT] + "\n[text truncated at %d characters]" % config.LLM_BODY_CHAR_LIMIT
-    return "Headline: %s\n\nArticle text:\n%s\n\nClassify this article. Return only the JSON object." % ((title or "").strip(), body)
+    context = ""
+    if lookalike and lookalike.get("title"):
+        context = ("Context, not part of the article: another outlet (%s) published a nearly identical item, headlined "
+                   "\"%s\", which this study coded as state origin. Decide whether this article is that state text with "
+                   "no substantive alteration.\n\n" % (lookalike.get("outlet") or "unnamed", lookalike["title"].strip()))
+    return "Headline: %s\n\nArticle text:\n%s\n\n%sClassify this article. Return only the JSON object." % (
+        (title or "").strip(), body, context)
 
 
-def request_params(title: str, body: str) -> Dict:
+def lookalike_context(row) -> Optional[Dict]:
+    """The lookalike match the rules recorded in an articles row's llm_trigger, or None."""
+    from pipeline import lookalike
+    try:
+        return lookalike.context_of(row["llm_trigger"])
+    except (IndexError, KeyError):
+        return None
+
+
+def request_params(title: str, body: str, lookalike: Optional[Dict] = None) -> Dict:
     return {
         "model": config.LLM_MODEL,
         "max_tokens": config.LLM_MAX_TOKENS,
         "system": [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-        "messages": [{"role": "user", "content": build_user_message(title, body)}],
+        "messages": [{"role": "user", "content": build_user_message(title, body, lookalike)}],
         "output_config": {"format": {"type": "json_schema", "schema": OUTPUT_SCHEMA}},
     }
 
@@ -256,15 +311,157 @@ def _settle_pending_dup_siblings(conn, article_id: int) -> int:
     return settled
 
 
-def _copy_from_dup_group(conn, row) -> bool:
-    """If another placement of the same underlying item already has an LLM label, copy it."""
+def _settle_stale_dup_siblings(conn, article_id: int) -> int:
+    """After article_id gets a label under the current prompt, copy it into every sibling of its
+    near-duplicate group whose current label is a model label made under an older prompt, or made on
+    a stub since replaced (body_refreshed) before this label, so one call relabels the whole group. A
+    no-op when article_id's own label is on an older prompt. Returns the number settled."""
+    row = conn.execute("SELECT dup_group_id FROM articles WHERE id=?", (article_id,)).fetchone()
+    gid = row["dup_group_id"] if row else None
+    if not gid:
+        return 0
+    siblings = conn.execute(
+        """SELECT a.*, c.model_version AS label_model, c.body_refreshed AS label_refreshed FROM articles a
+           JOIN classifications c ON c.article_id=a.id AND c.is_current=1 AND c.method='llm'
+           WHERE a.dup_group_id=? AND a.id<>? AND a.status='classified'""",
+        (gid, article_id),
+    ).fetchall()
+    settled = 0
+    for sib in siblings:
+        if on_current_prompt(sib["label_model"]) and not sib["label_refreshed"]:
+            continue
+        if _copy_from_dup_group(conn, sib, current_prompt_only=True, refreshed_after=_refreshed_at(sib)):
+            settled += 1
+            conn.commit()
+    return settled
+
+
+# A relabel that failed (a refusal, a reply cut off or malformed) is recorded in fail_reason with this
+# prefix and not offered again, so one article cannot take a call on every run. Its old label stays.
+RELABEL_FAILED = "relabel_failed:"
+
+
+def _live_batch_ids(conn) -> set:
+    """Article ids in classification batches still waiting to be collected."""
+    live = set()
+    for row in conn.execute("SELECT article_ids FROM llm_batches WHERE status='submitted' AND kind='classify'"):
+        try:
+            live.update(json.loads(row["article_ids"] or "[]"))
+        except ValueError:
+            pass
+    return live
+
+
+# The order the relabel queue works in: one tier after another, oldest label first within each tier.
+# The factual-claim rule of 2026-10-12 moves unchecked state sourcing (B) labels to independent
+# journalism more than anything else, so B goes first. Next come independent journalism (C) labels
+# the old rule may have under-called: the model recorded official Chinese sourcing (a sourcing
+# trigger in llm_trigger, or a name in china_sources_cited) and no independent confirmation. Then
+# state origin (A). Every other label (the remaining C labels, not about China) comes last.
+# A label of any other category made on a stub since replaced by the article (body_refreshed,
+# classify_rules.note_body_refresh) comes second, whatever its prompt: the model never read the text,
+# credit line included, so the label says little, and the Straits Times paid releases and Antara
+# English releases it covers are state origin candidates.
+RELABEL_PRIORITY = ("B", "body_refreshed", "C_official_unconfirmed", "A")
+
+
+def _refreshed_at(r) -> Optional[str]:
+    """When the body under a relabel candidate's label was replaced (the time in its body_refreshed
+    marker), or None when it was not."""
+    marker = r["label_refreshed"] if "label_refreshed" in r.keys() else None
+    return marker.split(" ", 1)[0] if marker else None
+
+
+def _relabel_tier(r) -> int:
+    """Position of a relabel candidate's current label in RELABEL_PRIORITY; len() for the rest."""
+    key = r["label_category"]
+    if key != "B" and _refreshed_at(r):
+        key = "body_refreshed"
+    if key == "C" and not r["label_confirmed"]:
+        try:
+            trig = json.loads(r["llm_trigger"] or "{}") or {}
+            cited = json.loads(r["label_sources"] or "[]") or []
+        except (ValueError, TypeError):
+            trig, cited = {}, []
+        if (isinstance(trig, dict) and trig.get("triggers")) or cited:
+            key = "C_official_unconfirmed"
+    return RELABEL_PRIORITY.index(key) if key in RELABEL_PRIORITY else len(RELABEL_PRIORITY)
+
+
+def relabel_candidates(conn) -> List:
+    """Articles whose current label is a model label made under an older prompt (PROMPT_VERSION), or
+    made on a stub since replaced by the article (body_refreshed, whatever its prompt),
+    in RELABEL_PRIORITY order, oldest label first within each tier. Their label stays current, and their status stays classified, until the new
+    label is stored; nothing here withdraws a label. Left out: an article already in a batch waiting
+    to be collected, one whose relabel failed before (RELABEL_FAILED), and one whose body is not on
+    disk and cannot be fetched again by this collector, which would otherwise sit at the head of the
+    queue on every run."""
+    from pipeline import registry
+    from pipeline.classify_rules import REFETCH_ATTEMPT_LIMIT
+    live = _live_batch_ids(conn)
+    owners = {o["id"]: registry.fetcher_of(o) for o in registry.load_outlets()}   # who can refetch the page
+    rows = conn.execute(
+        """SELECT a.*, c.model_version AS label_model, c.classified_at AS label_at,
+                  c.category AS label_category, c.china_sources_cited AS label_sources,
+                  c.independent_confirmation_present AS label_confirmed,
+                  c.body_refreshed AS label_refreshed FROM articles a
+           JOIN classifications c ON c.article_id=a.id AND c.is_current=1
+           WHERE c.method='llm' AND a.status='classified'
+             AND (a.fail_reason IS NULL OR substr(a.fail_reason, 1, ?)<>?)
+           ORDER BY c.classified_at ASC, a.id ASC""",
+        (len(RELABEL_FAILED), RELABEL_FAILED),
+    ).fetchall()
+    out = []
+    for r in rows:
+        if (on_current_prompt(r["label_model"]) and not r["label_refreshed"]) or r["id"] in live:
+            continue
+        if not store.body_path(r["url_hash"]).exists():
+            mine = owners.get(r["outlet_id"], config.COLLECTOR) == config.COLLECTOR
+            if (r["fetch_attempts"] or 0) >= REFETCH_ATTEMPT_LIMIT or not mine:
+                continue
+        out.append(r)
+    out.sort(key=_relabel_tier)  # stable: oldest label first within each tier
+    return out
+
+
+def relabel_calls_today(conn, today: str) -> int:
+    """Relabel calls the classify_llm runs of this UTC day have already made or submitted."""
+    row = conn.execute(
+        """SELECT COALESCE(SUM(json_extract(counts, '$.relabel_sent')), 0) FROM run_log
+           WHERE stage='classify_llm' AND substr(started_at, 1, 10)=? AND json_valid(counts)""",
+        (today,),
+    ).fetchone()
+    return int(row[0] or 0)
+
+
+def relabel_allowance(ceiling: int, used_today: int, now: dt.datetime, share: Optional[float] = None) -> int:
+    """Relabel calls this run may make: config.LLM_RELABEL_DAY_SHARE of the day's binding cap, paced
+    over the UTC day so the hourly runs late in the day keep room for the new articles that arrive
+    then, less what the day's earlier runs already sent. The hour in progress counts as elapsed, so
+    the first run after midnight is not shut out."""
+    share = config.LLM_RELABEL_DAY_SHARE if share is None else share
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elapsed = min(1.0, (now - midnight).total_seconds() / 86400.0 + 1.0 / 24)
+    return max(0, int(ceiling * share * elapsed) - used_today)
+
+
+def _copy_from_dup_group(conn, row, current_prompt_only: bool = False, refreshed_after: Optional[str] = None) -> bool:
+    """If another placement of the same underlying item already has an LLM label, copy it.
+    current_prompt_only copies only a label made under the current prompt: a relabel must not copy
+    a sibling's label that is as old as its own. refreshed_after (the time row's body was replaced,
+    _refreshed_at) copies only a label made since, which read a body as current as row's. A label
+    itself marked body_refreshed rests on a stub and is never copied."""
     if not row["dup_group_id"]:
         return False
-    other = conn.execute(
+    others = conn.execute(
         """SELECT c.* FROM classifications c JOIN articles a ON a.id=c.article_id
-           WHERE a.dup_group_id=? AND a.id<>? AND c.is_current=1 AND c.method='llm' ORDER BY c.id DESC LIMIT 1""",
+           WHERE a.dup_group_id=? AND a.id<>? AND c.is_current=1 AND c.method='llm' ORDER BY c.id DESC""",
         (row["dup_group_id"], row["id"]),
-    ).fetchone()
+    ).fetchall()
+    other = next((o for o in others
+                  if (not current_prompt_only or on_current_prompt(o["model_version"]))
+                  and not ("body_refreshed" in o.keys() and o["body_refreshed"])
+                  and (not refreshed_after or (o["classified_at"] or "") >= refreshed_after)), None)
     if not other:
         return False
     store.insert_classification(
@@ -280,24 +477,26 @@ def _copy_from_dup_group(conn, row) -> bool:
 
 
 def _model_route(conn, article_id: int) -> str:
-    """Route of a state origin label the model gave, from the candidate signatures that sent the
-    article to the model; unattributed when only an official sourcing trigger did."""
-    from pipeline.classify_rules import route_of_ids
+    """Route of a state origin label the model gave (classify_rules.model_route): uncredited_copy when
+    the lookalike check sent the article, else from the candidate signatures that sent it;
+    unattributed when only an official sourcing trigger did."""
+    from pipeline.classify_rules import model_route
     row = conn.execute("SELECT llm_trigger FROM articles WHERE id=?", (article_id,)).fetchone()
-    try:
-        ids = (json.loads((row and row["llm_trigger"]) or "{}") or {}).get("a_candidate", [])
-    except (ValueError, AttributeError):
-        ids = []
-    return route_of_ids(ids)
+    return model_route(row["llm_trigger"] if row else None)
 
 
-def store_result(conn, article_id: int, data: Dict, model_version: str) -> None:
+def store_result(conn, article_id: int, data: Dict, model_version: str,
+                 prompt_version: Optional[str] = PROMPT_VERSION) -> None:
+    """Store a model label. The prompt it was made under is recorded in model_version
+    (with_prompt_version); pipeline.labels passes prompt_version=None, because a session label names
+    its own prompt or, naming none, is taken to predate the current one."""
     store.insert_classification(
         conn, article_id, "llm", data["category"], data["confidence"],
         evidence_quote=data.get("evidence_quote"), reasoning=data.get("reasoning"),
         china_sources_cited=data.get("china_sources_cited") or [],
         independent_confirmation_present=data.get("independent_confirmation_present"),
-        confirmation_evidence=data.get("confirmation_evidence"), model_version=model_version,
+        confirmation_evidence=data.get("confirmation_evidence"),
+        model_version=with_prompt_version(model_version, prompt_version),
         raw_response=data.get("_raw"),
         route=_model_route(conn, article_id) if data["category"] == "A" else None,
     )
@@ -485,32 +684,52 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     if binding:
         counts["ceiling_hit"] = True
         counts["draw"] = {"eligible": eligible, "drawn": len(chosen), "countries": len(allocation)}
+    # Model labels made under an older prompt are judged again, in RELABEL_PRIORITY order, with what the new
+    # articles leave of this run's calls, and never more than config.LLM_RELABEL_DAY_SHARE of the
+    # day's cap, paced over the day (relabel_allowance). The old label stays current, and the
+    # article stays classified, until the new label is stored, so no article is ever left unlabelled.
+    # A failure here costs the relabels of this run, never the new articles.
+    try:
+        relabel_pool = _collapse_dup_groups(relabel_candidates(conn))
+    except Exception as exc:
+        relabel_pool = []
+        counts["relabel_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+    relabel_allow = relabel_allowance(ceiling, relabel_calls_today(conn, today), now)
+    chosen_relabel = relabel_pool[:max(0, min(relabel_allow, remaining - len(chosen)))]
+    relabel_ids = {r["id"] for r in chosen_relabel}
+    counts.update({"prompt_version": PROMPT_VERSION, "relabel_eligible": len(relabel_pool),
+                   "relabel_allowance": relabel_allow, "relabel_sent": 0, "relabelled": 0, "relabel_copied": 0,
+                   "relabel_body_refreshed": sum(1 for r in relabel_pool if _refreshed_at(r))})
 
     if batch and not dry_run:
         submitted = []
-        n = _submit_batch(conn, client, chosen, submitted_ids=submitted)
+        n = _submit_batch(conn, client, chosen + chosen_relabel, submitted_ids=submitted, relabel_ids=relabel_ids)
         counts["batch_submitted"] = n
+        counts["relabel_sent"] = sum(1 for aid in submitted if aid in relabel_ids)
         counts["api_first_sent"] = sum(1 for aid in submitted if aid in first_ids)
-        counts["grace_sent"] = n - counts["api_first_sent"]
+        counts["grace_sent"] = n - counts["api_first_sent"] - counts["relabel_sent"]
         store.record_llm_usage(conn, n, 0, 0, ceiling_hit=binding)
         if binding:
             store.record_llm_sampling(conn, today, allocation)
         conn.commit()
         store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
                            notes="%s %d reached; %d left pending after a stratified draw"
-                                 % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling, eligible - n) if binding else "")
+                                 % ("budget cap" if counts.get("budget_bound") else "ceiling", ceiling,
+                                    eligible - (n - counts["relabel_sent"])) if binding else "")
         return counts
 
     sent = defaultdict(int)
     consecutive_errors = 0
-    for r in chosen:
+    for r in chosen + chosen_relabel:
+        relabel = r["id"] in relabel_ids
         if deadline and time.time() > deadline:
             counts["skipped_deadline"] += 1
             continue
-        if _copy_from_dup_group(conn, r):
-            counts["copied"] += 1
+        if _copy_from_dup_group(conn, r, current_prompt_only=relabel, refreshed_after=_refreshed_at(r) if relabel else None):
+            counts["relabel_copied" if relabel else "copied"] += 1
             conn.commit()
             counts["copied"] += _settle_pending_dup_siblings(conn, r["id"])
+            counts["relabel_copied"] += _settle_stale_dup_siblings(conn, r["id"])
             continue
         if remaining <= 0:
             break
@@ -519,7 +738,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
         if not body:
             counts["body_unavailable"] = counts.get("body_unavailable", 0) + 1
             continue
-        params = request_params(r["title"], body)
+        params = request_params(r["title"], body, lookalike_context(r))
         try:
             message = client.messages.create(**params)
         except Exception as exc:
@@ -534,8 +753,11 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             continue
         remaining -= 1
         counts["calls"] += 1
-        counts["api_first_sent" if r["id"] in first_ids else "grace_sent"] += 1
-        sent[r["country"]] += 1
+        if relabel:
+            counts["relabel_sent"] += 1
+        else:
+            counts["api_first_sent" if r["id"] in first_ids else "grace_sent"] += 1
+            sent[r["country"]] += 1
         # Booked before the reply is inspected: the call is billed whether or not it parsed.
         book_usage(conn, message, calls=1)
         data = parse_response(message)
@@ -550,15 +772,19 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             if kind in ("invalid_json", "truncated") and "error_sample" not in counts:
                 counts["error_sample"] = (data.get("_raw") or "")[-300:]
             consecutive_errors += 1
-            if kind == "refusal":
+            if relabel:
+                # The old label stands and the article stays classified; it is not offered again.
+                store.update_article(conn, r["id"], fail_reason=RELABEL_FAILED + kind)
+            elif kind == "refusal":
                 store.update_article(conn, r["id"], status="failed", fail_reason="llm_refusal")
             conn.commit()
             continue
         consecutive_errors = 0
         store_result(conn, r["id"], data, getattr(message, "model", None) or config.LLM_MODEL)
-        counts["classified"] += 1
+        counts["relabelled" if relabel else "classified"] += 1
         conn.commit()
         counts["copied"] += _settle_pending_dup_siblings(conn, r["id"])
+        counts["relabel_copied"] += _settle_stale_dup_siblings(conn, r["id"])
     _record_draw(conn, today, binding, allocation, sent)
     left = conn.execute("SELECT COUNT(*) FROM articles WHERE status='awaiting_llm'").fetchone()[0]
     store.finish_stage(conn, log_id, True, counts, ceiling_hit=binding,
@@ -581,9 +807,12 @@ def _record_draw(conn, today: str, binding: bool, allocation: Dict[str, List[int
 # Batch mode
 # ---------------------------------------------------------------------------
 
-def _submit_batch(conn, client, rows, submitted_ids: Optional[List[int]] = None) -> int:
+def _submit_batch(conn, client, rows, submitted_ids: Optional[List[int]] = None, relabel_ids=None) -> int:
     """Submit rows with a body to the Batches API; returns how many. submitted_ids, when given, is
-    extended with their article ids."""
+    extended with their article ids. Articles in relabel_ids keep their status and their current
+    label while the batch runs; the others move to llm_submitted. The batch row records the prompt
+    version, so a batch submitted before a prompt change is stored as made under the older prompt."""
+    relabel_ids = relabel_ids or set()
     if not rows:
         return 0
     from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
@@ -595,15 +824,16 @@ def _submit_batch(conn, client, rows, submitted_ids: Optional[List[int]] = None)
         body = ensure_body(conn, r)
         if not body:
             continue
-        requests.append(Request(custom_id=str(r["id"]), params=MessageCreateParamsNonStreaming(**request_params(r["title"], body))))
+        requests.append(Request(custom_id=str(r["id"]), params=MessageCreateParamsNonStreaming(**request_params(r["title"], body, lookalike_context(r)))))
         ids.append(r["id"])
     if not requests:
         return 0
     batch = client.messages.batches.create(requests=requests)
     conn.execute("INSERT INTO llm_batches(batch_id, submitted_at, status, article_ids, model_version) VALUES (?,?,?,?,?)",
-                 (batch.id, store.utcnow(), "submitted", json.dumps(ids), config.LLM_MODEL))
+                 (batch.id, store.utcnow(), "submitted", json.dumps(ids), with_prompt_version(config.LLM_MODEL)))
     for aid in ids:
-        store.update_article(conn, aid, status="llm_submitted")
+        if aid not in relabel_ids:
+            store.update_article(conn, aid, status="llm_submitted")
     if submitted_ids is not None:
         submitted_ids.extend(ids)
     return len(ids)
@@ -635,12 +865,16 @@ def _collect_batches(conn, client) -> Dict:
                 if rtype == "succeeded":
                     data = parse_response(message)
                     if data and not data.get("_error"):
-                        store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"])
+                        # The prompt the batch was submitted under, from its row: a batch from
+                        # before PROMPT_VERSION records none and its labels are stored untagged.
+                        store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"],
+                                     prompt_version=prompt_version_of(b["model_version"]))
                         out["batch_collected"] += 1
                         # A held-back sibling submitted to this or an earlier batch is settled for
                         # free the moment its group's representative is collected, rather than
                         # waiting for the next run's generic _copy_from_dup_group sweep.
                         out["copied"] += _settle_pending_dup_siblings(conn, aid)
+                        out["relabel_copied"] = out.get("relabel_copied", 0) + _settle_stale_dup_siblings(conn, aid)
                         continue
                     kind = (data or {}).get("_error") or "no_response"
                 elif rtype in ("errored", "expired", "canceled"):
@@ -650,7 +884,11 @@ def _collect_batches(conn, client) -> Dict:
                 # The kind, so a batch failure rate can be diagnosed without re-running it.
                 kinds = out.setdefault("batch_error_kinds", {})
                 kinds[kind] = kinds.get(kind, 0) + 1
-                store.update_article(conn, aid, status="awaiting_llm")
+                if store.current_classification(conn, aid) is not None:
+                    # A relabel: the old label stands and the article stays classified.
+                    store.update_article(conn, aid, fail_reason=RELABEL_FAILED + kind)
+                else:
+                    store.update_article(conn, aid, status="awaiting_llm")
                 out["batch_errors"] += 1
             conn.execute("UPDATE llm_batches SET status='collected', collected_at=? WHERE batch_id=?", (store.utcnow(), b["batch_id"]))
             conn.commit()
