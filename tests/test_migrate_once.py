@@ -6,6 +6,7 @@ it empty and seeded together: duplicate rows, or "database is locked". Each step
 run under BEGIN IMMEDIATE and recorded in schema_migrations in the same transaction (store._once).
 """
 import json
+import re
 import sqlite3
 import threading
 
@@ -129,6 +130,33 @@ OLD_COLUMNS = [("articles", "day_of_record"), ("articles", "extract_version"), (
                ("daily_coverage", "top_discovered"), ("daily_coverage", "top_b")]
 
 
+def _drop_old_columns(raw, old_columns):
+    """Rebuild an old database by removing columns. ALTER TABLE ... DROP COLUMN on the stored table
+    fails on the GitHub runner's SQLite (older than the owner's Mac) with "incomplete input", because
+    the CREATE TABLE text carries inline "--" comments. So each table is copied into a comment-free
+    twin, the columns are dropped there, and the twin replaces the table. Indexes go with the old
+    table; store.connect creates them again. Only this test removes columns."""
+    by_table = {}
+    for table, col in old_columns:
+        by_table.setdefault(table, []).append(col)
+    raw.execute("PRAGMA foreign_keys=OFF")
+    raw.execute("PRAGMA legacy_alter_table=ON")
+    for table, cols in by_table.items():
+        sql = raw.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()[0]
+        twin = table + "__old_shape"
+        sql = re.sub(r"--[^\n]*", "", sql)
+        sql = re.sub(r"CREATE TABLE (IF NOT EXISTS )?%s\b" % table, "CREATE TABLE %s" % twin, sql, count=1)
+        raw.execute(sql)
+        raw.execute("INSERT INTO %s SELECT * FROM %s" % (twin, table))
+        for col in cols:
+            raw.execute("ALTER TABLE %s DROP COLUMN %s" % (twin, col))
+        raw.execute("DROP TABLE %s" % table)
+        raw.execute("ALTER TABLE %s RENAME TO %s" % (twin, table))
+    raw.commit()
+    raw.execute("PRAGMA legacy_alter_table=OFF")
+    assert raw.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+
 def test_concurrent_connections_add_each_missing_column_once(tmp_path):
     # The runner's database before day_of_record and extract_version (and the older plain column
     # adds): the first run after deploy opens several connections at once, and the ones that lose the
@@ -141,8 +169,7 @@ def test_concurrent_connections_add_each_missing_column_once(tmp_path):
         conn.commit()
         conn.close()
         raw = sqlite3.connect(str(db))
-        for table, col in OLD_COLUMNS:
-            raw.execute("ALTER TABLE %s DROP COLUMN %s" % (table, col))
+        _drop_old_columns(raw, OLD_COLUMNS)
         raw.commit()
         raw.close()
         assert _open_at_once(db) == []
