@@ -6,12 +6,12 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "83";
+  var ASSET_VERSION = "84";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
-    content: null, examples: null, planted: null, plantedShowAll: false,
+    content: null, examples: null, planted: null, plantedShowAll: false, measureData: {},
     articlesCache: {}, scaleCache: {}, loadFailures: [], mapped: null
   };
 
@@ -66,10 +66,15 @@
       state.planted = res[9] || null;
       var monthsWanted = {};
       state.series.forEach(function (d) { monthsWanted[d.date.slice(0, 7)] = true; });
+      /* The research measures' side files (meta.measures[id].file), loaded quietly: a missing one shows
+         that measure's empty state and is not a figure on the map. */
+      var measureLoads = measureFiles().map(function (mf) {
+        return quiet("data/" + mf.file, null).then(function (j) { state.measureData[mf.id] = j; });
+      });
       return Promise.all(Object.keys(monthsWanted).map(function (m) {
         return getJSON("data/daily/" + m + ".json").then(function (j) { state.months[m] = j; })
           .catch(function (e) { console.error(e); failed.push("data/daily/" + m + ".json"); });
-      }));
+      }).concat(measureLoads));
     }).then(function () { state.loadFailures = failed; });
   }
 
@@ -342,6 +347,8 @@
       var fs = m.feed_saturation;
       if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + ". Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
+      /* One line per provisional or withheld research measure, in the full notes only, never the short strip. */
+      if (MS) Array.prototype.push.apply(parts, MS.noticeLines(m.measures));
     }
     /* Every note in full under the methodology heading; one muted line up here with only the notes that
        change how today's map should be read, and a link down to the rest. */
@@ -396,6 +403,7 @@
       (at.unchecked !== null && at.unchecked !== undefined ? ', ' + intComma(at.unchecked) + ' unchecked state sourcing' + (relayFor(null).provisional ? ' (provisional)' : '') : '') +
       ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far' +
       (wiresOnly() ? ', on the worldwide wires alone' : countryOnly() ? ', in the country outlets alone' : '') + '.</p>';
+    if (MS) html += MS.findingsHtml(measureBlocks(), state.measureData, measureApi);
     box.innerHTML = html;
     box.hidden = false;
     renderKpis(f);
@@ -721,6 +729,39 @@
       div.appendChild(q);
       list.appendChild(div);
     });
+  }
+
+  /* ------------------------------------------------------ research measures
+     The measures in meta.measures (pipeline/measures.py, docs/measures.js): each section hidden while all
+     of its measures are off, every registered renderer run on its own, and their method paragraphs. A
+     renderer that throws is named in the notice like any other step, and the rest still render. */
+  var MS = window.TrackerMeasures || null;
+  function measureBlocks() { return (state.meta && state.meta.measures) || {}; }
+  /* The side files to load: every measure that is not off and has one. */
+  function measureFiles() {
+    var blocks = measureBlocks();
+    return Object.keys(blocks).filter(function (id) {
+      var b = blocks[id];
+      return b && b.file && (MS ? !MS.isOff(b) : b.status && b.status !== "off");
+    }).map(function (id) { return {id: id, file: blocks[id].file}; });
+  }
+  function measureApi(id) {
+    var sec = MS ? MS.SECTIONS.filter(function (x) { return x.measures.indexOf(id) !== -1; })[0] : null;
+    return {id: id, slot: MS && MS.SLOTS[id] ? el(MS.SLOTS[id]) : null, section: sec ? el(sec.id) : null,
+            meta: state.meta, names: state.names, esc: esc, countryName: countryName, M: MS, C: C};
+  }
+  function renderMeasures() {
+    if (!MS) return;
+    var blocks = measureBlocks();
+    MS.SECTIONS.forEach(function (x) { var sec = el(x.id); if (sec) sec.hidden = !MS.sectionVisible(x, blocks); });
+    var failed = MS.renderAll(blocks, state.measureData, measureApi);
+    var wrap = el("measure-method"), body = el("measure-method-body");
+    if (wrap && body) {
+      var paras = MS.methodParagraphs(blocks);
+      body.innerHTML = paras.join("");
+      wrap.hidden = !paras.length;
+    }
+    if (failed.length) throw new Error(failed.join("; "));
   }
 
   /* Planted bylines, from data/planted.json. A flag says only that a byline or a cited organisation
@@ -1591,12 +1632,17 @@
   function selectCountry(iso) {
     state.selected = iso || null;
     if (state.selected) state.lastCountry = state.selected;
-    /* A row the Distribution toggle hides is never opened under it: the toggle goes back to Both first. */
-    if (state.selected && !C.distributionKeeps(state.distribution, state.selected)) setDistribution("both", true);
+    /* A row the Distribution toggle hides is never opened under it: the toggle goes back to Both first.
+       The quiet switch leaves the renders below to this function, which then also redraws the two views
+       it does not otherwise touch, the sparkline and the findings with their KPI cards. */
+    var toBoth = !!state.selected && !C.distributionKeeps(state.distribution, state.selected);
+    if (toBoth) setDistribution("both", true);
     syncCountryPicks();
     renderMap();
+    if (toBoth) renderSpark();
     renderThemes(); renderLeaning();
     renderPanel();
+    if (toBoth) renderFindings();
   }
   function countryName(iso) { return String(iso).indexOf("name:") === 0 ? String(iso).slice(5) : (state.names[iso] || iso); }
   /* The Country search boxes above the map and above the theme counter open the same single country
@@ -1937,6 +1983,12 @@
       if (p.relayGap) s.append("rect").attr("class", "relay-gap").attr("x", x(p.i) - 3).attr("y", h - 3).attr("width", 6).attr("height", 3);
       if (p.older) s.append("rect").attr("class", "older-ruleset").attr("x", x(p.i) - 3).attr("y", 0).attr("width", 6).attr("height", 2);
     });
+    /* Marks the research measures add (unusual days); each may add a sentence to the hint. */
+    if (MS) {
+      var hints = MS.sparkAll(measureBlocks(), state.measureData, measureApi,
+        {svg: s, x: function (day) { var k = tlDays.indexOf(day); return k === -1 ? null : x(k); }, days: tlDays, w: w, h: h});
+      if (hints.length) el("tl-hint").textContent += " " + hints.join(" ");
+    }
     ((state.meta && state.meta.ruleset_changes) || []).forEach(function (rc) {
       var idx = tlDays.indexOf(rc.date);
       if (idx === -1) return;
@@ -2238,6 +2290,31 @@
     renderMap(); renderSpark(); renderThemes(); renderLeaning(); renderPanel(); renderFindings();
   }
 
+  /* The public hook other scripts open a country and a day with (docs/m_spikes.js does, for an unusual
+     day): window.TrackerApp, and a "tracker:select" event on document with detail {iso, day}. A country
+     opens through selectCountry, so one the Distribution toggle hides opens under Both with every figure
+     redrawn for it. A day off the timeline opens the last day before it, or the first day; the timeline
+     itself caps it at the last. */
+  function openDay(day) {
+    var i = typeof day === "number" ? day : -1;
+    if (i === -1 && /^\d{4}-\d{2}-\d{2}$/.test(String(day))) {
+      i = 0;
+      tlDays.forEach(function (d, k) { if (d <= day) i = k; });
+    }
+    if (i === -1 || isNaN(i)) return state.endDate;
+    stopPlay();
+    setDay(i);
+    return state.endDate;
+  }
+  window.TrackerApp = {selectCountry: selectCountry, setDay: openDay};
+  document.addEventListener("tracker:select", function (ev) {
+    var d = (ev && ev.detail) || {};
+    if (d.day !== undefined && d.day !== null) openDay(d.day);
+    if (d.iso) selectCountry(String(d.iso));
+    var card = el("map-card");
+    if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+  });
+
   /* ------------------------------------------------------------------ init */
   function init() {
     loadAll().then(function () {
@@ -2251,7 +2328,7 @@
         ["setupThemeTimeline", setupThemeTimeline], ["setupStartHere", setupStartHere], ["renderNotices", renderNotices],
         ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
         ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderFindings", renderFindings],
-        ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted],
+        ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures],
         ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures]
       ];
       var failed = [];

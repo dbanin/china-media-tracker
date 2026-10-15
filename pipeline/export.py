@@ -1715,7 +1715,8 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     # face the keyword gate; nothing is left to do once that has run (pipeline/section_retag.py).
     from pipeline import section_retag
     retagged = section_retag.run(conn)
-    tagged = themes_mod.ensure(conn)
+    themes_stats: Dict = {}
+    tagged = themes_mod.ensure(conn, stats=themes_stats)
     routed = classify_rules.ensure_routes(conn)
     authors_cleaned = extract.clean_stored_authors(conn)
     planted_counts = planted.scan_quietly(conn)
@@ -1729,6 +1730,11 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     articles = build_articles(conn, outlets=outlets)
     examples = build_examples(conn, outlets=outlets)
     meta = build_meta(conn, outlets, gaps, latest, outlets_json)
+    # The research measures (pipeline/measures.py): report only, each in its own try/except, never a stop.
+    from pipeline import measures
+    meta["measures"] = measures.run_all_quietly(conn, export_dir, {
+        "daily": daily, "latest": latest, "outlets": outlets, "outlets_json": outlets_json, "meta": meta,
+        "export_dir": export_dir}, write_json=write_json)
     write_json(export_dir / "latest.json", latest)
     for month, m in daily.items():
         write_json(export_dir / "daily" / ("%s.json" % month), m)
@@ -1749,6 +1755,9 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     counts = {"planted": planted_counts,"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
               "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
+    if themes_stats.get("body_retags_left"):
+        # Title-only theme tags whose body has arrived, left for the next export (pipeline/themes.py).
+        counts["themes_body_retags_left"] = themes_stats["body_retags_left"]
     if retagged:
         counts["section_retag"] = retagged
     if junk:

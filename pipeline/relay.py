@@ -233,6 +233,11 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS, ack: Optional[str] = None,
             if body:
                 item["body"] = base64.b64encode(gzip.compress(body.encode("utf-8"))).decode("ascii")
             fh.write(json.dumps(item, ensure_ascii=False) + "\n")
+        # The relay's reference items (pipeline/reference.py, sources with collector: self_hosted), body
+        # inline; the hosted side writes them into reference_items and nothing else.
+        from pipeline import reference
+        for rec in reference.bundle_records(conn, changed or since):
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     return buf.getvalue()
 
 
@@ -380,6 +385,14 @@ def run_relay(conn, budget_minutes: float = 30.0, push: bool = True, main_db=Non
     except Exception as exc:  # noqa: BLE001  the backlog never stops the hour's own collection
         counts["seed"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
     counts["fetch"] = fetch_articles.run(conn, run_id, deadline=deadline)
+    try:
+        # The reference sources marked collector: self_hosted (none yet; pipeline/reference.py).
+        from pipeline import reference
+        counts["reference"] = {"poll": reference.run_stage(conn, "poll", deadline),
+                               "fetch": reference.run_stage(conn, "fetch", deadline)}
+    except Exception as exc:  # noqa: BLE001  never stops the hour's own collection
+        conn.rollback()
+        counts["reference"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
     ack = fetch_ack() if push else None
     data = build_bundle(conn, ack=ack)
     counts["bundle_bytes"] = len(data)
@@ -649,6 +662,12 @@ def ingest(conn, data: bytes, outlets=None) -> Dict:
                  item.get("saturated", 0), item.get("entries", 0), item.get("new_items", 0),
                  item.get("missed_estimate", 0.0), RELAY_COLLECTOR, item.get("estimator") or "v1"))
             counts["feed_poll_days"] = counts.get("feed_poll_days", 0) + 1
+            continue
+        if item.get("_type") == "reference_item":
+            # A reference source item (pipeline/reference.py): into reference_items only, never an article.
+            from pipeline import reference
+            done = reference.ingest_record(conn, item)
+            counts["reference_" + done] = counts.get("reference_" + done, 0) + 1
             continue
         if item.get("_type") or "url_hash" not in item:
             # A record type this version does not know, from a newer relay. Skip it rather than fail

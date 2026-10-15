@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=83">
+<link rel="stylesheet" href="style.css?v=84">
+<link rel="stylesheet" href="measures.css?v=84">
 </head>
 <body>
 <header class="top">
@@ -182,6 +183,10 @@
   <h2 id="overview-title">What we found</h2>
   <div id="kpis" class="kpis" hidden></div>
   <div id="findings-box" class="findings-box" hidden></div>
+  <!-- Research measures under What we found (docs/measures.js): unusual days. Hidden while the measure is off. -->
+  <div id="findings-measures" class="m-findings" hidden>
+    <div id="findings-spikes"></div>
+  </div>
 </section>
 
 <details id="start-here" class="sec start-here" hidden>
@@ -206,6 +211,38 @@
     <h2 id="planted-title">Planted bylines</h2>
     <p class="th-sub" id="planted-intro"></p>
     <div id="planted-body"></div>
+</section>
+
+<!-- Research measures (docs/measures.js, docs/m_<id>.js). Report only; each section stays hidden while its measures are off. -->
+<section id="copies" class="sec card-sec" aria-labelledby="copies-title" hidden>
+    <div class="th-kicker">State copy and its originals</div>
+    <h2 id="copies-title">How state text is changed</h2>
+    <p class="th-sub" id="copies-intro">State origin copies set beside the original state text they reproduce, where it can be found: how much of it outlets keep, cut or rewrite, and how soon they run it. Report only: no label or count changes.</p>
+    <div id="copies-body">
+      <div id="copies-alteration" class="m-panel" hidden></div>
+      <div id="copies-speed" class="m-panel" hidden></div>
+    </div>
+</section>
+
+<section id="doctrine" class="sec card-sec" aria-labelledby="doctrine-title" hidden>
+    <div class="th-kicker">State vocabulary</div>
+    <h2 id="doctrine-title">Doctrine terms</h2>
+    <p class="th-sub" id="doctrine-intro">How often China coverage uses the Chinese state's own set phrases, by kind of article. A match is a keyword match, not a reading of the article.</p>
+    <div id="doctrine-body"></div>
+</section>
+
+<section id="engagement" class="sec card-sec" aria-labelledby="engagement-title" hidden>
+    <div class="th-kicker">Reach</div>
+    <h2 id="engagement-title">Engagement</h2>
+    <p class="th-sub" id="engagement-intro">Aggregate engagement with state origin articles on public social media, looked up by hand. Counts only, never a post or an account.</p>
+    <div id="engagement-body"></div>
+</section>
+
+<section id="syndication" class="sec card-sec" aria-labelledby="syndication-title" hidden>
+    <div class="th-kicker">Agreements</div>
+    <h2 id="syndication-title">Syndication deals</h2>
+    <p class="th-sub" id="syndication-intro">Publicly announced content agreements between outlets and Chinese state media, each with its source. A comparison before and after a deal shows timing, not cause.</p>
+    <div id="syndication-body"></div>
 </section>
 
 <section id="leaning" class="sec card-sec" aria-labelledby="leaning-title">
@@ -259,6 +296,11 @@
     <p><strong>Gaps in collection.</strong> Feeds carry only their latest entries, so a skipped hourly run loses more items in a busy media market than in a quiet one; every poll records whether its window reached back to the previous one, and the estimated missed items are shown. Some outlets are collected only from the owner's machine, and many outlets with short feeds are polled from it as well as by the hosted runner; days on which it ran too few hours are marked on the timeline and on the countries whose outlets only it collects, so a sleeping laptop is never read as a decline. Ruleset changes and the days still carrying labels from an older ruleset are marked on the timeline too, so a discontinuity is not read as a trend. The relevance gate carries its own version, marked on the timeline as well: it decides what enters the corpus rather than how an article is labelled, and because gate decisions are recorded per item and never revisited, a change to it applies only to items discovered after that date. Items the earlier gate rejected are not re-examined, and rejected items are pruned after three days, except a random 2 percent kept permanently so the gate's recall can be checked by hand for any period.</p>
     <p>The critical distinction is between unchecked state sourcing and independent journalism, and it is a judgement about verification, not about topic or tone. An article highly critical of China that repeats an unverified Xinhua claim is still unchecked state sourcing. An article sympathetic to China that independently confirms every claim is independent journalism. Only a factual claim central to the article counts; a position, policy, warning, threat, opinion or denial attributed to Beijing does not.</p>
   </div>
+  <div id="measure-method" hidden>
+    <h3>New measures (provisional)</h3>
+    <p class="muted">Report only: none of these changes a label, a count or a denominator. Each is provisional until its own hand check passes, and withheld if the latest completed check fails.</p>
+    <div id="measure-method-body"></div>
+  </div>
   <div id="method-notes-wrap" hidden>
     <h3 id="method-notes-title">Current notes</h3>
     <p class="muted">What limits the figures today, written from the data at the last export.</p>
@@ -292,7 +334,14 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=83"></script>
-<script src="app.js?v=83"></script>
+<script src="compute.js?v=84"></script>
+<script src="measures.js?v=84"></script>
+<script src="m_alteration.js?v=84"></script>
+<script src="m_speed.js?v=84"></script>
+<script src="m_doctrine.js?v=84"></script>
+<script src="m_spikes.js?v=84"></script>
+<script src="m_engagement.js?v=84"></script>
+<script src="m_syndication.js?v=84"></script>
+<script src="app.js?v=84"></script>
 </body>
 </html>

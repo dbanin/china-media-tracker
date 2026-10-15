@@ -80,6 +80,18 @@ file is generated from live values and is the authoritative description.
    permanently, so the gate's false negative rate can be measured by hand for
    any period.
 
+   Since 14 October 2026 the English sites of six Chinese state outlets,
+   Xinhua, CGTN, Global Times, People's Daily, China Daily and ECNS, are read
+   as reference originals only (sources/reference.yaml, pipeline/reference.py),
+   so that state copy in monitored outlets can be set beside the text it came
+   from. They are never classified, never counted and never in a denominator,
+   China remains a gap, and sources/gaps.yaml is unchanged. The same day added
+   six report only measures (sources/measures.yaml, pipeline/measures.py): the
+   alteration score, republication speed, doctrine terms and unusual days,
+   which are switched on, and engagement and syndication deals, which are
+   built and switched off. None changes a label, a count or a denominator, and
+   each is marked provisional until its own hand check passes.
+
 ## Running locally
 
 ```bash

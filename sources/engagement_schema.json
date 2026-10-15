@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engagement aggregates import",
+  "description": "One row of a counts file the owner fills in by hand from the Meta Content Library and imports with python -m pipeline.engagement import. The header is a strict whitelist: every column listed under required must be present, views may be left out, and no other column is accepted. Every value is text as read from the CSV. Counts only: no post, no account, no link to a platform, no time finer than a day. pipeline/engagement.py reads the columns, the required list and each pattern from this file, and adds the checks a pattern cannot express (links, long digit strings, times, small cells).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["key_type", "key", "platform", "period_start", "period_end", "posts_n", "reactions", "shares",
+                 "comments", "suppressed", "query_date", "mcl_query_ref"],
+    "properties": {
+      "key_type": {"type": "string", "enum": ["url_hash", "outlet_month"],
+                   "description": "url_hash: the counts for one state origin article; outlet_month: the counts for one outlet over one calendar month"},
+      "key": {"type": "string", "maxLength": 64, "pattern": "^([0-9a-f]{32}|[a-z]{2,3}_[a-z0-9_]+:[0-9]{4}-[0-9]{2})$",
+              "description": "the url_hash column of the urls file, or <outlet_id>:<YYYY-MM>"},
+      "platform": {"type": "string", "enum": ["facebook", "instagram"]},
+      "period_start": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "first day counted, a day only"},
+      "period_end": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "last day counted, a day only"},
+      "posts_n": {"type": "string", "pattern": "^([0-9]{1,15})?$", "description": "public posts found; blank only when suppressed"},
+      "reactions": {"type": "string", "pattern": "^([0-9]{1,15})?$", "description": "summed over those posts; blank when suppressed or posts_n is 0"},
+      "shares": {"type": "string", "pattern": "^([0-9]{1,15})?$", "description": "summed over those posts; blank when suppressed or posts_n is 0"},
+      "comments": {"type": "string", "pattern": "^([0-9]{1,15})?$", "description": "summed over those posts; blank when suppressed or posts_n is 0"},
+      "views": {"type": "string", "pattern": "^([0-9]{1,15})?$", "description": "optional column; blank when the library gives no view count"},
+      "suppressed": {"type": "string", "enum": ["0", "1"], "description": "1 when posts_n was between 1 and the minimum cell less one, so no count is kept"},
+      "query_date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "the day the library was queried"},
+      "mcl_query_ref": {"type": "string", "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.:#]*$",
+                        "description": "the owner's own reference for the query, as written in data/engagement/QUERY_LOG.md"}
+    }
+  }
+}

@@ -335,3 +335,76 @@ def test_feed_polls_gain_a_collector_without_losing_rows(tmp_path, monkeypatch):
     assert pk == ["date", "feed_url", "collector"]
     conn.close()
     assert store.connect(path).execute("SELECT COUNT(*) FROM feed_polls").fetchone()[0] == 1
+
+
+# Reference sources (pipeline/reference.py) marked collector: self_hosted travel as reference_item
+# records, body inline, and the hosted side writes them into reference_items and nothing else.
+
+def _ref_tables(conn):
+    names = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+    return {t: conn.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0] for t in names
+            if t not in ("reference_items", "relay_ack", "sqlite_sequence")}
+
+
+def _relay_reference_row(conn, url, status, body=None, published="2026-10-13"):
+    from pipeline import body_dups, reference
+    h = store.url_hash(url)
+    fields = {"source_id": "ref_xinhua_en", "url": url, "url_hash": h, "language": "en", "title": "Xinhua story",
+              "published_at": published, "discovered_at": store.utcnow(), "status": status, "collector": "self_hosted"}
+    if body:
+        n, sig = body_dups.fingerprint(body)
+        fields.update(fetched_at=store.utcnow(), body_hash=store.save_body(reference.body_key(h), body), body_chars=len(body),
+                      sig=sig, shingles=n)
+    conn.execute("INSERT INTO reference_items (%s) VALUES (%s)" % (", ".join(fields), ", ".join("?" * len(fields))),
+                 list(fields.values()))
+    conn.commit()
+    return h
+
+
+def test_reference_items_round_trip_into_reference_items_only(tmp_path, monkeypatch):
+    from pipeline import config, reference
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    src = store.connect(tmp_path / "relay.db")
+    body = " ".join("word%d" % i for i in range(120)) + " (Xinhua) -- the text."
+    h1 = _relay_reference_row(src, "https://english.news.cn/20261013/%032x/c.html" % 1, "fetched", body,
+                              "2026-10-13T05:00:00+00:00")
+    h2 = _relay_reference_row(src, "https://english.news.cn/20261013/%032x/c.html" % 2, "discovered")
+    data = relay.build_bundle(src)
+    recs = [it for it in relay.iter_bundle(data) if it.get("_type") == "reference_item"]
+    assert len(recs) == 2 and sum(1 for r in recs if r.get("body")) == 1
+
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
+    dst = store.connect(tmp_path / "main.db")
+    _seed(dst)
+    before = _ref_tables(dst)
+    counts = relay.ingest(dst, data)
+    assert counts["reference_inserted"] == 2 and counts["inserted"] == 0 and counts["seen"] == 0
+    assert _ref_tables(dst) == before
+    rows = {r["url_hash"]: r for r in dst.execute("SELECT * FROM reference_items")}
+    assert rows[h1]["status"] == "fetched" and rows[h1]["collector"] == "self_hosted" and rows[h1]["sig"] is not None
+    assert reference.load_body(h1) == body and store.load_body(h1) is None
+    assert rows[h2]["status"] == "discovered" and rows[h2]["body_hash"] is None
+    # the same bundle again changes nothing; a later one that fetched the second item brings it forward
+    again = relay.ingest(dst, data)
+    assert again.get("reference_unchanged") == 2 and _ref_tables(dst) == before
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    src.execute("UPDATE reference_items SET status='fetched', fetched_at=?, body_hash='x', body_chars=5, published_at=? WHERE url_hash=?",
+                (store.utcnow(), "2026-10-13T06:00:00+00:00", h2))
+    store.save_body(reference.body_key(h2), "later")
+    src.commit()
+    data2 = relay.build_bundle(src)
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies_main")
+    assert relay.ingest(dst, data2).get("reference_updated") == 1
+    row = dst.execute("SELECT status, published_at FROM reference_items WHERE url_hash=?", (h2,)).fetchone()
+    assert tuple(row) == ("fetched", "2026-10-13T06:00:00+00:00") and reference.load_body(h2) == "later"
+    assert _ref_tables(dst) == before
+
+
+def test_a_hosted_bundle_carries_no_reference_items(tmp_path, monkeypatch):
+    from pipeline import config
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    src = store.connect(tmp_path / "relay.db")
+    src.execute("""INSERT INTO reference_items(source_id, url, url_hash, discovered_at, status, collector)
+                   VALUES ('ref_cgtn_en', 'https://news.cgtn.com/x', 'hx', ?, 'discovered', 'hosted')""", (store.utcnow(),))
+    src.commit()
+    assert not [it for it in relay.iter_bundle(relay.build_bundle(src)) if it.get("_type") == "reference_item"]

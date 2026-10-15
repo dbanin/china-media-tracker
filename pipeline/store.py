@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS articles (
     themes TEXT,                      -- JSON {"v": themes version, "t": [theme ids]}
     audit_keep INTEGER,               -- gated-out only: 1 kept permanently for the gate audit, 0 not, NULL undecided
     extract_version TEXT,             -- config.EXTRACT_VERSION the stored body was extracted under; NULL before 2026-10-12
-    day_of_record TEXT                -- publication day of an item a backfill read brought in (backfill_day); NULL means the discovery day
+    day_of_record TEXT,               -- publication day of an item a backfill read brought in (backfill_day); NULL means the discovery day
+    doctrine TEXT                     -- doctrine term matches (pipeline/doctrine.py), JSON; NULL until tagged. Report only, never a label
 );
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_country_date ON articles(country, published_at);
@@ -388,7 +389,123 @@ CREATE TABLE IF NOT EXISTS body_links (
     PRIMARY KEY (a, b)
 );
 CREATE INDEX IF NOT EXISTS idx_bodylinks_b ON body_links(b);
+
+-- New research measures (pipeline/measures.py), added 2026-10-13. Every table from here down is
+-- report only: nothing in it is a label, a count, a denominator or a monitored outlet, and the prune
+-- (prune_gated_out, expire_seen) never touches it.
+
+-- Items from the reference sources (sources/reference.yaml, ids ref_*): the English and other
+-- editions of Chinese state outlets, read as originals to compare state copy against. Never
+-- classified, never counted, never an outlet; China stays unmonitored. url_hash is url_hash(url), in
+-- a namespace of its own (an item may also exist in articles). sig and shingles are the body_dups
+-- fingerprint of the body, kept after the body itself is deleted (body_pruned_at).
+CREATE TABLE IF NOT EXISTS reference_items (
+    id INTEGER PRIMARY KEY,
+    source_id TEXT NOT NULL,          -- sources/reference.yaml id, never an outlets.yaml id
+    url TEXT NOT NULL,
+    url_hash TEXT NOT NULL UNIQUE,
+    language TEXT,
+    title TEXT,
+    summary TEXT,
+    author TEXT,
+    published_at TEXT,
+    discovered_at TEXT NOT NULL,
+    fetched_at TEXT,
+    status TEXT NOT NULL,             -- set by pipeline/reference.py (discovered, fetched, failed, blocked_robots, ...)
+    fail_reason TEXT,
+    body_hash TEXT,
+    body_chars INTEGER,
+    extract_version TEXT,             -- config.EXTRACT_VERSION the body was extracted under
+    sig BLOB,                         -- body_dups signature (64 x uint32, little endian); NULL when too short
+    shingles INTEGER,                 -- body_dups shingle count; -1 when the body was missing
+    body_pruned_at TEXT,              -- when the stored body of an unpaired item was deleted; the row stays
+    collector TEXT,                   -- hosted | self_hosted (config.COLLECTOR of the process that collected it)
+    also_monitored TEXT               -- set by pipeline/reference.py when the same item is also in the monitored corpus; NULL otherwise
+);
+CREATE INDEX IF NOT EXISTS idx_refitems_source_pub ON reference_items(source_id, published_at);
+CREATE INDEX IF NOT EXISTS idx_refitems_discovered ON reference_items(discovered_at);
+CREATE INDEX IF NOT EXISTS idx_refitems_status ON reference_items(status);
+
+-- Feed health of the reference sources, the same columns as feed_health with source_id for outlet_id.
+CREATE TABLE IF NOT EXISTS reference_feed_health (
+    feed_url TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
+    last_checked TEXT NOT NULL,
+    last_ok TEXT,
+    last_error TEXT,
+    last_entries INTEGER,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    total_checks INTEGER NOT NULL DEFAULT 0,
+    total_failures INTEGER NOT NULL DEFAULT 0
+);
+
+-- One row per state origin copy (copy_id is its articles.id): the original it was paired with, if
+-- any, and the alteration and republication speed metrics (pipeline/copies.py, pipeline/speed.py).
+-- current is 0 once the copy no longer carries a current state origin label. No foreign keys, so a
+-- row never blocks a delete elsewhere.
+CREATE TABLE IF NOT EXISTS state_copies (
+    copy_id INTEGER PRIMARY KEY,
+    version TEXT NOT NULL,
+    computed_at TEXT NOT NULL,
+    current INTEGER NOT NULL DEFAULT 1,
+    original_kind TEXT NOT NULL,      -- reference | monitored | none
+    ref_id INTEGER,                   -- reference_items.id when original_kind is reference
+    original_article_id INTEGER,      -- articles.id when original_kind is monitored
+    original_source TEXT,             -- the reference source id or the outlet id of the original
+    match_method TEXT,
+    match_similarity REAL,
+    credit_consistent INTEGER,        -- 1 when the copy's credit names the original's publisher
+    none_reason TEXT,                 -- why no original was found, when original_kind is none
+    copy_published_at TEXT,
+    original_published_at TEXT,
+    copy_ts_res TEXT,                 -- resolution of the copy's time: second, minute, hour, date (no time of day), none
+    orig_ts_res TEXT,
+    lag_seconds INTEGER,
+    body_state TEXT,                  -- which bodies were available when the metrics were computed
+    headline_similarity REAL,
+    kept_share REAL,
+    novel_share REAL,
+    rewritten_share REAL,
+    added_paragraphs INTEGER,
+    added_words INTEGER,
+    cue_local INTEGER,
+    cue_counterpoint INTEGER,
+    band TEXT,                        -- verbatim | light | moderate | substantial, provisional
+    details TEXT                      -- JSON
+);
+CREATE INDEX IF NOT EXISTS idx_copies_kind ON state_copies(original_kind, current);
+CREATE INDEX IF NOT EXISTS idx_copies_ref ON state_copies(ref_id);
+CREATE INDEX IF NOT EXISTS idx_copies_orig_article ON state_copies(original_article_id);
+CREATE INDEX IF NOT EXISTS idx_copies_band ON state_copies(band);
+
+-- Aggregate engagement counts the owner looked up by hand in the Meta Content Library and imported
+-- (pipeline/engagement.py). Counts only: no post, no account, no link to a platform. key_type is url
+-- (a state origin article URL) or outlet_month (an outlet id and a YYYY-MM).
+CREATE TABLE IF NOT EXISTS engagement_aggregates (
+    id INTEGER PRIMARY KEY,
+    key_type TEXT NOT NULL,
+    key TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    posts_n INTEGER,
+    reactions INTEGER,
+    shares INTEGER,
+    comments INTEGER,
+    views INTEGER,
+    suppressed INTEGER NOT NULL DEFAULT 0,  -- 1 when the cell was too small to publish
+    query_date TEXT NOT NULL,
+    mcl_query_ref TEXT,
+    file_sha256 TEXT NOT NULL,        -- the imported file, so an import can be traced and repeated
+    imported_at TEXT NOT NULL,
+    UNIQUE(key_type, key, platform, period_start, period_end, query_date)
+);
+CREATE INDEX IF NOT EXISTS idx_engagement_key ON engagement_aggregates(key_type, key);
 """
+
+# The research measure tables, in SCHEMA order (pipeline/measures.py). Report only: prune_gated_out and
+# expire_seen never touch them.
+MEASURE_TABLES = ("reference_items", "reference_feed_health", "state_copies", "engagement_aggregates")
 
 
 def utcnow() -> str:
@@ -490,6 +607,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # The extraction version a stored body was made under (config.EXTRACT_VERSION). NULL for every
         # body stored before 2026-10-12; extract.stale_extraction says which of those are stale.
         _add_column(conn, "articles", "extract_version", "TEXT")
+    if "doctrine" not in cols:
+        # Doctrine term matches (pipeline/doctrine.py), added 2026-10-13; NULL until an article is tagged.
+        _add_column(conn, "articles", "doctrine", "TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_articles_audit_keep ON articles(discovered_at) WHERE audit_keep=1")
     od = {r[1] for r in conn.execute("PRAGMA table_info(daily_outlet_discovery)")}
     if "gate_relevant" not in od and _once(conn, "daily_outlet_discovery.gate_relevant",
@@ -563,6 +683,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "body_fingerprints" not in tables or "body_links" not in tables:
         # Body near-duplicate tables (pipeline.body_dups), added 2026-10-12. CREATE IF NOT EXISTS only.
         start = SCHEMA.index("CREATE TABLE IF NOT EXISTS body_fingerprints")
+        conn.executescript(SCHEMA[start:])
+    if not set(MEASURE_TABLES) <= tables:
+        # Research measure tables (pipeline/measures.py), added 2026-10-13. CREATE IF NOT EXISTS only.
+        start = SCHEMA.index("CREATE TABLE IF NOT EXISTS reference_items")
         conn.executescript(SCHEMA[start:])
     # Nothing to do, only a record: its applied_at is when this database was first opened by code that
     # remembers pruned addresses (seen_urls), so the export can say from which day the discovery counts
@@ -919,6 +1043,28 @@ def record_feed_health(conn: sqlite3.Connection, outlet_id: str, feed_url: str, 
 
 def feed_health_row(conn: sqlite3.Connection, feed_url: str) -> Optional[sqlite3.Row]:
     return conn.execute("SELECT * FROM feed_health WHERE feed_url=?", (feed_url,)).fetchone()
+
+
+def record_reference_feed_health(conn: sqlite3.Connection, source_id: str, feed_url: str, ok: bool,
+                                 error: Optional[str], entries: int) -> None:
+    """record_feed_health for a reference source feed (pipeline/reference.py), into reference_feed_health.
+    Kept apart so a reference feed never appears among the monitored outlets' feed health."""
+    now = utcnow()
+    row = conn.execute("SELECT consecutive_failures FROM reference_feed_health WHERE feed_url=?", (feed_url,)).fetchone()
+    if row is None:
+        conn.execute(
+            """INSERT INTO reference_feed_health(feed_url, source_id, last_checked, last_ok, last_error, last_entries,
+               consecutive_failures, total_checks, total_failures) VALUES (?,?,?,?,?,?,?,?,?)""",
+            (feed_url, source_id, now, now if ok else None, error, entries, 0 if ok else 1, 1, 0 if ok else 1),
+        )
+    else:
+        cf = 0 if ok else row["consecutive_failures"] + 1
+        conn.execute(
+            """UPDATE reference_feed_health SET source_id=?, last_checked=?, last_ok=COALESCE(?, last_ok), last_error=?,
+               last_entries=?, consecutive_failures=?, total_checks=total_checks+1,
+               total_failures=total_failures+? WHERE feed_url=?""",
+            (source_id, now, now if ok else None, error, entries, cf, 0 if ok else 1, feed_url),
+        )
 
 
 # A feed_polls row whose polls were estimated by more than one estimator version (the day an
