@@ -1,0 +1,493 @@
+version: 2026.10.1
+note: >-
+  Doctrine term families for the doctrine term tracker (pipeline/doctrine.py). Each family is a set
+  phrase of the Chinese state's foreign policy vocabulary. Terms follow the theme counter's syntax
+  (pipeline/themes.yaml): matched on word boundaries, case insensitively, except all capital acronyms,
+  which are case sensitive; a trailing or inner asterisk matches any word characters; languages under
+  substring_languages match their own terms anywhere, with a space in a term matching any whitespace
+  or none. Every language also uses the all and en lists. Text is normalised before matching (Unicode
+  NFC, curly, angled and corner quotation marks to straight ones, in the terms as in the text, Romanian comma letters to the cedilla letters Turkish uses),
+  Occurrences are counted, overlapping matches
+  once. A match overlapping an exclude phrase is dropped. An acronym counts only when a full term of
+  the same family appears in the same article, and an acronym under requires only with one of its own
+  full terms. Every foreign form is a rendering published by Chinese state media (Xinhua, People's
+  Daily, CGTN, China Daily) or the Chinese foreign ministry and its embassies in that language, with
+  the page it was checked on in a comment; a language is left out of a family when no such rendering
+  was found. Hindi and Dutch have no local forms yet, so articles in them are matched on the all and
+  English terms only. Changing any term bumps version (and adds an entry to HISTORY in
+  pipeline/doctrine.py), and every article is tagged again at the next export.
+language_aliases:
+  ms: id
+substring_languages:
+- ja
+- ko
+- th
+- zh
+- fa
+- hi
+# The languages with local theme lists (pipeline/themes.yaml); the doctrine terms cover the same set.
+languages: [ar, de, en, es, fa, fr, hi, id, it, ja, ko, nl, pl, pt, ro, ru, th, tr, vi]
+families:
+- id: shared_future
+  label: Community with a shared future
+  distinctive: true
+  terms:
+    en:
+    - community with a shared future
+    - community of shared future
+    - community with shared future
+    - shared future for mankind
+    - shared future for humanity
+    es:
+    - comunidad de futuro compartido  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241220_11507965.html
+    fr:
+    - communauté d'avenir partagé  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - сообществ* единой судьбы  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    - сообществ* с единой судьбой  # https://www.mfa.gov.cn/ce/cerus//rus/sghd/t1619657.htm
+    ar:
+    - مجتمع المستقبل المشترك  # https://arabic.news.cn/20240307/e2ca7c6bd4a349e39617cf14ded29f15/c.html
+    - مجتمع مصير مشترك  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - comunidade com futuro compartilhado  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    - comunidade de futuro compartilhado  # https://portuguese.news.cn/20221114/050d691cee7a48eca43afe1b71eb6a16/c.html
+    - comunidade de destino compartilhado  # http://portuguese.xinhuanet.com/2017-10/22/c_136698150.htm
+    de:
+    - Schicksalsgemeinschaft der Menschheit  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    - globale* Schicksalsgemeinschaft  # https://german.news.cn/20230928/58a3ac4646cc4ba18b64044ddef13809/c.html
+    it:
+    - comunità umana dal futuro condiviso  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    - comunità dal futuro condiviso  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    ja:
+    - 人類運命共同体  # http://j.people.com.cn/n3/2024/1031/c94474-20236190.html
+    - 人類の運命共同体  # http://jp.xinhuanet.com/2017-01/19/c_135997227.htm
+    ko:
+    - 인류 운명공동체  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    vi:
+    - cộng đồng chia sẻ tương lai  # https://vn.china-embassy.gov.cn/vn/sgdt/202511/t20251128_11762817.htm
+    th:
+    - ประชาคมที่มีอนาคตร่วมกัน  # http://th.china-embassy.gov.cn/th/sgxw/202310/t20231009_11158277.htm
+    id:
+    - komunitas senasib sepenanggungan  # https://id.china-embassy.gov.cn/indo/xwdt/202309/t20230921_11146424.htm
+    tr:
+    - ortak kader topluluğ*  # https://tr.china-embassy.gov.cn/tur/sgxw/202305/t20230528_11084822.htm
+    - ortak kader birliğ*  # http://tr.china-embassy.gov.cn/tur/xwdt/202011/t20201118_9617259.htm
+    ro:
+    - comunitat* cu un viitor împărtășit  # https://ro.china-embassy.gov.cn/rom/zgywnew/202407/t20240712_11453014.html
+    fa:
+    - جامعه بشری با سرنوشت مشترک  # https://www.mfa.gov.cn/ce/ceaf//eng/sgxw/t1781475.htm
+- id: global_initiatives
+  label: The global initiatives
+  distinctive: true
+  terms:
+    all:
+    - GDI
+    - GSI
+    - GCI
+    - GGI
+    en:
+    - Global Development Initiative
+    - Global Security Initiative
+    - Global Civilization Initiative
+    - Global Civilisation Initiative
+    - Global Governance Initiative
+    es:
+    - Iniciativa para el Desarrollo Global  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241219_11504239.html
+    - Iniciativa para la Seguridad Global  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
+    - Iniciativa para la Civilización Global  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241219_11504239.html
+    - Iniciativa para la Gobernanza Global  # https://spanish.news.cn/20250930/9f973f8440bb4186b521158e58e54ec2/c.html
+    fr:
+    - Initiative pour le développement mondial  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    - Initiative pour la sécurité mondiale  # https://www.mfa.gov.cn/fra/zxxx/202501/t20250122_11543085.html
+    - Initiative pour la civilisation mondiale  # https://www.mfa.gov.cn/fra/zxxx/202501/t20250122_11543085.html
+    - Initiative pour la gouvernance mondiale  # https://www.mfa.gov.cn/fra/wjdt/wjhd/202510/t20251030_11743892.html
+    ru:
+    - Инициатив* по глобальному развитию  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    - Инициатив* по глобальной безопасности  # https://www.mfa.gov.cn/rus/zxxx/202304/t20230401_11053054.html
+    - Инициатив* глобальной цивилизации  # https://www.mfa.gov.cn/rus/zxxx/202304/t20230401_11053054.html
+    ar:
+    - مبادرة التنمية العالمية  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    - مبادرة الأمن العالمي  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    - مبادرة الحضارة العالمية  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    - مبادرة الحوكمة العالمية  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - Iniciativa de Desenvolvimento Global  # https://portuguese.people.com.cn/n3/2024/1009/c309814-20227406.html
+    de:
+    - Globale* Entwicklungsinitiative  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    - Globale* Sicherheitsinitiative  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    - Globale* Zivilisationsinitiative  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    - Globale* Governance-Initiative  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    it:
+    - Iniziativa di sviluppo globale  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    - Iniziativa di sicurezza globale  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    - Iniziativa per la civiltà globale  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    ja:
+    - グローバル発展イニシアティブ  # https://j.people.com.cn/n3/2025/0902/c94474-20361172.html
+    - グローバル安全保障イニシアティブ  # http://jp.china-embassy.gov.cn/jpn/jzzg/202204/t20220422_10671953.htm
+    - グローバル文明イニシアティブ  # https://j.people.com.cn/n3/2025/0902/c94474-20361172.html
+    - グローバル・ガバナンス・イニシアティブ  # https://j.people.com.cn/n3/2025/0902/c94474-20361172.html
+    ko:
+    - 글로벌 발전 이니셔티브  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    - 글로벌 안보 이니셔티브  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    - 글로벌 문명 이니셔티브  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    th:
+    - ความริเริ่มด้านธรรมาภิบาลโลก  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - Inisiatif Pembangunan Global  # https://id.china-embassy.gov.cn/indo/xwdt/202211/t20221105_10801022.htm
+    - Inisiatif Keamanan Global  # https://id.china-embassy.gov.cn/indo/xwdt/202211/t20221105_10801022.htm
+    tr:
+    - Küresel Kalkınma İnisiyatif*  # https://tr.china-embassy.gov.cn/tur/sgxw/202305/t20230528_11084822.htm
+    - Küresel Güvenlik İnisiyatif*  # https://tr.china-embassy.gov.cn/tur/sgxw/202305/t20230528_11084822.htm
+    - Küresel Medeniyet İnisiyatif*  # https://tr.china-embassy.gov.cn/tur/sgxw/202305/t20230528_11084822.htm
+  # GSI also names unrelated bodies (survey institutes, indices), so it counts only beside the full
+  # English name of the Global Security Initiative, not merely beside another initiative.
+  requires:
+    GSI: [Global Security Initiative]
+- id: belt_and_road
+  label: Belt and Road
+  distinctive: false
+  terms:
+    all:
+    - BRI
+    - OBOR
+    en:
+    - Belt and Road
+    - One Belt, One Road
+    - One Belt One Road
+    es:
+    - Franja y la Ruta  # https://spanish.news.cn/20231020/b42e758311d1467b84e4f06c905fa081/c.html
+    fr:
+    - la Ceinture et la Route  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - Пояс* и Пут*  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    ar:
+    - الحزام والطريق  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - Cinturão e Rota  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    de:
+    - Gürtel und Straße  # https://german.news.cn/20231019/5e13d280bfc94333adb994569a0d4571/c.html
+    it:
+    - Nuova Via della Seta  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    ja:
+    - 一帯一路  # https://j.people.com.cn/n3/2025/0902/c94474-20361172.html
+    ko:
+    - 일대일로  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    vi:
+    - Vành đai và Con đường  # http://vn.china-embassy.gov.cn/vn/sgdt/201903/t20190301_2308566.htm
+    th:
+    - หนึ่งแถบหนึ่งเส้นทาง  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - Satu Sabuk dan Satu Jalan  # https://id.china-embassy.gov.cn/indo/xwdt/202211/t20221105_10801022.htm
+    tr:
+    - Kuşak ve Yol  # https://tr.china-embassy.gov.cn/tur/sgxw/202601/t20260112_11811399.htm
+    - Bir Kuşak Bir Yol  # https://tr.china-embassy.gov.cn/tur/sgxw/201905/t20190501_9617207.htm
+    pl:
+    - Pas* i Szlak*  # https://pl.china-embassy.gov.cn/pol/sghd_1/202309/t20230925_11149595.htm
+    ro:
+    - Centura și Drumul  # https://ro.china-embassy.gov.cn/rom/sgzcnew/sghdnew/201705/t20170513_2988766.html
+    - Centurii și Drumului  # https://ro.china-embassy.gov.cn/rom/sgzcnew/sghdnew/201705/t20170513_2988766.html
+  # BRI is also Bank Rakyat Indonesia and the sponsor of Indonesia's football league.
+  exclude:
+    all:
+    - BRI Liga*
+    - Liga 1 BRI
+    - BRI Super League
+    - Bank Rakyat Indonesia
+    - Bank Rakyat Indonesia (BRI)
+    - Bank BRI
+    - PT BRI
+    - BRI Life
+    - BRI Insurance
+- id: win_win
+  label: Win-win cooperation
+  distinctive: true
+  # The phrase only: a bare "win-win" is ordinary English and is never a term.
+  terms:
+    en:
+    - win-win cooperation
+    es:
+    - cooperación de ganancias compartidas  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241220_11507965.html
+    fr:
+    - coopération gagnant-gagnant  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - взаимовыигрышн* сотрудничеств*  # https://russian.news.cn/20231116/c1cd26ffbd844fb09bc3caf8d1536bb9/c.html
+    ar:
+    - التعاون المربح للجانبين  # https://arabic.people.com.cn/n3/2025/0307/c31664-20286327.html
+    pt:
+    - cooperação ganha-ganha  # https://portuguese.people.com.cn/n3/2024/1009/c309814-20227406.html
+    de:
+    - Win-Win-Kooperation  # https://german.news.cn/20250418/829184d5dd8144ada1cbd95888b28136/c.html
+    it:
+    - cooperazione win-win  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+- id: multipolarity
+  label: Multipolar world
+  distinctive: true
+  terms:
+    en:
+    - multipolar world
+    - multipolarity
+    - multipolarization
+    - multipolarisation
+    es:
+    - mundo multipolar  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241219_11505604.html
+    fr:
+    - monde multipolaire  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    - multipolarisation  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - многополярн* мир*  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    ar:
+    - متعدد الأقطاب  # https://arabic.people.com.cn/n3/2025/0307/c31664-20286327.html
+    pt:
+    - mundo multipolar  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    de:
+    - multipolare* Welt  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    it:
+    - mondo multipolare  # https://it.china-embassy.gov.cn/ita/xwdt/202503/t20250315_11576191.htm
+    ko:
+    - 다극화  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    th:
+    - หลายขั้วอำนาจ  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+- id: hegemonism
+  label: Hegemonism and power politics
+  distinctive: true
+  # Hegemonism, never the generic "hegemony". Where the state's own rendering uses the generic word
+  # (Arabic, German), only the paired phrase with power politics counts.
+  terms:
+    en:
+    - hegemonism
+    es:
+    - hegemonismo  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
+    - política de la fuerza  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
+    fr:
+    - hégémonisme  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    - politique du plus fort  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - гегемонизм*  # http://russian.news.cn/2022-01/18/c_1310429847.htm
+    - политик* силы  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    ar:
+    - الهيمنة وسياسات القوة  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - hegemonismo  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    - política do poder  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    de:
+    - Hegemonie und Machtpolitik  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
+    it:
+    - egemonismo  # https://it.china-embassy.gov.cn/ita/xwdt/202302/t20230221_11028842.htm
+    ja:
+    - 覇権主義  # http://j.people.com.cn/n3/2022/0413/c94474-10083474.html
+    ko:
+    - 패권주의  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    - 강권정치  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    vi:
+    - chủ nghĩa bá quyền  # http://vn.china-embassy.gov.cn/vn/sgdt/202010/t20201031_2308959.htm
+    th:
+    - ลัทธิครองความเป็นเจ้า  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - hegemonisme  # https://id.china-embassy.gov.cn/indo/sgyw/202305/t20230508_11072975.htm
+- id: cold_war_mentality
+  label: Cold War mentality and zero-sum thinking
+  distinctive: true
+  # The mentality phrases only: "zero-sum game" on its own is ordinary English.
+  terms:
+    en:
+    - Cold War mentality
+    - zero-sum mentality
+    - zero-sum thinking
+    es:
+    - mentalidad de Guerra Fría  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
+    fr:
+    - mentalité de guerre froide  # https://www.mfa.gov.cn/fra/zxxx/202501/t20250122_11543085.html
+    - mentalité de la guerre froide  # https://www.mfa.gov.cn/fra/zxxx/202501/t20250122_11543085.html
+    ru:
+    - менталитет* холодной войны  # https://www.mfa.gov.cn/rus/zxxx/202304/t20230401_11053054.html
+    ar:
+    - عقلية الحرب الباردة  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - mentalidade da Guerra Fria  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    de:
+    - Mentalität des Kalten Krieges  # https://de.china-embassy.gov.cn/det/zt/Newsletter/202304/P020230419026455642590.pdf
+    it:
+    - mentalità da guerra fredda  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    ja:
+    - 冷戦思考  # https://jp.news.cn/20230117/d477e104d9504c4780528bd5296a7e97/c.html
+    ko:
+    - 냉전적 사고  # https://kr.news.cn/20230307/5bb087a2d3394bf7b8a115b1a92e3936/c.html
+    vi:
+    - tư duy chiến tranh lạnh  # http://vn.china-embassy.gov.cn/vn/sgdt/202010/t20201031_2308959.htm
+    id:
+    - mentalitas Perang Dingin  # https://id.china-embassy.gov.cn/indo/sgyw/202305/t20230508_11072975.htm
+- id: true_multilateralism
+  label: True multilateralism
+  distinctive: true
+  terms:
+    en:
+    - true multilateralism
+    - genuine multilateralism
+    es:
+    - verdadero multilateralismo  # http://spanish.news.cn/2022-01/18/c_1310429596.htm
+    fr:
+    - véritable multilatéralisme  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - подлинн* многосторонност*  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    - подлинн* мультилатерализм*  # http://russian.news.cn/2022-01/18/c_1310429847.htm
+    pt:
+    - verdadeiro multilateralismo  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    de:
+    - echte* Multilateralismus  # https://de.china-embassy.gov.cn/det/zgyw_/202204/t20220402_10663365.htm
+    it:
+    - vero multilateralismo  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
+    ja:
+    - 真の多国間主義  # http://j.people.com.cn/n3/2024/1031/c94474-20236190.html
+    ko:
+    - 진정한 다자주의  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    th:
+    - พหุภาคีอย่างแท้จริง  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+- id: chinese_modernization
+  label: Chinese modernization
+  distinctive: true
+  terms:
+    en:
+    - Chinese modernization
+    - Chinese modernisation
+    - Chinese path to modernization
+    - Chinese path to modernisation
+    - Chinese-style modernization
+    es:
+    - modernización china  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241220_11507965.html
+    fr:
+    - modernisation à la chinoise  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - китайск* модернизаци*  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    ar:
+    - التحديث الصيني النمط  # https://arabic.people.com.cn/n3/2025/0307/c31664-20286327.html
+    pt:
+    - modernização chinesa  # https://portuguese.people.com.cn/n3/2024/1009/c309814-20227406.html
+    de:
+    - chinesische* Modernisierung  # http://german.people.com.cn/n3/2025/0307/c209052-20286402.html
+    it:
+    - modernizzazione cinese  # https://it.china-embassy.gov.cn/ita/sbdt/202210/t20221027_10793132.htm
+    ja:
+    - 中国式現代化  # http://j.people.com.cn/n3/2024/1031/c94474-20236190.html
+    ko:
+    - 중국식 현대화  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    vi:
+    - hiện đại hóa kiểu Trung Quốc  # https://vn.china-embassy.gov.cn/vn/sgdt/202601/t20260106_11807283.htm
+    - hiện đại hoá kiểu Trung Quốc  # the same page's wording in the other Vietnamese tone mark placement
+    th:
+    - ความทันสมัยแบบจีน  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - modernisasi gaya China  # https://id.china-embassy.gov.cn/indo/xwdt/202211/t20221105_10801022.htm
+    tr:
+    - Çin tarzı modernleşme  # https://tr.china-embassy.gov.cn/tur/sgxw/202305/t20230528_11084822.htm
+- id: one_china_principle
+  label: One-China principle
+  distinctive: true
+  # The principle only, kept apart from the "one China policy" other governments state.
+  terms:
+    en:
+    - one-China principle
+    - one China principle
+    - '"one China" principle'
+    es:
+    - principio de una sola China  # https://spanish.news.cn/20260609/ceb8bc919b4f4bc29146424735052105/c.html
+    fr:
+    - principe d'une seule Chine  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - принцип* "одного Китая"  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    - принцип* одного Китая  # the same page's wording without quotation marks
+    ar:
+    - مبدأ صين واحدة  # https://arabic.news.cn/20241202/2ee11de8098a46f999627d4e29ec4c35/c.html
+    - مبدأ "صين واحدة"  # http://arabic.news.cn/20260720/c530d737cb8e4208aa745eeee5c773ad/c.html
+    pt:
+    - princípio de Uma Só China  # https://portuguese.news.cn/20260609/c99e409197324ef9af5ba0de44b5cf6e/c.html
+    de:
+    - Ein-China-Prinzip*  # https://german.news.cn/20221109/97f45547a1b8475aa8cd908eb1f12852/c.html
+    it:
+    - principio di una sola Cina  # https://it.china-embassy.gov.cn/ita/xwdt/202509/t20250929_11720163.htm
+    ja:
+    - 「一つの中国」原則  # https://jp.news.cn/20250325/39875882b0b943f9ae1d9c695f8d413d/c.html
+    ko:
+    - 하나의 중국 원칙  # http://kr.people.com.cn/n3/2026/0610/c414496-20465967.html
+    th:
+    - หลักการจีนเดียว  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    tr:
+    - Tek Çin ilke*  # https://tr.china-embassy.gov.cn/tur/sgxw/202511/t20251110_11749918.htm
+    pl:
+    - zasad* jednych Chin  # https://pl.china-embassy.gov.cn/pol/zbgx/202406/t20240624_11440735.htm
+    ro:
+    - principiul "O singură Chină"  # https://ro.china-embassy.gov.cn/rom/zlgxnew/201812/t20181219_2826532.html
+  exclude:
+    en:
+    - one China policy
+    - one-China policy
+- id: global_south
+  label: Global South
+  distinctive: false
+  terms:
+    en:
+    - Global South
+    es:
+    - Sur Global  # https://www.mfa.gov.cn/esp/zxxx/202412/t20241220_11507965.html
+    fr:
+    - Sud global  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - Глобальн* Юг*  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    ar:
+    - الجنوب العالمي  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - Sul Global  # http://portuguese.xinhuanet.com/20251204/0e7428b970af431481e4b99169450804/c.html
+    de:
+    - Globale* Süden*  # https://de.china-embassy.gov.cn/det/sgyw/202511/P020251125647207571717.pdf
+    ja:
+    - グローバル・サウス  # https://jp.news.cn/20250307/71f8ac4aa65743389622b9e92b07ec6f/c.html
+    - グローバルサウス  # https://jp.news.cn/20250307/71f8ac4aa65743389622b9e92b07ec6f/c.html
+    ko:
+    - 글로벌 사우스  # https://kr.news.cn/20240629/9b528b7bb94e4cb39693eb48d7cdfbc7/c.html
+    tr:
+    - Küresel Güney*  # https://tr.china-embassy.gov.cn/tur/sgxw/202601/t20260112_11811399.htm
+- id: people_to_people
+  label: People-to-people exchanges
+  distinctive: true
+  terms:
+    en:
+    - people-to-people exchange*
+    - people-to-people and cultural exchange*
+    es:
+    - intercambios entre pueblos  # https://www.mfa.gov.cn/esp/wjdt/wshd/202507/t20250707_11666376.html
+    fr:
+    - échanges entre les peuples  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    - échanges humains  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - гуманитарн* обмен*  # https://www.mfa.gov.cn/ce/cerus//rus/dssghd/t1678792.htm
+    ar:
+    - التبادلات الشعبية  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
+    pt:
+    - intercâmbios entre povos  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
+    th:
+    - การแลกเปลี่ยนระหว่างประชาชน  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - pertukaran antar masyarakat  # https://id.china-embassy.gov.cn/indo/xwdt/202309/t20230921_11146424.htm
+- id: xi_thought
+  label: Xi Jinping Thought
+  distinctive: true
+  terms:
+    en:
+    - Xi Jinping Thought
+    es:
+    - Pensamiento de Xi Jinping  # https://spanish.people.com.cn/n3/2018/0319/c31621-9438792.html
+    fr:
+    - Pensée Xi Jinping  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
+    ru:
+    - Иде* Си Цзиньпина  # https://www.mfa.gov.cn/rus/zxxx/202403/t20240308_11256391.html
+    pt:
+    - Pensamento de Xi Jinping  # http://portuguese.people.com.cn/n3/2017/1022/c309806-9283411.html
+    de:
+    - Xi Jinpings Ideen  # https://german.xinhuanet.com/20251024/681c28ae98fb4b7db616eb8bc80b273b/c.html
+    it:
+    - Pensiero di Xi Jinping  # https://it.china-embassy.gov.cn/ita/xwdt/202203/t20220313_10651359.htm
+    ja:
+    - 習近平「新時代の中国の特色ある社会主義」思想  # https://jp.china-embassy.gov.cn/jpn/jzzg/202111/t20211119_10450316.htm
+    th:
+    - แนวคิดสี จิ้นผิง  # https://th.china-embassy.gov.cn/th/zgyw/202603/t20260311_11872666.htm
+    id:
+    - Pemikiran Xi Jinping  # https://id.china-embassy.gov.cn/indo/xwdt/202211/t20221105_10801022.htm

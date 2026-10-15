@@ -2,6 +2,7 @@
 from typing import Dict
 
 from pipeline import config, registry
+from pipeline import measures as measures_mod
 
 TEMPLATE = """# Methodology
 
@@ -222,7 +223,7 @@ rather than by the country alone.
 
 {planted_text}
 
-## What the numbers mean
+{measures_text}## What the numbers mean
 
 The default measure is state origin only, because it is the one label decided
 without the model. There is no combined state-linked measure: adding the
@@ -748,6 +749,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         candidate_recall_text=candidate_recall_text(meta),
         session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
         planted_text=planted_text(meta),
+        measures_text=measures_mod.methodology_text(meta),
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
         cat_a=meta["categories"]["A"], cat_b=meta["categories"]["B"], cat_c=meta["categories"]["C"], cat_n=meta["categories"]["not_relevant"],

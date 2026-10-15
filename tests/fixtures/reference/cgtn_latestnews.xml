@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+    <url>
+        <loc>https://newseu.cgtn.com/news/2026-10-13/US-Gaza-educational-group-condemned-over-AI-monitoring-plan-1RbLjN2vbZ6/p.html</loc>
+        <lastmod>2026-10-13T00:25Z</lastmod>
+        <news:news>
+            <news:publication>
+                <news:name>CGTN</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-10-13T00:25Z</news:publication_date>
+            <news:title>US Gaza educational group condemned over AI monitoring plan</news:title>
+        </news:news>
+    </url>
+    <url>
+        <loc>https://news.cgtn.com/news/2026-10-13/Botswana-s-president-lays-wreath-at-Monument-to-People-s-Heroes-1RcZzKR0rRK/p.html</loc>
+        <lastmod>2026-10-13T16:39Z</lastmod>
+        <news:news>
+            <news:publication>
+                <news:name>CGTN</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-10-13T16:39Z</news:publication_date>
+            <news:title>Botswana's President Boko lays wreath at Monument to People's Heroes in Beijing</news:title>
+        </news:news>
+    </url>
+    <url>
+        <loc>https://newsaf.cgtn.com/news/2026-10-14/Beijing-forum-focuses-on-smarter-people-centered-cities-1RdxyyECXmM/p.html</loc>
+        <lastmod>2026-10-14T01:27Z</lastmod>
+        <news:news>
+            <news:publication>
+                <news:name>CGTN</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-10-14T01:27Z</news:publication_date>
+            <news:title>Beijing forum focuses on smarter, people-centered cities</news:title>
+        </news:news>
+    </url>
+</urlset>

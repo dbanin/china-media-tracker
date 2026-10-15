@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Syndication deals",
+  "description": "Publicly announced agreements between outlets and Chinese state media (pipeline/syndication.py). Each entry names a monitored outlet by outlet_id, or an outlet the tracker does not monitor with unmonitored: true and outlet_name, and needs a public https source that states the deal and its date.",
+  "type": "object",
+  "required": ["entries"],
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "partner", "kind", "signed_on", "precision", "source_url", "source_title",
+                     "source_publisher", "source_kind", "accessed_on", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_]*$"},
+          "outlet_id": {"type": "string", "pattern": "^[a-z]{2,3}_[a-z0-9_]+$",
+                        "description": "An id in sources/outlets.yaml"},
+          "unmonitored": {"type": "boolean",
+                          "description": "true for an outlet the tracker does not monitor; outlet_name then names it"},
+          "outlet_name": {"type": "string", "minLength": 1},
+          "partner": {"enum": ["xinhua", "cgtn", "china_daily", "global_times", "peoples_daily", "cri", "cns", "cmg", "other"],
+                      "description": "other: provincial or municipal Chinese state media, or another central body such as Economic Daily, named in the notes"},
+          "kind": {"enum": ["content_exchange", "news_exchange", "mou", "cooperation_agreement", "supplement",
+                            "paid_placement", "joint_venture", "training_partnership", "other"]},
+          "signed_on": {"type": "string", "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+                        "description": "YYYY-MM-DD, YYYY-MM or YYYY, matching precision"},
+          "precision": {"enum": ["day", "month", "year"]},
+          "effective_from": {"type": "string", "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$"},
+          "ended_on": {"type": "string", "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$"},
+          "source_url": {"type": "string", "pattern": "^https://[^\\s]+$"},
+          "source_title": {"type": "string", "minLength": 1},
+          "source_publisher": {"type": "string", "minLength": 1},
+          "source_kind": {"enum": ["primary", "news_report", "ngo_report", "academic"]},
+          "accessed_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "confidence": {"enum": ["stated", "reported"],
+                         "description": "stated: a party to the deal announced it; reported: a third party reported it"},
+          "notes": {"type": "string"},
+          "verified_by": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

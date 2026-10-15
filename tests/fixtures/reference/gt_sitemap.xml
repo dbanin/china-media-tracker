@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+    <url>
+        <loc>https://www.globaltimes.cn/page/202610/1372221.shtml</loc>
+        <news:news>
+            <news:publication>
+                <news:name>Global Times</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-10-13T04:30:03+08:00</news:publication_date>
+            <news:title>The ‘developed country’ label is actually a trap: Global Times editorial</news:title>
+            <news:keywords>china,development,developing,global,world,</news:keywords>
+        </news:news>
+    </url>
+    <url>
+        <loc>https://www.globaltimes.cn/page/202610/1372190.shtml</loc>
+        <news:news>
+            <news:publication>
+                <news:name>Global Times</news:name>
+                <news:language>en</news:language>
+            </news:publication>
+            <news:publication_date>2026-10-13T12:25:21+08:00</news:publication_date>
+            <news:title>Philippine VP defends herself, saying Marcos’ attacks threaten national security, ties with China</news:title>
+            <news:keywords>china,philippines,duterte,political,marcos,</news:keywords>
+        </news:news>
+    </url>
+</urlset>

@@ -4,6 +4,209 @@ Every change to the ruleset version is recorded here with what it altered,
 because reclassification changes historical numbers and that must be traceable.
 Code changes that do not alter classification are not listed.
 
+## Theme tags read a body that arrives late (2026-10-14)
+
+An article tagged with themes before its body was fetched kept the themes of its title and feed summary for good, because the export re-tagged only articles whose stored themes version differed. The stored tag now records whether the body was read ({"v", "t", "b"}, b 1 when it was), and each export tags again every article tagged without a body whose body file now exists, newest first, within three minutes, carrying the rest to the next export and listing how many are left as themes_body_retags_left. A tag made with the body is never replaced by one made without it under the same version. Tags stored before this change carry no b and count as made without a body, so each is read again once when its body is there and left alone when it is not. On the local database 6,371 articles have a body file and are read again; 698 of them change their themes, 606 of these because the body had never been read (142 move from Other to a theme). The themes version stays 2026.09.4: the terms and the stated reading, the whole body, are unchanged, and a version change would re-tag every article whether or not its body is present. Counts rise for days with late bodies as the re-reading reaches them. The daily files and article lists are otherwise unchanged; each audit line carries the tag as stored, now with b.
+
+## Data schema 13 (2026-10-14)
+
+The research measures and the reference sources add an export field, six side files, four database
+tables, a column and a relay record type. Nothing in the schema changes a label, a count, a denominator
+or the outlets monitored, and China stays unmonitored.
+
+- New export field: meta.measures, one block per measure in sources/measures.yaml (pipeline/measures.py),
+  with its status (off, provisional, checked or withheld), label, version, file, enabled, inputs_present,
+  min_inputs, the hand check (state, file, n, coded, statistic, value, threshold and checked_on), reason,
+  method_text and summary, and error when the measure failed.
+- New side files in docs/data, one per measure that is not off: alteration.json, speed.json,
+  doctrine.json, spikes.json, engagement.json and syndication.json. None carries article body text. A
+  measure that is off has no side file, and one an earlier export left is removed; a measure that fails
+  is recorded as off with its error and an empty side file, and never stops the export.
+- New database tables: reference_items (the reference sources' items, with their body fingerprint),
+  reference_feed_health (their feed health, kept apart from the monitored outlets'), state_copies (one
+  row per state origin copy, with the original it was paired with and its alteration and speed metrics)
+  and engagement_aggregates (the counts imported from hand lookups). New column: articles.doctrine, the
+  doctrine term matches, NULL until an article is tagged. The tables are created when a database lacks
+  them and the column is added when it is missing, so an older database opens as before, and the prune
+  (prune_gated_out, expire_seen) never touches any of them.
+- The relay bundle carries a new record type, reference_item, which the hosted side writes into
+  reference_items and nowhere else. A hosted side older than this skips it as a record type it does
+  not know.
+
+## Reference sources: Chinese state outlets read as originals only (2026-10-14)
+
+The collector now reads the English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily
+and ECNS as reference sources (sources/reference.yaml, pipeline/reference.py), so state copy in
+monitored outlets can be compared with the text it came from. They are originals only. A reference
+source has no country and an id of its own (ref_*). Its items go to reference_items and nowhere else:
+they are never classified, never counted and never in a denominator. China stays unmonitored and
+sources/gaps.yaml is unchanged, and every published figure is the same with or without them, which a
+test checks file by file. Each hourly discover stage polls their listings within its own time cap:
+CGTN's section RSS and latest news sitemap, ECNS's RSS, the Global Times news sitemap, Xinhua's timed
+list pages, and the People's Daily, China Daily and Xinhua homepages. Every request goes through the
+crawler's usual robots.txt check, per domain pacing and user agent. Each fetch stage then reads up to
+200 of their newest pages (config.REFERENCE_FETCH_PER_RUN). Several listings misstate their times, so
+each listing has a written time rule: CGTN's sitemap and ECNS's feed write Beijing time as if it were
+UTC, the Global Times sitemap is trusted for the date only, and the time is taken from the article page
+where a listing gives none. Bodies are stored without the outlets' menus, footers and related link
+lists, along with a fingerprint. Paywalled pages are never fetched again, and the body of an item no
+copy was paired with is deleted 30 days after it was fetched (config.REFERENCE_UNPAIRED_BODY_DAYS),
+while its row and fingerprint are kept. Xinhua has no Italian edition, so Italpress's Xinhua copy has to
+be paired with Xinhua English. CRI English and CGTN Italian could not be read. All six sources start on
+the hosted runner, and a source refused there for three days can move to the relay, whose bundle now
+carries reference items.
+
+## New measures, provisional until hand checked (2026-10-14)
+
+Six new measures share one foundation, and none of them changes a label, a count, a denominator or the
+outlets monitored. sources/measures.yaml lists each measure with its module, whether it is switched on
+and the inputs it needs. The alteration score, republication speed, doctrine terms and unusual days
+are switched on; engagement and syndication deals are built and switched off. At export time
+pipeline/measures.py runs each one in its own try/except, writes its file to docs/data/<id>.json and
+records its state in meta.measures: off (the site hides it), provisional until its own hand check
+passes, checked, or withheld when the latest completed check fails. Checks are scored from the newest
+committed data/reviews/<id>_sample_*.csv and its key, so hand coding reaches the published site through
+git. METHODOLOGY.md gains a "New measures (provisional)" section that lists only the measures that are
+not off, and the site gains a section for state copy and its originals, one each for doctrine terms,
+engagement and syndication deals, a slot for unusual days under What we found, and one full note per
+provisional or withheld measure. A measure that is off changes no published file except meta.measures.
+
+The alteration score tests the second half of the state origin definition: that the text runs without
+substantive editorial alteration. pipeline/copies.py gives every current state origin label one row in
+state_copies and pairs it with the original it reproduces. It looks first for a reference item whose
+publisher the copy's credit names, in the copy's language, from eleven days before the copy to one day
+after it, found by headline, feed summary or body fingerprint, and with at least 30 percent of the
+copy's words lining up when both texts are stored. Failing that, it takes the earliest credited copy of
+the same item at another monitored outlet, and otherwise it records why there is none. Translations,
+such as Italpress running Xinhua English in Italian, are never matched across languages. The lookalike
+match is copied into the row, so a reclassification cannot lose it, and copies from the last 14 days are
+paired again at every export. Both texts are compared after credit lines, datelines and an outlet's
+repeated template lines are removed. The score is the share of the copy's words not found in the
+original, in provisional bands: verbatim under 3 percent, light under 15, moderate under 40,
+substantial 40 or more. Cuts, headline changes and two weak keyword cues, local context and
+counterpoint, are reported separately. alteration.json gives the band shares by route, country (wires
+under WLD), outlet (at least 5 scored copies), reference source and language, with pair coverage and
+reference recall. It carries no headline, link or body text. Every substantial copy is listed in
+data/export/alteration_review.csv for review by hand, and data/reviews/ALTERATION_GUIDE.md sets out the
+blind check: 20 pairs per band, passing at pair precision 0.9 and quadratic weighted kappa 0.6. Bodies
+are stored only where the tracker runs, so the site's coverage line says how many copies could be
+scored.
+
+Republication speed reports how soon a state origin copy runs after the state original it reproduces,
+from the pairs the alteration score stores (pipeline/speed.py). Each lag is recomputed from the two
+publication times, and only when both are credible against their own discovery; the time the tracker
+found an item is never a lag. Where the original is the state outlet's own page the lag is absolute,
+and where only an earlier monitored copy was found it is relative, behind the first monitored copy; the
+two are never pooled. Lags fall into same hour, same day, 1 to 3 days and later. Pages that give only a
+date are bucketed by calendar date and kept out of the medians, and copies more than an hour ahead of
+their original or without a credible time are counted but kept outside every distribution.
+docs/data/speed.json gives counts, medians and quartiles by route, country (wires under WLD), reference
+source and outlet (from 10 timed pairs), with coverage and, for every reference source, a check on its
+times: the median gap to discovery, the share published after discovery, which points to a zone
+labelled wrongly, and the share that give only a date. The site shows it as a second panel under State
+copy and its originals, with a bar per route and the fastest outlets. The hand check is 60 reference
+pairs whose times a person reads off both pages (data/reviews/SPEED_GUIDE.md), and it passes at 85
+percent bucket agreement.
+
+Doctrine terms counts how often China coverage uses the Chinese state's own set phrases: community
+with a shared future, the global initiatives, the Belt and Road, win-win cooperation, the multipolar
+world, hegemonism and power politics, Cold War mentality and zero-sum thinking, true multilateralism,
+Chinese modernization, the one-China principle, the Global South, people-to-people exchanges and Xi
+Jinping Thought. The terms (pipeline/doctrine.yaml, version 2026.10.1) are in English and in the
+renderings Xinhua, People's Daily, CGTN and the Chinese foreign ministry and its embassies publish in 16
+more languages, each with the page it was checked on; a language without a published rendering is
+matched on English alone. A new generic matcher (pipeline/termlists.py) reads terms the way the theme
+counter does and adds occurrence counts, exclusions (BRI Liga and Bank Rakyat Indonesia are not the Belt
+and Road, the one China policy is not the one-China principle, a bare win-win and the generic hegemony
+never count) and a rule that an acronym counts only beside a full term of its family. Every relevant
+article is tagged in the headline, the feed summary and the body, into articles.doctrine, and tagged
+again once its body arrives; a body-read tag is never replaced by a title-only one. doctrine.json gives,
+per day of record and country, each family's China coverage, state origin, unchecked state sourcing,
+independent journalism and occurrences, and the site's Doctrine terms section ranks the families by
+their rate per 1,000 China articles of each kind, leads with the share of independent journalism using
+the vocabulary, mutes the Belt and Road and the Global South as common beyond state usage, and draws one
+weekly timeline. A hand check of up to 200 matches, spread over families and languages
+(data/reviews/DOCTRINE_GUIDE.md), checks a family at a precision of 0.9 on 15 coded matches and
+withholds it below 0.8.
+
+Unusual days flags days on which a country, or the worldwide press release wires, carried far more
+state origin placements than usual. pipeline/spikes.py reads the same day of record and country mapping
+as the daily files and tests complete days only, never the partial export day. Each day is set against
+the 28 complete days before it, counting only days on which the country's outlets were collected at all
+and needing at least 14 of them; the expected count is their mean once the busiest tenth is set aside,
+with a floor of 0.2. A day is flagged when it has at least 5 placements, at least three times the
+expected count, and a Poisson tail under 1 in 1,000, computed on the log scale in plain Python.
+spikes.json gives every flagged day with its rate per discovered item, its distinct underlying items,
+the outlets and items behind it and up to 40 articles taken straight from the articles table, so past
+the 80 per country cap of the article files, together with the number of tests run and the false flags
+the model expects by chance (about 0.1 over 5,963 country days on the 13 October snapshot). Every
+flagged day carries the checks that could make it an artefact rather than a surge of state text: a newly
+added outlet, a backfill read, a collector catching up after a gap, an incomplete day for the collector
+on the owner's machine, labels made under a different ruleset, a relevance gate change that moved the
+level, saturated feeds, candidates still waiting for the model, and a surge in everything collected. A
+day with any of them is shown muted under What we found as one to check, and the repeats in the old
+discovery counts are noted as touching the rate only. The site lists the most recent clean days first,
+opens a day's country on the map at that day when selected, and marks unusual days on the map
+timeline. The hand check codes up to 30 flagged days as a real surge or an artefact against
+data/reviews/SPIKES_GUIDE.md and passes at a precision of 0.8.
+
+Engagement (pipeline/engagement.py) is built and stays switched off. It asks how far state origin
+articles travel after publication, which is reach, not supply, from aggregate counts the owner looks up
+by hand in the Meta Content Library: no code in the repository touches Meta, a login, a token or an
+API. `python -m pipeline.engagement urls --since --until` writes data/engagement/urls_<range>.csv, the
+current state origin articles of those days with public addresses only, their url_hash, outlet, country
+as the export counts it (release wires under WLD), route, day and headline; these files are not
+committed. The counts come back in a file whose header is a strict whitelist
+(sources/engagement_schema.json: key_type, key, platform, period, posts_n, reactions, shares, comments,
+optional views, suppressed, query_date and mcl_query_ref), and `validate` refuses the whole file, line
+by line, for an extra column, any link to a platform or any address at all, an @ handle, a digit string
+longer than 15, a time finer than a day, text over 64 characters, or a small cell: posts_n from 1 to 4
+without the row suppressed (ENGAGEMENT_MIN_CELL, 5). `import` validates, then writes
+engagement_aggregates idempotently with the file's sha256. Because the runner's database is the
+canonical one, the coded file is committed as data/engagement/counts_<range>.csv with its line in
+data/engagement/QUERY_LOG.md, and the export imports every committed counts file each time it runs.
+Once switched on, engagement.json carries totals per platform, route, outlet and country, and the share
+of the state origin addresses looked up that some public post linked to, never a single article's
+counts, an address or a headline; the site shows that share, a table of the ten countries with the most
+posts and the status chip. Its hand check repeats up to 20 lookups blind and compares the band of posts
+found, not the exact count, since posts keep arriving after the first query; it passes at 80 percent
+agreement.
+
+Syndication deals is built and stays switched off. sources/syndication.yaml lists publicly announced
+agreements between outlets and Chinese state media: the outlet (or an outlet the tracker does not
+monitor, named), the partner, the kind of deal, the date signed with its precision, and a public source
+page that states the deal and the date, marked stated when a party announced it and reported when a
+third party did. `python -m pipeline.syndication validate` checks the file against
+sources/syndication_schema.json and against the outlet registry, and refuses a precision that does not
+match the date, a duplicate deal or an entry without a source. Most deals were signed before collection
+began on 3 September 2026, so they appear on a timeline only. For a deal signed on a known day or month
+at least 28 days inside the collected period, pipeline/syndication.py compares the outlet's state origin
+share of its China coverage over the 28 days before and after it, with at least 50 China articles a side
+and a Newcombe interval on the difference, and lists what else changed in the window: ruleset and gate
+changes, days the owner's machine collected incompletely, days the outlet discovered nothing and
+saturated feed polls. The comparison shows timing, not cause. The measure stays switched off in
+sources/measures.yaml until at least 10 sourced, dated entries name monitored outlets, and its hand
+check rereads the source page of 20 entries and passes when 0.9 of them confirm the deal and its date.
+
+## Site: unusual days open any country, and a hidden country redraws every figure (2026-10-14)
+
+Selecting an unusual day now opens it through a small public hook in the page script
+(window.TrackerApp, with selectCountry and setDay, and a "tracker:select" event on the document) rather
+than by driving the page's own controls. The timeline moves to that day, or, for a day it does not
+offer, to the last day before it (the first day when there is none); the country's panel opens and the
+map scrolls into view. Before, an unusual day for a row missing from the ranked list, such as the
+worldwide wires under Country outlets, moved the day but never opened the row. The unusual days list now
+sends the event alone, and falls back to the scrubber and the ranked list only on a page without the
+hook.
+
+Picking a country the Distribution toggle hides, such as the worldwide wires under Country outlets or
+any country under Worldwide wires, switched the toggle back to Both but left the sparkline, its spike
+and version marks, the KPI cards and the findings on the old mode's numbers, whether the pick came from
+the search box, the map, a link or the ranked list. Every such pick now redraws them too, once each, so
+the toggle and every figure agree on Both. A pick the toggle already shows draws exactly what it drew
+before, and the public hook opens a country through the same path. No ruleset, gate, category or
+themes change.
+
 ## Ruleset 2026.10.1 (2026-10-12)
 
 An outside review of the methodology, and the audits it prompted, found state text the rules could not

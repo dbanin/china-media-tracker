@@ -1,0 +1,42 @@
+# The research measures (pipeline/measures.py). Report only: none of them changes a label, a count, a
+# denominator or the outlets monitored, and China stays unmonitored.
+#
+# Each entry, in the order the export runs them (a later measure may read what an earlier one wrote):
+#   id          the measure id: meta.measures[id], docs/data/<id>.json, data/reviews/<id>_sample_*.csv
+#   label       the measure's name on the site and in METHODOLOGY.md
+#   module      the Python module that implements it (the interface is in pipeline/measures.py);
+#               a module that does not exist yet leaves the measure off, reason "not built"
+#   enabled     false keeps it off whatever its inputs: the module is not run and the section is hidden
+#   min_inputs  the measure runs only when the module's inputs_present(conn) is at least this
+#   budget_seconds  the time the export gives compute() before its deadline (optional, default 300)
+- id: alteration
+  label: Alteration score
+  module: pipeline.copies
+  enabled: true
+  min_inputs: 1
+- id: speed
+  label: Republication speed
+  module: pipeline.speed
+  enabled: true
+  min_inputs: 1
+- id: doctrine
+  label: Doctrine terms
+  module: pipeline.doctrine
+  enabled: true
+  min_inputs: 1
+- id: spikes
+  label: Unusual days
+  module: pipeline.spikes
+  enabled: true
+  # inputs: days with discovery on record; one test needs 14 baseline days and the day itself
+  min_inputs: 15
+- id: engagement
+  label: Engagement
+  module: pipeline.engagement
+  enabled: false
+  min_inputs: 1
+- id: syndication
+  label: Syndication deals
+  module: pipeline.syndication
+  enabled: false
+  min_inputs: 10

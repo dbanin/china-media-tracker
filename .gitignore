@@ -20,3 +20,6 @@ logs/relay-*.log
 
 # Local knowledge graph of the repo (graphify)
 graphify-out/
+
+# Generated URL lists for Meta Content Library lookups (rebuilt on demand; counts_*.csv are committed)
+data/engagement/urls_*.csv

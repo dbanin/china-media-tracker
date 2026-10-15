@@ -50,12 +50,14 @@ META_SCHEMA = {
     "required": ["schema_version", "ruleset_version", "llm_model", "generated_at", "outlets_total", "outlets_active",
                  "countries_monitored", "countries_in_gaps", "gaps", "articles_classified", "articles_reviewed",
                  "review_coverage", "paywall_share", "paywall_flagged_countries", "kappa", "b_counts_settled",
-                 "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study", "findings", "planted"],
+                 "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study", "findings", "planted", "measures"],
     "properties": {"b_counts_settled": {"type": "boolean"}, "relay_provisional": {"type": "boolean"},
                    "planted": {"type": "object", "required": ["flags_total", "flags_30d", "list_version", "personas", "fronts", "operations"]},
                    "relay_study": {"type": "object", "required": ["auto", "state", "sample"]}, "review_coverage": {"type": "number"},
                    "categories": {"type": "object", "required": ["A", "B", "C", "not_relevant"]},
-                   "findings": FINDINGS_SCHEMA},
+                   "findings": FINDINGS_SCHEMA,
+                   "measures": {"type": "object", "additionalProperties": {"type": "object", "required": ["status", "label", "file", "enabled", "check"],
+                                "properties": {"status": {"enum": ["off", "provisional", "checked", "withheld"]}}}}},
 }
 OUTLETS_SCHEMA = {
     "type": "object", "required": ["generated_at", "outlets"],

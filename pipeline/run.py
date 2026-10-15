@@ -35,6 +35,20 @@ def _planted_scan(conn, counts, deadline=None):
         print("planted scan failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
 
 
+def _reference(conn, counts, stage, deadline=None):
+    """Poll or fetch the reference sources (pipeline/reference.py: state outlets' own editions, read as
+    originals only, into reference_items and nothing else), within the stage's own cap
+    (reference.POLL_SECONDS, FETCH_SECONDS) and the run's deadline. A failure is recorded in the stage's
+    counts and never stops the run."""
+    try:
+        from pipeline import reference
+        counts["reference"] = reference.run_stage(conn, stage, deadline)
+    except Exception as exc:  # noqa: BLE001  the reference sources are a side channel, never a reason to stop
+        conn.rollback()
+        counts["reference"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
+        print("reference %s failed: %s: %s" % (stage, type(exc).__name__, exc), file=sys.stderr)
+
+
 def _body_links(conn, counts, deadline=None):
     """Link this stage's new bodies to near-duplicates from other outlets (pipeline.body_dups), and
     fingerprint older stored bodies that have none, for at most body_dups.STAGE_SECONDS. A failure
@@ -81,6 +95,7 @@ def cmd_discover(conn, run_id, args, deadline):
     junk = _junk_feeds(conn)
     pruned = store.prune_gated_out(conn)
     counts = fetch_feeds.run(conn, run_id, deadline=deadline)
+    _reference(conn, counts, "poll", deadline)
     counts["pruned_gated_out"] = pruned
     if retagged:
         counts["language_retag"] = retagged
@@ -96,6 +111,7 @@ def cmd_fetch(conn, run_id, args, deadline):
     counts = fetch_articles.run(conn, run_id, deadline=deadline, limit=args.limit)
     _planted_scan(conn, counts, deadline)
     _body_links(conn, counts, deadline)
+    _reference(conn, counts, "fetch", deadline)
     print("fetch:", json.dumps(counts))
     return counts
 

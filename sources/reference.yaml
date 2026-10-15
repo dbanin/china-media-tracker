@@ -1,0 +1,191 @@
+# Reference sources (pipeline/reference.py, schema in reference_schema.json).
+#
+# These are editions of Chinese state outlets, read only as originals to compare state copy against.
+# They are never an outlet: no country field, ids always ref_*, never classified, never counted, never in
+# any denominator, and China stays unmonitored. Their items go to reference_items and nowhere else.
+#
+# Every listing below was found and checked from the owner's Mac on 2026-10-13 through the tracker's own
+# helpers (task T1a: scratchpad measures/reference_feeds.md and reference_feeds.yaml). Every URL is allowed
+# by robots.txt (Xinhua and China Daily have none: 404, allow all); no paywall, bot challenge, 403 or 429
+# was seen. Runner access is untested, so every source starts on the runner (collector: hosted); a source
+# moves to the relay only after 3 days of refusals (python -m pipeline.reference validate reports them).
+#
+# time_rule says how a listing's entry times are read. Stored times are UTC ISO with a time of day, or a
+# bare YYYY-MM-DD when only the date is known (lookalike.published_ts and tie_rank read that as day
+# resolution):
+#   as_published    the parsed time is right as written (RFC 822 with its zone).
+#   bjt_if_unzoned  a value with no zone, or with a "Z", is Beijing time (UTC+8); an explicit other offset
+#                   is trusted.
+#   bjt             the value has no zone and is Beijing time.
+#   date_only       only the date of the value is used; the time comes from the page at fetch (page_time).
+#   url_date        the listing has no time; the date is read from the article URL (a Beijing date), and the
+#                   time from the page at fetch (page_time).
+# page_time says how the article page states its time, read at fetch when the listing gave a date only:
+#   jsonld                 the JSON-LD datePublished, with its offset.
+#   published_line         "Published: Oct 14, 2026 12:30 AM", Beijing time, 12 hour clock.
+#   bjt_stamp              the first "YYYY-MM-DD HH:MM:SS" on the page, Beijing time.
+#   hhmm_month_day_year    "08:05, October 13, 2026", Beijing time.
+# cleaner strips template lines from the extracted body before it is stored and fingerprinted:
+#   cgtn            the "Choose your language" menu and cookie line at the head, the section label and
+#                   time line, and everything from "Search Trends" / "CHOOSE YOUR LANGUAGE" /
+#                   "DOWNLOAD OUR APP" / the copyright line on.
+#   peoples_daily   the "Photos" and "Related Stories" link list at the tail and the copyright line.
+#   china_daily     the "Most Popular" link list and footer at the tail, the share and menu lines.
+#   The CGTN cleaner also drops a video page's clip duration, section label and "CGTN Now" line.
+#
+# Left out: Xinhua Italian (no such edition: italian.news.cn, italian.xinhuanet.com and it.news.cn do not
+# resolve, and Xinhua's language menu has no Italian; Italpress's Xinhua copy is translated from Xinhua
+# English), CRI English (a script shell for CGTN Radio), CGTN Italian (bodies rendered in the browser, so
+# extraction gets only page chrome), and People's Daily Italian (date only, half its homepage links are
+# evergreen back to 2021, and it is not the origin of the Italpress copy, so it adds little).
+
+- id: ref_xinhua_en
+  name: Xinhua English
+  publisher: xinhua
+  language: en
+  feeds:
+    # Static list pages, 20 items each, "<a href=../YYYYMMDD/<32 hex>/c.html>title</a><span class=time>
+    # YYYY-MM-DD HH:MM:SS</span>" in Beijing time. latestnews.htm carried 20 timed items in the saved page
+    # (about 1.3 hours of the wire at 19:25 UTC). The regional index pages (africa, europe, asiapacific,
+    # northamerica) are filled by script and carry no timed list, so they are not read.
+    - {url: "https://english.news.cn/list/latestnews.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/china/index.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/world/index.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/list/china-business.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/list/World-MiddleEast.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/list/World-americas.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/culture/index.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/indepth/index.htm", type: xinhua_list, time_rule: bjt}
+    - {url: "https://english.news.cn/sports/index.htm", type: xinhua_list, time_rule: bjt}
+    # The homepage read as an index page (section_pages): 41 links, no times.
+    - {url: "https://english.news.cn/", type: page, time_rule: url_date, link_pattern: "/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: none
+  verified_on: "2026-10-13"
+  evidence: >-
+    List time equals the time printed on the article page in 3 of 3 checks (for example list 2026-10-14
+    00:42:00, page 2026-10-14 00:42:00), Beijing time with no zone written; the page's meta publishdate gives
+    the date only. Extraction 3 of 3 good (1,384 to 1,727 characters, dateline "(Xinhua) --" kept).
+  notes: >-
+    No usable feed or sitemap: the legacy RSS stopped in January 2018 and /sitemap.xml is 404. Italpress's
+    Xinhua copy is translated from this edition, so it is the original that matters for Italian too.
+
+- id: ref_cgtn_en
+  name: CGTN
+  publisher: cgtn
+  language: en
+  feeds:
+    - {url: "https://www.cgtn.com/subscribe/rss/section/china.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/world.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/politics.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/business.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/tech-sci.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/culture.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml", type: rss, time_rule: as_published}
+  news_sitemaps:
+    # One Beijing day of every CGTN host (news, newsaf, newseu, newsus), 286 entries on 2026-10-13.
+    - {url: "https://www.cgtn.com/sitemap_latestnews.xml", time_rule: bjt_if_unzoned}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: jsonld
+  cleaner: cgtn
+  verified_on: "2026-10-13"
+  evidence: >-
+    RSS times are RFC 822 GMT and agree with the page's datePublished (+08:00). The latest news sitemap
+    writes Beijing time with a Z: 2026-10-14T01:27Z is shown on the page as "01:27, 14-Oct-2026" GMT+8
+    with datePublished 2026-10-14T01:27:17+08:00, so read as UTC it is 8 hours late (94 of 286 entries
+    were in the future at probe time). Extraction reaches the body but keeps about 100 lines of language
+    menu and footer, hence the cleaner.
+  notes: >-
+    RSS links carry UTM query strings, removed before storing. sitemap_news.xml (30,000 unsorted URLs) is
+    not read.
+
+- id: ref_global_times_en
+  name: Global Times
+  publisher: global_times
+  language: en
+  feeds: []
+  news_sitemaps:
+    - {url: "https://www.globaltimes.cn/sitemap.xml", time_rule: date_only}
+  credits: [global_times_]
+  collector: hosted
+  active: true
+  page_time: published_line
+  cleaner: none
+  verified_on: "2026-10-13"
+  evidence: >-
+    The sitemap labels its times +08:00 but writes UTC on a 12 hour clock (every hour in the file is 01 to
+    12): 2026-10-13T04:30:03+08:00 is shown on the page as "Published: Oct 14, 2026 12:30 AM" (Beijing,
+    16:30 UTC), and 2026-10-13T12:25:21+08:00 as "Oct 13, 2026 08:25 PM" (12:25 UTC). The date part is the
+    UTC date in both, so only the date is kept, and the time is read from the page's "Published:" line.
+    Extraction 3 of 3 good; trafilatura's own date was wrong on one page, so it is never used.
+  notes: >-
+    /rss/outbrain.xml is a curated recommendation feed with wrong times and is not read.
+
+- id: ref_peoples_daily_en
+  name: People's Daily Online English
+  publisher: peoples_daily
+  language: en
+  feeds:
+    - {url: "https://en.people.cn/", type: page, time_rule: url_date, link_pattern: "/n3/\\d{4}/\\d{4}/c\\d+-\\d+\\.html$"}
+  news_sitemaps: []
+  credits: [peoples_daily_, xinhua_]
+  collector: hosted
+  active: true
+  page_time: hhmm_month_day_year
+  cleaner: peoples_daily
+  verified_on: "2026-10-13"
+  evidence: >-
+    No times in the listing; the URL carries the date (/n3/YYYY/MMDD/) and the page prints "08:05, October
+    13, 2026" in Beijing time with no zone. Extraction 3 of 3 good, but the tail carries a "Related
+    Stories" link list and the copyright line, hence the cleaner.
+  notes: >-
+    The advertised sitemap is stale (newest 2026-06-22). The 3 pages sampled were all Xinhua copy
+    ("BEIJING, Oct. 13 (Xinhua) --"), so this is mostly a second channel for Xinhua English text and
+    credits include xinhua_; pairing should go by the body credit.
+
+- id: ref_china_daily_en
+  name: China Daily
+  publisher: china_daily
+  language: en
+  feeds:
+    - {url: "https://www.chinadaily.com.cn/", type: page, time_rule: url_date, link_pattern: "/a/\\d{6}/\\d{2}/WS[0-9a-f]+\\.html$"}
+  news_sitemaps: []
+  credits: [china_daily_]
+  collector: hosted
+  active: true
+  page_time: jsonld
+  cleaner: china_daily
+  verified_on: "2026-10-13"
+  evidence: >-
+    No times in the listing; the URL carries the date (/a/YYYYMM/DD/) and the page's JSON-LD
+    datePublished (+08:00) agrees with its "Updated:" line in 3 of 3 checks. Every RSS and sitemap path is
+    404, so the homepage is the only listing. Video pages extract short (270 to 600 characters).
+  notes: >-
+    The weakest of the set: the homepage also links the e-paper and evergreen pages back to August, which
+    link_pattern and the age limit keep out.
+
+- id: ref_ecns_en
+  name: ECNS (China News Service English)
+  publisher: china_news_service
+  language: en
+  feeds:
+    - {url: "http://www.ecns.cn/rss/rss.xml", type: rss, time_rule: bjt_if_unzoned}
+  news_sitemaps: []
+  credits: [china_news_service_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: none
+  verified_on: "2026-10-13"
+  evidence: >-
+    pubDate is written "2026-10-13 18:10:06" with no zone; the page prints the same string, and item hours
+    run 08 to 22, so it is Beijing time. feedparser reads it as UTC, 8 hours late. Extraction 3 of 3 good,
+    "(ECNS) --" dateline kept.
+  notes: >-
+    No ECNS-credited copies in the 14 days before 2026-10-13, so it is low priority.
