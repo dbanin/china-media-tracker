@@ -131,11 +131,14 @@ def test_ingest_does_not_count_a_shared_item_this_database_pruned(tmp_path, monk
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
     conn = store.connect(tmp_path / "main.db")
     outlet = {"id": "au_z", "country": "AUS", "language": "en", "collector": "both", "feeds": [FEED]}
+    # Old enough to prune (GATED_OUT_RETENTION_DAYS), recent enough to be remembered (SEEN_URL_UNSEEN_DAYS).
+    day = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=config.GATED_OUT_RETENTION_DAYS + 2)).date().isoformat()
+    assert config.GATED_OUT_RETENTION_DAYS + 2 < config.SEEN_URL_UNSEEN_DAYS
     for url in (STORM, CHINA + "-2"):
         store.insert_discovered(conn, {"url": url, "outlet_id": "au_z", "country": "AUS", "language": "en",
                                        "status": "gated_out", "gate_relevant": 0})
-        store.record_discovery(conn, "AUS", False, "au_z", "2026-10-01")
-    conn.execute("UPDATE articles SET discovered_at='2026-10-01T06:00:00+00:00', day_of_record='2026-10-01'")
+        store.record_discovery(conn, "AUS", False, "au_z", day)
+    conn.execute("UPDATE articles SET discovered_at=?, day_of_record=?", (day + "T06:00:00+00:00", day))
     conn.commit()
     assert store.prune_gated_out(conn) == 2
     now = store.utcnow()
@@ -148,8 +151,8 @@ def test_ingest_does_not_count_a_shared_item_this_database_pruned(tmp_path, monk
     assert counts["seen_before"] == 1 and counts["inserted"] == 1
     # One discovery each, on the day the runner found them; the relevant one now counts as relevant there.
     assert {r["date"]: (r["discovered"], r["gate_relevant"]) for r in conn.execute(
-        "SELECT date, discovered, gate_relevant FROM daily_outlet_discovery WHERE discovered>0")} == {"2026-10-01": (2, 1)}
-    assert conn.execute("SELECT day_of_record FROM articles").fetchone()[0] == "2026-10-01"
+        "SELECT date, discovered, gate_relevant FROM daily_outlet_discovery WHERE discovered>0")} == {day: (2, 1)}
+    assert conn.execute("SELECT day_of_record FROM articles").fetchone()[0] == day
     again = relay.ingest(conn, _bundle(rows), outlets=[outlet])
     assert again["inserted"] == 0 and _discovered(conn) == (2, 1)
 
