@@ -128,7 +128,22 @@ def cmd_classify(conn, run_id, args, deadline):
             counts["llm"] = llm_counts
         except ImportError:
             pass
+        except Exception as exc:
+            if not _provider_usage_limit(exc):
+                raise
+            # The API account's own usage limit was reached: the model stage stops for this run and
+            # every waiting article stays waiting, but collection, the export and the deploy go on.
+            conn.rollback()
+            print("classify_llm: paused, the API account usage limit was reached:", str(exc)[:300])
+            counts["llm"] = {"paused": "provider_usage_limit"}
     return counts
+
+
+def _provider_usage_limit(exc) -> bool:
+    """True when the API refused the request because the account's usage or spend limit was reached,
+    a state no retry in this run can change."""
+    text = str(exc).lower()
+    return any(k in text for k in ("usage limit", "spend limit", "spending limit", "credit balance"))
 
 
 def cmd_status(conn, run_id, args, deadline):
