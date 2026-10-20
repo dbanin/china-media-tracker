@@ -558,7 +558,7 @@
     if (!count || mv.withheld) return null;
     var noun = WORLDWIDE_NOUNS[measure] || "articles";
     var head = "Worldwide distribution via press release wires: ";
-    var tail = " in this window, reaching every country and drawn in none.";
+    var tail = " in this window, not tied to any one country and drawn in none.";
     var n = formatValue(mv.value, def.format);
     var body;
     if (mv.value === null || mv.value === undefined) body = count.toLocaleString("en-US") + " " + noun + ", with no " + lowerFirst(BASIS_NAMES[parts.basis] || "rate") + " shown" + (mv.note ? " (" + mv.note.replace(/\.$/, "") + ")" : "");
@@ -677,7 +677,8 @@
     if (!agg || !agg.countries) {
       if (!top || !top.iso) return null;
       return {iso: top.iso, state_origin: top.state_origin, share_of_world: distributionFindings(null, last30, top, distribution).top_share_of_world,
-              top_outlet: top.top_outlet || null, top_route: top.top_route || null};
+              underlying: typeof top.underlying === "number" ? top.underlying : null, underlying_summed: false,
+              top_outlet: top.top_outlet || null, top_route: top.top_route || null, top_route_detail: top.top_route_detail || null};
     }
     var best = null;
     distributionIsos(agg.countries, distribution).forEach(function (iso) {
@@ -688,8 +689,11 @@
     if (!best) return null;
     var total = stateOriginInWindow(agg, null, distribution);
     var same = !!(top && top.iso === best.iso);
+    var uniq = agg.countries[best.iso].uniqA;
     return {iso: best.iso, state_origin: best.n, share_of_world: total ? best.n / total : null,
-            top_outlet: same ? top.top_outlet || null : null, top_route: same ? top.top_route || null : null};
+            underlying: typeof uniq === "number" ? uniq : null, underlying_summed: !!agg.underlyingSummed,
+            top_outlet: same ? top.top_outlet || null : null, top_route: same ? top.top_route || null : null,
+            top_route_detail: same ? top.top_route_detail || null : null};
   }
 
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
@@ -707,43 +711,151 @@
      which carries the site's prose. These two helpers are pure so they can be tested
      without a DOM, the same way every metric above is. */
   function findingsPct1(v) { return v === null || v === undefined ? "n/a" : (v * 100).toFixed(1) + "%"; }
-  /* Fills the four findings_template sentences from meta.findings: percentages to one decimal,
-     the top country's name from the existing lookup, and the ownership rate ratio as the top
-     group's per-outlet rate over the next highest group's, rounded to one decimal. Returns null
-     when there is nothing to fill, so the caller hides the box instead of showing empty prose. */
+  /* The generated findings phrases follow DECISIONS 6: "most" or "mostly" only above half, a tie said as a
+     tie, and underlying items beside placements. A leader entry is the export's {id, name, count, total,
+     share, tied, tied_names, network} (_leader in pipeline/export.py); an entry from an export before
+     2026-10-17 has no total, so its share and ties are unknown and nothing is claimed about it. */
+  function findingsPct0(v) { return Math.round(v * 100) + "%"; }
+  function findingsInt(n) { return Number(n).toLocaleString("en-US"); }
+  function findingsPlural(n, word) { return findingsInt(n) + " " + (n === 1 ? word : word + "s"); }
+  function findingsList(items) {
+    return items.length <= 1 ? items.join("") : items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+  }
+  function leaderKnown(c) { return !!(c && typeof c.count === "number" && typeof c.total === "number" && c.total > 0); }
+  function leaderTied(c) { return typeof c.tied === "number" && c.tied > 1; }
+  /* "Network Paper 1 and Network Paper 2" when every tied outlet is named (three at most), otherwise
+     "10 ACM outlets" (the network named when they all belong to one) or "10 outlets". */
+  function tiedCarriers(c) {
+    var names = c.tied_names || [];
+    if (c.tied <= 3 && names.length === c.tied) return findingsList(names);
+    return findingsInt(c.tied) + " " + (c.network ? c.network + " " : "") + "outlets";
+  }
+  /* The carrier clause of the top country sentence, starting with its comma, or "" when unknown. expected,
+     when given, is the placements the sentence states: a carrier counted over other placements (another
+     window, or a counting rule the carriers do not share) is left out rather than set beside them. */
+  function findingsCarrierClause(c, expected) {
+    if (!leaderKnown(c) || (typeof expected === "number" && c.total !== expected)) return "";
+    if (leaderTied(c)) {
+      if (c.tied * c.count === c.total) return ", spread evenly across " + tiedCarriers(c) + " (" + findingsInt(c.count) + " each)";
+      return ", led jointly by " + tiedCarriers(c) + " at " + findingsInt(c.count) + " each (" + findingsPct0(c.tied * c.count / c.total) + " together)";
+    }
+    if (c.count / c.total > 0.5) return ", most of them (" + findingsPct0(c.count / c.total) + ") through " + c.name;
+    return ", with " + c.name + " carrying the most (" + findingsInt(c.count) + ", " + findingsPct0(c.count / c.total) + ")";
+  }
+  /* The map tooltip's carrier line; windowText (" in the 30 complete days ending ...") or "". */
+  function carrierTooltipLine(c, windowText) {
+    if (!leaderKnown(c)) return null;
+    var w = windowText || "";
+    if (leaderTied(c)) {
+      if (c.tied * c.count === c.total) return "Spread evenly across " + tiedCarriers(c) + " (" + findingsPlural(c.count, "placement") + " each" + w + ")";
+      return "Led jointly by " + tiedCarriers(c) + " (" + findingsPlural(c.count, "placement") + " each, of " + findingsInt(c.total) + w + ")";
+    }
+    return (c.count / c.total > 0.5 ? "Carried mostly by " : "Largest carrier: ") + c.name + " (" + findingsInt(c.count) + " of " + findingsPlural(c.total, "placement") + w + ")";
+  }
+  /* Route names for tied routes: every one when the export listed them all, otherwise how many. */
+  function tiedRoutes(r, label) {
+    var ids = r.tied_ids || [];
+    return ids.length === r.tied ? findingsList(ids.map(label)) : findingsInt(r.tied) + " signed routes";
+  }
+  function unsignedTail(r, sep) {
+    return r.unattributed ? sep + findingsInt(r.unattributed) + " carried no route signature" : "";
+  }
+  /* The route sentence after the findings: r is findings.top_country.top_route_detail, whose total keeps
+     the placements with no route signature, so "most" is over every placement, signed or not. */
+  function findingsRouteSentence(r, countryName, label, expected) {
+    if (!leaderKnown(r) || !countryName || (typeof expected === "number" && r.total !== expected)) return "";
+    label = label || function (id) { return id; };
+    if (leaderTied(r)) return "In " + countryName + ", no single signed route led: " + tiedRoutes(r, label) + " carried " + findingsInt(r.count) +
+      " placements each of " + findingsInt(r.total) + unsignedTail(r, ", and ") + ".";
+    if (r.count / r.total > 0.5) return "In " + countryName + ", most of it (" + findingsInt(r.count) + " of " + findingsPlural(r.total, "placement") + ") arrived by the " + label(r.id) + " route.";
+    return "In " + countryName + ", the " + label(r.id) + " route was the most common signed route, with " + findingsInt(r.count) + " of " +
+      findingsPlural(r.total, "placement") + unsignedTail(r, "; ") + ".";
+  }
+  /* The map tooltip's route line, over latest.json's per country top_route. */
+  function routeTooltipLine(r, label) {
+    if (!leaderKnown(r)) return null;
+    label = label || function (id) { return id; };
+    var tail = unsignedTail(r, "; ");
+    if (leaderTied(r)) return "Most common signed routes, tied: " + tiedRoutes(r, label) + " (" + findingsInt(r.count) + " of " + findingsPlural(r.total, "placement") + " each" + tail + ")";
+    if (r.count / r.total > 0.5) return "Mostly arrives as " + label(r.id) + " (" + findingsInt(r.count) + " of " + findingsPlural(r.total, "placement") + ")";
+    return "Most common signed route: " + label(r.id) + " (" + findingsInt(r.count) + " of " + findingsPlural(r.total, "placement") + tail + ")";
+  }
+  /* Fills the findings_template sentences from meta.findings: percentages to one decimal, the top
+     country's name from the existing lookup, and the ownership comparisons over the groups with a known
+     owner. Outlets with no sourced owner are never the subject of a finding: they are not a group anyone
+     can compare against, so they stay out of the per outlet ranking and the largest share, whatever
+     by_ownership.top says (exports before 2026-10-17 let them lead). A sentence whose generated phrase
+     cannot be made (no top country, fewer than two groups) is left out rather than filled with filler.
+     Returns null when there is nothing to fill, so the caller hides the box instead of showing empty prose. */
   function fillFindingsTemplate(templates, findings, names, ownershipLabels) {
     if (!templates || !findings || !findings.all_time) return null;
     var f = findings.all_time, tc = findings.top_country, own = findings.by_ownership || {};
     var label = function (id) { return id ? ((ownershipLabels && ownershipLabels[id]) || id) : "No"; };
-    /* Outlets with no sourced owner are not a group anyone can compare against, so they stay out
-       of both the per outlet ranking and the largest share. */
+    var lower = function (id) { return label(id).toLowerCase(); };
     var groups = (own.groups || []).filter(function (g) {
       return g && g.id !== "unassessed" && g.per_outlet_rate !== null && g.per_outlet_rate !== undefined;
     });
     var sorted = groups.slice().sort(function (a, b) { return b.per_outlet_rate - a.per_outlet_rate; });
     var rateRatio = sorted.length >= 2 && sorted[1].per_outlet_rate ? sorted[0].per_outlet_rate / sorted[1].per_outlet_rate : null;
-    var topGroupId = (own.top && own.top.id) || (sorted[0] && sorted[0].id);
+    var topGroupId = sorted[0] && sorted[0].id;
     var byArticles = groups.slice().sort(function (a, b) { return (b.articles || 0) - (a.articles || 0); });
     var groupTotal = groups.reduce(function (t, g) { return t + (g.articles || 0); }, 0);
+    var outletTotal = groups.reduce(function (t, g) { return t + (g.outlets || 0); }, 0);
     var largest = byArticles[0];
+    var rate2 = function (g) { return g.per_outlet_rate.toFixed(2); };
+    var rateComparison = null;
+    if (sorted.length >= 2 && sorted[0].per_outlet_rate > 0) {
+      var topTied = sorted.filter(function (g) { return g.per_outlet_rate === sorted[0].per_outlet_rate; });
+      var next = sorted[topTied.length];
+      if (topTied.length > 1) {
+        rateComparison = findingsList(topTied.map(function (g) { return lower(g.id); })) + " outlets publish state-origin articles at the same rate, " + rate2(sorted[0]) + " per outlet";
+      } else if (!next.per_outlet_rate) {
+        rateComparison = lower(sorted[0].id) + " outlets publish state-origin articles at " + rate2(sorted[0]) + " per outlet, and no other group with a known owner has published any";
+      } else {
+        var ratio = sorted[0].per_outlet_rate / next.per_outlet_rate;
+        rateComparison = lower(sorted[0].id) + " outlets publish state-origin articles at " + (ratio < 1.05 ? "about the same rate as " : "about " + ratio.toFixed(1) + " times the rate of ") +
+          lower(next.id) + " outlets (" + rate2(sorted[0]) + " against " + rate2(next) + " per outlet)";
+      }
+    }
+    var largestComparison = null;
+    if (largest && groupTotal) {
+      var lTied = byArticles.filter(function (g) { return (g.articles || 0) === (largest.articles || 0); });
+      var lShare = largest.articles / groupTotal;
+      var outletsPart = function (g) { return outletTotal ? ", which make up " + findingsPct0(g.outlets / outletTotal) + " of those outlets" : ""; };
+      if (lTied.length > 1) largestComparison = "state-origin placements in outlets with a known owner are split evenly between " +
+        findingsList(lTied.map(function (g) { return lower(g.id); })) + " outlets (" + findingsPct0(lShare) + " each)";
+      else if (lShare > 0.5) largestComparison = "most state-origin placements in outlets with a known owner (" + findingsPct0(lShare) + ") are in " + lower(largest.id) + " outlets" + outletsPart(largest);
+      else largestComparison = "the largest share of state-origin placements in outlets with a known owner (" + findingsPct0(lShare) + ") is in " + lower(largest.id) + " outlets" + outletsPart(largest);
+    }
+    var items = tc && typeof tc.underlying === "number" ? " (" + findingsPlural(tc.underlying, "underlying item") + (tc.underlying_summed ? ", summed day by day" : "") + ")" : "";
     var vals = {
       state_share_of_china: findingsPct1(f.state_share_of_china),
       since: findings.since || "the start of data collection",
       top_country: tc ? ((names && names[tc.iso]) || tc.iso) : "no country yet",
       top_country_count: tc && tc.state_origin !== undefined ? Number(tc.state_origin).toLocaleString("en-US") : "n/a",
       top_country_share: tc && tc.share_of_world !== undefined && tc.share_of_world !== null ? Math.round(tc.share_of_world * 100) + "%" : "n/a",
+      top_country_items: tc ? items : null,
       top_carrier: tc && tc.top_outlet ? tc.top_outlet.name : "no single outlet",
+      top_carrier_clause: tc ? findingsCarrierClause(tc.top_outlet, typeof tc.state_origin === "number" ? tc.state_origin : undefined) : null,
       rate_ratio: rateRatio === null ? "an unmeasured multiple of" : rateRatio.toFixed(1) + " times",
       top_ownership_group: label(topGroupId),
       next_ownership_group: sorted[1] ? label(sorted[1].id).toLowerCase() : "other",
+      ownership_rate_comparison: rateComparison,
       largest_group: largest ? label(largest.id).toLowerCase() : "no",
-      largest_group_share: largest && groupTotal ? Math.round(100 * largest.articles / groupTotal) + "%" : "n/a"
+      largest_group_share: largest && groupTotal ? Math.round(100 * largest.articles / groupTotal) + "%" : "n/a",
+      largest_group_comparison: largestComparison
     };
-    return templates.map(function (t) {
-      return String(t).replace(/\{(\w+)\}/g, function (whole, key) {
-        return Object.prototype.hasOwnProperty.call(vals, key) ? vals[key] : whole;
+    var out = [];
+    templates.forEach(function (t) {
+      var dropped = false;
+      var filled = String(t).replace(/\{(\w+)\}/g, function (whole, key) {
+        if (!Object.prototype.hasOwnProperty.call(vals, key)) return whole;
+        if (vals[key] === null) { dropped = true; return ""; }
+        return vals[key];
       });
+      if (!dropped) out.push(filled);
     });
+    return out;
   }
   /* Older exports stored the tell as a raw character window, so it can start and end inside a word:
      trim both ends back to whole words, mark each cut with an ellipsis, and fold line breaks into
@@ -1003,11 +1115,23 @@
     var r = meta && meta.rediscovery;
     return r && typeof r.fixed_from === "string" && typeof r.estimated_share === "number" ? r : null;
   }
+  /* The repeats as a whole percent of the running total of items screened at this export. estimated_share is
+     their share of the measured_of items screened when it was measured; the repeats stopped at fixed_from, so
+     the share of a total that has grown since is estimated_share * measured_of / articles_discovered. Without
+     both totals, or before the total has grown past measured_of, estimated_share itself. Null without the field. */
+  function rediscoveryPercent(meta) {
+    var r = rediscoveryOf(meta);
+    if (!r) return null;
+    var total = meta.articles_discovered;
+    if (typeof r.measured_of === "number" && typeof total === "number" && total > r.measured_of)
+      return Math.round(100 * r.estimated_share * r.measured_of / total);
+    return Math.round(r.estimated_share * 100);
+  }
   /* The sentence under the running total of items screened. */
   function rediscoveryNote(meta) {
     var r = rediscoveryOf(meta);
     return r ? "Before " + r.fixed_from + ", items a feed kept listing were counted again after a prune, an estimated " +
-      Math.round(r.estimated_share * 100) + " percent of this total; see the methodology." : "";
+      rediscoveryPercent(meta) + " percent of this total; see the methodology." : "";
   }
   /* The same caveat for % of all its news, whose denominator carries the repeats unevenly by country, when
      the window starts before fixed_from (a windowStart of "" or null means from the first day). */
@@ -1030,8 +1154,8 @@
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, lowerFirst: lowerFirst, PROPER_OPENERS: PROPER_OPENERS, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
+          fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
           leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
           collectorBadge: collectorBadge, relayOutletsSummary: relayOutletsSummary, relayCollectorNotes: relayCollectorNotes,
-          stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote};
+          stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryPercent: rediscoveryPercent, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote};
 }));

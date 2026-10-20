@@ -29,6 +29,10 @@ module that does not exist yet leaves its measure off with the reason "not built
                                        draws the hand check sample. Write it with write_sample() so the
                                        names are data/reviews/<id>_sample_<YYYY-MM-DD>.csv and .key.json.
                                        The CSV is what coders see (blind); the key holds the answers.
+                                       The command line passes n only when --n is given, so give n the
+                                       default the measure's method text and guide promise.
+                                       write_sample refuses an empty draw and never overwrites a sample
+                                       of the same day: the second of a day is _sample_<day>_2.
   score_check(rows, key) -> dict       scores a coded sample: rows are the CSV rows (dicts of strings),
                                        key is the parsed .key.json. Returns
                                        {statistic, value, threshold, passed, n, coded} and optionally
@@ -61,18 +65,32 @@ run_all_quietly runs every measure in the yaml order, each in its own try/except
 printed, rolled back, recorded in the block (status off, error) with an empty side file, and never
 stops the export. A measure that is off has no side file; one left by an earlier export is removed.
 
+Time. Each measure has budget_seconds (sources/measures.yaml, default DEFAULT_BUDGET_SECONDS) and all of
+them together TOTAL_BUDGET_SECONDS. compute's deadline is the end of its own budget or of the total,
+whichever comes first. A measure that is still running GRACE_SECONDS after its deadline is stopped (an
+alarm signal, where the platform has one and the export runs in the main thread) and recorded as a
+failure. Once the total is used up the remaining measures are not run: off, with the reason.
+
+A sources/measures.yaml that cannot be read is an export error, not a quiet one: the blocks of the
+previous export (docs/data/meta.json) are kept, each marked with the error, so its side files still
+match their blocks; with no previous export to keep, run_all_quietly raises.
+
 Command line:
   python -m pipeline.measures status            the gate for every measure, without computing
   python -m pipeline.measures sample <id> [--n N] [--seed S] [--out DIR]
 """
 import argparse
+import contextlib
 import csv
 import datetime as dt
 import importlib
+import inspect
 import json
 import re
+import signal
 import sqlite3
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
@@ -86,6 +104,8 @@ REVIEWS_DIR = config.ROOT / "data" / "reviews"
 STATUSES = ("off", "provisional", "checked", "withheld")
 CHECK_STATES = ("none", "incomplete", "passed", "failed", "stale", "error")
 DEFAULT_BUDGET_SECONDS = 300
+TOTAL_BUDGET_SECONDS = 900      # every measure together, in one export
+GRACE_SECONDS = 120             # past its deadline, a measure still running is stopped
 REQUIRED = ("compute", "build_export", "meta_summary", "methodology_text", "draw_sample", "score_check",
             "inputs_present")
 METHOD_HEADING = "New measures (provisional)"
@@ -125,9 +145,11 @@ def load_config(path: Optional[Path] = None) -> List[Dict]:
         mi = e.get("min_inputs", 1)
         if not isinstance(mi, int) or isinstance(mi, bool) or mi < 0:
             raise ValueError("%s: measure %s min_inputs must be a whole number" % (p, e["id"]))
+        bs = e.get("budget_seconds", DEFAULT_BUDGET_SECONDS)
+        if isinstance(bs, bool) or not isinstance(bs, (int, float)) or bs <= 0:
+            raise ValueError("%s: measure %s budget_seconds must be a number of seconds above 0" % (p, e["id"]))
         out.append({"id": e["id"], "label": str(e.get("label") or e["id"]), "module": e["module"],
-                    "enabled": e["enabled"], "min_inputs": mi,
-                    "budget_seconds": float(e.get("budget_seconds", DEFAULT_BUDGET_SECONDS))})
+                    "enabled": e["enabled"], "min_inputs": mi, "budget_seconds": float(bs)})
     return out
 
 
@@ -165,12 +187,21 @@ def check_result(statistic: str, value: Optional[float], threshold: float, n: in
     return out
 
 
+def _sample_order(measure_id: str, name: str) -> Tuple[str, int, str]:
+    """Sort key of a sample file name: its day, then its number within the day (none is 1)."""
+    m = re.match(r"%s_sample_(\d{4}-\d{2}-\d{2})(?:_(\d+))?\.csv$" % re.escape(measure_id), name)
+    if not m:
+        return ("", 0, name)
+    return (m.group(1), int(m.group(2) or 1), name)
+
+
 def sample_files(measure_id: str, reviews_dir: Optional[Path] = None) -> List[Tuple[Path, Path]]:
-    """(csv, key) pairs of the measure's hand check samples, newest first. A CSV without its key is
-    skipped: it cannot be scored."""
+    """(csv, key) pairs of the measure's hand check samples, newest first (by day, then by number
+    within the day). A CSV without its key is skipped: it cannot be scored."""
     d = Path(reviews_dir or REVIEWS_DIR)
     out = []
-    for c in sorted(d.glob("%s_sample_*.csv" % measure_id), key=lambda p: p.name, reverse=True):
+    for c in sorted(d.glob("%s_sample_*.csv" % measure_id), key=lambda p: _sample_order(measure_id, p.name),
+                    reverse=True):
         k = c.with_suffix(".key.json")
         if k.exists():
             out.append((c, k))
@@ -180,11 +211,19 @@ def sample_files(measure_id: str, reviews_dir: Optional[Path] = None) -> List[Tu
 def write_sample(out_dir: Path, measure_id: str, rows: List[Dict], fieldnames: List[str], key: Dict,
                  version: Optional[str] = None, seed=None, day: Optional[str] = None) -> Tuple[Path, Path]:
     """Write a hand check sample: data/reviews/<id>_sample_<day>.csv (what the coders see) and
-    .key.json (the answers, plus measure_id, measure_version, seed, n and created_at)."""
+    .key.json (the answers, plus measure_id, measure_version, seed, n and created_at). An empty draw
+    is refused (ValueError): it would stand as a newer check with nothing to code. A sample already
+    written that day is never overwritten: the next one is <id>_sample_<day>_2, then _3."""
+    if not rows:
+        raise ValueError("refusing an empty %s sample: nothing to draw" % measure_id)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     day = day or dt.datetime.now(dt.timezone.utc).date().isoformat()
     csv_path = out_dir / ("%s_sample_%s.csv" % (measure_id, day))
+    k = 1
+    while csv_path.exists() or csv_path.with_suffix(".key.json").exists():
+        k += 1
+        csv_path = out_dir / ("%s_sample_%s_%d.csv" % (measure_id, day, k))
     key_path = csv_path.with_suffix(".key.json")
     with open(csv_path, "w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")
@@ -299,9 +338,40 @@ def _remove_side_file(export_dir: Path, measure_id: str) -> None:
         pass
 
 
+class MeasureTimeout(BaseException):
+    """A measure still running GRACE_SECONDS after its deadline. A BaseException, so a module's own
+    broad except clauses cannot swallow it; run_all_quietly catches it by name."""
+
+
+@contextlib.contextmanager
+def hard_limit(seconds: float, what: str):
+    """Raise MeasureTimeout inside the block once seconds have passed: an alarm signal, used only where
+    there is one, in the main thread, and when no other timer is set; elsewhere the block runs unbounded
+    and only the measure's own deadline holds."""
+    usable = (seconds > 0 and hasattr(signal, "setitimer") and hasattr(signal, "SIGALRM")
+              and threading.current_thread() is threading.main_thread()
+              and signal.getitimer(signal.ITIMER_REAL) == (0.0, 0.0))
+    if not usable:
+        yield
+        return
+
+    def _alarm(signum, frame):
+        raise MeasureTimeout("%s ran past its deadline by more than %d seconds" % (what, GRACE_SECONDS))
+    old = signal.signal(signal.SIGALRM, _alarm)
+    signal.setitimer(signal.ITIMER_REAL, float(seconds))
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
 def run_measure(conn: sqlite3.Connection, spec: Dict, export_dir: Path, ctx: Dict,
-                write_json: Callable, reviews_dir: Optional[Path] = None) -> Dict:
-    """One measure through the gate. Raises on failure; run_all_quietly catches."""
+                write_json: Callable, reviews_dir: Optional[Path] = None,
+                total_deadline: Optional[float] = None) -> Dict:
+    """One measure through the gate. Raises on failure; run_all_quietly catches. compute's deadline is
+    the end of the measure's budget or total_deadline, whichever is first, and the whole measure is
+    stopped GRACE_SECONDS after it."""
     mod = import_measure(spec["module"])
     if mod is None:
         b = _block(spec)
@@ -324,25 +394,46 @@ def run_measure(conn: sqlite3.Connection, spec: Dict, export_dir: Path, ctx: Dic
         b["reason"] = "waiting for inputs: %d of at least %d" % (b["inputs_present"], spec["min_inputs"])
         _remove_side_file(export_dir, spec["id"])
         return b
-    deadline = time.monotonic() + spec["budget_seconds"]
-    b["computed"] = mod.compute(conn, ctx, deadline) or {}
-    conn.commit()
-    data = mod.build_export(conn, ctx)
+    now = time.monotonic()
+    deadline = now + spec["budget_seconds"]
+    if total_deadline is not None:
+        deadline = min(deadline, total_deadline)
+    b["budget_seconds"] = spec["budget_seconds"]
+    with hard_limit(max(0.0, deadline - now) + GRACE_SECONDS, "measure %s" % spec["id"]):
+        b["computed"] = mod.compute(conn, ctx, deadline) or {}
+        conn.commit()
+        data = mod.build_export(conn, ctx)
+        summary = mod.meta_summary(conn, ctx) or {}
     write_json(Path(export_dir) / side_file(spec["id"]), data if data is not None else {})
     b["file"] = side_file(spec["id"])
-    b["summary"] = mod.meta_summary(conn, ctx) or {}
+    b["summary"] = summary
+    b["seconds"] = round(time.monotonic() - now, 1)
     b["status"], b["check"], b["reason"] = assess(mod, spec["id"], reviews_dir)
     b["method_text"] = mod.methodology_text(dict(b)) or ""
     return b
 
 
+def _previous_blocks(export_dir: Path) -> Dict[str, Dict]:
+    """meta.measures of the previous export in export_dir, or {} when there is none to read."""
+    try:
+        with open(Path(export_dir) / "meta.json", encoding="utf-8") as fh:
+            prev = (json.load(fh) or {}).get("measures") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+    return {k: dict(v) for k, v in prev.items() if isinstance(v, dict)} if isinstance(prev, dict) else {}
+
+
 def run_all_quietly(conn: sqlite3.Connection, export_dir: Path, ctx: Optional[Dict] = None,
                     write_json: Optional[Callable] = None, config_path: Optional[Path] = None,
-                    reviews_dir: Optional[Path] = None) -> Dict[str, Dict]:
+                    reviews_dir: Optional[Path] = None,
+                    total_budget_seconds: Optional[float] = None) -> Dict[str, Dict]:
     """Every measure in sources/measures.yaml through the gate, for the export: {id: block}. Each runs
     in its own try/except; a failure is printed, rolled back and recorded in its block (status off,
     error, an empty side file) and never stops the export. Side files are written with write_json
-    (export.write_json, atomic, by default)."""
+    (export.write_json, atomic, by default). All of them together get total_budget_seconds
+    (TOTAL_BUDGET_SECONDS by default); once it is used up the rest are off, not run. A config that
+    cannot be read keeps the previous export's blocks, marked with the error, or raises when there are
+    none."""
     if write_json is None:
         from pipeline.export import write_json as _wj
         write_json = _wj
@@ -353,13 +444,32 @@ def run_all_quietly(conn: sqlite3.Connection, export_dir: Path, ctx: Optional[Di
     try:
         specs = load_config(config_path)
     except Exception as exc:  # noqa: BLE001
-        _warn("measures config failed: %s: %s" % (type(exc).__name__, exc))
+        err = "measures config failed: %s: %s" % (type(exc).__name__, exc)
+        _warn(err)
+        prev = _previous_blocks(export_dir)
+        if not prev:
+            raise RuntimeError("%s, and there is no previous export whose measures could be kept" % err) from exc
+        for mid, b in prev.items():
+            b["error"] = err
+            b["reason"] = "kept from the previous export, as %s; %s" % (err, b.get("reason") or "")
+            b["config_error"] = True
+            out[mid] = b
         return out
+    total = TOTAL_BUDGET_SECONDS if total_budget_seconds is None else float(total_budget_seconds)
+    total_deadline = time.monotonic() + total
     for spec in specs:
+        if spec["enabled"] and time.monotonic() >= total_deadline:
+            b = _block(spec)
+            b["reason"] = "not run: the %d seconds all the measures share in one export were used up" % int(total)
+            b["error"] = "total time cap reached"
+            _remove_side_file(export_dir, spec["id"])
+            _warn("measure %s not run: total time cap reached" % spec["id"])
+            out[spec["id"]] = b
+            continue
         try:
             conn.commit()   # whatever the export has done so far is kept apart from this measure's work
-            out[spec["id"]] = run_measure(conn, spec, export_dir, ctx, write_json, reviews_dir)
-        except Exception as exc:  # noqa: BLE001  anything at all is logged and swallowed here
+            out[spec["id"]] = run_measure(conn, spec, export_dir, ctx, write_json, reviews_dir, total_deadline)
+        except (Exception, MeasureTimeout) as exc:  # noqa: BLE001  anything at all is logged and swallowed here
             try:
                 conn.rollback()
             except sqlite3.Error:
@@ -425,13 +535,25 @@ def status(conn: sqlite3.Connection, config_path: Optional[Path] = None,
     return out
 
 
+def default_sample_n(mod):
+    """The n a measure's draw_sample defaults to (its own promise), or None for it to choose."""
+    try:
+        d = inspect.signature(mod.draw_sample).parameters.get("n")
+    except (TypeError, ValueError):
+        return None
+    if d is None or d.default is inspect.Parameter.empty:
+        return None
+    return d.default
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Research measures and their hand checks")
     sub = ap.add_subparsers(dest="cmd")
     sub.add_parser("status", help="the gate for every measure, without computing")
     s = sub.add_parser("sample", help="draw a hand check sample into data/reviews")
     s.add_argument("measure")
-    s.add_argument("--n", type=int, default=60)
+    s.add_argument("--n", type=int, default=None,
+                   help="sample size; by default the size the measure's method text and guide give")
     s.add_argument("--seed", default=None)
     s.add_argument("--out", default=None)
     args = ap.parse_args(argv)
@@ -445,7 +567,11 @@ def main(argv=None) -> None:
         if mod is None:
             raise SystemExit("measure %s is not built" % args.measure)
         seed = args.seed or "%s-%s" % (args.measure, dt.datetime.now(dt.timezone.utc).date().isoformat())
-        paths = mod.draw_sample(conn, args.n, seed, Path(args.out) if args.out else REVIEWS_DIR)
+        n = args.n if args.n is not None else default_sample_n(mod)
+        try:
+            paths = mod.draw_sample(conn, n, seed, Path(args.out) if args.out else REVIEWS_DIR)
+        except ValueError as exc:
+            raise SystemExit("no sample written: %s" % exc)
         print("wrote %s" % ", ".join(str(p) for p in (paths or [])))
     else:
         print(json.dumps(status(conn), indent=1, sort_keys=True, default=str))

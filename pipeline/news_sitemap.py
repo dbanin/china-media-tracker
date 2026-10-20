@@ -47,15 +47,17 @@ def get_xml(url: str, timeout: Optional[int] = None) -> Tuple[Optional[bytes], O
     declared user agent. Returns (body, status, error); a gzip body is unpacked."""
     import requests
     from pipeline import config
-    from pipeline.fetch_articles import _rate_wait, can_fetch, domain_of
+    from pipeline.fetch_articles import RedirectRefused, _rate_wait, can_fetch, domain_of, polite_get
     allowed, why = can_fetch(url)
     if not allowed:
         return None, None, why
     _rate_wait(domain_of(url))
     try:
-        resp = requests.get(url, headers={"User-Agent": config.USER_AGENT,
-                                          "Accept": "application/xml, text/xml, */*"},
-                            timeout=timeout or config.FEED_TIMEOUT, allow_redirects=True)
+        # Redirects followed by hand: each target is checked against its own robots.txt and paced.
+        resp = polite_get(url, {"User-Agent": config.USER_AGENT, "Accept": "application/xml, text/xml, */*"},
+                          timeout or config.FEED_TIMEOUT)
+    except RedirectRefused as exc:
+        return None, None, exc.reason
     except requests.RequestException as exc:
         return None, None, type(exc).__name__
     if resp.status_code >= 400:

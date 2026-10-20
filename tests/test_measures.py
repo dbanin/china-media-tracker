@@ -383,6 +383,10 @@ def test_the_measures_file():
     assert all(on[i] for i in ("alteration", "speed", "doctrine", "spikes"))
     assert all(s["module"].startswith("pipeline.") and s["min_inputs"] >= 1 for s in specs)
     assert all(s["label"] and "Category" not in s["label"] for s in specs)
+    # every measure has its own budget, and the enabled ones fit inside the total
+    raw = __import__("yaml").safe_load(measures.MEASURES_YAML.read_text(encoding="utf-8"))
+    assert all("budget_seconds" in e for e in raw)
+    assert sum(s["budget_seconds"] for s in specs if s["enabled"]) <= measures.TOTAL_BUDGET_SECONDS
 
 
 @pytest.mark.parametrize("bad", [
@@ -391,6 +395,8 @@ def test_the_measures_file():
     "- {id: X, module: m, enabled: true}",                            # bad id
     "- {id: x, enabled: true}",                                       # no module
     "- {id: x, module: m, enabled: true, min_inputs: -1}",
+    "- {id: x, module: m, enabled: true, budget_seconds: 0}",
+    "- {id: x, module: m, enabled: true, budget_seconds: soon}",
     "{id: x}",
 ])
 def test_a_malformed_measures_file_is_refused(tmp_path, bad):
@@ -398,8 +404,105 @@ def test_a_malformed_measures_file_is_refused(tmp_path, bad):
     p.write_text(bad, encoding="utf-8")
     with pytest.raises(ValueError):
         measures.load_config(p)
-    # and the export gets no measures rather than a stop
-    assert measures.run_all_quietly(store.connect(tmp_path / "c.db"), tmp_path / "o", {}, config_path=p) == {}
+    # with no previous export to fall back on, the export fails loudly rather than drop every measure
+    with pytest.raises(RuntimeError, match="measures config failed"):
+        measures.run_all_quietly(store.connect(tmp_path / "c.db"), tmp_path / "o", {}, config_path=p)
+
+
+def test_a_malformed_measures_file_keeps_the_previous_blocks(tmp_path):
+    out = tmp_path / "o"
+    out.mkdir()
+    prev = {"fake": {"status": "checked", "label": "Fake", "file": "fake.json", "reason": "hand check passed",
+                     "method_text": "The fake method."}}
+    (out / "meta.json").write_text(json.dumps({"measures": prev}), encoding="utf-8")
+    (out / "fake.json").write_text("{\"rows\": 1}", encoding="utf-8")
+    p = tmp_path / "m.yaml"
+    p.write_text("- {id: x, module: m}", encoding="utf-8")
+    blocks = measures.run_all_quietly(store.connect(tmp_path / "c.db"), out, {}, config_path=p)
+    b = blocks["fake"]
+    assert b["status"] == "checked" and b["file"] == "fake.json" and b["config_error"] is True
+    assert b["error"].startswith("measures config failed") and b["reason"].startswith("kept from the previous export")
+    assert (out / "fake.json").read_text() == "{\"rows\": 1}"                 # its side file still matches it
+
+
+def test_each_measure_gets_its_budget_and_all_of_them_the_total(tmp_path, monkeypatch):
+    seen = {}
+
+    def measure(mid, sleep=0.0):
+        m = fake_measure(mid)
+        inner = m.compute
+
+        def compute(conn, ctx, deadline):
+            seen[mid] = deadline - time.monotonic()
+            time.sleep(sleep)
+            return inner(conn, ctx, deadline) if deadline > time.monotonic() else {"stopped": True}
+        m.compute = compute
+        return m
+    first, second, third = measure("first", sleep=0.3), measure("second", sleep=0.1), measure("third")
+    cfg = _install(monkeypatch, tmp_path, {"m_first": first, "m_second": second, "m_third": third}, entries=[
+        {"id": "first", "label": "First", "module": "m_first", "enabled": True, "min_inputs": 1, "budget_seconds": 50},
+        {"id": "second", "label": "Second", "module": "m_second", "enabled": True, "min_inputs": 1, "budget_seconds": 0.1},
+        {"id": "third", "label": "Third", "module": "m_third", "enabled": True, "min_inputs": 1}])
+    out = tmp_path / "o"
+    blocks = measures.run_all_quietly(store.connect(tmp_path / "g.db"), out, {}, config_path=cfg, reviews_dir=tmp_path,
+                                      total_budget_seconds=0.35)
+    assert 0.3 < seen["first"] <= 0.35, "the total ends before the measure's own budget"
+    assert seen["second"] <= 0.1
+    assert blocks["first"]["status"] == "provisional" and blocks["first"]["budget_seconds"] == 50
+    # the total was used up before the third began: not run, off, with the reason
+    assert "third" not in seen and blocks["third"]["status"] == "off"
+    assert "used up" in blocks["third"]["reason"] and not (out / "third.json").exists()
+
+
+def test_a_measure_past_its_deadline_is_stopped(tmp_path, monkeypatch):
+    if not hasattr(measures.signal, "setitimer"):
+        pytest.skip("no interval timer on this platform")
+    slow = fake_measure("slow")
+
+    def compute(conn, ctx, deadline):
+        try:
+            while True:
+                time.sleep(0.01)
+        except Exception:    # a module's own broad except does not swallow the stop
+            return {"swallowed": True}
+    slow.compute = compute
+    monkeypatch.setattr(measures, "GRACE_SECONDS", 0.2)
+    cfg = _install(monkeypatch, tmp_path, {"m_slow": slow}, entries=[
+        {"id": "slow", "label": "Slow", "module": "m_slow", "enabled": True, "min_inputs": 1, "budget_seconds": 0.1}])
+    t0 = time.monotonic()
+    b = measures.run_all_quietly(store.connect(tmp_path / "g.db"), tmp_path / "o", {}, config_path=cfg,
+                                 reviews_dir=tmp_path)["slow"]
+    assert time.monotonic() - t0 < 5
+    assert b["status"] == "off" and "MeasureTimeout" in b["error"] and "past its deadline" in b["error"]
+    assert measures.signal.getitimer(measures.signal.ITIMER_REAL) == (0.0, 0.0), "the timer is cleared"
+
+
+def test_samples_never_overwrite_a_same_day_draw_and_refuse_an_empty_one(tmp_path):
+    rows = [{"sample_id": "1", "verdict": ""}]
+    paths = [measures.write_sample(tmp_path, "fake", rows, ["sample_id", "verdict"], {}, day="2026-10-20")
+             for _ in range(11)]
+    names = [c.name for c, _ in paths]
+    assert names[0] == "fake_sample_2026-10-20.csv" and names[1] == "fake_sample_2026-10-20_2.csv"
+    assert names[10] == "fake_sample_2026-10-20_11.csv" and len(set(names)) == 11
+    assert all(k.name == c.name.replace(".csv", ".key.json") and k.exists() for c, k in paths)
+    measures.write_sample(tmp_path, "fake", rows, ["sample_id", "verdict"], {}, day="2026-10-19")
+    order = [c.name for c, _ in measures.sample_files("fake", tmp_path)]
+    assert order[0] == "fake_sample_2026-10-20_11.csv" and order[1] == "fake_sample_2026-10-20_10.csv"
+    assert order[-2:] == ["fake_sample_2026-10-20.csv", "fake_sample_2026-10-19.csv"]
+    with pytest.raises(ValueError, match="empty"):
+        measures.write_sample(tmp_path, "fake", [], ["sample_id"], {}, day="2026-10-21")
+    assert not list(tmp_path.glob("fake_sample_2026-10-21*"))
+
+
+def test_the_command_line_uses_each_measure_s_own_sample_size():
+    from pipeline import copies, doctrine, engagement, speed, spikes, syndication
+    assert measures.default_sample_n(doctrine) == doctrine.SAMPLE_MAX == 200
+    assert measures.default_sample_n(spikes) == spikes.SAMPLE_MAX == 30
+    assert measures.default_sample_n(speed) == speed.SAMPLE_N
+    # alteration: None, so copies draws its PER_BAND (20) from each of its four bands, as its method promises
+    assert measures.default_sample_n(copies) is None and copies.PER_BAND == 20
+    assert "20 pairs per band" in copies.methodology_text({"status": "provisional", "summary": {}})
+    assert measures.default_sample_n(engagement) is None and measures.default_sample_n(syndication) is None
 
 
 def test_a_module_must_offer_the_whole_interface(tmp_path, monkeypatch):

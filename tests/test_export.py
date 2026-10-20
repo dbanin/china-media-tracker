@@ -375,6 +375,10 @@ def _days_ago(n):
     return (dt.date.fromisoformat(export._today()) - dt.timedelta(days=n)).isoformat()
 
 
+def _pick(d, *keys):
+    return {k: d[k] for k in keys} if d else d
+
+
 def test_findings_top_country_last30_excludes_wires(tmp_path):
     conn = store.connect(tmp_path / "t.db")
     yesterday = _days_ago(1)   # the export day itself is partial and outside the findings' window
@@ -388,7 +392,7 @@ def test_findings_top_country_last30_excludes_wires(tmp_path):
     meta = export.build_meta(conn, outlets, [], latest)
     top = meta["findings"]["top_country"]
     assert top["iso"] == "ITA" and top["state_origin"] == 2
-    assert top["top_outlet"] == {"id": "it_big", "name": "Big Italian Outlet"}
+    assert _pick(top["top_outlet"], "id", "name") == {"id": "it_big", "name": "Big Italian Outlet"}
 
 
 def test_findings_top_country_counts_complete_days_only(tmp_path):
@@ -415,7 +419,7 @@ def test_findings_top_country_counts_complete_days_only(tmp_path):
     f = export.build_meta(conn, outlets, [], latest)["findings"]
     top = f["top_country"]
     assert top["iso"] == "ITA" and top["state_origin"] == 3, top
-    assert top["top_outlet"] == {"id": "it_big", "name": "Big Italian Outlet"}
+    assert _pick(top["top_outlet"], "id", "name") == {"id": "it_big", "name": "Big Italian Outlet"}
     assert f["last_30d"] == {"state_origin": 5, "state_origin_wires": 1,
                              "window_start": _days_ago(30), "window_end": _days_ago(1)}
     assert top["share_of_world"] == round(3 / 5, 4), "the denominator is the complete day world total, wires included"
@@ -435,8 +439,8 @@ def test_top_carrier_excludes_wires(tmp_path):
     outlets = _outlets_for_findings()
     export.rebuild_rollups(conn, outlets)
     latest = export.build_latest(conn, outlets, [])
-    assert latest["countries"]["ITA"]["top_carrier"] == {"id": "it_big", "name": "Big Italian Outlet", "count": 1}
-    assert latest["countries"]["ITA"]["top_route"] == {"id": "wire_credit", "count": 1}
+    assert _pick(latest["countries"]["ITA"]["top_carrier"], "id", "name", "count") == {"id": "it_big", "name": "Big Italian Outlet", "count": 1}
+    assert _pick(latest["countries"]["ITA"]["top_route"], "id", "count") == {"id": "wire_credit", "count": 1}
 
 
 def test_top_carrier_and_route_count_complete_days_only(tmp_path):
@@ -456,8 +460,8 @@ def test_top_carrier_and_route_count_complete_days_only(tmp_path):
     start, until = export.complete_window_30d(latest)
     assert (start, until) == (_days_ago(30), _days_ago(0))
     ita = latest["countries"]["ITA"]
-    assert ita["top_carrier"] == {"id": "it_big", "name": "Big Italian Outlet", "count": 2}, ita["top_carrier"]
-    assert ita["top_route"] == {"id": "wire_credit", "count": 2}, ita["top_route"]
+    assert _pick(ita["top_carrier"], "id", "name", "count") == {"id": "it_big", "name": "Big Italian Outlet", "count": 2}, ita["top_carrier"]
+    assert _pick(ita["top_route"], "id", "count") == {"id": "wire_credit", "count": 2}, ita["top_route"]
     # the same days as the figure beside it: the state origin the daily files hold for the window
     days = {}
     for m in export.build_daily(conn, outlets).values():
@@ -466,6 +470,81 @@ def test_top_carrier_and_route_count_complete_days_only(tmp_path):
     assert window == ita["top_carrier"]["count"]
     # no end still means every day from the start, as before
     assert export._country_top_carriers(conn, outlets, start)["ITA"]["top_carrier"]["id"] == "it_small"
+
+
+def _network_outlets():
+    """Three Italian mastheads of one network, an outlet outside it, the release wire and France."""
+    return _outlets_for_findings() + [
+        {"id": "it_n%d" % i, "name": "Network Paper %d" % i, "country": "ITA", "language": "it", "feeds": [],
+         "tier": "regional", "active": True, "network": "Rete"} for i in (1, 2, 3)] + [
+        {"id": "it_small", "name": "Small Italian Outlet", "country": "ITA", "language": "it", "feeds": [],
+         "tier": "national", "active": True, "ownership": "private"}]
+
+
+def _unsign(conn, aid):
+    conn.execute("UPDATE classifications SET route=NULL WHERE article_id=?", (aid,))
+    conn.commit()
+
+
+def test_top_carrier_and_route_report_ties_and_shares(tmp_path):
+    """"Carried mostly by" read The Courier (Ballarat) on 94 of 940 placements, tied with nine sister papers
+    and chosen by its id, and "Mostly arrives as" read a route that carried 200 of 940 because the unsigned
+    placements were dropped before the comparison (stress test, 2026-10-17). Each entry now carries the
+    window's total, its share of it and its ties, and the unsigned placements stay in the route's total."""
+    conn = store.connect(tmp_path / "tie.db")
+    outlets = _network_outlets()
+    day = _days_ago(1)
+    for oid in ("it_n1", "it_n2", "it_n3"):
+        _insert_state_origin(conn, oid, "ITA", day, route="wire_credit")
+        _unsign(conn, _insert_state_origin(conn, oid, "ITA", day))
+    export.rebuild_rollups(conn, outlets)
+    ita = export.build_latest(conn, outlets, [])["countries"]["ITA"]
+    c, r = ita["top_carrier"], ita["top_route"]
+    assert c["count"] == 2 and c["total"] == 6 and c["share"] == round(2 / 6, 4) and c["tied"] == 3, c
+    assert c["network"] == "Rete" and c["tied_names"] == ["Network Paper 1", "Network Paper 2", "Network Paper 3"], c
+    assert r["id"] == "wire_credit" and r["count"] == 3 and r["total"] == 6 and r["unattributed"] == 3, r
+    assert r["share"] == 0.5 and r["tied"] == 1, "half is not most: the share is over every placement, signed or not"
+    # one outlet outside the network joins the tie: no common network is claimed
+    _insert_state_origin(conn, "it_small", "ITA", day)
+    _insert_state_origin(conn, "it_small", "ITA", day)
+    c2 = export._country_top_carriers(conn, outlets, _days_ago(30), _days_ago(0))["ITA"]["top_carrier"]
+    assert c2["tied"] == 4 and c2["network"] is None and c2["total"] == 8, c2
+
+
+def test_findings_top_country_majority_underlying_and_route_detail(tmp_path):
+    """The findings' top country carries its distinct underlying items beside its placements, its leading
+    outlet's share and ties, and the leading signed route with the unsigned placements beside it."""
+    conn = store.connect(tmp_path / "maj.db")
+    outlets = _network_outlets()
+    day = _days_ago(1)
+    a1 = _insert_state_origin(conn, "it_big", "ITA", day)
+    a2 = _insert_state_origin(conn, "it_big", "ITA", day)
+    _insert_state_origin(conn, "it_big", "ITA", day, route="diplomatic_byline")
+    _unsign(conn, _insert_state_origin(conn, "it_small", "ITA", day))
+    _insert_state_origin(conn, "fr_state", "FRA", day)
+    conn.execute("UPDATE articles SET dup_group_id=? WHERE id IN (?, ?)", (a1, a1, a2))   # two placements of one item
+    conn.commit()
+    export.rebuild_rollups(conn, outlets)
+    latest = export.build_latest(conn, outlets, [])
+    top = export.build_meta(conn, outlets, [], latest)["findings"]["top_country"]
+    assert top["iso"] == "ITA" and top["state_origin"] == 4 and top["underlying"] == 3, top
+    o = top["top_outlet"]
+    assert o["id"] == "it_big" and o["name"] == "Big Italian Outlet" and o["count"] == 3 and o["total"] == 4 and o["share"] == 0.75 and o["tied"] == 1, o
+    d = top["top_route_detail"]
+    assert top["top_route"] == "wire_credit" and d["count"] == 2 and d["total"] == 4 and d["unattributed"] == 1 and d["share"] == 0.5, d
+
+
+def test_findings_unassessed_owner_never_leads():
+    """"Not assessed outlets publish at about 1.3 times the rate of private outlets": the outlets with no
+    sourced owner had the highest rate and were named as the top group. They are never the top group."""
+    oj = {"outlets": [
+        {"active": True, "tier": "regional", "ownership": None, "counts": {"A": 30}},
+        {"active": True, "tier": "national", "ownership": "state", "counts": {"A": 2}},
+        {"active": True, "tier": "national", "ownership": "private", "counts": {"A": 3}},
+    ]}
+    f = export.by_ownership_findings(oj)
+    assert f["top"] == {"id": "private", "per_outlet_rate": 3.0}, f["top"]
+    assert {g["id"]: g["per_outlet_rate"] for g in f["groups"]}["unassessed"] == 30.0, "the group itself is still reported"
 
 
 def _long_xinhua_span(n_extra_words=39):

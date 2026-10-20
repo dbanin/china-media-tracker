@@ -55,9 +55,32 @@ def test_termlists_acronym_needs_a_full_term_and_its_own_when_required():
     ts = termlists.compile({"all": ["GDI", "GSI"], "en": ["Global Development Initiative", "Global Security Initiative"]},
                            "en", requires={"GSI": ["Global Security Initiative"]})
     assert ts.count("GDI and GSI were discussed") == 0
-    assert ts.count("The Global Development Initiative (GDI) and the GSI") == 2       # GSI lacks its own full term
-    assert ts.count("The Global Security Initiative (GSI)") == 2
+    # GSI lacks its own full term; GDI in brackets beside its full term is the same mention
+    assert ts.count("The Global Development Initiative (GDI) and the GSI") == 1
+    assert ts.count("The Global Development Initiative (GDI) and later the GDI") == 2
+    assert ts.count("The Global Security Initiative (GSI)") == 1
     assert ts.count("the gdi") == 0                                                    # acronyms are case sensitive
+
+
+def test_termlists_an_acronym_in_brackets_beside_its_full_term_is_one_mention():
+    ts = termlists.compile({"all": ["BRI"], "en": ["Belt and Road"], "es": ["Franja y la Ruta"]}, "es")
+    find = lambda text: [f[2] for f in ts.find(text)]
+    assert find("the Belt and Road Initiative (BRI) and the BRI") == ["Belt and Road", "BRI"]
+    assert find("BRI (Belt and Road Initiative) projects") == ["Belt and Road"]
+    assert find("la Iniciativa de la Franja y la Ruta [BRI]") == ["Franja y la Ruta"]
+    assert find("Belt and Road. Then a long aside (BRI) here") == ["Belt and Road", "BRI"]   # not beside it
+    assert find("Belt and Road (BRI is new)") == ["Belt and Road", "BRI"]                     # no closing bracket
+
+
+def test_termlists_context_terms_within_a_window():
+    ts = termlists.compile({"en": ["multipolar world"]}, "fr", context={"all": ["China"], "fr": ["Chine"]},
+                           context_window=20)
+    assert ts.count("India seeks a multipolar world.") == 0
+    assert ts.count("La Chine et un multipolar world") == 1
+    assert ts.count("a multipolar world, China says") == 1
+    assert ts.count("China " + "x" * 30 + " multipolar world") == 0                # too far
+    plain = termlists.compile({"en": ["multipolar world"]}, "en")
+    assert plain.count("India seeks a multipolar world.") == 1                        # no context: every match
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +94,9 @@ def test_every_family_and_language_rule_in_the_yaml():
                    "cold_war_mentality", "true_multilateralism", "chinese_modernization", "one_china_principle",
                    "global_south", "people_to_people", "xi_thought"]
     muted = {f["id"] for f in data["families"] if not f["distinctive"]}
-    assert muted == {"belt_and_road", "global_south"}
+    assert muted == {"belt_and_road", "global_south", "multipolarity", "people_to_people"}
+    assert doctrine.context_families() == {"multipolarity": 140, "people_to_people": 140}
+    assert set(data["china_context"]) <= set(data["languages"]) | {"all"}
     theme_langs = sorted({l for th in themes.load()["themes"] for l in th["terms"] if l != "all"})
     assert sorted(data["languages"]) == theme_langs
     assert data["language_aliases"] == themes.load()["language_aliases"]
@@ -128,10 +153,32 @@ def test_exclusions_and_phrase_only_families():
 def test_acronym_rule_in_the_families():
     assert t("GDI ranking published", "en") == {}
     assert t("BRI shares rise", "id") == {}
-    assert t("The Global Development Initiative (GDI)", "en") == {"global_initiatives": 2}
+    assert t("The Global Development Initiative (GDI)", "en") == {"global_initiatives": 1}
     assert t("Global Development Initiative and the GSI", "en") == {"global_initiatives": 1}
-    assert t("Global Security Initiative (GSI)", "en") == {"global_initiatives": 2}
-    assert t("Belt and Road (BRI)", "en", body="BRI projects in Kenya") == {"belt_and_road": 3}
+    assert t("Global Security Initiative (GSI)", "en") == {"global_initiatives": 1}
+    assert t("Belt and Road (BRI)", "en", body="BRI projects in Kenya") == {"belt_and_road": 2}
+    assert t("Belt and Road Initiative (BRI)", "en") == {"belt_and_road": 1}
+
+
+def test_multipolarity_and_people_to_people_need_a_china_word_nearby():
+    assert t("India and Russia call for a multipolar world", "en") == {}
+    assert t("Beijing calls for a multipolar world", "en") == {"multipolarity": 1}
+    assert t("Vietnam and India boost people-to-people exchanges", "en") == {}
+    assert t("China and Kenya boost people-to-people exchanges", "en") == {"people_to_people": 1}
+    far = "China opened the summit. " + "Delegates talked at length about trade and tariffs. " * 4
+    assert t(far + "Others urged a multipolar world.", "en") == {}               # more than 140 characters away
+    assert t("Moscou plaide pour un monde multipolaire", "fr") == {}
+    assert t("Pékin plaide pour un monde multipolaire", "fr") == {"multipolarity": 1}
+    assert t("Россия за многополярный мир", "ru") == {}
+    assert t("Китай за многополярный мир", "ru") == {"multipolarity": 1}
+    assert t("중국은 다극화를 지지한다", "ko") == {"multipolarity": 1}
+    # the generic local forms are gone, whatever is near them
+    assert t("China y los intercambios entre pueblos", "es") == {}
+    assert t("La Chine et les échanges humains", "fr") == {}
+    assert t("Китай и гуманитарные обмены", "ru") == {}
+    assert t("China contra la política de la fuerza", "es") == {}
+    assert t("China contra a política do poder", "pt") == {}
+    assert t("China contra el hegemonismo", "es") == {"hegemonism": 1}
 
 
 def test_occurrences_across_title_summary_and_body():
@@ -335,6 +382,77 @@ def test_draw_sample_spreads_matches_and_shows_a_snippet(tmp_path, monkeypatch):
     again = doctrine.draw_sample(conn, 4, "seed", tmp_path / "out2")
     assert open(again[0], encoding="utf-8").read() == open(c, encoding="utf-8").read()
     assert len(list(csv.DictReader(open(doctrine.draw_sample(conn, 999, "s", tmp_path / "o3")[0], encoding="utf-8")))) == 8
+
+
+def test_snippets_are_stored_at_tag_time_and_replaced_on_retag(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    conn = store.connect(tmp_path / "d.db")
+    aid = _article(conn, "https://x.test/1", "Xi on the Global South")
+    doctrine.ensure(conn)
+    assert doctrine.stored_snippets(conn, aid, "global_south") == [["Global South", "Xi on the [[Global South]]"]]
+    body = " ".join("w%d" % j for j in range(40)) + " Chinese modernization " + " and ".join(
+        "Chinese modernization" for _ in range(8)) + " " + " ".join("v%d" % j for j in range(40))
+    store.save_body(store.get_article(conn, aid)["url_hash"], body)
+    doctrine.ensure(conn)
+    snips = doctrine.stored_snippets(conn, aid, "chinese_modernization")
+    assert len(snips) == doctrine.SNIPPETS_KEPT and all("[[Chinese modernization]]" in sn for _, sn in snips)
+    assert snips[0][1].split()[0] == "w10"                                       # 30 words before the first
+    rows = conn.execute("SELECT family, version, from_body FROM doctrine_snippets WHERE article_id=?", (aid,)).fetchall()
+    assert sorted((r[0], r[1], r[2]) for r in rows) == [("chinese_modernization", doctrine.version(), 1),
+                                                         ("global_south", doctrine.version(), 1)]
+    assert doctrine.stored_snippets(conn, aid, "global_south", v="other") == []    # another version's do not count
+    # an article no longer relevant loses its snippets at the next tagging pass
+    conn.execute("UPDATE articles SET gate_relevant=0 WHERE id=?", (aid,))
+    doctrine.ensure(conn)
+    assert conn.execute("SELECT COUNT(*) FROM doctrine_snippets").fetchone()[0] == 0
+
+
+def test_a_sample_drawn_without_the_bodies_still_shows_body_matches(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    monkeypatch.setattr(doctrine, "_outlet_names", lambda: {})
+    conn = store.connect(tmp_path / "d.db")
+    for i in range(4):
+        aid = _article(conn, "https://x.test/b%d" % i, "Story %d" % i)
+        store.save_body(store.get_article(conn, aid)["url_hash"], "In the body: true multilateralism, said Wang Yi.")
+    doctrine.ensure(conn)
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "elsewhere")            # another machine: no bodies
+    c, k = doctrine.draw_sample(conn, 4, "seed", tmp_path / "out")
+    rows = list(csv.DictReader(open(c, encoding="utf-8")))
+    key = json.load(open(k, encoding="utf-8"))
+    assert len(rows) == 4 and all("[[true multilateralism]]" in r["snippet"] for r in rows)
+    assert key["from_stored_snippets"] == 4 and all(v["stored"] for v in key["rows"].values())
+
+
+def test_the_sample_is_spread_over_families_first(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    monkeypatch.setattr(doctrine, "_outlet_names", lambda: {})
+    conn = store.connect(tmp_path / "d.db")
+    # a big family in many languages, and a small one in one language
+    langs = [("en", "Belt and Road"), ("es", "la Franja y la Ruta"), ("fr", "la Ceinture et la Route"),
+             ("de", "Gürtel und Straße"), ("it", "Nuova Via della Seta"), ("pt", "Cinturão e Rota")]
+    for i in range(60):
+        lang, term = langs[i % len(langs)]
+        _article(conn, "https://x.test/br%d" % i, "%s %d" % (term, i), lang=lang)
+    for i in range(20):
+        _article(conn, "https://x.test/xt%d" % i, "Xi Jinping Thought %d" % i)
+    doctrine.ensure(conn)
+    c, k = doctrine.draw_sample(conn, 30, "seed", tmp_path / "out")
+    key = json.load(open(k, encoding="utf-8"))
+    fams = [v["family"] for v in key["rows"].values()]
+    assert fams.count("xi_thought") == 15 and fams.count("belt_and_road") == 15   # equal per family, not per language
+    br_langs = [v["language"] for v in key["rows"].values() if v["family"] == "belt_and_road"]
+    assert set(br_langs) == {l for l, _ in langs} and max(br_langs.count(l) for l, _ in langs) <= 3
+    assert key["strata"] == "family first, then language"
+
+
+def test_an_empty_draw_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    conn = store.connect(tmp_path / "d.db")
+    _article(conn, "https://x.test/n", "Nothing doctrinal")
+    doctrine.ensure(conn)
+    with pytest.raises(ValueError):
+        doctrine.draw_sample(conn, 10, "seed", tmp_path / "out")
+    assert not (tmp_path / "out").exists() or not list((tmp_path / "out").iterdir())
 
 
 # ---------------------------------------------------------------------------

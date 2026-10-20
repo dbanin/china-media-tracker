@@ -12,10 +12,16 @@ Pairing. Each current state origin label gets one state_copies row (copy_id is i
      bands). When both bodies exist, at least ALIGN_MIN of the copy's words must align with the
      candidate, or it is rejected;
   2. otherwise the earliest credited monitored copy of the same item, in the same language, from
-     another outlet: the copy's underlying item group (body_dups.item_groups over dup_group_id) or
-     the lookalike match in its llm_trigger. The match is snapshotted into the row (details), so a
+     another outlet outside the copy's own network (the network field of sources/outlets.yaml: sister
+     mastheads of one group, such as the ACM or Postmedia papers, share one copy pool, so a sister's
+     earlier copy is not an original): the copy's underlying item group (body_dups.item_groups over
+     dup_group_id) or the lookalike match in its llm_trigger. The match is snapshotted into the row (details), so a
      reclassification that rewrites llm_trigger does not lose it;
-  3. otherwise none, with a reason (none_reason).
+  3. otherwise none, with a reason (none_reason); details.sister_only says how many earlier copies
+     were passed over because they ran at a sister outlet.
+A monitored original is an earlier copy, not the state text: every figure says which kind of
+original it rests on, and until reference pairs are scored the shares are against an earlier
+monitored copy.
 A copy whose language differs from every credit consistent reference source's language is a
 translation (Italpress runs Xinhua English in Italian): it is never matched across languages. Its
 row says so (details.translation, none_reason "translation" when no monitored original is found).
@@ -37,6 +43,12 @@ difflib, keeping runs of at least MIN_RUN words, so a moved paragraph still coun
                        criticism or rebuttal words. Weak, checked by hand, never a finding alone.
 Bands of novel_share, provisional: verbatim under 0.03, light under 0.15, moderate under 0.40,
 substantial 0.40 or more.
+
+Distinct originals and items. Many copies repeat one original, so the export counts copies,
+distinct originals (a reference item or a monitored article) and distinct underlying items (the
+copies' item groups joined through their originals). Headline band shares weigh each underlying
+item once (its scored copies share its weight), and the copy counts stand beside them. A group's
+median, and an outlet's place in the table, need OUTLET_MIN_N distinct originals.
 
 Times for pipeline/speed.py: copy_published_at and original_published_at are the credible published
 times (lookalike.published_ts) in UTC, else NULL; copy_ts_res and orig_ts_res are second, minute,
@@ -62,7 +74,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 from pipeline import body_dups, config, lookalike, store
 
 MEASURE_ID = "alteration"
-VERSION = "1"
+VERSION = "2"
 
 # Pairing
 WINDOW_AFTER_DAYS = 11      # the original may come up to this many days before the copy
@@ -275,16 +287,30 @@ def _in_window(copy_row, orig_row) -> bool:
 # ---------------------------------------------------------------------------
 
 _DASHES = "-\u2013\u2014"
-_AGENCIES = (r"xinhua|ecns|cgtn|cctv|cri|china daily|global times|people'?s daily|italpress|ansa|agi|nova|"
-             r"agenzia nova|adnkronos|aki|bernama|antara|afp|reuters|ap|efe|lusa|apa|dpa|xinhuanet|cna|kpl|mna|aip")
-_DATELINE = re.compile(r"^[^\n]{0,80}?\(\s*(?:%s|[A-Z][A-Z .]{1,24})\s*\)\s*[%s]{1,2}\s*" % (_AGENCIES, _DASHES), re.IGNORECASE)
-_DATELINE_UPPER = re.compile(r"^[A-Z][A-Z .,'’]{2,40}(?:\([A-Z .]{2,20}\))?\s*[%s]{1,2}\s+(?=\S)" % _DASHES)
-_TAIL_CREDIT = re.compile(r"\(\s*(?:%s)\s*\)\.?\s*$" % _AGENCIES, re.IGNORECASE)
+# Agency names in credits and datelines. Full names match in any case; the short tags (AP, AGI, CNA,
+# NOVA, APA ...) only in capitals, since in lower case they are words ("ap", "agi", "nova") and in
+# title case they open ordinary sentences.
+_AGENCIES_ANY_CASE = (r"xinhua|xinhuanet|ecns|cgtn|cctv|china daily|global times|people'?s daily|people\u2019s daily|"
+                      r"italpress|agenzia nova|adnkronos|bernama|antara|reuters")
+_AGENCIES_CAPS = r"ANSA|AGI|NOVA|Nova|AKI|AFP|AP|EFE|LUSA|Lusa|APA|DPA|dpa|CNA|KPL|MNA|AIP|CRI|ECNS|CGTN|CCTV"
+_AGENCIES = r"(?i:%s)|%s" % (_AGENCIES_ANY_CASE, _AGENCIES_CAPS)
+# A dateline: a place (and date) of at most eight words in capitals or title case, the agency or an
+# upper case tag in brackets, then a dash: "BEIJING, Oct. 13 (Xinhua) --", "ROMA (ITALPRESS) -",
+# "Jakarta (ANTARA) -". Case sensitive outside the agency names, so "The minister (who spoke) - " is
+# text, not a dateline.
+_DATELINE = re.compile(
+    r"^(?:[A-Z\u00C0-\u00DE][\w\u00C0-\u024F.,'\u2019/]*(?:\s+[\w\u00C0-\u024F.,'\u2019/]+){0,7}\s*)?"
+    r"\(\s*(?:%s|[A-Z][A-Z .]{1,24})\s*\)\s*[%s]{1,2}\s*" % (_AGENCIES, _DASHES))
+_DATELINE_UPPER = re.compile(r"^[A-Z][A-Z .,'\u2019]{2,40}(?:\([A-Z .]{2,20}\))?\s*[%s]{1,2}\s+(?=\S)" % _DASHES)
+_TAIL_CREDIT = re.compile(r"\(\s*(?:%s)\s*\)\.?\s*$" % _AGENCIES)
 _CREDIT_WORDS = re.compile(
-    r"(?:^|\b)(?:source|sources|fonte|fuente|fontes|sumber|quelle|photo|photos|foto|fotografia|image|video|editor|editing|"
-    r"edited|reporting|reported by|written by|translated|translation|traduzione|tradução|traducción|credit|credits|"
-    r"crédit|copyright|courtesy|agenzia|agencia|agence|agência|by)\b", re.IGNORECASE)
-_AGENCY_NAME = re.compile(r"\b(?:%s)\b" % _AGENCIES, re.IGNORECASE)
+    r"^\W*(?:source|sources|fonte|fuente|fontes|sumber|quelle|photo|photos|foto|fotos|fotografia|image|images|video|"
+    r"editor|editing|edited by|reporting|reported by|written by|translated|translation|traduzione|tradu\u00e7\u00e3o|"
+    r"traducci\u00f3n|credit|credits|cr\u00e9dit|copyright|courtesy|agenzia|agencia|agence|ag\u00eancia|by|text|testo|"
+    r"texto|\u00a9)(?!\w)", re.IGNORECASE)
+_AGENCY_NAME = re.compile(r"(?<!\w)(?:%s)(?!\w)" % _AGENCIES)
+_AGENCY_MARKED = re.compile(r"[\(\[]\s*(?:[^\)\]]*?[\s/])?(?:%s)\s*[\)\]]|(?<!\w)(?:%s)\s*/|/\s*(?:%s)(?!\w)|\u00a9"
+                            % (_AGENCIES, _AGENCIES, _AGENCIES))
 _CODE_LINE = re.compile(r"^[\w]{1,6}(?:/[\w]{1,6})+$")
 _RELATED = re.compile(
     r"^(?:related(?: stories| news| links| articles| reading)?|recommended(?: stories)?|read more|more stories|"
@@ -307,7 +333,11 @@ def _line_key(line: str) -> str:
 
 
 def is_credit_line(line: str) -> bool:
-    """A short line that is a credit, not text: a photo or source credit, an agency tag, a code."""
+    """A short line that is a credit, not text: a photo or source credit ("Source: Xinhua", "(Photo by
+    Li Ming/Xinhua)", "Photo: AP"), an agency tag ("(ANSA)", "AFP"), a code ("fsc/abr"). The agency must
+    be named in a credit's place: after a credit word that opens the line, in brackets, beside a slash
+    or after a copyright sign. A sentence that merely names an agency ("Asked by AP, she said no.") is
+    text, and so is a long sentence opening with a credit word."""
     s = line.strip()
     words = s.split()
     if not words:
@@ -316,9 +346,22 @@ def is_credit_line(line: str) -> bool:
         return True
     if len(words) > 12:
         return False
-    if re.fullmatch(r"[\(\[]?\s*(?:%s)\s*[\)\]]?\.?" % _AGENCIES, s, re.IGNORECASE):
+    if re.fullmatch(r"[\(\[]?\s*(?:%s)\s*[\)\]]?\.?" % _AGENCIES, s):
         return True
-    return bool(_AGENCY_NAME.search(s) and (_CREDIT_WORDS.search(s) or "(" in s or "/" in s))
+    if not _AGENCY_NAME.search(s):
+        return False
+    if _DATELINE.match(s) and len(_DATELINE.sub("", s, count=1).split()) >= 2:
+        return False      # a short opening paragraph after its dateline: "ROMA (ITALPRESS) - Il governo ha detto."
+    if _AGENCY_MARKED.search(s):
+        return True
+    m = _CREDIT_WORDS.match(s)
+    if m:
+        # "By Xinhua" is a credit, "By the way, AP ..." is not: after a bare "by" the agency comes next.
+        if re.sub(r"\W", "", m.group(0)).lower() == "by" and not _AGENCY_NAME.match(s[m.end():].lstrip()):
+            return False
+        # "Source: Xinhua" is a credit; "Reporting by AP showed that the island's ports ..." is a sentence.
+        return not (len(words) >= 8 and s[-1:] in ".!?")
+    return False
 
 
 def normalise(text: str, template_lines: Optional[Set[str]] = None) -> List[str]:
@@ -522,8 +565,13 @@ _COPY_SQL = """SELECT a.id, a.outlet_id, a.country, a.language, a.title, a.summa
 
 
 def _current_copies(conn) -> Dict[int, Dict]:
+    from pipeline import placements
+    # One copy per placement: a row another row stands for (pipeline/placements.py) is not measured again.
+    shadow = placements.shadowed(conn)
     out = {}
     for r in conn.execute(_COPY_SQL + " ORDER BY a.id"):
+        if r["id"] in shadow:
+            continue
         d = dict(r)
         d["credits"] = credits_of(d["signatures_fired"], d["china_sources_cited"], d["llm_trigger"], d["title"])
         d["sigs"] = [str(s) for s in (_json(d["signatures_fired"], []) or [])]
@@ -702,6 +750,39 @@ def _credited(d: Dict) -> bool:
     return bool(d.get("credits")) or (d.get("route") in CREDITED_ROUTES)
 
 
+_NETWORK_CACHE: Dict[str, Tuple[float, Dict[str, str]]] = {}
+
+
+def network_map(ctx: Optional[Dict] = None) -> Dict[str, str]:
+    """{outlet id: network} from the outlets the export passes (ctx["outlets"]), else from
+    sources/outlets.yaml (read once per change of the file); outlets with no network are absent."""
+    outlets = (ctx or {}).get("outlets")
+    if outlets is None:
+        path = config.OUTLETS_PATH
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            return {}
+        hit = _NETWORK_CACHE.get(str(path))
+        if hit and hit[0] == mtime:
+            return dict(hit[1])
+        try:
+            from pipeline import registry
+            outlets = registry.load_outlets(path, validate=False)
+        except Exception:  # noqa: BLE001  no registry, no networks
+            return {}
+        out = {o["id"]: str(o["network"]) for o in outlets if o.get("id") and o.get("network")}
+        _NETWORK_CACHE[str(path)] = (mtime, out)
+        return dict(out)
+    return {o["id"]: str(o["network"]) for o in outlets if o.get("id") and o.get("network")}
+
+
+def same_network(networks: Dict[str, str], a: Optional[str], b: Optional[str]) -> bool:
+    """Whether two outlets belong to one recorded network."""
+    na = networks.get(a or "")
+    return bool(na) and na == networks.get(b or "")
+
+
 # ---------------------------------------------------------------------------
 # Pairing one copy
 # ---------------------------------------------------------------------------
@@ -709,9 +790,11 @@ def _credited(d: Dict) -> bool:
 class _Run:
     """What one compute() pass shares across copies."""
 
-    def __init__(self, conn, copies: Dict[int, Dict], todo: List[int], sources: Dict[str, Dict]):
+    def __init__(self, conn, copies: Dict[int, Dict], todo: List[int], sources: Dict[str, Dict],
+                 networks: Optional[Dict[str, str]] = None):
         self.conn = conn
         self.copies = copies
+        self.networks = networks or {}
         self.snap = _snapshots(conn)
         # A copy whose llm_trigger lost its lookalike match keeps the credit of the item it repeats.
         for aid, d in copies.items():
@@ -817,7 +900,9 @@ class _Run:
 
     def monitored(self, copy: Dict, cbody: Optional[str], details: Dict) -> Optional[Dict]:
         """The earliest credited monitored copy of the same item in the same language from another
-        outlet, earlier than this one; None when this copy is the first or stands alone."""
+        outlet outside this copy's network, earlier than this one; None when this copy is the first or
+        stands alone. Earlier copies passed over because they ran at a sister outlet are counted in
+        details["sister_only"] when nothing else is found."""
         aid = copy["id"]
         via = {}
         mine = copy.get("dup_group_id")
@@ -829,6 +914,7 @@ class _Run:
         via.pop(aid, None)
         me = (lookalike.tie_rank(copy), aid)
         cands = []
+        sisters = 0
         for k, how in via.items():
             o = self.copies[k]
             if o.get("outlet_id") == copy.get("outlet_id") or o.get("language") != copy.get("language"):
@@ -839,6 +925,9 @@ class _Run:
                 continue
             rank = (lookalike.tie_rank(o), k)
             if rank >= me:
+                continue
+            if same_network(self.networks, o.get("outlet_id"), copy.get("outlet_id")):
+                sisters += 1
                 continue
             cands.append((rank, k, how))
         for _, k, how in sorted(cands):
@@ -856,6 +945,8 @@ class _Run:
             return dict(original_kind="monitored", ref_id=None, original_article_id=k, original_source=o["outlet_id"],
                         match_method=how, match_similarity=sim, credit_consistent=cc, none_reason=None, orig=o,
                         details=details)
+        if sisters:
+            details["sister_only"] = sisters
         return None
 
 
@@ -944,7 +1035,7 @@ def compute(conn, ctx: Optional[Dict] = None, deadline: Optional[float] = None, 
         conn.commit()
         out["remaining"] = 0
         return out
-    run = _Run(conn, copies, todo, sources)
+    run = _Run(conn, copies, todo, sources, network_map(ctx))
     stamp = store.utcnow()
     done: List[Tuple[int, Dict]] = []
     for i, aid in enumerate(todo):
@@ -1005,6 +1096,8 @@ def compute(conn, ctx: Optional[Dict] = None, deadline: Optional[float] = None, 
         conn.execute("UPDATE state_copies SET %s WHERE copy_id=?" % ", ".join("%s=?" % k for k in upd),
                      list(upd.values()) + [aid])
         out["finished"] += 1
+        if out["finished"] % COMMIT_EVERY == 0:
+            conn.commit()       # as the pairing above: the write lock is not held for the whole metrics pass
     conn.commit()
     out["remaining"] = len(todo) - out["finished"]
     return out
@@ -1046,7 +1139,7 @@ def _source_templates(run: _Run, source_id: str) -> Set[str]:
 # Export
 # ---------------------------------------------------------------------------
 
-_ROWS_SQL = """SELECT s.*, a.outlet_id, a.country, a.language, a.title, a.url, c.route
+_ROWS_SQL = """SELECT s.*, a.outlet_id, a.country, a.language, a.title, a.url, a.dup_group_id, c.route
                FROM state_copies s JOIN articles a ON a.id = s.copy_id
                LEFT JOIN classifications c ON c.article_id = s.copy_id AND c.is_current = 1 AND c.category = 'A'
                WHERE s.current = 1"""
@@ -1068,6 +1161,87 @@ def _outlet_map(ctx: Optional[Dict]) -> Dict[str, Dict]:
     return out
 
 
+def orig_key(r: Dict) -> Optional[str]:
+    """The original a row was paired with: "r<id>" for a reference item, "a<id>" for a monitored
+    article, None for no original."""
+    if r.get("original_kind") == "reference" and r.get("ref_id") is not None:
+        return "r%s" % r["ref_id"]
+    if r.get("original_kind") == "monitored" and r.get("original_article_id") is not None:
+        return "a%s" % r["original_article_id"]
+    return None
+
+
+def attach_items(conn, rows: List[Dict]) -> List[Dict]:
+    """Set orig_key and item_key on each row: the item is the copy's underlying item group
+    (body_dups.item_groups over dup_group_id), joined with its original and the original's group, so
+    copies of one state text count as one item."""
+    try:
+        groups = body_dups.item_groups(conn)
+    except sqlite3.OperationalError:
+        groups = {}
+    oids = sorted({r["original_article_id"] for r in rows if r.get("original_article_id")})
+    odup: Dict[int, int] = {}
+    for i in range(0, len(oids), 900):
+        part = oids[i:i + 900]
+        for r in conn.execute("SELECT id, dup_group_id FROM articles WHERE id IN (%s)" % ",".join("?" * len(part)), part):
+            odup[r[0]] = r[1] or r[0]
+    parent: Dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[max(ra, rb)] = min(ra, rb)
+
+    gkeys = []
+    for r in rows:
+        g = r.get("dup_group_id") or r["copy_id"]
+        gk = "g%s" % groups.get(g, g)
+        find(gk)
+        r["orig_key"] = orig_key(r)
+        if r["orig_key"]:
+            union(gk, r["orig_key"])
+        oid = r.get("original_article_id")
+        if oid:
+            og = odup.get(oid, oid)
+            union(gk, "g%s" % groups.get(og, og))
+        gkeys.append(gk)
+    for r, gk in zip(rows, gkeys):
+        r["item_key"] = find(gk)
+    return rows
+
+
+def item_summary(scored: List[Dict]) -> Dict:
+    """Band shares with each underlying item counted once (its scored copies share its weight), the
+    copy counts, and the distinct originals and items: {scored, originals, items, bands (copies),
+    item_bands (weights), item_shares, median_novel_items, median_kept_items (medians over items of
+    each item's median)}."""
+    by = defaultdict(list)
+    for r in scored:
+        by[r.get("item_key") or ("c%s" % r.get("copy_id"))].append(r)
+    w = {b: 0.0 for b in BANDS}
+    novel, kept = [], []
+    for rs in by.values():
+        for r in rs:
+            w[r["band"]] += 1.0 / len(rs)
+        novel.append(_median([r["novel_share"] for r in rs]))
+        kept.append(_median([r["kept_share"] for r in rs]))
+    n = len(by)
+    return {"scored": len(scored), "originals": len({r.get("orig_key") for r in scored if r.get("orig_key")}),
+            "items": n, "bands": {b: sum(1 for r in scored if r["band"] == b) for b in BANDS},
+            "item_bands": {b: round(v, 2) for b, v in w.items()},
+            "item_shares": {b: (round(v / float(n), 4) if n else None) for b, v in w.items()},
+            "median_novel_items": _median(novel), "median_kept_items": _median(kept)}
+
+
 def _group(rows: List[Dict], key) -> List[Dict]:
     acc = defaultdict(list)
     for r in rows:
@@ -1078,10 +1252,14 @@ def _group(rows: List[Dict], key) -> List[Dict]:
     for k, rs in acc.items():
         scored = [r for r in rs if r["band"]]
         bands = {b: sum(1 for r in scored if r["band"] == b) for b in BANDS}
-        out.append({"id": k, "n": len(rs), "scored": len(scored), "bands": bands,
+        its = item_summary(scored)
+        enough = its["originals"] >= OUTLET_MIN_N
+        out.append({"id": k, "n": len(rs), "scored": len(scored), "originals": its["originals"], "items": its["items"],
+                    "bands": bands,
                     "shares": {b: (round(v / float(len(scored)), 4) if scored else None) for b, v in bands.items()},
-                    "median_novel": _median([r["novel_share"] for r in scored]),
-                    "median_kept": _median([r["kept_share"] for r in scored])})
+                    "item_shares": its["item_shares"],
+                    "median_novel": _median([r["novel_share"] for r in scored]) if enough else None,
+                    "median_kept": _median([r["kept_share"] for r in scored]) if enough else None})
     return sorted(out, key=lambda g: (-g["scored"], -g["n"], str(g["id"])))
 
 
@@ -1094,7 +1272,7 @@ def _rows(conn, ctx) -> List[Dict]:
         d["export_country"] = o["country"] if o else d["country"]
         d["outlet_name"] = o["name"] if o else d["outlet_id"]
         out.append(d)
-    return out
+    return attach_items(conn, out)
 
 
 def recall(conn, rows: List[Dict], sources: Optional[Dict[str, Dict]] = None) -> List[Dict]:
@@ -1142,7 +1320,7 @@ def build_export(conn, ctx: Optional[Dict] = None) -> Dict:
     om = _outlet_map(ctx)
     outlets = []
     for g in _group(rows, lambda r: r["outlet_id"]):
-        if g["scored"] < OUTLET_MIN_N:
+        if g["originals"] < OUTLET_MIN_N:
             continue
         sample = next(r for r in rows if r["outlet_id"] == g["id"])
         g.update({"name": (om.get(g["id"]) or {}).get("name") or g["id"], "country": sample["export_country"]})
@@ -1158,10 +1336,18 @@ def build_export(conn, ctx: Optional[Dict] = None) -> Dict:
     by_route = _group(rows, lambda r: r["route"] or "unattributed")
     for g in by_route:
         g["label"] = route_labels.get(g["id"], g["id"])
+    its = item_summary(scored)
+    against = {k: item_summary([r for r in scored if r["original_kind"] == k]) for k in ("reference", "monitored")}
+    paired = [r for r in rows if r["original_kind"] != "none"]
     return {
         "generated_at": store.utcnow(), "version": VERSION, "bands": list(BANDS),
         "band_limits": {k: v for k, v in BAND_LIMITS}, "outlet_min_n": OUTLET_MIN_N,
         "totals": {"copies": len(rows), "paired": len(rows) - kinds.get("none", 0), "scored": len(scored),
+                   "originals": its["originals"], "items": its["items"], "item_bands": its["item_bands"],
+                   "item_shares": its["item_shares"], "median_novel_items": its["median_novel_items"],
+                   "median_kept_items": its["median_kept_items"],
+                   "scored_reference": against["reference"]["scored"], "scored_monitored": against["monitored"]["scored"],
+                   "against": against,
                    "bands": {b: sum(1 for r in scored if r["band"] == b) for b in BANDS},
                    "median_novel": _median([r["novel_share"] for r in scored]),
                    "median_kept": _median([r["kept_share"] for r in scored]),
@@ -1173,8 +1359,13 @@ def build_export(conn, ctx: Optional[Dict] = None) -> Dict:
         "coverage": {"copies": len(rows), "reference": kinds.get("reference", 0), "monitored": kinds.get("monitored", 0),
                      "none": kinds.get("none", 0), "none_by_reason": dict(sorted(reasons.items(), key=lambda kv: str(kv[0]))),
                      "translation": translations,
+                     "sister_only": sum(1 for r in rows if r["original_kind"] == "none"
+                                        and (_json(r["details"], {}) or {}).get("sister_only")),
+                     "items": len({r["item_key"] for r in rows}), "paired_items": len({r["item_key"] for r in paired}),
+                     "originals": len({r["orig_key"] for r in paired if r.get("orig_key")}),
                      "body_states": dict(sorted(Counter(r["body_state"] or "pending" for r in rows).items())),
                      "scored": len(scored)},
+        "reference_sources": reference_sources(conn),
         "by_route": by_route,
         "by_country": _group(rows, lambda r: r["export_country"]),
         "by_outlet": outlets,
@@ -1234,51 +1425,86 @@ def write_review(conn, ctx: Optional[Dict], rows: Optional[List[Dict]] = None) -
     return path.name
 
 
+def reference_sources(conn) -> List[Dict]:
+    """Each reference source's status (pipeline/reference.py source_status): items by status (fetched,
+    expired, failed, paywalled, discovered, blocked by robots.txt), bodies kept, the date only shares
+    and flags. Says why reference pairs are few. [] when unavailable."""
+    try:
+        from pipeline import reference
+        return reference.source_status(conn)
+    except Exception:  # noqa: BLE001  a report, never a stop
+        return []
+
+
 def meta_summary(conn, ctx: Optional[Dict] = None) -> Dict:
     r = conn.execute(
         """SELECT COUNT(*) n, SUM(original_kind='reference') ref, SUM(original_kind='monitored') mon,
-                  SUM(band IS NOT NULL) scored FROM state_copies WHERE current=1""").fetchone()
+                  SUM(band IS NOT NULL) scored, SUM(band IS NOT NULL AND original_kind='reference') sref,
+                  SUM(band IS NOT NULL AND original_kind='monitored') smon FROM state_copies WHERE current=1""").fetchone()
     bands = {b: n for b, n in conn.execute(
         "SELECT band, COUNT(*) FROM state_copies WHERE current=1 AND band IS NOT NULL GROUP BY band")}
+    scored = [x for x in _rows(conn, ctx) if x["band"]]
+    its = item_summary(scored)
+    srcs = {d["source"]: {"items": d["items"], "fetched": d["statuses"].get("fetched", 0),
+                          "expired": d["statuses"].get("expired", 0), "failed": d["statuses"].get("failed", 0),
+                          "paywalled": d["statuses"].get("paywalled", 0), "share_date_only": d["share_date_only"],
+                          "share_date_only_after_day_one": d["share_date_only_after_day_one"], "flags": d["flags"]}
+            for d in reference_sources(conn)}
     return {"copies": r["n"] or 0, "reference": r["ref"] or 0, "monitored": r["mon"] or 0, "scored": r["scored"] or 0,
-            "bands": {b: bands.get(b, 0) for b in BANDS}}
+            "scored_reference": r["sref"] or 0, "scored_monitored": r["smon"] or 0,
+            "originals": its["originals"], "items": its["items"],
+            "bands": {b: bands.get(b, 0) for b in BANDS}, "reference_sources": srcs}
 
 
 def methodology_text(block: Optional[Dict] = None) -> str:
     """Plain paragraphs for METHODOLOGY.md and the site: what the score tests, how pairs are found,
-    what the bands mean and where they stop."""
+    which kind of original each figure rests on, what the bands mean and where they stop."""
     s = (block or {}).get("summary") or {}
     cov = ""
     if s.get("copies"):
         cov = (" At the last export %d of %d state origin copies had an original (%d from a reference source, %d an "
-               "earlier monitored copy), and %d had both texts available to score."
+               "earlier monitored copy), and %d had both texts available to score: %d against a reference original "
+               "and %d against an earlier monitored copy, from %d distinct originals and %d distinct underlying items."
                % (s.get("reference", 0) + s.get("monitored", 0), s["copies"], s.get("reference", 0), s.get("monitored", 0),
-                  s.get("scored", 0)))
+                  s.get("scored", 0), s.get("scored_reference", 0), s.get("scored_monitored", 0), s.get("originals", 0),
+                  s.get("items", 0)))
+        if not s.get("scored_reference"):
+            cov += (" No copy has yet been scored against the state outlet's own text, so every score so far measures "
+                    "change against an earlier monitored copy, not against the state original.")
     return (
         "The alteration score tests the second half of the state origin definition, that the text is "
-        "reproduced without substantive editorial alteration. It sets each state origin copy beside the original state "
-        "text it reproduces and measures how much of that text the outlet changed. It is report only: it never changes a "
-        "label, a count or a denominator, and a copy with a high score keeps its label." + cov + "\n\n"
+        "reproduced without substantive editorial alteration. It sets each state origin copy beside the earliest "
+        "version of the same text that can be found: the state outlet's own page (a reference original) where one "
+        "is found, otherwise an earlier copy of the same item at another monitored outlet. Only a reference "
+        "original is the state text itself; against an earlier monitored copy the score says how far one outlet's "
+        "copy differs from another's, and every figure says which kind of original it rests on. It is report "
+        "only: it never changes a label, a count or a denominator, and a copy with a high score keeps its label."
+        + cov + "\n\n"
         "An original is looked for first among the reference sources, the English and other editions of Chinese state "
         "outlets read only as originals. A reference item qualifies when the copy's credit names its publisher, it is in "
         "the copy's language, it appeared from eleven days before the copy to one day after it, and its headline, feed "
         "summary or body fingerprint nearly repeats the copy's; when both texts are available at least 30 percent of the "
         "copy's words must line up with it. Failing that, the original is the earliest credited copy of the same item at "
-        "another monitored outlet, in the same language. Translations are never matched across languages, so an Italian "
-        "copy of Xinhua English has no reference original and is counted as a translation. Copies first seen in the last "
-        "14 days are paired again at every export.\n\n"
+        "another monitored outlet, in the same language, outside the copy's own media group: sister papers of one group "
+        "(the ACM regional mastheads, the Postmedia papers, the Nine or News Corp mastheads) share one copy pool, so a "
+        "sister's earlier copy is the same placement, not an original. Translations are never matched across languages, "
+        "so an Italian copy of Xinhua English has no reference original and is counted as a translation. Copies first "
+        "seen in the last 14 days are paired again at every export.\n\n"
         "Both texts are compared after credit lines, datelines and lines an outlet repeats on many of its pages are "
         "removed. The score is the share of the copy's words that are not found in the original, in runs of three words "
         "or more. Cuts are reported separately as the share of the original kept, and headline changes as a headline "
         "similarity. The provisional bands are verbatim (under 3 percent new words), light (under 15 percent), moderate "
-        "(under 40 percent) and substantial (40 percent or more).\n\n"
+        "(under 40 percent) and substantial (40 percent or more). Many copies repeat one original, so the shares in the "
+        "lead count each underlying item once, with the number of copies beside them, and an outlet is ranked, or a "
+        "median given, only from %d distinct originals.\n\n"
         "The bands measure wording, not meaning. A copy can keep every word and still change the sense by cutting a "
         "paragraph, and a copy can score as substantial because an outlet added its own background or a rebuttal. Two "
         "keyword cues, one for local context and one for counterpoint, flag added text for a reader to check; they are "
         "weak and never a finding on their own. Bodies are stored only where the tracker runs, so only copies whose two "
-        "texts are both available are scored, and the coverage line says how many that is. Every copy in the "
+        "texts are both available are scored, and the coverage line says how many that is; each reference source's "
+        "counts of pages fetched, expired, failed and paywalled are given beside it. Every copy in the "
         "substantial band is listed for review by hand, and a blind hand check of 20 pairs per band tests both the "
-        "pairs and the bands.")
+        "pairs and the bands." % OUTLET_MIN_N)
 
 
 # ---------------------------------------------------------------------------

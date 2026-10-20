@@ -5,8 +5,7 @@ and Chinese-state-sourced news content is published in every country it can
 monitor, keeps that history permanently, and shows it on a world map.
 
 It generalizes the coding framework of a completed study of 484 articles across
-Italy, Canada and Australia (Stanford, with Professor Larry Diamond) and runs it
-continuously.
+Italy, Canada and Australia and runs it continuously.
 
 Every article is placed in one of four categories. The interface names them
 state origin, unchecked state sourcing, independent journalism, and not about
@@ -55,7 +54,7 @@ file is generated from live values and is the authoritative description.
    now) it becomes a ranked bar chart. METHODOLOGY.md is generated from live values at export time.
 6. Unchecked state sourcing adjudication by the model, the review queue and the agreement study.
    pipeline/classify_llm.py sends headline and body only, never outlet or
-   country, with the category definitions verbatim in the prompt, structured
+   country, with the codebook's category definitions in the prompt, structured
    JSON output, a daily call ceiling that is recorded when hit, synchronous
    and Message Batches modes, and near-duplicate copying so one wire item
    syndicated to five outlets costs one call. review/queue.py is the
@@ -146,8 +145,13 @@ their feeds work from an ordinary network. Those carry `collector:
 self_hosted` in the registry and are relayed from the owner's Mac: a launchd
 job runs `scripts/relay.sh` every hour, which polls and fetches only those
 outlets into a separate database (`data/relay.db`), running from its own git worktree pinned to the published main branch so local uncommitted edits never reach it, then force-pushes one
-gzipped file of the last seven days of articles, bodies included, to the
-`relay` branch. That branch has no history, so the repository does not grow.
+gzipped file of the last seven days of articles to the public `relay` branch.
+When `RELAY_BUNDLE_KEY` is set the file is sealed with it
+(pipeline/bundle_crypto.py) and carries the article bodies; without the key it
+goes in clear with every body left out, paywalled ones included, and the
+runner fetches what it can itself. `push_bundle` refuses to push a bundle
+that carries bodies in clear. That branch has no history, so the repository
+does not grow.
 The hosted pipeline job ingests the bundle at the start of every run and
 inserts whatever it does not have yet; classification then happens on the
 hosted side. The main database still has exactly one writer. When the Mac
@@ -172,9 +176,15 @@ JSON line per gated article per month with its current classification) are
 committed daily, so the repository history is the audit trail. The working
 database is not committed: a growing SQLite file passes GitHub's 100 MB file
 limit within weeks and would bloat the history hourly. It travels between
-runs through the Actions cache and is snapshotted, compressed, as the single
-asset of the `db-snapshot` release every day; `scripts/db_restore.sh` shows
-the restore order. Extracted article bodies travel in the same cache.
+runs through the Actions cache, with the extracted article bodies, and every
+day `scripts/db_snapshot.sh` publishes to the public `db-snapshot` release a
+compressed copy, `tracker.db.gz`, scrubbed of bylines, feed summaries, raw
+model output, reviewer names and email addresses (pipeline/snapshot_scrub.py).
+The whole database and the bodies go up beside it only encrypted with the
+owner's `RELAY_BUNDLE_KEY`, as `tracker-full.db.gz.enc` and
+`bodies.tar.gz.enc`; without the key no encrypted copy is uploaded, and
+neither is ever uploaded in clear. `scripts/db_restore.sh` shows the restore
+order.
 Items the relevance gate rejected are pruned after three days, the one
 deliberate exception to the never-delete rule; a permanent per-day
 discovery count is kept so totals do not shrink. A random 2 percent of
@@ -322,8 +332,10 @@ journalism even without outside comment. The system prompt carries a date,
 `PROMPT_VERSION` in pipeline/classify_llm.py, and every model label records
 it in its model version, for example `claude-sonnet-5 (prompt 2026-10-12)`.
 Bump it whenever the prompt changes what a label means. Current model labels
-made under an older prompt are then judged again through the API, oldest
-first, with what new articles leave of each run's calls and at most
+made under an older prompt are then judged again through the API in priority
+tiers (`RELABEL_PRIORITY` in pipeline/classify_llm.py; METHODOLOGY.md spells
+out the current order), oldest first within each tier, with what new
+articles leave of each run's calls and at most
 `TRACKER_LLM_RELABEL_SHARE` (default 0.5) of the day's call cap; each keeps
 its old label until the new one is stored, and the timeline marks the days
 still waiting.
@@ -354,8 +366,9 @@ densest country has three or more times the median, the interface says so
 and reminds the reader that raw counts display the sampling; on 12 October
 2026 the densest country, the United States, had 44 active outlets against a
 median of 6, and 16 countries had a single outlet. The site has three
-measures: state origin, the default and the one label decided without the
-model, unchecked state sourcing, and all China coverage. It has four bases:
+measures: state origin, the default, decided by fixed rules where a signature
+shows it and by the model otherwise (METHODOLOGY.md gives the current split),
+unchecked state sourcing, and all China coverage. It has four bases:
 number of articles, per outlet we monitor, percent of the country's China
 coverage and percent of all its news; per outlet and the share of all its
 news are the corrected views. A Distribution toggle, described below,
@@ -374,7 +387,7 @@ their own figure, which is not a finding.
 Press release distribution wires. PR Newswire and GlobeNewswire are
 registered as outlets with the tier `distribution_wire` and polled like any
 other, but a release pushed through them is not a placement in a national
-newsroom: the same wire terminal delivers it to subscribers in every country
+newsroom: the same wire terminal delivers it to subscribers in many countries
 at once. The export counts them as a stratum of their own, "Worldwide
 distribution", under the pseudo country code WLD (the World Bank's code for
 the world) in latest.json, the daily files, outlets.json and
@@ -451,4 +464,5 @@ that machine translation would miss precisely the distinctions the coding
 framework turns on. The exclusion is therefore visible and reversible. On 12
 October 2026, 19 outlets were excluded under this rule: seven in Australia,
 five in Taiwan, three in Hong Kong, two in Malaysia and one each in South
-Korea and Singapore.
+Korea and Singapore. METHODOLOGY.md, under Known limits, gives the current
+count per country.

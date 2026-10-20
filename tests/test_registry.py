@@ -44,7 +44,8 @@ def test_duplicate_ids_rejected():
 
 # Methodology review 2026-10-12: international broadcasters and the US based leaning rater.
 INTERNATIONAL = ("us_rfa", "kh_rfakhmer", "mm_rfaburmese", "kp_rfa", "la_rfalao", "ge_radiotavisupleba", "de_dw", "de_dw_en",
-                 "ru_dw_ru", "fr_france24", "fr_france24_en", "fr_rfi", "fr_rfi_en", "br_rfi_pt", "in_bbchindi", "mm_bbcburmese")
+                 "ru_dw_ru", "fr_france24", "fr_france24_en", "fr_rfi", "fr_rfi_en", "br_rfi_pt", "in_bbchindi", "mm_bbcburmese",
+                 "et_bbcamharic", "so_bbcsomali", "tz_bbcswahili", "in_bbctamil")
 DOMESTIC_PUBLIC = ("gb_bbc", "au_abc", "au_sbs", "ca_radiocanada", "jp_nhk_ja", "de_tagesschau", "fi_yle", "nl_nos")
 
 
@@ -107,3 +108,38 @@ def test_build_outlets_exports_weak_mark(tmp_path):
     out = export.build_outlets(conn, outlets)["outlets"][0]
     assert out["leaning_source_weak"] is True and out["ownership"] == "state_funded_international"
     assert out["leaning_second_source"] is None
+
+
+# Coverage expansion 2026-10-17: outlets added for populous countries with deep China ties and
+# little to measure, and for India's regional languages.
+COVERAGE_ADDED_2026_10_17 = {
+    "ETH": ("et_bbcamharic", "et_ethiopiaobserver"),
+    "SOM": ("so_bbcsomali", "so_caasimada", "so_radiomuqdisho", "so_horseedmedia"),
+    "TZA": ("tz_bbcswahili", "tz_michuzi"),
+    "SDN": ("sd_sudantribunear", "sd_darfur24", "sd_ayin"),
+    "ZMB": ("zm_zambiamonitor", "zm_zambianobserver"),
+    "NER": ("ne_nigerinter", "ne_journalduniger"),
+    "KEN": ("ke_kahawatungu", "ke_tuko", "ke_kenyans"),
+    "UGA": ("ug_watchdog", "ug_pmldaily"),
+    "MOZ": ("mz_jornaldomingo", "mz_mznews", "mz_ikweli"),
+    "MWI": ("mw_mfn", "mw_maraviexpress", "mw_businessmalawi"),
+    "COD": ("cd_congoprofond", "cd_habarirdc"),
+    "AGO": ("ao_noticiasdeangola", "ao_holdonangola", "ao_mercado"),
+    "IND": ("in_bbctamil", "in_dinamani", "in_sangbadpratidin", "in_news18bangla", "in_news18urdu", "in_siasaturdu"),
+}
+
+
+def test_coverage_expansion_outlets_registered():
+    from pipeline import gate
+    by_id = {o["id"]: o for o in registry.load_outlets()}
+    langs = gate.supported_languages()
+    for country, ids in COVERAGE_ADDED_2026_10_17.items():
+        for oid in ids:
+            o = by_id[oid]
+            assert o["country"] == country and o["active"] is True, oid
+            assert o.get("collector") == "hosted", oid
+            # a language with its own keyword list, never Chinese
+            assert o["language"] in langs and o["language"] != "zh", oid
+            assert "Verified 2026-10-17" in o["notes"], oid
+    # India's additions are in its regional languages, not English or Hindi
+    assert {by_id[i]["language"] for i in COVERAGE_ADDED_2026_10_17["IND"]} == {"ta", "bn", "ur"}

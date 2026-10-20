@@ -365,19 +365,35 @@ def fingerprint_of(conn, article_id: int, body: Optional[str] = None) -> Optiona
     return None
 
 
+def credited_reference_sql(alias: str = "c") -> Tuple[str, List[str]]:
+    """(SQL condition, params) on a current state origin label `alias`, true when it may stand as a
+    lookalike reference: its route is one a credit supports (copies.CREDITED_ROUTES: a wire credit, a
+    distribution stamp, a sponsored disclosure, a diplomatic byline), or it is a rules label from before
+    routes were stored, which a signature supports by construction. A model label that rests on the
+    model alone (unattributed, uncredited_copy) is not a reference: one wrong judgement (a vivo or iQIYI
+    release, a CityUHK notice) otherwise spread to the uncredited copies of the same text."""
+    from pipeline.copies import CREDITED_ROUTES  # copies imports this module
+    routes = sorted(CREDITED_ROUTES)
+    cond = "(%s.route IN (%s) OR (%s.method = 'rules' AND %s.route IS NULL))" % (
+        alias, ", ".join("?" * len(routes)), alias, alias)
+    return cond, routes
+
+
 def build_index(conn, rows: Iterable) -> RouteIndex:
-    """The index for a stage that will judge `rows`: every current state origin item discovered or
-    credibly published in the window around any of them, with its body fingerprint where one is stored."""
+    """The index for a stage that will judge `rows`: every current state origin item with a credited
+    route (credited_reference_sql) discovered or credibly published in the window around any of them,
+    with its body fingerprint where one is stored."""
     span = _span(rows, WINDOW_BEFORE_DAYS, WINDOW_AFTER_DAYS)
     if span is None:
         return RouteIndex()
     where, params = _span_sql(span)
+    credited, routes = credited_reference_sql("c")
     refs = [dict(r) for r in conn.execute(
         """SELECT a.id AS article_id, a.outlet_id, a.feed_url, a.language, a.title, a.summary, a.published_at,
                   a.discovered_at, a.day_of_record, o.name AS outlet_name
            FROM classifications c JOIN articles a ON a.id = c.article_id LEFT JOIN outlets o ON o.id = a.outlet_id
-           WHERE c.is_current = 1 AND c.category = 'A' AND %s
-           ORDER BY a.id""" % where, params) if _in_span(r, span)]
+           WHERE c.is_current = 1 AND c.category = 'A' AND %s AND %s
+           ORDER BY a.id""" % (credited, where), list(routes) + list(params)) if _in_span(r, span)]
     return RouteIndex(refs, fingerprints(conn, [r["article_id"] for r in refs]), boiler=feed_boilerplate(conn))
 
 

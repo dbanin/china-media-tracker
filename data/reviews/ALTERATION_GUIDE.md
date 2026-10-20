@@ -9,6 +9,20 @@ Each row is a pair: a state origin copy published by a monitored outlet, and the
 paired it with (an item from a reference source, such as Xinhua English, or an earlier monitored copy
 of the same item). The CSV shows the two headlines and links, never the tracker's band or score.
 
+## Two kinds of original
+
+`original_source` says which kind the row has:
+- a `ref_` source (`ref_xinhua_en`, `ref_cgtn_en` and so on) is the state outlet's own page: the state
+  text itself;
+- an outlet id is an earlier copy of the same item at another monitored outlet. It is not the state
+  text, so the band you give says how far one outlet's copy differs from another's. Code it the same
+  way; the site reports the two kinds apart.
+
+The tracker never takes an earlier copy at a sister outlet of the same media group (two ACM regional
+papers, two Postmedia papers, two Nine mastheads) as the original, since sister papers share one copy
+pool and the same placement. If a row pairs two outlets you know belong to one group, code it as usual
+and write `sister outlet` in notes, so the group can be added to the registry.
+
 ## For each row
 
 Open both links. Read the copy's article text and the original's article text. Ignore menus, related
@@ -36,7 +50,8 @@ Cuts do not count toward the band: a copy that runs only the first three paragra
 word for word, is verbatim. A changed headline does not count either. Estimate by eye; there is no need
 to count words exactly.
 
-**notes**: anything that made the call hard (a translation, a page that changed, a live blog).
+**notes**: anything that made the call hard (a translation, a page that changed, a live blog, a sister
+outlet).
 
 ## Scoring
 

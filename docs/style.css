@@ -7,7 +7,7 @@
   --bone: #ebe5d8;
   --bone-soft: #c9c3b6;
   --ash: #9c968b;
-  --ash-faint: #6b665d;
+  --ash-faint: #928c81;
   --rule: rgba(235, 229, 216, 0.12);
   --rule-strong: rgba(235, 229, 216, 0.28);
   --gold: #c9a961;
@@ -640,3 +640,25 @@ select { max-width: 100%; }
   #lean-table th, #lean-table td { padding: 8px 2px; }
   #lean-table td { -webkit-hyphens: auto; hyphens: auto; }
 }
+
+/* Interface fixes of 2026-10-17. A share of monitored output reads per 1,000 items, which needs a wider number column. */
+#bars.per1000 .bar-row { grid-template-columns: 10rem 1fr 8rem 1.2rem; }
+@media (max-width: 720px) { #bars.per1000 .bar-row { grid-template-columns: 7.5rem 1fr 7.5rem 1.2rem; } }
+@media (max-width: 420px) { #bars.per1000 .bar-row { grid-template-columns: 6.5rem 1fr 7rem 1rem; } }
+/* The small screen list opens on its top rows; the button for the rest sits under them. */
+.bars-more { margin: 0.8rem 0 0.2rem; font-size: 0.82rem; }
+.bars-more button { margin-right: 0.5rem; }
+/* The route select is disabled under a measure other than state origin, and says so. */
+.route-note { display: block; margin-top: 0.3rem; font-size: 0.72rem; color: var(--ash); }
+select:disabled { opacity: 0.6; }
+aside#panel .mini-load { font-size: 0.78rem; padding: 2px 10px; min-height: 0; margin-left: 0.3rem; }
+/* The theme counter's themes, headings and rows take the keyboard focus. */
+.tf-list li:focus-visible, .th-grid th[tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.th-grid tbody th[tabindex] { cursor: pointer; }
+/* The panel heading takes the focus when a selection scrolls the panel into view; the scroll is the cue. */
+aside#panel h2[tabindex="-1"]:focus { outline: none; }
+aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+/* State origin by issuer, under the cards: a muted line, and the issuer badge on article rows. */
+.issuer-line { color: var(--ash); font-size: 0.82rem; line-height: 1.5; max-width: 70ch; margin: calc(-1 * var(--s1)) 0 var(--s3); }
+.badge.issuer-state_owned_enterprise, .badge.issuer-sar_government { border-color: var(--gold-soft); color: var(--gold); }
+.badge.issuer-private_release { color: var(--ash); }

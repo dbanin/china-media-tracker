@@ -20,7 +20,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-from pipeline import config, gate, store
+from pipeline import config, gate, store, termlists
 
 THEMES_PATH = config.ROOT / "pipeline" / "themes.yaml"
 _ACRONYM = re.compile(r"[A-Z0-9][A-Z0-9\-]{1,5}")
@@ -94,11 +94,14 @@ def _compiled(language: str):
         cs = [_word_pattern(w) for w in word_terms if _ACRONYM.fullmatch(w)]
         pats = []
         if ci:
-            pats.append(re.compile(r"(?<!\w)(?:%s)(?!\w)" % "|".join(ci), re.IGNORECASE | re.UNICODE))
+            pats.append(re.compile(termlists.WORD_START + r"(?:%s)" % "|".join(ci) + termlists.WORD_END,
+                                   re.IGNORECASE | re.UNICODE))
         if cs:
-            pats.append(re.compile(r"(?<!\w)(?:%s)(?!\w)" % "|".join(cs), re.UNICODE))
-        if sub_terms:
-            pats.append(re.compile("|".join(re.escape(s.replace("*", "")) for s in sub_terms), re.IGNORECASE))
+            pats.append(re.compile(termlists.WORD_START + r"(?:%s)" % "|".join(cs) + termlists.WORD_END, re.UNICODE))
+        # A term in an Indic script does not start right after a combining mark (termlists.INDIC_START):
+        # चीन (China) is not read inside प्राचीन (ancient).
+        for src in termlists.substring_alternations((s, re.escape(s.replace("*", ""))) for s in sub_terms):
+            pats.append(re.compile(src, re.IGNORECASE))
         out.append((t["id"], pats))
     return out
 

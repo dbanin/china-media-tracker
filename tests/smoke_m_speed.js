@@ -58,12 +58,17 @@
     diagnostics: [{source: "ref_ecns_en", flags: ["published after discovery"], share_negative: 0.8, share_date_only: 0},
                   {source: "ref_cgtn_en", flags: [], share_negative: 0, share_date_only: 0}]
   };
+  data.absolute.overall.originals = 9;
+  data.absolute.overall.originals_timed = 8;
+  data.absolute.by_outlet[0].originals_timed = 11;
   S.render(prov, data, api(slot));
   var h = slot.innerHTML;
   assert(h.indexOf("Behind the state original") !== -1 && h.indexOf("Behind the first monitored copy") !== -1, "two kinds apart");
   assert((h.match(/class="sp-row"/g) || []).length === 4, "all routes plus one route for each kind; empty routes skipped");
   assert(h.indexOf("&lt;Uncredited&gt;") === -1 && h.indexOf("<Uncredited>") === -1, "routes without pairs are skipped");
   assert(h.indexOf("Half of the 30 copies") !== -1 && h.indexOf("3.5 h") !== -1 && h.indexOf("83%") !== -1, "lead sentence");
+  assert(h.indexOf("with a timed state original (8 distinct originals) ran within") !== -1, "distinct originals in the lead");
+  assert(h.indexOf("32 pairs, 9 originals") !== -1 && h.indexOf(">11<") !== -1, "distinct originals beside the pairs and in the table");
   assert(h.indexOf("Italpress") < h.indexOf("Slow Daily") && h.indexOf("Italy") !== -1 && h.indexOf("30 min") !== -1, "ranked outlet table");
   assert(h.indexOf("1 copy ran more than an hour ahead") !== -1, "copies ahead are counted outside");
   assert(h.indexOf("ECNS need care") !== -1 && h.indexOf("80%") !== -1 && h.indexOf("CGTN English need care") === -1, "flagged sources only");
@@ -72,13 +77,25 @@
 
   /* Only relative pairs: no outlet table, the lead says so. */
   S.render(prov, {absolute: emptyKind(), relative: data.relative, coverage: {}, diagnostics: []}, api(slot));
-  assert(slot.innerHTML.indexOf("No state original has enough") !== -1 && slot.innerHTML.indexOf("Fastest outlets") === -1, "relative only");
+  assert(slot.innerHTML.indexOf("No state original has timed pairs of enough distinct originals yet") !== -1 && slot.innerHTML.indexOf("Fastest outlets") === -1, "relative only");
+  assert(slot.innerHTML.indexOf("outside the copy&#39;s own media group") !== -1 || slot.innerHTML.indexOf("outside the copy's own media group") !== -1, "relative lag is behind another group's copy");
+
+  /* New flags, and the reference sources' fetch status. */
+  var flagged = JSON.parse(JSON.stringify(data));
+  flagged.diagnostics = [{source: "ref_cgtn_en", flags: ["earlier than expected"], time_check: {share_earlier: 0.9}},
+                         {source: "ref_global_times_en", flags: ["date only after day one"], share_date_only_after_day_one: 0.42}];
+  flagged.reference_sources = [{source: "ref_cgtn_en", items: 992, statuses: {fetched: 100, expired: 800, failed: 3, paywalled: 0}}];
+  S.render(prov, flagged, api(slot));
+  var f = slot.innerHTML;
+  assert(f.indexOf("CGTN English need care: 90% of the items it lists twice read more than an hour earlier") !== -1, "earlier than expected flag");
+  assert(f.indexOf("Global Times need care: 42% still give only a date after their first day") !== -1, "date only after day one flag");
+  assert(f.indexOf("CGTN English 100 of 992 fetched, 800 expired unread, 3 failed") !== -1, "fetch status per source");
 
   /* Outlets below the minimum: no ranking. */
   var few = JSON.parse(JSON.stringify(data));
   few.absolute.by_outlet = [];
   S.render(prov, few, api(slot));
-  assert(slot.innerHTML.indexOf("No outlet has 10 timed pairs yet") !== -1, "no outlet ranked");
+  assert(slot.innerHTML.indexOf("No outlet has timed pairs of 10 distinct originals yet") !== -1, "no outlet ranked");
 
   /* No slot is fine; an api without helpers works. */
   S.render(prov, data, {id: "speed", slot: null});

@@ -14,7 +14,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 
@@ -159,21 +159,127 @@ def paced(permits: threading.Semaphore, fn):
     return run
 
 
+# Redirects are followed by hand (polite_get), so robots.txt is checked and the pace kept for every
+# hop's target, not only for the URL first asked for.
+MAX_REDIRECTS = 5
+REDIRECT_CODES = (301, 302, 303, 307, 308)
+# Retry-After on a 429 or 503 is honoured: a wait up to RETRY_AFTER_CAP_SECONDS is waited out before
+# the retry; a longer one holds the whole domain for the rest of the run (at most RETRY_AFTER_HOLD_MAX
+# seconds), and its articles are left for a later run, whose retry rules pick them up.
+RETRY_AFTER_CODES = (429, 503)
+RETRY_AFTER_CAP_SECONDS = 60.0
+RETRY_AFTER_HOLD_MAX = 6 * 3600.0
+_held: Dict[str, tuple] = {}
+
+
+class RedirectRefused(requests.RequestException):
+    """A redirect led to a URL that may not be fetched: robots.txt disallows it, its robots.txt
+    cannot be read, or it is not http(s). reason is the fail reason to record."""
+
+    def __init__(self, reason: str, url: str):
+        super().__init__("%s: %s" % (reason, url))
+        self.reason = reason
+        self.url = url
+
+
+def polite_get(url: str, headers: Dict, timeout):
+    """requests.get following at most MAX_REDIRECTS redirects by hand. The first URL is the caller's
+    to check (can_fetch) and pace (_rate_wait); each redirect target is checked against its own
+    robots.txt and paced here before it is requested. Raises RedirectRefused for a target that may
+    not be fetched and requests.TooManyRedirects past the limit (both requests.RequestException)."""
+    cur = url
+    for _ in range(MAX_REDIRECTS + 1):
+        resp = requests.get(cur, headers=headers, timeout=timeout, allow_redirects=False)
+        loc = (getattr(resp, "headers", None) or {}).get("Location")
+        if getattr(resp, "status_code", None) not in REDIRECT_CODES or not loc:
+            return resp
+        nxt = urljoin(cur, loc.strip())
+        if urlsplit(nxt).scheme not in ("http", "https"):
+            raise RedirectRefused("redirect_bad_scheme", nxt)
+        allowed, why = can_fetch(nxt)
+        if not allowed:
+            raise RedirectRefused(why if why == "robots_unavailable" else "redirect_" + why, nxt)
+        close = getattr(resp, "close", None)
+        if close:
+            close()
+        _rate_wait(domain_of(nxt))
+        cur = nxt
+    raise requests.TooManyRedirects("more than %d redirects from %s" % (MAX_REDIRECTS, url))
+
+
+def retry_after_seconds(resp) -> Optional[float]:
+    """The wait a response's Retry-After asks for, in seconds (a number or an HTTP date), or None."""
+    value = ((getattr(resp, "headers", None) or {}).get("Retry-After") or "").strip()
+    if not value:
+        return None
+    if value.isdigit():
+        return float(value)
+    import datetime as _dt
+    from email.utils import parsedate_to_datetime
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=_dt.timezone.utc)
+    return max(0.0, (when - _dt.datetime.now(_dt.timezone.utc)).total_seconds())
+
+
+def hold_domain(domain: str, seconds: float, code: int) -> None:
+    """Make no request to this domain for seconds (capped at RETRY_AFTER_HOLD_MAX), as it asked."""
+    until = time.time() + min(max(seconds, 0.0), RETRY_AFTER_HOLD_MAX)
+    with _rate_lock:
+        if until > _held.get(domain, (0.0, code))[0]:
+            _held[domain] = (until, code)
+
+
+def held_reason(domain: str) -> Optional[str]:
+    """The fail reason while a domain is held after a long Retry-After ("http_429_retry_after"), or
+    None. It starts like the status, so the retry rules treat it as the transient failure it is."""
+    with _rate_lock:
+        until, code = _held.get(domain, (0.0, 0))
+    return "http_%d_retry_after" % code if until > time.time() else None
+
+
+def note_retry_after(domain: str, resp) -> Optional[float]:
+    """After a 429 or 503: the short wait to sleep before retrying (the domain's next slot is moved
+    past it, so every caller waits), or None when there is no Retry-After. A wait longer than
+    RETRY_AFTER_CAP_SECONDS holds the domain (hold_domain) and returns float("inf"): no retry now."""
+    if getattr(resp, "status_code", None) not in RETRY_AFTER_CODES:
+        return None
+    wait = retry_after_seconds(resp)
+    if wait is None:
+        return None
+    if wait > RETRY_AFTER_CAP_SECONDS:
+        hold_domain(domain, wait, resp.status_code)
+        return float("inf")
+    with _rate_lock:
+        _last_request[domain] = max(_last_request.get(domain, 0.0), time.time() + wait)
+    return wait
+
+
 def get_page(url: str):
-    """Fetch with retries. Returns (html, http_status, error)."""
+    """Fetch with retries. Returns (html, http_status, error). Redirects are followed by polite_get
+    (robots.txt and pacing for every hop) and a Retry-After on a 429 or 503 is honoured."""
     domain = domain_of(url)
     delay = 2.0
     last_err = None
     status = None
     for attempt in range(config.MAX_RETRIES + 1):
+        held = held_reason(domain)
+        if held:
+            return None, status, held
         _rate_wait(domain)
+        asked = None
         try:
-            resp = requests.get(
+            resp = polite_get(
                 url,
                 headers={"User-Agent": config.USER_AGENT,
                          "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5",
                          "Accept-Language": "*"},
-                timeout=config.FETCH_TIMEOUT, allow_redirects=True,
+                timeout=config.FETCH_TIMEOUT,
             )
             status = resp.status_code
             ctype = resp.headers.get("Content-Type", "")
@@ -185,8 +291,13 @@ def get_page(url: str):
                 return resp.text, status, None
             if resp.status_code in (429, 500, 502, 503, 504):
                 last_err = "http_%d" % resp.status_code
+                asked = note_retry_after(domain, resp)
+                if asked == float("inf"):
+                    break          # a long Retry-After: the domain is held, the article waits for a later run
             else:
                 return None, status, "http_%d" % resp.status_code
+        except RedirectRefused as exc:
+            return None, status, exc.reason
         except requests.RequestException as exc:
             last_err = type(exc).__name__
         if domain_gap(domain) > config.MIN_SECONDS_PER_DOMAIN:
@@ -194,9 +305,10 @@ def get_page(url: str):
             # retry would wait out another delay (ten minutes at most). The reason is transient, so
             # retry_candidates picks the article up on a later run.
             break
-        if attempt < config.MAX_RETRIES:
+        if attempt < config.MAX_RETRIES and asked is None:
             time.sleep(delay + random.uniform(0, 1))
             delay *= 2
+        # With a short Retry-After the next slot was moved past it: _rate_wait waits it out.
     return None, status, last_err or "unknown"
 
 

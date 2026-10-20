@@ -389,8 +389,12 @@ def url_rows(conn, since: str, until: str, outlets: Optional[List[Dict]] = None)
            FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 AND c.category='A' AND %s>=? AND %s<=?
            ORDER BY day, a.id""" % (_day_sql(), _day_sql(), _day_sql()), (since, until)).fetchall()
+    from pipeline import placements
+    shadow = placements.shadowed(conn)   # one address per placement (pipeline/placements.py)
     out = []
     for r in rows:
+        if r["id"] in shadow:
+            continue
         dom = _public_url(r["url"])
         if not dom:
             continue
@@ -500,11 +504,15 @@ def _share(a: int, b: int) -> Optional[float]:
 
 def _state_origin_index(conn, outlets: List[Dict]) -> Dict[str, Dict]:
     cmap = _country_map(outlets)
+    from pipeline import placements
+    shadow = placements.shadowed(conn)   # one address per placement (pipeline/placements.py)
     out = {}
     for r in conn.execute(
-            """SELECT a.url_hash, a.url, a.outlet_id, a.country, c.route, %s AS day
+            """SELECT a.id, a.url_hash, a.url, a.outlet_id, a.country, c.route, %s AS day
                FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
                WHERE a.gate_relevant=1 AND c.category='A'""" % _day_sql()):
+        if r["id"] in shadow:
+            continue
         out[r["url_hash"]] = {"outlet_id": r["outlet_id"], "country": cmap.get(r["outlet_id"], r["country"]),
                               "route": r["route"] or "unattributed", "day": r["day"],
                               "public": bool(_public_url(r["url"]))}

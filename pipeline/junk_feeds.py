@@ -131,6 +131,12 @@ def _empty(w: Dict) -> Dict:
             "discovered_withdrawn": 0, "gate_relevant_withdrawn": 0}
 
 
+# Items corrected between commits, and a commit after each outlet. Each item's correction (and each outlet
+# day's) is whole on its own and is not applied twice, so committing in steps keeps the write lock free
+# for the hourly run's other writers (the 2026-10-17 robustness audit measured 55 s held by one commit).
+COMMIT_EVERY = 500
+
+
 def run(conn, outlets: Optional[List[Dict]] = None, dry_run: bool = False) -> Dict:
     """Apply the correction (or, with dry_run, only count it; nothing is written, so it works on a read
     only connection). Returns per outlet counts; an empty dict when there is nothing left to correct.
@@ -147,7 +153,9 @@ def run(conn, outlets: Optional[List[Dict]] = None, dry_run: bool = False) -> Di
         rows = conn.execute(
             "SELECT id, status, gate_relevant, fail_reason, feed_url, country, %s AS day FROM articles "
             "WHERE outlet_id=? AND %s>=? ORDER BY id" % (day_sql, day_sql), (oid, w["since"])).fetchall()
-        for r in rows:
+        for i, r in enumerate(rows):
+            if i and i % COMMIT_EVERY == 0 and not dry_run:
+                conn.commit()
             if not is_junk(w, r["feed_url"], r["day"]):
                 continue
             if (r["fail_reason"] or "").startswith(REASON + ":"):
@@ -188,8 +196,8 @@ def run(conn, outlets: Optional[List[Dict]] = None, dry_run: bool = False) -> Di
                 _subtract(conn, d["date"], oid, d["country"], d["discovered"], d["gate_relevant"])
         if t["items_withdrawn"] or t["late_labels_withdrawn"] or t["outlet_days"] or t["discovered_withdrawn"]:
             out[oid] = t
-    if not dry_run:
-        conn.commit()
+        if not dry_run:
+            conn.commit()
     return out
 
 

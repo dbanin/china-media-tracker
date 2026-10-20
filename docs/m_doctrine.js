@@ -4,8 +4,9 @@
    families ranked by their rate per 1,000 China articles in the chosen window, and one weekly timeline
    for a chosen family. Families common beyond Chinese state usage are muted; a family withheld by its
    hand check shows no figure. Windows follow the map: they end on the last complete day, the day the
-   export ran being partial. Loaded in the browser after measures.js, and in Node or jsc with
-   module.exports. */
+   export ran being partial. A redraw replaces the section's markup, so the control the reader used
+   (a window button or the family list, each with its own id) gets the keyboard focus back afterwards.
+   Loaded in the browser after measures.js, and in Node or jsc with module.exports. */
 (function (root, factory) {
   var M = root && root.TrackerMeasures;
   if (!M && typeof require === "function") M = require("./measures.js");
@@ -149,7 +150,26 @@
     return Number(w) + " days ending " + end;
   }
 
-  function draw() {
+  /* The id of the element in slot that has the focus, or null. */
+  function focusedId(slot) {
+    var d = typeof document !== "undefined" ? document : null, el = d && d.activeElement;
+    if (!el || !el.id || !slot || typeof slot.contains !== "function" || !slot.contains(el)) return null;
+    return el.id;
+  }
+
+  /* Give the focus back to the element with this id inside slot, after its markup was replaced. */
+  function restoreFocus(slot, id) {
+    if (!id || !slot) return false;
+    var el = typeof slot.querySelector === "function" ? slot.querySelector("#" + id) : null;
+    if (!el && typeof document !== "undefined" && document.getElementById) el = document.getElementById(id);
+    if (!el || typeof el.focus !== "function") return false;
+    try { el.focus({preventScroll: true}); } catch (e) { el.focus(); }
+    return true;
+  }
+
+  function windowId(v) { return "dc-window-" + String(v).replace(/[^A-Za-z0-9_-]/g, ""); }
+
+  function draw(focusId) {
     var a = view.last;
     if (!a) return;
     var block = a.block, data = a.data, api = a.api, slot = api.slot, meta = api.meta || {};
@@ -159,12 +179,17 @@
     var showB = relayVisible(meta);
     var rows = ranked(data, agg, block);
     var suffix = M.provisionalSuffix(block);
+    var keep = focusId || focusedId(slot);
     var html = '<p class="dc-status">' + M.statusChip(block) + '</p>';
-    html += '<div class="dc-controls control"><label>Window, ending on the last complete day</label><div class="segment window">' +
-      WINDOWS.map(function (x) { return '<button type="button" data-dc-window="' + x.v + '"' + (x.v === view.windowDays ? ' class="active"' : '') + '>' + esc(x.label) + '</button>'; }).join("") + '</div></div>';
+    html += '<div class="dc-controls control"><label id="dc-window-label">Window, ending on the last complete day</label><div class="segment window" role="group" aria-labelledby="dc-window-label">' +
+      WINDOWS.map(function (x) {
+        var on = x.v === view.windowDays;
+        return '<button type="button" id="' + windowId(x.v) + '" data-dc-window="' + x.v + '" aria-pressed="' + (on ? "true" : "false") + '"' + (on ? ' class="active"' : '') + '>' + esc(x.label) + '</button>';
+      }).join("") + '</div></div>';
     if (!t[0]) {
       html += '<p class="m-empty">No China coverage tagged with doctrine terms in ' + esc(windowLabel(end, view.windowDays)) + '.</p>';
       slot.innerHTML = html;
+      restoreFocus(slot, keep);
       return;
     }
     html += '<div class="dc-lead"><span class="dc-lead-num">' + esc(pct(t[7], t[3])) + '</span><span class="dc-lead-text">of independent journalism about China used at least one of these phrases' + esc(suffix) +
@@ -203,6 +228,8 @@
         '<p class="dc-foot">' + esc(fam.label) + ' per 1,000 China articles in each seven day block ending ' + esc(end) + '. Hover a bar for its count.</p></div>';
     }
     slot.innerHTML = html;
+    /* The family list may be gone (every family withheld): then the window button keeps the focus. */
+    if (!restoreFocus(slot, keep) && keep === "dc-family") restoreFocus(slot, windowId(view.windowDays));
   }
 
   function tagNote(data) {
@@ -218,13 +245,13 @@
     while (t && t.getAttribute && !t.getAttribute("data-dc-window")) t = t.parentNode;
     if (!t || !t.getAttribute) return;
     view.windowDays = t.getAttribute("data-dc-window");
-    draw();
+    draw(windowId(view.windowDays));
   }
   function onChange(e) {
     var t = e && e.target;
     if (!t || !t.getAttribute || !t.hasAttribute("data-dc-family")) return;
     view.family = t.value;
-    draw();
+    draw("dc-family");
   }
 
   function render(block, data, api) {
@@ -244,5 +271,6 @@
   var spec = {render: render};
   if (M) M.register(ID, spec);
   return {ID: ID, render: render, lastCompleteDay: lastCompleteDay, windowDays: windowDays, aggregate: aggregate,
-          ranked: ranked, weekly: weekly, rate: rate, relayVisible: relayVisible, view: view};
+          ranked: ranked, weekly: weekly, rate: rate, relayVisible: relayVisible, view: view,
+          onClick: onClick, onChange: onChange, restoreFocus: restoreFocus, windowId: windowId};
 }));

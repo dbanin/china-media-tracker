@@ -1,10 +1,12 @@
-"""Unusual days (pipeline/spikes.py): the Poisson tail, the baseline and its trimming, the flag rule,
-every confounder on synthetic daily files, the partial export day, the worldwide stratum, the side
-file's shape and the hand check."""
+"""Unusual days (pipeline/spikes.py): the Poisson and negative binomial tails, the baseline and its
+trimming, the country's own spread, the tested count (distinct items, each outlet capped), the flag
+rule, every confounder on synthetic daily files, the partial export day, the worldwide stratum, the
+deadline, the side file's shape and the hand check."""
 import csv
 import datetime as dt
 import json
 import math
+import time
 
 import pytest
 
@@ -49,7 +51,11 @@ def _flat(n_days=30, a=1, disc=100, spike_day=29, spike=12, **spike_kw):
     return s
 
 
-def _rows(day, n, outlet="o_old", item=None, discovered=None, published=None, day_of_record=None, method="rules"):
+SPREAD = ["o_old", "o_b", "o_c", "o_d"]      # four outlets, three items each in a day of twelve
+
+
+def _rows(day, n, outlet=None, item=None, discovered=None, published=None, day_of_record=None, method="rules"):
+    outlet = outlet if outlet is not None else [SPREAD[i % len(SPREAD)] for i in range(n)]
     return [{"id": 1000 + i, "outlet_id": outlet if isinstance(outlet, str) else outlet[i], "title": "t%d" % i,
              "url": "https://x.test/%d" % i, "route": "wire_credit", "date": day,
              "discovered_at": discovered or (day + "T10:00:00+00:00"), "published_at": published or (day + "T08:00:00+00:00"),
@@ -147,7 +153,8 @@ def test_the_flag_rule_needs_all_three():
 def test_a_clean_spike_and_its_fields():
     s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, item=None))
     assert s["count"] == 12 and s["expected"] == pytest.approx(1.0) and s["baseline_days"] == 28
-    assert s["status"] == "clean" and s["confounders"] == [] and s["descriptors"] == ["one_outlet"]
+    assert s["tested"] == 12 and s["dispersion"] == 1.0 and s["outlets"] == 4
+    assert s["status"] == "clean" and s["confounders"] == [] and s["descriptors"] == []
     assert s["rate"] == pytest.approx(0.12) and s["rate_expected"] == pytest.approx(0.01)
     assert s["ratio"] == 12.0 and s["p"] < 1e-6 and s["uniq"] == 12
     assert len(s["items"]) == 12 and set(s["items"][0]) == {"id", "outlet_id", "title", "url", "route", "date"}
@@ -180,9 +187,97 @@ def test_too_few_monitored_days_means_no_test():
 
 
 def test_descriptors_one_item():
-    s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, outlet=["o%d" % i for i in range(12)], item=7))
-    assert s["descriptors"] == ["one_item"] and s["top_items"][0]["placements"] == 12
+    rows = _rows(SPIKE, 12, outlet=["o%d" % i for i in range(12)], item=7)
+    others = _rows(SPIKE, 6, outlet=["p%d" % i for i in range(6)])
+    for k, r in enumerate(others):
+        r["id"], r["item"] = 2000 + k, 2000 + k
+    daily = _daily({"ITA": _flat(spike=18)})
+    s = _one(daily, rows=rows + others)
+    assert s["descriptors"] == ["one_item"] and s["top_items"][0]["placements"] == 12 and s["tested"] == 7
     assert len(s["top_items"][0]["outlets"]) == 12 and len(s["top_outlets"]) == spikes.TOP_N
+    # one item placed everywhere, and nothing else, is a lump: it is never flagged
+    res = spikes.analyse(_daily({"ITA": _flat()}), UNTIL, {}, {(SPIKE, "ITA"): rows})
+    assert res["spikes"] == []
+
+
+def test_a_tie_at_half_is_not_mostly_one_outlet():
+    rows = _rows(SPIKE, 12, outlet=["o_old"] * 6 + ["o_b", "o_c", "o_d"] * 2)
+    for r in rows[:6]:
+        r["item"] = 1000                                                       # o_old's six are one item
+    rows[0]["item"] = 999
+    s = _one(_daily({"ITA": _flat()}), rows=rows)
+    assert s["top_outlet_share"] == 0.5 and "one_outlet" not in s["descriptors"]
+
+
+# ---------------------------------------------------------------------------
+# The tested count and the spread
+# ---------------------------------------------------------------------------
+
+def test_the_tested_count_is_distinct_items_with_each_outlet_capped():
+    assert spikes.OUTLET_CAP == 3
+    assert spikes.tested_count(_rows(SPIKE, 12, outlet="o_old")) == 3          # one outlet's batch adds 3
+    assert spikes.tested_count(_rows(SPIKE, 12)) == 12                         # four outlets, three each
+    one_item = _rows(SPIKE, 8, outlet=["o%d" % i for i in range(8)], item=5)
+    assert spikes.tested_count(one_item) == 1                                  # one item, many outlets
+    # an item an outlet already at its cap carries still counts under another outlet with room
+    rows = _rows(SPIKE, 4, outlet="o_old") + [dict(_rows(SPIKE, 1, outlet="o_b")[0], id=2000, item=1003)]
+    assert spikes.tested_count(rows) == 4
+
+
+def test_a_batch_from_one_outlet_is_never_flagged():
+    res = spikes.analyse(_daily({"ITA": _flat(spike=40)}), UNTIL, {}, {(SPIKE, "ITA"): _rows(SPIKE, 40, outlet="o_old")})
+    assert res["spikes"] == []
+
+
+def _direct_nb_sf(x, mean, phi):
+    r = mean / (phi - 1.0)
+    p = 1.0 / phi
+    pmf = lambda k: math.exp(math.lgamma(k + r) - math.lgamma(r) - math.lgamma(k + 1)) * p ** r * (1 - p) ** k
+    return 1.0 - math.fsum(pmf(k) for k in range(x))
+
+
+@pytest.mark.parametrize("x,mean,phi", [(5, 1.0, 2.0), (10, 2.0, 3.0), (3, 10.0, 1.5), (40, 3.0, 22.7), (2, 0.2, 4.0)])
+def test_the_negative_binomial_tail_against_a_direct_sum(x, mean, phi):
+    assert spikes.tail(x, mean, phi) == pytest.approx(_direct_nb_sf(x, mean, phi), rel=1e-7)
+    if x > mean:
+        assert spikes.tail(x, mean, phi) > spikes.poisson_sf(x, mean)          # a fatter upper tail than Poisson
+
+
+def test_the_negative_binomial_tail_at_the_edges():
+    assert spikes.tail(7, 2.0, 1.0) == spikes.poisson_sf(7, 2.0)               # phi 1 is the Poisson model
+    assert spikes.tail(0, 2.0, 3.0) == 1.0 and spikes.tail(1, 0.0, 3.0) == 0.0
+    assert spikes.nbinom_log_sf(5000, 2.0, 3.0) < -1000                        # far out, still on the log scale
+    vals = [spikes.tail(x, 2.5, 4.0) for x in range(0, 60)]
+    assert all(a >= b for a, b in zip(vals, vals[1:]))
+    # a wider spread needs a larger count to flag
+    assert spikes.flag_threshold(2.0, 4.0)[0] > spikes.flag_threshold(2.0, 1.0)[0]
+    assert spikes.is_flagged(9, 2.0)[0] and not spikes.is_flagged(9, 2.0, 4.0)[0]
+
+
+def test_the_spread_comes_from_the_country_s_own_history():
+    day = _day(95)
+    disc = {_day(i): 100 for i in range(95)}
+    flat = {_day(i): 2 for i in range(95)}
+    assert spikes.dispersion(flat, disc, day) == 1.0                           # no variance: Poisson
+    lumpy = {_day(i): (0 if i % 2 else 6) for i in range(95)}
+    phi = spikes.dispersion(lumpy, disc, day)
+    assert phi > 2.5                                                           # variance well above the mean
+    assert spikes.dispersion(lumpy, {_day(i): (100 if i > 85 else 0) for i in range(95)}, day) == 1.0   # too few days
+    # the day itself is never in its own history
+    lumpy[day] = 500
+    assert spikes.dispersion(lumpy, disc, day) == phi
+    # a lumpy country needs more to be flagged than a steady one at the same mean
+    series = {_day(i): _entry(A=(4 if i % 4 == 0 else 0)) for i in range(29)}
+    series[SPIKE] = _entry(A=8)
+    rows = {(SPIKE, "ITA"): _rows(SPIKE, 8)}
+    assert spikes.analyse(_daily({"ITA": _flat(spike=8)}), UNTIL, {}, rows)["spikes"]
+    assert not spikes.analyse(_daily({"ITA": series}), UNTIL, {}, rows)["spikes"]
+
+
+def test_the_analysis_stops_at_the_deadline():
+    with pytest.raises(spikes.OutOfTime):
+        spikes.analyse(_daily({"ITA": _flat()}), UNTIL, deadline=time.monotonic() - 1)
+    assert spikes.analyse(_daily({"ITA": _flat()}), UNTIL, deadline=time.monotonic() + 60)["tests"] > 0
 
 
 # ---------------------------------------------------------------------------
@@ -190,10 +285,10 @@ def test_descriptors_one_item():
 # ---------------------------------------------------------------------------
 
 def test_new_outlet():
-    first = {"o_new": _day(25), "o_old": _day(0)}
-    s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, outlet="o_new"), first_seen=first)
+    first = {"o_new": _day(25), "o_new2": _day(26), "o_old": _day(0), "o_b": _day(0)}
+    s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, outlet=["o_new", "o_new2"] * 6), first_seen=first)
     assert _reasons(s) == {"new_outlet"} and s["status"] == "check" and "New Outlet" in s["confounders"][0]["detail"]
-    s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, outlet="o_old"), first_seen=first)
+    s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, outlet=["o_old", "o_b"] * 6), first_seen=first)
     assert s["confounders"] == [], "an outlet seen since the start of the baseline is not new"
 
 
@@ -217,10 +312,10 @@ def test_outage_recovery_from_a_gap_in_discovery():
 def test_outage_recovery_from_stale_items_and_from_an_outlet_gap():
     s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12, published=_day(25) + "T08:00:00+00:00"))
     assert _reasons(s) == {"outage_recovery"} and "48 hours" in s["confounders"][0]["detail"]
-    odisc = {("o_old", _day(i)): 20 for i in range(28)}                          # usually finds items, not on day 28
+    odisc = {(o, _day(i)): 20 for o in SPREAD for i in range(28)}               # usually find items, not on day 28
     s = _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12), outlet_disc=odisc)
     assert _reasons(s) == {"outage_recovery"} and "Old Outlet" in s["confounders"][0]["detail"]
-    odisc[("o_old", _day(28))] = 20
+    odisc.update({(o, _day(28)): 20 for o in SPREAD})
     assert _one(_daily({"ITA": _flat()}), rows=_rows(SPIKE, 12), outlet_disc=odisc)["confounders"] == []
 
 
@@ -243,11 +338,19 @@ def test_relay_incomplete():
 def test_ruleset_change_from_the_older_label_share():
     series = _flat()
     base = {_day(i): {"labels_on_older_ruleset": 1} for i in range(29)}          # every baseline label older
-    s = _one(_daily({"ITA": series}, base), rows=_rows(SPIKE, 12))
+    inside = {"ruleset_changes": [{"version": "r8", "date": _day(10)}]}
+    s = _one(_daily({"ITA": series}, base), inside, rows=_rows(SPIKE, 12))
     assert _reasons(s) == {"ruleset_change"} and "100 percent on its baseline" in s["confounders"][0]["detail"]
+    c = s["confounders"][0]
+    assert "relabelling under it is not finished" in c["detail"] and c["ruleset_date"] == _day(10)
+    assert (c["older_day"], c["older_baseline"]) == (0.0, 1.0)
+    # a change before the whole baseline is no confounder, however much is still to be relabelled
+    before = {"ruleset_changes": [{"version": "r7", "date": _day(0)}]}
+    assert _one(_daily({"ITA": series}, base), before, rows=_rows(SPIKE, 12))["confounders"] == []
+    assert _one(_daily({"ITA": series}, base), rows=_rows(SPIKE, 12))["confounders"] == []
     # every label on the same older ruleset: both sides alike, no confounder
     same = dict(base, **{SPIKE: {"labels_on_older_ruleset": 12}})
-    assert _one(_daily({"ITA": series}, same), rows=_rows(SPIKE, 12))["confounders"] == []
+    assert _one(_daily({"ITA": series}, same), inside, rows=_rows(SPIKE, 12))["confounders"] == []
     # a change just before the day while the day carries a few more older labels than its baseline
     few = {SPIKE: {"labels_on_older_ruleset": 1}}
     meta = {"ruleset_changes": [{"version": "r9", "date": _day(28)}]}
@@ -367,7 +470,10 @@ def test_the_side_file_and_the_gate(tmp_path):
     assert s["top_outlets"][0] == {"id": "it_paper", "name": "Paper", "placements": 30}
     assert b["summary"]["tests"] == d["tests"] and b["summary"]["spikes"] == 1
     text = b["method_text"]
-    assert "by chance alone" in text and "false flag rate" in text and chr(0x2013) not in text and chr(0x2014) not in text
+    assert "by chance alone" in text and "rough guide" in text and "Poisson" not in text
+    assert chr(0x2013) not in text and chr(0x2014) not in text
+    assert d["method"]["outlet_cap"] == spikes.OUTLET_CAP and "negative binomial" in d["method"]["model"]
+    assert s["tested"] == 6 and d["counts"]["check_relabelling_only"] == 0     # two outlets, three items each
     assert "Category" not in text and "CHN" not in json.dumps(d)
     json.dumps(d)   # serialisable as it stands
 

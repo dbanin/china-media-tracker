@@ -5,8 +5,16 @@ Rules, all from pipeline/keywords.yaml:
     for every language, are matched on Unicode word boundaries; terms of
     three characters or fewer are case sensitive (BRI, PRC, Xi)
   - languages under no_word_boundaries use substring matching
+  - a word boundary is script aware: a term never starts right after a letter, a digit or a
+    combining mark (an Indic vowel sign or virama), so चीन is not read inside प्राचीन; an
+    asterisk in a term is the rest of the word (चीन* reaches चीनमध्ये), and a zero width
+    joiner or non-joiner in a term matches either or none
   - terms under "weak" count only when a non-weak term also matched
   - "regex" entries are applied verbatim and case sensitively
+  - "corroborated" terms (BRI) count only where a term that is neither weak nor
+    corroborated matched within its "near" characters
+  - "not_china_phrases" (a quoted China Rose colourway, bone china) are removed
+    before matching for every outlet
   - "home_terms" are ignored for outlets based in the territory they name
   - "home_phrases" are removed before matching for outlets in the country they
     are listed under, so a Singapore or Malaysia outlet's news about its own
@@ -32,7 +40,7 @@ from urllib.parse import urlparse
 
 import yaml
 
-from pipeline import config
+from pipeline import config, termlists
 
 
 def _phrase_pattern(phrase: str):
@@ -52,6 +60,9 @@ def _load():
     phrases = {k: [_phrase_pattern(p) for p in sorted(v, key=len, reverse=True)]
                for k, v in (data.pop("home_phrases", {}) or {}).items()}
     data.pop("sports_sections", None)   # read by _sports_sections; not a language list
+    data.pop("corroborated", None)      # read by _corroborated; not a language list
+    data.pop("territory_terms", None)   # read by _territory_terms; not a language list
+    data.pop("not_china_phrases", None)  # read by _not_china_phrases; not a language list
     data.pop("title_only", None)        # read by _title_only_patterns; not a language list
     return data, nowb, weak, regex, home, phrases, csens
 
@@ -65,6 +76,45 @@ def _sports_sections():
 
 
 SPORTS_SECTION_MARK = "sports_section:uncorroborated"
+
+
+def _block(key):
+    with open(config.KEYWORDS_PATH, "r", encoding="utf-8") as fh:
+        return (yaml.safe_load(fh) or {}).get(key)
+
+
+@lru_cache(maxsize=None)
+def _corroborated():
+    """(terms, near) of the corroborated block in keywords.yaml: terms that count only where a term
+    that is neither weak nor corroborated matched within near characters."""
+    block = _block("corroborated") or {}
+    return set(block.get("terms") or []), int(block.get("near") or 200)
+
+
+@lru_cache(maxsize=None)
+def _territory_terms():
+    """The Hong Kong, Macao and Taiwan names the residual rule does not count (territory_terms)."""
+    return set(_block("territory_terms") or [])
+
+
+@lru_cache(maxsize=None)
+def _not_china_phrases():
+    """Compiled not_china_phrases, regular expressions applied case sensitively: removed before
+    matching for every outlet."""
+    return [re.compile(p, re.UNICODE) for p in _block("not_china_phrases") or []]
+
+
+def corroborated_terms() -> set:
+    return _corroborated()[0]
+
+
+def _corroborated_only(found, near: int):
+    """found, (start, end, term) occurrences, without the occurrences of a corroborated term that no
+    occurrence of another counting term lies within near characters of."""
+    corr = _corroborated()[0]
+    anchors = [(s, e) for s, e, t in found if t not in corr]
+    return [(s, e, t) for s, e, t in found
+            if t not in corr or any(a < e + near and b > s - near for a, b in anchors)]
 
 
 def sports_section(url: Optional[str]) -> bool:
@@ -114,6 +164,13 @@ def _term_pattern(term: str, language: str, nowb: set, csens: set):
     # case rule in the pattern source instead, because a lowercase homograph makes them
     # useless while an all-capitals headline must still match.
     esc = _capitalised_source(term) if term in csens else re.escape(term)
+    # From gate 2026.10.2 an asterisk, as in the theme lists, stands for the rest of the word: any
+    # word characters and combining marks. It carries the suffixed and case forms of the languages
+    # that attach them to the noun, such as Marathi चीनमध्ये (in China) or Telugu చైనాలో (in China).
+    esc = esc.replace(r"\*", r"[\w%s%s]*" % (termlists.MARKS, termlists.JOINERS))
+    # A zero width joiner or non-joiner in a term matches either of them or none: Indic outlets
+    # write the same name with one, the other or neither (Kannada ಜಿನ್‌ಪಿಂಗ್, ಜಿನ್‍ಪಿಂಗ್, ಜಿನ್ಪಿಂಗ್).
+    esc = re.sub("[\u200c\u200d]", lambda m: r"[\u200c\u200d]?", esc)
     flags = 0 if (len(term) <= 3 or term in csens) else re.IGNORECASE
     if language in nowb and not _LATIN_TERM_RE.search(term):
         # Native script term in a language that writes without spaces: substring matching,
@@ -123,8 +180,11 @@ def _term_pattern(term: str, language: str, nowb: set, csens: set):
         pat = re.compile(r"(?<!%s)%s(?!%s)" % (_LATIN_EDGE, esc, _LATIN_EDGE), flags | re.UNICODE)
     else:
         # Unicode aware word boundary. \b is unreliable for non-Latin scripts, so use
-        # lookarounds on word characters.
-        pat = re.compile(r"(?<!\w)%s(?!\w)" % esc, flags | re.UNICODE)
+        # lookarounds on word characters. From gate 2026.10.2 the start of a term is also not
+        # right after a combining mark (termlists.WORD_START), so चीन (China) is no longer read
+        # inside प्राचीन (ancient) nor চীন inside প্রাচীন; the end still admits a vowel sign, the
+        # opening of a suffix (চীনের, of China).
+        pat = re.compile(termlists.WORD_START + esc + termlists.WORD_END, flags | re.UNICODE)
     return pat
 
 
@@ -183,8 +243,9 @@ def strip_html(text: str) -> str:
 
 
 def mask_home_phrases(text: str, country: Optional[str]) -> str:
-    """Blank out the phrases that, for an outlet in this country, describe its own community."""
-    for pat in _load()[5].get(country or "", ()):
+    """Blank out the phrases that, for an outlet in this country, describe its own community, and
+    for every outlet the not_china_phrases (China Rose, bone china), where a China term names no China."""
+    for pat in list(_load()[5].get(country or "", ())) + _not_china_phrases():
         text = pat.sub(" ", text)
     return text
 
@@ -228,13 +289,19 @@ def check(title: str, summary: str, language: str, country: Optional[str] = None
     text = mask_home_phrases("%s\n%s" % (title or "", kw_summary), country)
     weak, home = _load()[2], _load()[4]
     ignore = home.get(country or "", set())
-    hits = []
+    corr, near = _corroborated()
+    hits, found = [], []
     for term, pat in _patterns(language):
         if term in ignore:
             continue
-        if pat.search(text):
+        spans = [(m.start(), m.end(), term) for m in pat.finditer(text) if m.end() > m.start()]
+        if spans:
             hits.append(term)
-    strong = [h for h in hits if h not in weak]
+            if term not in weak:
+                found += spans
+    # A corroborated term (BRI) admits nothing alone: only where another China term stands near it.
+    kept = {t for _, _, t in _corroborated_only(found, near)}
+    strong = [h for h in hits if h not in weak and h in kept]
     if strong and sports_section(url) and not set(strong) & _sports_sections()[1]:
         distinct, _, in_title = count(title, kw_summary, language, country)
         if distinct < 2 and not in_title:
@@ -251,9 +318,14 @@ def check(title: str, summary: str, language: str, country: Optional[str] = None
     return (len(strong) > 0, sorted(set(hits)))
 
 
-def count(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[int, int, bool]:
+def count(title: str, body: str, language: str, country: Optional[str] = None,
+          residual: bool = False) -> Tuple[int, int, bool]:
     """(distinct non-weak terms, total occurrences of non-weak terms, non-weak term in the title).
-    Used by the residual relevance rule, which needs more than a yes or no.
+    Used by the residual relevance rule, which needs more than a yes or no, with residual set: the
+    territory_terms (Hong Kong, Macao and Taiwan names) then count only beside a mainland term, one
+    that is neither a territory term nor corroborated, anywhere in the text; a story naming the
+    territories and nothing on the mainland counts nothing (DECISIONS 3). An occurrence of a
+    corroborated term (BRI) counts only within its near characters of another counted occurrence.
 
     One stretch of text counts once. The term list overlaps itself, so counting each term
     separately turned a single phrase into several findings: "Xi Jinping" was both "Xi" and
@@ -278,6 +350,11 @@ def count(title: str, body: str, language: str, country: Optional[str] = None) -
         if any(s <= start and end <= e for s, e, _ in accepted):
             continue
         accepted.append((start, end, term))
+    accepted = _corroborated_only(accepted, _corroborated()[1])
+    if residual:
+        territory, corr = _territory_terms(), _corroborated()[0]
+        if not any(t not in territory and t not in corr for _, _, t in accepted):
+            accepted = []
     title_end = len(title)
     return (len({t for _, _, t in accepted}), len(accepted),
             any(s < title_end for s, _, _ in accepted))

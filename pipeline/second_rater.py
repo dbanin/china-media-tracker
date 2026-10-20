@@ -106,7 +106,13 @@ def rejudge(conn, rows: List[Dict], model: str, client=None, dry_run: bool = Fal
         params["model"] = model
         try:
             message = client.messages.create(**params)
-        except Exception:
+        except Exception as exc:
+            limit = classify_llm.provider_limit_of(exc)
+            if limit:
+                # The account's usage limit: every further call would fail too (classify_llm.run pauses).
+                classify_llm.record_provider_limit(conn, limit)
+                failed += 1
+                break
             failed += 1
             if failed >= 5 and not pairs:
                 break       # the API is refusing; stop paying for nothing
@@ -474,7 +480,15 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
     Never raises: a failure here is logged and the run goes on."""
     log_id = store.start_stage(conn, "auto", "reliability_study")
     out = {"collected": None, "submitted": 0, "skipped": None}
+    from pipeline import classify_llm as _cl
     try:
+        # The account's usage limit, recorded by classify_llm or an earlier study: no request before it ends.
+        limit = _cl.active_provider_limit(conn)
+        if limit:
+            out["skipped"] = "provider_limit"
+            out["provider_limit"] = {"until": limit["until"], "message": limit["message"]}
+            store.finish_stage(conn, log_id, True, out)
+            return out
         today = _today(today)
         outstanding = conn.execute("SELECT COUNT(*) FROM llm_batches WHERE kind='study' AND status='submitted'").fetchone()[0]
         if outstanding or (submit and (force or config.RELIABILITY_AUTO)):
@@ -520,6 +534,17 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
                 out["submitted"] = submit_study(conn, client, draw(pool, plan["n"]), model, date=today)
         store.finish_stage(conn, log_id, True, out)
     except Exception as exc:       # the daily update must never depend on the study
+        limit = _cl.provider_limit_of(exc)
+        if limit:
+            # A paused account is not a failed study: kept, so later runs make no request until it ends.
+            _cl.record_provider_limit(conn, limit)
+            out["skipped"] = "provider_limit"
+            out["provider_limit"] = limit
+            try:
+                store.finish_stage(conn, log_id, True, out)
+            except Exception:
+                pass
+            return out
         out["error"] = "%s: %s" % (type(exc).__name__, str(exc)[:300])
         try:
             store.finish_stage(conn, log_id, False, out, notes=out["error"])

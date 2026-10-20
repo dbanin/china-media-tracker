@@ -68,10 +68,16 @@
   assert(!/[–—]/.test(h), "no dashes in the rendered text");
 
   /* The window buttons and the family picker redraw through the slot's own handlers. */
+  var focused = [];
+  slot.querySelector = function (q) { return slot.innerHTML.indexOf('id="' + q.slice(1) + '"') !== -1 ? {focus: function () { focused.push(q); }} : null; };
   slot.onclick({target: {getAttribute: function (k) { return k === "data-dc-window" ? "1" : null; }}});
   assert(D.view.windowDays === "1" && slot.innerHTML.indexOf("2026-10-09") !== -1, "window button redraws");
+  assert(focused.join(",") === "#dc-window-1", "the window button gets the focus back after the redraw");
+  assert(slot.innerHTML.indexOf('id="dc-window-1" data-dc-window="1" aria-pressed="true" class="active"') !== -1, "the pressed button says so");
   slot.onchange({target: {value: "global_south", getAttribute: function () { return null; }, hasAttribute: function (k) { return k === "data-dc-family"; }}});
   assert(D.view.family === "global_south" && slot.innerHTML.indexOf('value="global_south" selected') !== -1, "family picker redraws");
+  assert(focused.join(",") === "#dc-window-1,#dc-family", "the family list gets the focus back after the redraw");
+  delete slot.querySelector;
 
   /* Unchecked state sourcing is hidden where the site withholds it. */
   M.get("doctrine").render(prov, data, {id: "doctrine", slot: slot, meta: {first_discovered: "2026-09-01", generated_at: "2026-10-10T06:00:00+00:00", relay_measured: true, relay_publishable: false}});

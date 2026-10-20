@@ -935,3 +935,101 @@
   - state_media_reported_other
   note: True positive in Korean. "中 관영 매체" in the headline, with 中 as the usual abbreviation for China, which state_media_reported_more
     (중국 관영 매체) does not read.
+- file: focus_partnerangebot_panzer.txt
+  author: Cedric Kienhöfer
+  labels: focus_partnerangebot_panzer.labels.txt
+  source: https://www.focus.de/politik/ausland/china-hat-die-experten-ueberrascht-bei-einer-uebung-wurde-der-neueste-panzer-vom-typ-99b-gezeigt_2acb0106-fe1c-49bd-9e72-d87ad42d9c19.html
+  expect_decision_not: A
+  expect_ids_exclude:
+  - sponsored_de_with_state_entity
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (items 1485003 and 1553961). A staff report on a
+    Chinese tank exercise, extracted from the page the label accuracy audit saved. The page chrome carries the ad slots
+    '(Partnerangebot)' and '(Anzeige) Solaranlagen'; the body names the province of Shandong and CCTV. Until 2026.10.2 the
+    ad slot paired with the province within 600 characters and the report was labelled state origin at confidence 1.0.
+- file: focus_anzeige_global_times.txt
+  author: Cedric Kienhöfer
+  labels: focus_anzeige_global_times.labels.txt
+  source: https://www.focus.de/politik/ausland/chinesischer-offizier-berichtet-fremdes-kriegsschiff-verfolgte-pekings-mobile-festung-dann-fiel-ploetzlich-seine-energieversorgung-aus_3ce89b8e-d5f4-4579-8004-f899ad8b93e1.html
+  expect_decision_not: A
+  expect_ids_exclude:
+  - sponsored_de_with_state_entity
+  expect_triggers_include:
+  - cites_global_times
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (items 2744135 and 2858494). The same ad slot chrome
+    above a report that cites the Global Times, from the audit's saved page. The citation still reaches the model through
+    its trigger.
+- file: ansa_contenuto_sponsorizzato_menu.txt
+  author: Agenzia ANSA; Redazione ANSA
+  labels: ansa_contenuto_sponsorizzato_menu.labels.txt
+  source: https://www.ansa.it/sito/notizie/mondo/asia/2026/10/01/a-pechino-si-celebra-la-fondazione-della-repubblica-popolare-cinese_27a091a6-242c-402a-80b5-4f36f03604d7.html
+  expect_decision_not: A
+  expect_ids_exclude:
+  - sponsored_it_with_state_entity
+  expect_triggers_include:
+  - state_media_reported_it
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (item 2173513). The stored page labels carry the site
+    menu item 'Contenuto sponsorizzato'; the body (its stored head and the start of its tail, the rest of the tail written
+    to the stored length) reports the National Day ceremony as Xinhua tells it. A menu item is not this article's disclosure.
+- file: bankier_material_partnera_menu.txt
+  author: PAP
+  labels: bankier_material_partnera_menu.labels.txt
+  source: https://www.bankier.pl/wiadomosc/Chiny-groza-UE-odwetem-Stanowcza-reakcja-na-ograniczenia-handlowe-9204811.html
+  expect_decision_not: A
+  expect_ids_exclude:
+  - sponsored_other_with_state_entity
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (item 2061638, the same pattern as 3248167). A PAP
+    wire story citing the Global Times under a page label 'materiał partnera' that belongs to a sidebar, stored labels and
+    stored feed summary.
+- file: sunstar_sponsored_content_sidebar.txt
+  author: Third Anne Peralta-Malonzo
+  labels: sunstar_sponsored_content_sidebar.labels.txt
+  source: https://www.sunstar.com.ph/manila/chinese-embassy-denies-funding-claims-vs-sara-duterte-husband
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_entity_then_sponsored_en
+  - sponsored_with_state_entity_en
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (items 2498530 and 2516894). The stored page labels
+    end in a sidebar of links dated in July and tagged 'Sponsored Content', and the headline names the Chinese Embassy. The
+    body is written from the headline, since the stored body is not in the local snapshot.
+- file: tehrantimes_co_sponsored_by.txt
+  author: null
+  labels: tehrantimes_co_sponsored_by.labels.txt
+  source: https://www.tehrantimes.com/news/530427/Farhadi-s-Parallel-Tales-wins-best-screenplay-award-at-Silk
+  expect_decision_not: A
+  expect_ids_exclude:
+  - sponsored_with_state_entity_en
+  note: Hard negative, sponsored placement group, ruleset 2026.10.2 (item 1766752). A film festival report says the
+    festival 'is co-sponsored by the Shaanxi Provincial People's Government'. Prose about who funds an event is not a paid
+    placement disclosure, and co-sponsored no longer reads as sponsored. Stored summary and stored evidence span.
+- file: mk_ai_glossary_xinhua.txt
+  author: 매일경제
+  labels: mk_ai_glossary_xinhua.labels.txt
+  source: https://www.mk.co.kr/news/world/12161213
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_outlet_wire_end_native
+  expect_triggers_include:
+  - cites_xinhua
+  note: Hard negative, credit and dateline group, ruleset 2026.10.2 (item 1630643). Maeil Business closes its stories with
+    an AI glossary, a list mark line, the term, then a sentence defining it; the term line 신화통신 is not a wire credit.
+    Stored summary and stored evidence span.
+- file: cmg_computer_modelling_group_release.txt
+  author: GlobeNewswire
+  labels: cmg_computer_modelling_group_release.labels.txt
+  source: https://nationalpost.com/globe-newswire/computer-modelling-group-ltd-announces-exemptive-relief-obtained-in-connection-with-its-substantial-issuer-bid
+  expect_decision: none
+  expect_ids_exclude:
+  - china_media_group_credit
+  note: Hard negative, credit and dateline group (items 981125, 981192 and 981252). A Computer Modelling Group (TSX CMG)
+    issuer bid release, labelled state origin under 2026.09.7 by the bare acronym and still published on 2026-10-17, because
+    reclassification never reached it (ruleset 2026.10.2 takes rules state origin labels first). Stored lead and evidence span.
+- file: mosaiqueguinee_publi_reportage_embassy.txt
+  author: Doura
+  labels: mosaiqueguinee_publi_reportage_embassy.labels.txt
+  source: https://mosaiqueguinee.com/2026/10/universite-gamal-abdel-nasser-les-equipes-du-navire-hopital-chinois-auspicious-ark-prennent-part-a-des-activites-culturelles/
+  expect_decision: A
+  expect_ids_include:
+  - sponsored_fr_with_state_entity
+  note: True positive, sponsored placement group, kept by ruleset 2026.10.2 (item 2710645). The article's own JSON-LD
+    articleSection files it under Publi-Reportage, and its opening names the Chinese Embassy in Guinea as the organiser.
+    A section value of the item itself is a disclosure attached to it.

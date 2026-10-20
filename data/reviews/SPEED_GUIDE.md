@@ -5,6 +5,10 @@ measure is shown as checked. Until a check passes, the site marks it provisional
 
 ## What is being checked
 
+The sample holds reference pairs only. Many copies can share one original (a release run by several
+papers), and the measure counts distinct originals beside its pairs; for the check each pair counts
+on its own.
+
 The measure pairs a state origin copy in a monitored outlet with the state outlet's own page (a
 reference original), reads the publication time each page gives, and puts the gap into a bucket.
 The check asks one question: reading the times off the two pages yourself, do you get the same
@@ -47,6 +51,9 @@ Draw it with `python -m pipeline.measures sample speed --n 60`. It writes
   `ART`, `BRT`. `CST` is read as China Standard Time.
 - If the page shows a time but no zone, and nothing on the page states one, write `unknown`. The
   time then counts as its date only. Do not guess the zone from the outlet's country.
+- For a date with no time of day, write the zone only when the page states one, and leave the cell
+  empty otherwise. The scorer then reads the state outlet's date as a Beijing date and the copy's date
+  as a UTC date, as the measure does.
 
 ## Which time to take
 
@@ -66,8 +73,10 @@ You do not need to bucket anything, but this is what your times are turned into:
 
 - Both times with a time of day and a zone: the gap in hours. Same hour (under 1 h, and a copy up to
   an hour ahead counts here too), same day (1 to 24 h), 1 to 3 days (24 to 72 h), later.
-- Either side a date only (or zone `unknown`): the gap in calendar days. Same date, 1 to 3 days,
-  later.
+- Either side a date only (or zone `unknown`): the gap in calendar days, counted in one zone, the
+  zone of the date: the other side's time is converted into it first. A copy at 20:00 UTC on 10 October
+  is already 11 October in Beijing, so against a Beijing date of 11 October it is the same date. Same
+  date, 1 to 3 days, later.
 - A copy more than an hour (or a calendar day) ahead of its original: copy ahead of its original.
 - Either side `none`: no credible time.
 

@@ -50,6 +50,7 @@
 #copies-alteration .alt-key { white-space: nowrap; }
 #copies-alteration .alt-sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; border: 1px solid var(--rule); }
 #copies-alteration .alt-coverage { color: var(--ash); font-size: 0.86rem; max-width: 70ch; margin: var(--s2) 0 0; }
+#copies-alteration .alt-note { color: var(--ash); font-size: 0.8rem; max-width: 70ch; margin: 6px 0 0; }
 @media (max-width: 700px) {
   #copies-alteration .alt-legend { gap: 4px 12px; font-size: 0.78rem; }
   #copies-alteration .alt-key { white-space: normal; }
@@ -92,6 +93,8 @@
 #doctrine-body .dc-status { margin: 0 0 var(--s2); }
 #doctrine-body .dc-controls { margin: 0 0 var(--s3); }
 #doctrine-body .segment { flex-wrap: wrap; max-width: 100%; }
+/* The site's control labels never wrap; this one is long enough to be clipped on a 320px screen. */
+#doctrine-body .control label { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
 .dc-lead { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s2); margin: 0 0 var(--s3); max-width: 70ch; }
 .dc-lead-num { font-family: var(--display); font-size: 3rem; line-height: 1; color: var(--gold); font-variant-numeric: tabular-nums; }
 .dc-lead-text { color: var(--bone-soft); flex: 1 1 18rem; min-width: 0; }
@@ -133,6 +136,7 @@
 #findings-spikes .sp-muted .sp-day, #findings-spikes .sp-muted .sp-country { color: var(--ash); }
 #findings-spikes .sp-muted .sp-date { color: var(--ash-faint); }
 #findings-spikes .sp-more, #findings-spikes .sp-foot { color: var(--ash); font-size: 0.82rem; margin: var(--s1) 0 0; }
+#findings-spikes .sp-relabel { color: var(--ash); font-size: 0.84rem; max-width: 70ch; margin: var(--s1) 0 0; }
 .timeline svg.spark rect.spike-mark { fill: var(--gold); stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .timeline svg.spark rect.spike-mark.spike-check { fill: none; stroke: var(--ash); stroke-width: 1.2; }
 @media (max-width: 700px) {

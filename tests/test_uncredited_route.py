@@ -24,7 +24,9 @@ def _article(conn, n):
 
 def test_model_route_values():
     assert cr.model_route(json.dumps({"a_candidate": [], "triggers": [], "spans": [], "lookalike": MATCH})) == "uncredited_copy"
-    assert cr.model_route(json.dumps({"a_candidate": ["xinhua_dateline"], "triggers": []})) == "wire_credit"
+    # From ruleset 2026.10.2 a candidate signature never gives a model label its route.
+    assert cr.model_route(json.dumps({"a_candidate": ["xinhua_dateline"], "triggers": []})) == "unattributed"
+    assert cr.model_route(json.dumps({"a_candidate": ["diplomat_list_name_only"], "triggers": []})) == "unattributed"
     assert cr.model_route(json.dumps({"a_candidate": [], "triggers": ["xinhua_cited"]})) == "unattributed"
     assert cr.model_route(None) == "unattributed" and cr.model_route("not json") == "unattributed"
     assert cr.ROUTE_IDS[-2:] == ["uncredited_copy", "unattributed"]

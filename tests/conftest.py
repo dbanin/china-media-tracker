@@ -103,3 +103,73 @@ def _parsed_registry_once(monkeypatch):
             entry["valid"] = True
         return outlets
     monkeypatch.setattr(registry, "load_outlets", load_outlets)
+
+
+# ---------------------------------------------------------------------------
+# A fake clock for finding date bombs (opt in): TRACKER_TEST_NOW=2026-11-30T23:59:58+00:00 runs the
+# whole suite with the wall clock (datetime.now, utcnow, date.today, time.time) moved to that instant at
+# the start of the session and running on from there, so a test with a date fixed against a window, or
+# one that reads the clock twice across midnight, fails here and not on the day. SQLite's own clock
+# (datetime('now') in a trigger) is not moved: a test comparing the two fails under it for that reason.
+# ---------------------------------------------------------------------------
+
+_FAKE_CLOCK = {}
+
+
+def _fake_clock_classes(offset_seconds):
+    import datetime as real_mod
+    import time as real_time
+    real, real_date, now_ts = real_mod.datetime, real_mod.date, real_time.time
+
+    class _Meta(type):
+        def __instancecheck__(cls, obj):
+            return isinstance(obj, real)
+
+        def __subclasscheck__(cls, sub):
+            return issubclass(sub, real)
+
+    class FakeDateTime(real, metaclass=_Meta):
+        @classmethod
+        def now(cls, tz=None):
+            return real.fromtimestamp(now_ts() + offset_seconds, tz)
+
+        @classmethod
+        def utcnow(cls):
+            return real.utcfromtimestamp(now_ts() + offset_seconds)
+
+        @classmethod
+        def today(cls):
+            return real.fromtimestamp(now_ts() + offset_seconds)
+
+    class _DateMeta(type):
+        def __instancecheck__(cls, obj):
+            return isinstance(obj, real_date)
+
+        def __subclasscheck__(cls, sub):
+            return issubclass(sub, real_date)
+
+    class FakeDate(real_date, metaclass=_DateMeta):
+        @classmethod
+        def today(cls):
+            return real.fromtimestamp(now_ts() + offset_seconds).date()
+
+    return FakeDateTime, FakeDate, (lambda: now_ts() + offset_seconds)
+
+
+def _install_fake_clock() -> None:
+    """Installed when this file is imported, before any test module is: a module level NOW or TODAY is
+    read on the fake clock too, as it would be on that day."""
+    import datetime as real_mod
+    import os
+    import time as real_time
+    target = os.environ.get("TRACKER_TEST_NOW")
+    if not target or "classes" in _FAKE_CLOCK:
+        return
+    when = real_mod.datetime.fromisoformat(target.replace("Z", "+00:00"))
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=real_mod.timezone.utc)
+    _FAKE_CLOCK["classes"] = _fake_clock_classes(when.timestamp() - real_time.time())
+    real_mod.datetime, real_mod.date, real_time.time = _FAKE_CLOCK["classes"]
+
+
+_install_fake_clock()

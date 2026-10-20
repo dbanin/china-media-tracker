@@ -516,3 +516,134 @@ def test_export_is_the_same_with_and_without_reference_items(tmp_path, monkeypat
     assert results["ref"]["articles/CHN.json"] == []
     # the reference rows were there throughout
     assert store.connect(with_ref).execute("SELECT COUNT(*) FROM reference_items").fetchone()[0] == 4
+
+
+# ---------------------------------------------------------------------------
+# Fetch order, the fetch slice, status, time checks, the CGTN head, date zones (F6a)
+# ---------------------------------------------------------------------------
+
+def _ref_row(conn, url, title, discovered, status="discovered", published=None, source="ref_xinhua_en"):
+    conn.execute("""INSERT INTO reference_items(source_id, url, url_hash, language, title, published_at, discovered_at, status)
+                    VALUES (?,?,?,?,?,?,?,?)""", (source, url, store.url_hash(url), "en", title, published, discovered, status))
+    return conn.execute("SELECT id FROM reference_items WHERE url=?", (url,)).fetchone()[0]
+
+
+def _state_copy(conn, title, discovered):
+    url = "https://x.test/copy/%d" % abs(hash(title))
+    aid = store.insert_discovered(conn, {"url": url, "outlet_id": "us_paper", "country": "USA", "language": "en",
+                                         "title": title, "status": "classified", "gate_relevant": 1})
+    conn.execute("UPDATE articles SET discovered_at=? WHERE id=?", (discovered, aid))
+    store.insert_classification(conn, aid, "rules", "A", 1.0, signatures_fired=["xinhua_dateline"], route="wire_credit")
+    return aid
+
+
+def test_fetch_takes_the_candidates_for_current_copies_first_even_once_expired(db, monkeypatch):
+    net = FakeNet()
+    net.install(monkeypatch)
+    title = "China and Brazil sign agreements on trade, energy and space cooperation in Beijing"
+    _state_copy(db, title, (NOW - dt.timedelta(hours=2)).isoformat())
+    old = (NOW - dt.timedelta(days=5)).isoformat()
+    cand = _ref_row(db, "https://english.news.cn/20261009/%032x/c.html" % 1, title, old, status="expired")
+    stale = _ref_row(db, "https://english.news.cn/20261009/%032x/c.html" % 2, "An unrelated story about a museum festival",
+                     old)
+    newest = [_ref_row(db, "https://english.news.cn/20261013/%032x/c.html" % (10 + i), "Fresh story %d about drones" % i,
+                       (NOW - dt.timedelta(hours=1)).isoformat(), published=(NOW - dt.timedelta(minutes=30 - i)).isoformat())
+              for i in range(3)]
+    db.commit()
+    assert reference.fetch_candidates(db, ["ref_xinhua_en"], NOW) == {cand: 1.0}
+    got = reference.fetch(db, limit=2, sources=[_src("ref_xinhua_en")], now=NOW)
+    assert got["copy_candidates"] == 1 and got["candidates"] == 2 and got["expired"] == 1
+    st = {r["id"]: r["status"] for r in db.execute("SELECT id, status FROM reference_items")}
+    assert st[cand] == "fetched", "the candidate comes first, although it was expired and is not the newest"
+    assert st[stale] == "expired" and st[newest[2]] == "fetched" and st[newest[0]] == "discovered"
+    # a copy already paired with a reference original no longer asks for one
+    db.execute("""INSERT INTO state_copies(copy_id, version, computed_at, current, original_kind, ref_id)
+                  SELECT a.id, 't', ?, 1, 'reference', ? FROM articles a""", (NOW.isoformat(), cand))
+    db.execute("UPDATE reference_items SET status='discovered' WHERE id=?", (cand,))
+    assert reference.fetch_candidates(db, ["ref_xinhua_en"], NOW) == {}
+
+
+def test_the_fetch_stage_has_a_slice_of_its_own(db, monkeypatch):
+    import time
+    seen = {}
+    monkeypatch.setattr(reference, "fetch", lambda conn, mono: seen.setdefault("left", mono - time.monotonic()) and {"ok": 1})
+    reference.run_stage(db, "fetch", time.time() - 600)
+    assert reference.FETCH_SLICE_SECONDS - 5 < seen["left"] <= reference.FETCH_SLICE_SECONDS
+    seen.clear()
+    reference.run_stage(db, "fetch", time.time() + 10000)
+    assert reference.FETCH_SECONDS - 5 < seen["left"] <= reference.FETCH_SECONDS
+    assert reference.run_stage(db, "poll", time.time() - 1) == {"skipped": "no time left"}
+
+
+def test_source_status_counts_and_the_date_only_flag_after_day_one(db):
+    old = (NOW - dt.timedelta(days=2)).isoformat()
+    for i in range(10):
+        _ref_row(db, "https://www.globaltimes.cn/page/202610/%d.shtml" % i, "GT %d" % i, old,
+                 status="expired" if i < 6 else "fetched", published="2026-10-12", source="ref_global_times_en")
+    for i, st in enumerate(("fetched", "failed", "paywalled")):
+        _ref_row(db, "http://www.ecns.cn/%d" % i, "ECNS %d" % i, NOW.isoformat(), status=st,
+                 published="2026-10-13T08:00:00+00:00", source="ref_ecns_en")
+    _ref_row(db, "http://www.ecns.cn/new", "ECNS new", NOW.isoformat(), published="2026-10-13", source="ref_ecns_en")
+    db.commit()
+    got = {d["source"]: d for d in reference.source_status(db, NOW)}
+    gt, ec = got["ref_global_times_en"], got["ref_ecns_en"]
+    assert gt["items"] == 10 and gt["statuses"]["expired"] == 6 and gt["statuses"]["fetched"] == 4
+    assert gt["share_date_only"] == 1.0 and gt["share_date_only_after_day_one"] == 1.0 and gt["flags"] == ["date only after day one"]
+    assert ec["statuses"]["failed"] == 1 and ec["statuses"]["paywalled"] == 1 and ec["share_date_only"] == 0.25
+    assert ec["items_after_day_one"] == 0 and ec["share_date_only_after_day_one"] is None and ec["flags"] == []
+    import sqlite3
+    bare = sqlite3.connect(":memory:")
+    bare.row_factory = sqlite3.Row
+    assert reference.source_status(bare) == [] and reference.time_checks(bare) == {}
+
+
+def test_poll_compares_the_cgtn_rss_and_sitemap_times(db, monkeypatch):
+    net = FakeNet()
+    net.install(monkeypatch)
+    got = reference.poll(db, now=NOW)
+    rows = db.execute("SELECT * FROM reference_time_checks").fetchall()
+    assert got["time_checks"] == len(rows) and rows, "the item both listings carry is compared"
+    assert {r["source_id"] for r in rows} == {"ref_cgtn_en"}
+    assert all(r["first_rule"] == "as_published" and r["other_rule"] == "bjt_if_unzoned" for r in rows)
+    assert all(abs(r["diff_seconds"]) <= reference.TIME_CHECK_TOLERANCE for r in rows), "Beijing time read as such agrees"
+    assert reference.time_checks(db, now=NOW)["ref_cgtn_en"]["flags"] == []
+
+
+def test_a_sitemap_that_turns_to_true_utc_reads_early_and_is_flagged(db):
+    stamp = NOW.isoformat()
+    early = [("e%d" % i, "rss", "as_published", "2026-10-13T09:00:00+00:00", "sitemap", "bjt_if_unzoned",
+              "2026-10-13T01:00:00+00:00", -8 * 3600) for i in range(9)]
+    fine = [("f%d" % i, "rss", "as_published", "2026-10-13T09:00:00+00:00", "sitemap", "bjt_if_unzoned",
+             "2026-10-13T09:00:00+00:00", 0) for i in range(30)]
+    reference.record_time_checks(db, "ref_cgtn_en", fine[:3] + early[:2], stamp)
+    assert reference.time_checks(db, now=NOW)["ref_cgtn_en"]["flags"] == [], "too few to say"
+    reference.record_time_checks(db, "ref_cgtn_en", fine + early, stamp)
+    c = reference.time_checks(db, now=NOW)["ref_cgtn_en"]
+    assert c["compared"] == 39 and c["earlier"] == 9 and c["flags"] == ["earlier than expected"]
+    # rows older than the keep period go
+    reference.record_time_checks(db, "ref_cgtn_en", [], (NOW + dt.timedelta(days=30)).isoformat())
+    assert db.execute("SELECT COUNT(*) FROM reference_time_checks").fetchone()[0] == 0
+
+
+def test_the_cgtn_head_without_its_accept_line_or_cookie_notice():
+    raw = (FIX / "cgtn_extracted.txt").read_text()
+    want = reference.clean_body(raw, "cgtn")
+    assert reference.clean_body(raw.replace("\nI agree\n", "\nAccept\n"), "cgtn") == want
+    no_accept = raw.replace("\nI agree\n", "\n")
+    assert reference.clean_body(no_accept, "cgtn") == want
+    lines = [l for l in raw.split("\n") if l.strip() not in ("I agree",) and "cookies" not in l]
+    assert reference.clean_body("\n".join(lines), "cgtn") == want
+    # a body line that reads "OK" or "Agree" after the head is text, not the accept line
+    body = "Choose your language\nEnglish\nFrançais\nPolitics\n16:39, 13-Oct-2026\nCGTN\n" + \
+           "The two sides agreed to deepen cooperation in trade, energy, technology and culture over the next five years.\nAgree"
+    assert reference.clean_body(body, "cgtn").split("\n") == ["CGTN", body.split("\n")[6], "Agree"]
+    # a page with no menu heading is left as it is
+    assert reference.clean_body("CGTN\nA body line.", "cgtn") == "CGTN\nA body line."
+    assert reference.clean_body("Body.\n© 2026 CGTN", "cgtn") == "Body."
+
+
+def test_each_source_says_the_zone_of_its_dates():
+    zones = reference.date_zones()
+    assert zones["ref_xinhua_en"] == 480 and zones["ref_global_times_en"] == 0 and zones["ref_china_daily_en"] == 480
+    assert zones["ref_cgtn_en"] is None      # RSS read as published, the sitemap as Beijing time: no single zone
+    assert reference.date_zone_minutes({"feeds": [{"type": "rss", "time_rule": "as_published", "url": "u"}]}) == 0

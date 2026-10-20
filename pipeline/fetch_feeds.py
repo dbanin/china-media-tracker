@@ -89,6 +89,14 @@ def _entry_time(entry) -> Optional[str]:
     return None
 
 
+def newest_entry_time(entries, now: Optional[dt.datetime] = None) -> Optional[str]:
+    """The newest entry date a poll listed, for feed_health.newest_entry (a frozen feed answers with old
+    items). A date more than a day ahead is a feed's error and is left out, so it cannot hide a freeze."""
+    limit = (now or dt.datetime.now(dt.timezone.utc)) + dt.timedelta(days=1)
+    stamps = [t for t in (_entry_time(e) for e in entries or []) if t and dt.datetime.fromisoformat(t) <= limit]
+    return max(stamps) if stamps else None
+
+
 def _entry_summary(entry) -> str:
     if entry.get("summary"):
         return entry["summary"]
@@ -104,6 +112,26 @@ def _entry_author(entry) -> Optional[str]:
     if entry.get("dc_creator"):
         return entry["dc_creator"]
     return None
+
+
+_SURROGATES = re.compile("[\ud800-\udfff]")
+_CONTROLS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f]")
+TITLE_MAX_CHARS = 1000
+
+
+def clean_text(value) -> str:
+    """A feed field as storable text: "" for what is not text (a list summary, a dict), a number as its
+    digits, lone surrogates (which UTF-8 cannot encode, so SQLite and the body files cannot store them)
+    replaced by U+FFFD, and NUL and the other control characters but tab and newlines left out."""
+    if value is None or isinstance(value, bool):
+        return ""
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", "replace")
+    elif isinstance(value, (int, float)):
+        value = str(value)
+    elif not isinstance(value, str):
+        return ""
+    return _CONTROLS.sub("", _SURROGATES.sub("\ufffd", value))
 
 
 _norm_re = re.compile(r"[^\w\s]", re.UNICODE)
@@ -474,6 +502,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     def poll(o):
         return [] if stopped.is_set() else poll_outlet(o)
 
+    conn.commit()        # a feed that fails is rolled back to the end of the feed before it, and no further
     pool = ThreadPoolExecutor(max_workers=workers + config.SLOW_DOMAIN_THREADS)
     futures = [pool.submit(fetch_articles.paced(permits, poll), o) for o in outlets]
     try:
@@ -496,123 +525,146 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     continue
                 outlet, feed_url, kind, r = g["outlet"], g["feed_url"], g["kind"], g["result"]
                 counts["feeds"] += 1
-                prev = store.feed_health_row(conn, feed_url)
-                store.record_feed_health(conn, outlet["id"], feed_url, r["ok"], r["error"], len(r["entries"]))
-                if not r["ok"]:
-                    continue
-                counts["feeds_ok"] += 1
-                # The feed's first successful poll ever, or its first after a long outage, is a backfill
-                # read whatever the reader (backfill_poll, config.BACKFILL_GAP_DAYS).
-                reread = backfill_poll(conn, feed_url, prev)
-                if reread:
-                    counts["feeds_backfill_" + reread] = counts.get("feeds_backfill_" + reread, 0) + 1
-                backfill = bool(r.get("backfill") or reread)
-                # A reader that sets keyword_gate (the AAP release listing, section_pages) keeps the gate.
-                section = kind in registry.GATE_EXEMPT_KINDS and not r.get("keyword_gate")
-                if section and section_feed_flooding(conn, feed_url):
-                    # Flooding: the keyword gate applies to this feed until it earns the exemption back.
-                    section = False
-                    counts["section_feeds_guarded"] += 1
-                linked, new_here, times = 0, 0, []
-                is_map, known, links = g.get("type") == news_sitemap.NEWS_SITEMAP, (), []
-                if is_map:
-                    known = news_sitemap.known_hashes(conn, [e.get("link") for e in r["entries"]])
-                    titles = news_sitemap.known_titles(conn, outlet["id"]) if titles is None else titles
-                for entry in r["entries"]:
-                    link = entry.get("link")
-                    if not link or not link.startswith("http"):
+                counted = dict(counts)
+                try:
+                    prev = store.feed_health_row(conn, feed_url)
+                    store.record_feed_health(conn, outlet["id"], feed_url, r["ok"], r["error"], len(r["entries"]),
+                                             newest_entry_time(r["entries"]))
+                    if not r["ok"]:
                         continue
-                    linked += 1
-                    counts["items_seen"] += 1
-                    links.append(link)
+                    counts["feeds_ok"] += 1
+                    # The feed's first successful poll ever, or its first after a long outage, is a backfill
+                    # read whatever the reader (backfill_poll, config.BACKFILL_GAP_DAYS).
+                    reread = backfill_poll(conn, feed_url, prev)
+                    if reread:
+                        counts["feeds_backfill_" + reread] = counts.get("feeds_backfill_" + reread, 0) + 1
+                    backfill = bool(r.get("backfill") or reread)
+                    # A reader that sets keyword_gate (the AAP release listing, section_pages) keeps the gate.
+                    section = kind in registry.GATE_EXEMPT_KINDS and not r.get("keyword_gate")
+                    if section and section_feed_flooding(conn, feed_url):
+                        # Flooding: the keyword gate applies to this feed until it earns the exemption back.
+                        section = False
+                        counts["section_feeds_guarded"] += 1
+                    linked, new_here, times = 0, 0, []
+                    is_map, known, links = g.get("type") == news_sitemap.NEWS_SITEMAP, (), []
                     if is_map:
-                        if store.url_hash(link) in known:
-                            continue            # on record: a sitemap lists two days of items on every poll
-                        if news_sitemap.duplicate_title(titles, entry.get("title"), link):
-                            counts["sitemap_same_title"] = counts.get("sitemap_same_title", 0) + 1
-                            continue            # the same article under another address
-                    title = (entry.get("title") or "").strip()
-                    summary = _entry_summary(entry)
-                    if section:
-                        relevant, terms = True, ["section:%s" % kind]
-                    else:
-                        # A sitemap entry has a title and nothing else: the gate also reads its title_only terms.
-                        relevant, terms = gate.check(title, summary, outlet["language"], outlet["country"], url=link,
-                                                     feed_boilerplate=boiler.shingles(outlet["id"], feed_url),
-                                                     title_only=is_map)
-                        if relevant and r.get("keyword_gate") and kind in registry.GATE_EXEMPT_KINDS:
-                            terms = terms + ["section:%s" % kind]   # it still arrived by the section
-                    item = {
-                        "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
-                        "language": outlet["language"], "feed_url": feed_url, "title": title,
-                        "summary": gate.strip_html(summary)[:2000], "author": extract.clean_author(_entry_author(entry)),
-                        "published_at": _entry_time(entry),
-                        "status": "queued" if relevant else "gated_out",
-                        "gate_relevant": 1 if relevant else 0, "gate_terms": terms,
-                    }
-                    # A backfill read (the result's "backfill", set by the AAP release reader, or a feed's
-                    # first poll or first after an outage, backfill_poll) dates an item published well
-                    # before it was seen by its publication day, in the counts and the discovery totals
-                    # alike (store.backfill_day, config.BACKFILL_LAG_HOURS).
-                    item["day_of_record"] = store.backfill_day(item["published_at"]) if backfill else None
-                    if item["published_at"]:
-                        times.append(item["published_at"])
-                    new_id = store.insert_discovered(conn, item)
-                    if new_id is not None and item.get("seen_day"):
-                        # Rejected and pruned before, relevant now: back in the corpus on the day its
-                        # discovery was counted, which is not counted again (store.insert_discovered).
-                        store.record_relevant_again(conn, outlet["country"], outlet["id"], item["seen_day"])
-                        counts["readmitted_after_prune"] = counts.get("readmitted_after_prune", 0) + 1
+                        known = news_sitemap.known_hashes(conn, [e.get("link") for e in r["entries"]])
+                        titles = news_sitemap.known_titles(conn, outlet["id"]) if titles is None else titles
+                    for entry in r["entries"]:
+                        link = entry.get("link")
+                        if link is not None and not isinstance(link, str):
+                            counts["entries_malformed"] = counts.get("entries_malformed", 0) + 1
+                            continue
+                        link = clean_text(link).strip()
+                        if not link or not link.startswith("http"):
+                            continue
+                        linked += 1
+                        counts["items_seen"] += 1
+                        links.append(link)
+                        if is_map:
+                            if store.url_hash(link) in known:
+                                continue            # on record: a sitemap lists two days of items on every poll
+                            if news_sitemap.duplicate_title(titles, clean_text(entry.get("title")), link):
+                                counts["sitemap_same_title"] = counts.get("sitemap_same_title", 0) + 1
+                                continue            # the same article under another address
+                        title = clean_text(entry.get("title")).strip()[:TITLE_MAX_CHARS]
+                        summary = clean_text(_entry_summary(entry))
+                        if section:
+                            relevant, terms = True, ["section:%s" % kind]
+                        else:
+                            # A sitemap entry has a title and nothing else: the gate also reads its title_only terms.
+                            relevant, terms = gate.check(title, summary, outlet["language"], outlet["country"], url=link,
+                                                         feed_boilerplate=boiler.shingles(outlet["id"], feed_url),
+                                                         title_only=is_map)
+                            if relevant and r.get("keyword_gate") and kind in registry.GATE_EXEMPT_KINDS:
+                                terms = terms + ["section:%s" % kind]   # it still arrived by the section
+                        item = {
+                            "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
+                            "language": outlet["language"], "feed_url": feed_url, "title": title,
+                            "summary": gate.strip_html(summary)[:2000], "author": extract.clean_author(clean_text(_entry_author(entry)) or None),
+                            "published_at": _entry_time(entry),
+                            "status": "queued" if relevant else "gated_out",
+                            "gate_relevant": 1 if relevant else 0, "gate_terms": terms,
+                        }
+                        # A backfill read (the result's "backfill", set by the AAP release reader, or a feed's
+                        # first poll or first after an outage, backfill_poll) dates an item published well
+                        # before it was seen by its publication day, in the counts and the discovery totals
+                        # alike (store.backfill_day, config.BACKFILL_LAG_HOURS).
+                        item["day_of_record"] = store.backfill_day(item["published_at"]) if backfill else None
+                        if item["published_at"]:
+                            times.append(item["published_at"])
+                        new_id = store.insert_discovered(conn, item)
+                        if new_id is not None and item.get("seen_day"):
+                            # Rejected and pruned before, relevant now: back in the corpus on the day its
+                            # discovery was counted, which is not counted again (store.insert_discovered).
+                            store.record_relevant_again(conn, outlet["country"], outlet["id"], item["seen_day"])
+                            counts["readmitted_after_prune"] = counts.get("readmitted_after_prune", 0) + 1
+                            if section:
+                                counts["section_items"] += 1
+                            if link_near_duplicates(conn, new_id, title, outlet["country"]):
+                                counts["near_duplicates"] += 1
+                            continue
+                        if new_id is None:
+                            # Known URL. On a gate-exempt section feed it may be one the gate rejected
+                            # when it arrived on an editorial feed; re-admit it there and then.
+                            readmitted = readmit_gated_out(conn, item) if section else None
+                            if readmitted:
+                                counts["readmitted_section"] += 1
+                                counts["section_items"] += 1
+                                if link_near_duplicates(conn, readmitted, title, outlet["country"]):
+                                    counts["near_duplicates"] += 1
+                            elif relevant and not is_map and outlet.get("news_sitemaps"):
+                                # The outlet's news sitemap brought it first and the gate read its title alone;
+                                # an RSS feed now brings its summary too, and the gate passes.
+                                again = readmit_gated_out(conn, item)
+                                if again:
+                                    counts["readmitted_editorial"] = counts.get("readmitted_editorial", 0) + 1
+                                    if link_near_duplicates(conn, again, title, outlet["country"]):
+                                        counts["near_duplicates"] += 1
+                            continue
+                        new_here += 1
+                        counts["items_new"] += 1
+                        store.record_discovery(conn, outlet["country"], relevant, outlet["id"],
+                                               item["day_of_record"] or item["discovered_at"][:10])
                         if section:
                             counts["section_items"] += 1
-                        if link_near_duplicates(conn, new_id, title, outlet["country"]):
-                            counts["near_duplicates"] += 1
-                        continue
-                    if new_id is None:
-                        # Known URL. On a gate-exempt section feed it may be one the gate rejected
-                        # when it arrived on an editorial feed; re-admit it there and then.
-                        readmitted = readmit_gated_out(conn, item) if section else None
-                        if readmitted:
-                            counts["readmitted_section"] += 1
-                            counts["section_items"] += 1
-                            if link_near_duplicates(conn, readmitted, title, outlet["country"]):
+                        if relevant:
+                            counts["gate_relevant"] += 1
+                            if link_near_duplicates(conn, new_id, title, outlet["country"]):
                                 counts["near_duplicates"] += 1
-                        elif relevant and not is_map and outlet.get("news_sitemaps"):
-                            # The outlet's news sitemap brought it first and the gate read its title alone;
-                            # an RSS feed now brings its summary too, and the gate passes.
-                            again = readmit_gated_out(conn, item)
-                            if again:
-                                counts["readmitted_editorial"] = counts.get("readmitted_editorial", 0) + 1
-                                if link_near_duplicates(conn, again, title, outlet["country"]):
-                                    counts["near_duplicates"] += 1
-                        continue
-                    new_here += 1
-                    counts["items_new"] += 1
-                    store.record_discovery(conn, outlet["country"], relevant, outlet["id"], item["day_of_record"])
-                    if section:
-                        counts["section_items"] += 1
-                    if relevant:
-                        counts["gate_relevant"] += 1
-                        if link_near_duplicates(conn, new_id, title, outlet["country"]):
-                            counts["near_duplicates"] += 1
-                # A feed both collectors poll (registry collector: both) is judged against the previous
-                # poll by either of them, and every poll of it is logged so the other side can do the same.
-                shared = registry.is_shared(outlet)
-                if shared:
-                    prev = previous_poll(conn, feed_url, prev)
-                history = feed_history(conn, feed_url, outlet_id=outlet["id"]) if linked and new_here >= linked else None
-                saturated, missed = saturation(prev, linked, new_here, times, history=history)
-                if covered is not None and not is_map and kind == registry.EDITORIAL:
-                    # The sitemap listed what this RSS poll lost, except the part of the stream it leaves out.
-                    saturated, missed, scaled = news_sitemap.covered_saturation(prev, saturated, missed, links, covered)
-                    counts["saturation_covered"] = counts.get("saturation_covered", 0) + (1 if scaled else 0)
-                counts["feeds_saturated"] += 1 if saturated else 0
-                store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked, new_here, saturated, missed)
-                if shared:
-                    store.log_feed_poll(conn, feed_url, config.COLLECTOR, store.utcnow(), outlet["id"], outlet["country"],
-                                        linked, new_here, times, prev["last_ok"] if prev is not None else None,
-                                        saturated, missed)
-                conn.commit()
+                    # A feed both collectors poll (registry collector: both) is judged against the previous
+                    # poll by either of them, and every poll of it is logged so the other side can do the same.
+                    shared = registry.is_shared(outlet)
+                    if shared:
+                        prev = previous_poll(conn, feed_url, prev)
+                    history = feed_history(conn, feed_url, outlet_id=outlet["id"]) if linked and new_here >= linked else None
+                    saturated, missed = saturation(prev, linked, new_here, times, history=history)
+                    if covered is not None and not is_map and kind == registry.EDITORIAL:
+                        # The sitemap listed what this RSS poll lost, except the part of the stream it leaves out.
+                        saturated, missed, scaled = news_sitemap.covered_saturation(prev, saturated, missed, links, covered)
+                        counts["saturation_covered"] = counts.get("saturation_covered", 0) + (1 if scaled else 0)
+                    counts["feeds_saturated"] += 1 if saturated else 0
+                    store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked, new_here, saturated, missed)
+                    if shared:
+                        store.log_feed_poll(conn, feed_url, config.COLLECTOR, store.utcnow(), outlet["id"], outlet["country"],
+                                            linked, new_here, times, prev["last_ok"] if prev is not None else None,
+                                            saturated, missed)
+                    conn.commit()
+                except Exception as exc:
+                    # One feed whose result or entries break the loop (a list summary, a number for a link,
+                    # text SQLite cannot store) is rolled back alone, counted, and recorded as a failed
+                    # poll in feed_health; the stage goes on with the next feed.
+                    conn.rollback()
+                    counts.clear()
+                    counts.update(counted)      # the feed's items went with the rollback
+                    counts["feed_errors"] = counts.get("feed_errors", 0) + 1
+                    counts["last_feed_error"] = "%s: %s: %s" % (feed_url, type(exc).__name__, str(exc)[:200])
+                    try:
+                        store.record_feed_health(conn, outlet["id"], feed_url, False,
+                                                 "feed_error: %s" % type(exc).__name__, 0)
+                        conn.commit()
+                    except Exception:
+                        conn.rollback()
             if deadline and time.time() > deadline:
                 counts["stopped_at_deadline"] = True
                 break

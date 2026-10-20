@@ -4,10 +4,14 @@
    with their reasons. Each day opens the country on the map at that day. sparkMarks puts a small block
    on the map timeline for every unusual day in the current Distribution scope.
 
-   Selecting a country and a day sends a "tracker:select" event on document with {iso, day}, which app.js
-   handles through its public hook (window.TrackerApp). Only on a page without that hook does it use the
-   page's own controls: the timeline scrubber (#scrub, set and sent an input event, exactly as dragging it
-   does) and the ranked list row of the country (clicked, as a reader would). Loaded in the browser after
+   Selecting a country and a day sends a "tracker:select" event on document with the detail
+   {iso, day, measure: "a", window: "day", distribution: "both"}: the figures an unusual day is about
+   are that country's state origin placements on that one day, across country outlets and wires alike,
+   so the panel must show those and not whatever measure, window and distribution were last chosen.
+   app.js handles it through its public hook (window.TrackerApp). Only on a page without that hook does
+   it use the page's own controls: the State origin, That day and Both buttons (clicked when not already
+   active), the timeline scrubber (#scrub, set and sent an input event, exactly as dragging it does) and
+   the ranked list row of the country (clicked, as a reader would). Loaded in the browser after
    measures.js, and in Node or jsc with module.exports. */
 (function (root, factory) {
   var M = root && root.TrackerMeasures;
@@ -17,7 +21,7 @@
 }(typeof self !== "undefined" ? self : this, function (M) {
   "use strict";
   var ID = "spikes";
-  var SHOW = 5, RECENT_DAYS = 30;
+  var SHOW = 5, RECENT_DAYS = 30, OUTLET_CAP = 3, WINDOW_DAYS = 28;
   var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   /* What each confounder that touches the count means, in a few words. rediscovery touches only the
      rate per discovered item, so it never makes a day one to check and is not listed as a reason. */
@@ -26,7 +30,7 @@
     backfill: "a backfill read",
     outage_recovery: "a collector catching up after a gap",
     relay_incomplete: "an incomplete day for the collector on the owner's machine",
-    ruleset_change: "labels made under a different ruleset",
+    ruleset_change: "relabelling after a ruleset change is not finished",
     gate_change: "a relevance gate change",
     saturation: "saturated feeds on the days before",
     llm_ceiling: "candidates still waiting for the model",
@@ -73,10 +77,19 @@
             moreClean: Math.max(0, clean.length - SHOW), moreCheck: Math.max(0, check.length - SHOW)};
   }
 
+  /* What the day carried, and what was tested against what was expected. Since version 2 the tested
+     count is distinct underlying items with each outlet capped (s.tested), which the expected figure is
+     in; an older file without it compared placements. */
+  function whatText(s) {
+    var exp = typeof s.expected === "number" ? (s.expected < 1 ? "under 1" : "about " + Math.round(s.expected)) : "n/a";
+    var placed = s.count + " state origin placements" + (typeof s.uniq === "number" && s.uniq !== s.count ? " (" + s.uniq + " underlying items)" : "");
+    if (typeof s.tested !== "number") return placed + " against " + exp + " expected";
+    return placed + "; " + s.tested + " counted, no outlet adding more than " + OUTLET_CAP + ", against " + exp + " expected";
+  }
+
   function itemHtml(s, api, muted) {
     var esc = M.esc, name = api && api.countryName ? api.countryName(s.country) : s.country;
-    var exp = typeof s.expected === "number" ? (s.expected < 1 ? "under 1" : "about " + Math.round(s.expected)) : "n/a";
-    var what = s.count + " state origin placements" + (typeof s.uniq === "number" && s.uniq !== s.count ? " (" + s.uniq + " underlying items)" : "") + " against " + exp + " expected";
+    var what = whatText(s);
     var desc = descriptorText(s), why = reasonText(s);
     var title = countReasons(s).map(function (c) { return c.detail; }).join(" ");
     return '<li class="sp-item' + (muted ? ' sp-muted' : '') + '"><button type="button" class="sp-day" data-iso="' + esc(s.country) + '" data-day="' + esc(s.date) + '"' +
@@ -87,11 +100,29 @@
       '</button></li>';
   }
 
+  /* The number of tests and the model's estimate of chance flags, with its caveat: the model assumes
+     each country's days vary as they did before, and real days are lumpier, so it is a rough guide. */
   function chanceText(data) {
     var t = data && data.tests, e = data && data.expected_false_flags;
     if (!t) return "";
-    return t.toLocaleString("en-US") + " country days tested" + (data.first_tested ? " since " + shortDate(data.first_tested) : "") +
-      "; by chance alone, " + (typeof e !== "number" ? "an unknown number" : e < 0.1 ? "fewer than 0.1" : "about " + (Math.round(e * 10) / 10)) + " of them would be flagged.";
+    var est = typeof e !== "number" ? "" : e < 0.1 ? "under 0.1" : "about " + (Math.round(e * 10) / 10);
+    return t.toLocaleString("en-US") + " country days tested" + (data.first_tested ? " since " + shortDate(data.first_tested) : "") + "." +
+      (est ? " The model puts the days it would flag by chance alone at " + est + ", but real days are lumpier than it assumes, so read that as a rough guide, not a promise." : "");
+  }
+
+  /* Why days are to check while relabelling is unfinished, said plainly: n is how many of the listed
+     days to check carry that reason. */
+  function relabelText(list) {
+    var n = 0, last = "";
+    (list || []).forEach(function (s) {
+      ((s && s.confounders) || []).forEach(function (c) {
+        if (c && c.reason === "ruleset_change") { n += 1; if (c.ruleset_date && c.ruleset_date > last) last = c.ruleset_date; }
+      });
+    });
+    if (!n) return "";
+    return (n === 1 ? "One of these days is" : n + " of these days are") + " to check because the labelling rules changed" +
+      (last ? " on " + shortDate(last) : "") + " and the days before " + (n === 1 ? "it" : "them") + " have not all been labelled again under the new rules, so the day and the days it is compared with were judged differently. " +
+      "Such a day clears once that relabelling is done; a change stops affecting new days " + WINDOW_DAYS + " days after it.";
   }
 
   function render(block, data, api) {
@@ -108,16 +139,20 @@
     }
     var L = recentLists(data);
     var html = '<div class="m-spikes">' + head +
-      '<p class="sp-sub">Days on which a country carried far more state origin placements than in its previous 28 days. Select one to open it on the map.</p>';
+      '<p class="sp-sub">Days on which a country carried far more state origin items than in its previous 28 days, counting each item once and no more than ' + OUTLET_CAP + ' from any one outlet. Select one to open that day on the map, for state origin across country outlets and wires.</p>';
     if (!L.clean.length && !L.check.length) {
       html += '<p class="m-empty">No unusual days in the last ' + RECENT_DAYS + ' complete days' + (L.last ? ', to ' + esc(shortDate(L.last)) : '') + '.</p>';
     } else {
       if (L.clean.length) html += '<ul class="sp-list">' + L.clean.map(function (s) { return itemHtml(s, api, false); }).join("") + '</ul>' +
         (L.moreClean ? '<p class="sp-more">And ' + L.moreClean + ' more in the last ' + RECENT_DAYS + ' days.</p>' : '');
       else html += '<p class="m-empty">None in the last ' + RECENT_DAYS + ' days is clear of the checks below.</p>';
-      if (L.check.length) html += '<p class="sp-label">To check: these may come from how the data was collected rather than from a surge of state text.</p>' +
-        '<ul class="sp-list">' + L.check.map(function (s) { return itemHtml(s, api, true); }).join("") + '</ul>' +
-        (L.moreCheck ? '<p class="sp-more">And ' + L.moreCheck + ' more to check in the last ' + RECENT_DAYS + ' days.</p>' : '');
+      if (L.check.length) {
+        var rl = relabelText(L.check);
+        html += '<p class="sp-label">To check: these may come from how the data was collected rather than from a surge of state text.</p>' +
+          '<ul class="sp-list">' + L.check.map(function (s) { return itemHtml(s, api, true); }).join("") + '</ul>' +
+          (L.moreCheck ? '<p class="sp-more">And ' + L.moreCheck + ' more to check in the last ' + RECENT_DAYS + ' days.</p>' : '') +
+          (rl ? '<p class="sp-relabel">' + esc(rl) + '</p>' : '');
+      }
     }
     var ch = chanceText(data);
     if (ch) html += '<p class="sp-foot">' + esc(ch) + '</p>';
@@ -137,17 +172,35 @@
     });
   }
 
+  /* The event detail: an unusual day is about one country's state origin placements on that one day,
+     over country outlets and wires together, so that is what the panel is asked to show. */
+  function selectDetail(iso, day) {
+    return {iso: iso, day: day, measure: "a", window: "day", distribution: "both"};
+  }
+
+  /* Click a control button when it is not already the active one, as a reader would. */
+  function press(doc, selector) {
+    var b = doc.querySelector ? doc.querySelector(selector) : null;
+    if (!b || typeof b.click !== "function") return false;
+    if (!(b.classList && b.classList.contains && b.classList.contains("active"))) b.click();
+    return true;
+  }
+
   /* Open iso on the map at day: through app (window.TrackerApp unless given) when it is there, otherwise
      through the page's own controls. Returns what it did. */
   function select(iso, day, doc, app) {
-    var done = {event: false, day: false, country: false};
+    var done = {event: false, day: false, country: false, controls: false};
     if (!doc) return done;
     if (app === undefined) app = typeof window !== "undefined" ? window.TrackerApp : null;
     try {
-      if (typeof CustomEvent === "function") { doc.dispatchEvent(new CustomEvent("tracker:select", {detail: {iso: iso, day: day}})); done.event = true; }
+      if (typeof CustomEvent === "function") { doc.dispatchEvent(new CustomEvent("tracker:select", {detail: selectDetail(iso, day)})); done.event = true; }
     } catch (e) { /* an old browser without CustomEvent: the controls below still work */ }
     /* app.js offers window.TrackerApp and opens the event itself; the controls are for a page without it. */
     if (app && done.event) return done;
+    var m = press(doc, '[data-measure-group] button[data-measure="a"]');
+    var w = press(doc, '[data-window-group] button[data-window="1"]');
+    var dsel = press(doc, '[data-distribution-group] button[data-distribution="both"]');
+    done.controls = m && w && dsel;
     var scrub = doc.getElementById ? doc.getElementById("scrub") : null;
     var k = lastDays ? lastDays.indexOf(day) : -1;
     if (scrub && k !== -1) {
@@ -212,5 +265,5 @@
   if (M) M.register(ID, spec);
   return {ID: ID, render: render, sparkMarks: sparkMarks, findingsExtra: findingsExtra, recentLists: recentLists,
           reasonText: reasonText, descriptorText: descriptorText, marksFor: marksFor, select: select, shortDate: shortDate,
-          REASONS: REASONS};
+          selectDetail: selectDetail, whatText: whatText, chanceText: chanceText, relabelText: relabelText, REASONS: REASONS};
 }));

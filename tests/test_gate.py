@@ -29,8 +29,11 @@ def test_negative():
 def test_short_acronyms_case_sensitive():
     ok, _ = gate.check("Le brie de Meaux", "", "fr")
     assert not ok
-    ok, _ = gate.check("BRI projects stall", "", "en")
+    # From gate 2026.10.2 BRI counts only beside another China term (corroborated in keywords.yaml).
+    ok, _ = gate.check("BRI projects stall as China cuts lending", "", "en")
     assert ok
+    ok, _ = gate.check("Bri projects stall", "", "en")
+    assert not ok
 
 
 def test_summary_html_stripped():

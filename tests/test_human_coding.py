@@ -8,7 +8,7 @@ assistants, with kappa at or above config.KAPPA_WARNING_THRESHOLD overall and pe
 import csv
 import json
 
-from pipeline import agreement, config, export, store
+from pipeline import agreement, classify_llm, config, export, store
 
 
 def _db(tmp_path, monkeypatch, sizes, cats=("A", "B", "C", "not_relevant")):
@@ -23,7 +23,9 @@ def _db(tmp_path, monkeypatch, sizes, cats=("A", "B", "C", "not_relevant")):
                                                  "country": "ITA", "language": lang, "title": "t%d" % n,
                                                  "status": "classified", "gate_relevant": 1})
             conn.execute("UPDATE articles SET body_chars=900 WHERE id=?", (aid,))
-            store.insert_classification(conn, aid, "llm", cats[i % len(cats)], 0.8, model_version="claude-sonnet-5")
+            # Made under the current classifier prompt: compute compares only with those (since 17 October 2026).
+            store.insert_classification(conn, aid, "llm", cats[i % len(cats)], 0.8,
+                                        model_version=classify_llm.with_prompt_version("claude-sonnet-5"))
     conn.commit()
     return conn
 
@@ -182,17 +184,19 @@ def test_inconclusive_human_study_stays_provisional(tmp_path, monkeypatch):
 
 
 def test_compute_against_current_label(tmp_path, monkeypatch):
-    """A sample drawn before a codebook change can be compared with the labels the new codebook gave."""
+    """compute compares with each article's current label by default; the frozen labels are the audit view."""
     conn = _db(tmp_path, monkeypatch, {"en": 40}, cats=("B", "C"))
     out = tmp_path / "reviews" / "human_sample_2026-10-12.csv"
     agreement.cmd_human_sample(conn, out, per_language=30, min_labelled=30)
     _fill(conn, out, lambda i, r, cat: WORDS[cat])
-    # Reclassification flips every label; the frozen comparison still agrees, the current one does not.
+    # Reclassification under the current prompt flips every label; the frozen comparison still agrees,
+    # the current one, the default, does not.
     for (aid, cat) in conn.execute("SELECT article_id, category FROM classifications WHERE is_current=1").fetchall():
-        store.insert_classification(conn, aid, "llm", "C" if cat == "B" else "B", 0.8)
+        store.insert_classification(conn, aid, "llm", "C" if cat == "B" else "B", 0.8,
+                                    model_version=classify_llm.with_prompt_version("claude-sonnet-5"))
     conn.commit()
-    assert agreement.cmd_compute(conn, out, "x", record=False)["kappa_bc"] == 1.0
-    assert agreement.cmd_compute(conn, out, "x", record=False, against="current")["kappa_bc"] == -1.0
+    assert agreement.cmd_compute(conn, out, "x", record=False, against="frozen")["kappa_bc"] == 1.0
+    assert agreement.cmd_compute(conn, out, "x", record=False)["kappa_bc"] == -1.0
 
 
 def test_coder_category_accepts_words_and_codes():

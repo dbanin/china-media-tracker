@@ -152,14 +152,19 @@ def backfill_fingerprints(conn, deadline: Optional[float] = None, limit: Optiona
     if limit:
         sql += " LIMIT %d" % int(limit)
     rows = conn.execute(sql).fetchall()
-    out = {"todo": len(rows), "fingerprinted": 0, "missing_body": 0, "too_short": 0, "stopped_deadline": False}
+    out = {"todo": len(rows), "fingerprinted": 0, "missing_body": 0, "unreadable_body": 0, "too_short": 0,
+           "stopped_deadline": False}
     for i, r in enumerate(rows):
         if deadline is not None and time.time() > deadline:
             out["stopped_deadline"] = True
             break
+        # A damaged body file reads as None (store.load_body) and is marked like a missing one; a body
+        # fetched again later is fingerprinted where it is saved.
         text = store.load_body(r["url_hash"])
         record(conn, r, text)
-        if text is None:
+        if text is None and r["url_hash"] in store.UNREADABLE_BODIES:
+            out["unreadable_body"] += 1
+        elif text is None:
             out["missing_body"] += 1
         else:
             out["fingerprinted"] += 1
@@ -374,8 +379,11 @@ def template_unreadable(conn, row, body: str) -> Optional[str]:
 def item_groups(conn) -> Dict[int, int]:
     """Underlying item groups: title groups joined through body links. Returns a map from an
     article's title group id (dup_group_id, or its own id when it has none) to the group id it
-    counts under; groups no body link touches are absent and count under their own id."""
-    links = conn.execute("SELECT a, b FROM body_links").fetchall()
+    counts under; groups no body link touches are absent and count under their own id. The language
+    editions of one release on a distribution wire are joined the same way (placements.edition_links):
+    translations share too few words for a body link."""
+    from pipeline import placements
+    links = [tuple(r) for r in conn.execute("SELECT a, b FROM body_links").fetchall()] + placements.edition_links(conn)
     if not links:
         return {}
     ids = {x for r in links for x in (r[0], r[1])}
