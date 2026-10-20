@@ -89,9 +89,10 @@ def test_top_carrier_of_the_stratum_is_a_wire(tmp_path):
     conn = _seed(tmp_path, _yesterday())   # the carriers count the 30 complete days, not the partial export day
     export.rebuild_rollups(conn, OUTLETS)
     latest = export.build_latest(conn, OUTLETS, [], population={})
-    assert latest["countries"]["WLD"]["top_carrier"] == {"id": "us_wire", "name": "Wire", "count": 5}
-    assert latest["countries"]["WLD"]["top_route"] == {"id": "distribution_stamp", "count": 5}
-    assert latest["countries"]["USA"]["top_carrier"] == {"id": "us_paper", "name": "Paper", "count": 1}
+    pick = lambda d, *keys: {k: d[k] for k in keys}   # the entries also carry total, share and ties (export._leader)
+    assert pick(latest["countries"]["WLD"]["top_carrier"], "id", "name", "count") == {"id": "us_wire", "name": "Wire", "count": 5}
+    assert pick(latest["countries"]["WLD"]["top_route"], "id", "count") == {"id": "distribution_stamp", "count": 5}
+    assert pick(latest["countries"]["USA"]["top_carrier"], "id", "name", "count") == {"id": "us_paper", "name": "Paper", "count": 1}
 
 
 def _yesterday():

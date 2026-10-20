@@ -252,9 +252,12 @@ def test_reference_time_diagnostics(db):
         db.ref("ref_ecns_en", _iso(10, 10 - h + 8), _iso(10, 10))
     db.ref("ref_ecns_en", _iso(10, 5), _iso(10, 10))
     # a date only source, and an item with no time at all
-    for d in (9, 10):
+    for d in range(1, 11):
         db.ref("ref_peoples_daily_it", "2026-10-%02d" % d, _iso(10, 10))
     db.ref("ref_peoples_daily_it", None, _iso(10, 10))
+    # two dates are too few to flag a source
+    for d in (9, 10):
+        db.ref("ref_china_daily_en", "2026-10-%02d" % d, _iso(10, 10))
     db.conn.commit()
     diag = {d["source"]: d for d in speed.diagnostics(db.conn)}
     c = diag["ref_cgtn_en"]
@@ -262,9 +265,37 @@ def test_reference_time_diagnostics(db):
     e = diag["ref_ecns_en"]
     assert e["share_negative"] == 0.8 and e["median_negative_hours"] == -5.5 and "published after discovery" in e["flags"]
     p = diag["ref_peoples_daily_it"]
-    assert p["items"] == 3 and p["no_time"] == 1 and p["share_date_only"] == 1.0 and "mostly date only" in p["flags"]
+    assert p["items"] == 11 and p["no_time"] == 1 and p["share_date_only"] == 1.0 and "mostly date only" in p["flags"]
+    # discovered more than a day before now and still a date only: flagged from the reference status too
+    assert p["share_date_only_after_day_one"] == 1.0 and "date only after day one" in p["flags"]
+    cd = diag["ref_china_daily_en"]
+    assert cd["share_date_only"] == 1.0 and cd["flags"] == []
     assert speed.build_export(db.conn, CTX)["diagnostics"] == speed.diagnostics(db.conn)
-    assert speed.meta_summary(db.conn, CTX)["flagged_sources"] == ["ref_ecns_en", "ref_peoples_daily_it"]
+    summ = speed.meta_summary(db.conn, CTX)
+    assert summ["flagged_sources"] == ["ref_ecns_en", "ref_peoples_daily_it"]
+    assert summ["source_flags"]["ref_ecns_en"] == ["published after discovery"]
+
+
+def test_one_stray_time_after_discovery_flags_nothing(db):
+    for h in range(1, 20):
+        db.ref("ref_cgtn_en", _iso(10, 9, h), _iso(10, 10))
+    db.ref("ref_cgtn_en", _iso(10, 12), _iso(10, 10))
+    db.conn.commit()
+    (c,) = speed.diagnostics(db.conn)
+    assert c["share_negative"] == 0.05 and c["flags"] == []
+
+
+def test_a_listing_that_reads_early_is_flagged(db):
+    from pipeline import reference
+    checks = [("h%d" % i, "https://rss", "as_published", _iso(10, 9), "https://sitemap", "bjt_if_unzoned", _iso(10, 1), -8 * H)
+              for i in range(12)]
+    reference.record_time_checks(db.conn, "ref_cgtn_en", checks)
+    db.ref("ref_cgtn_en", _iso(10, 9), _iso(10, 10))
+    db.conn.commit()
+    (c,) = speed.diagnostics(db.conn)
+    assert c["time_check"]["compared"] == 12 and c["time_check"]["share_earlier"] == 1.0
+    assert c["time_check"]["median_diff_hours"] == -8 and "earlier than expected" in c["flags"]
+    assert speed.meta_summary(db.conn, CTX)["source_flags"] == {"ref_cgtn_en": ["earlier than expected"]}
 
 
 # ---------------------------------------------------------------------------
@@ -346,11 +377,11 @@ def test_interface_and_export_shape(db):
     assert speed.inputs_present(db.conn) == 0
     empty = speed.build_export(db.conn, CTX)
     assert set(empty) == {"measure", "version", "buckets", "min_outlet_pairs", "min_group_median", "absolute", "relative",
-                          "coverage", "diagnostics"}
+                          "coverage", "diagnostics", "reference_sources"}
     for kind in ("absolute", "relative"):
         assert set(empty[kind]) == {"overall", "by_route", "by_country", "by_source", "by_outlet"}
-        assert set(empty[kind]["overall"]) == {"n", "n_timed", "n_date", "outside", "median_hours", "p25_hours",
-                                               "p75_hours", "buckets"}
+        assert set(empty[kind]["overall"]) == {"n", "n_timed", "n_date", "originals", "originals_timed", "outside",
+                                               "median_hours", "p25_hours", "p75_hours", "buckets"}
         assert list(empty[kind]["overall"]["buckets"]) == list(speed.BUCKETS)
     assert set(empty["buckets"]["labels"]) == set(speed.BUCKETS)
     db.ref_pair("o_it", _iso(10, 8), _iso(10, 9))
@@ -363,7 +394,9 @@ def test_interface_and_export_shape(db):
     row = out["absolute"]["by_route"][0]
     assert {"key", "label", "n", "median_hours", "buckets"} <= set(row)
     summ = speed.meta_summary(db.conn, CTX)
-    assert summ["absolute"] == {"pairs": 1, "n": 1, "median_hours": None}
+    assert summ["absolute"] == {"pairs": 1, "n": 1, "originals": 1, "originals_timed": 1, "median_hours": None}
+    (src,) = out["reference_sources"]
+    assert src["source"] == "ref_xinhua_en" and src["statuses"]["fetched"] == 1
 
 
 def test_an_old_database_without_the_tables(tmp_path):
@@ -377,6 +410,8 @@ def test_methodology_text_is_plain():
     t = speed.methodology_text({"status": "provisional", "summary": {"absolute": {"n": 12}}})
     assert "\u2014" not in t and "\u2013" not in t and " - " not in t and not t.startswith("#")
     assert "12 absolute pairs" in t and t.count("\n\n") == 1
+    t2 = speed.methodology_text({"summary": {"absolute": {"n": 12, "originals": 3}}})
+    assert "with 3 distinct originals" in t2 and "one zone" in t2 and "eight hours earlier" in t2 and "sister outlet" in t2
     for words in ("last updated", "time zones wrongly", "only a date", "channels", "Coverage is partial", "WLD"):
         assert words in t
     assert "Category" not in t
@@ -402,3 +437,72 @@ def test_rows_as_pipeline_copies_writes_them(db):
     db.conn.commit()
     got = {p["copy_id"]: p["bucket"] for p in speed.load_pairs(db.conn, CTX)}
     assert got == {later: "same_date", bad: "no_credible_time"}, "never counted as a copy 5 h ahead"
+
+
+
+# ---------------------------------------------------------------------------
+# Distinct originals and one zone for dates (F6a)
+# ---------------------------------------------------------------------------
+
+def test_one_release_at_many_sister_outlets_gives_no_median(db):
+    # eleven copies of one release, as the ACM mastheads ran one press release: one original
+    r = db.ref("ref_xinhua_en", _iso(10, 8), _iso(10, 23))
+    for i in range(11):
+        a = db.article("o_it", _iso(10, 10, 37), _iso(10, 23))
+        db.copy(a, "reference", ref_id=r, source="ref_xinhua_en", copy_pub=_iso(10, 10, 37), orig_pub=_iso(10, 8))
+    db.conn.commit()
+    s = speed.build_export(db.conn, CTX)["absolute"]
+    o = s["overall"]
+    assert o["n_timed"] == 11 and o["originals"] == 1 and o["originals_timed"] == 1
+    assert o["median_hours"] is None and o["p25_hours"] is None, "a median needs distinct originals, not pairs"
+    assert s["by_outlet"] == [], "an outlet is listed from ten distinct originals"
+    # five distinct originals make a median
+    for i in range(4):
+        db.ref_pair("o_it", _iso(10, 8), _iso(10, 10))
+    db.conn.commit()
+    o = speed.build_export(db.conn, CTX)["absolute"]["overall"]
+    assert o["originals_timed"] == 5 and o["median_hours"] is not None
+
+
+def test_a_beijing_date_is_compared_with_the_copy_time_in_beijing():
+    # The copy at 20:00 UTC on the 10th is 04:00 on the 11th in Beijing: a Beijing date of the 11th is the same date.
+    c = {"published_at": _iso(10, 20), "discovered_at": _iso(10, 21), "res": "minute"}
+    o = {"published_at": "2026-10-11", "discovered_at": _iso(10, 21), "res": "day", "raw": "2026-10-11", "date_zone": 480}
+    assert speed.pair_lag(c, o) == {"bucket": "same_date", "lag_seconds": None, "days": 0, "resolution": "date"}
+    # read as a UTC date (the old reading) the original would seem published after its own discovery
+    assert speed.pair_lag(c, dict(o, date_zone=0))["bucket"] == "no_credible_time"
+    # and with a later discovery, a copy a day ahead of its original
+    assert speed.pair_lag(c, dict(o, date_zone=0, discovered_at=_iso(11, 9)))["bucket"] == "copy_precedes_original"
+    assert speed.pair_lag(c, dict(o, discovered_at=_iso(11, 9)))["bucket"] == "same_date"
+    # the Global Times sitemap date is a UTC date
+    assert speed.pair_lag(c, dict(o, published_at="2026-10-10", raw="2026-10-10", date_zone=0))["days"] == 0
+    # two dates in two zones: by their middays
+    cd = {"published_at": "2026-10-11T00:00:00+00:00", "raw": "2026-10-11", "discovered_at": _iso(11, 9), "res": "date"}
+    assert speed.pair_lag(cd, dict(o, published_at="2026-10-10", raw="2026-10-10", discovered_at=_iso(10, 9)))["days"] == 1
+
+
+def test_reference_dates_take_their_sources_zone(db):
+    from pipeline import reference
+    zones = reference.date_zones()
+    assert zones["ref_xinhua_en"] == zones["ref_peoples_daily_en"] == zones["ref_china_daily_en"] == 480
+    assert zones["ref_global_times_en"] == 0 and zones["ref_ecns_en"] == 480
+    r = db.ref("ref_peoples_daily_en", "2026-10-11", _iso(10, 22))
+    a = db.article("o_it", _iso(10, 20), _iso(10, 21))
+    db.copy(a, "reference", ref_id=r, source="ref_peoples_daily_en", copy_pub=_iso(10, 20), orig_pub="2026-10-11T00:00:00+00:00",
+            orig_res="date")
+    db.conn.commit()
+    (p,) = speed.load_pairs(db.conn, CTX)
+    assert p["days"] == 0 and p["bucket"] == "same_date" and p["orig_key"] == "r%d" % r
+
+
+def test_the_coded_times_count_dates_in_one_zone_as_the_measure_does():
+    # the state page gives a Beijing date; the copy at 20:00 UTC is already the next day in Beijing
+    row = {"copy_time_shown": "2026-10-10 20:00", "copy_zone_shown": "UTC", "original_time_shown": "2026-10-11",
+           "original_zone_shown": ""}
+    assert speed.coded_bucket(row) == "same_date"
+    assert speed.coded_bucket(dict(row, original_zone_shown="UTC")) == "copy_precedes_original"
+    # a copy that gives a date only, against a timed original converted into the copy's zone (UTC unless written)
+    row = {"copy_time_shown": "2026-10-11", "copy_zone_shown": "", "original_time_shown": "2026-10-11 02:00",
+           "original_zone_shown": "BJT"}
+    assert speed.coded_bucket(row) == "date_1_3"
+    assert speed.coded_bucket(dict(row, copy_zone_shown="+08:00")) == "same_date"

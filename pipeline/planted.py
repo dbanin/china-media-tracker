@@ -28,6 +28,20 @@ Detectors (the detector field of a flag):
                 Research Center" does not cite the "Social Research Center"). Domains match as whole
                 hostnames, a subdomain of a listed domain included.
 
+Common names. A persona marked common_name: true in the list (Jenny Williams, Michael Harrison ...)
+is a name a working journalist may well share. A byline match on it (author_field or byline_head) is
+held for confirmation: it becomes a flag only with a second signal, and is otherwise stored under the
+detector name with "_pending" added, never exported, never counted and listed only on the command
+line (python -m pipeline.planted pending). A second signal is one of
+  outlet   the article's outlet id, or its host, is named in the persona's or its operation's outlets;
+  window   the article's date (published, else discovered) falls inside the persona's or its
+           operation's active_from .. active_to;
+  front    the article cites a front of the same operation (a front_cited flag on it), or sits on one
+           of that operation's front domains.
+The export applies the same test again to every flag of a common name, so a flag written before the
+guard, or under an older list, leaves the site when its second signal is gone. Confirming a pending
+match means adding the outlet or the window, from the report, to the persona entry.
+
 Names are normalised before comparison: casefold, diacritics stripped, punctuation dropped,
 whitespace collapsed, and initial-less variants derived ("Ervin B. Hoskins" also matches "Ervin
 Hoskins"). A single word never matches.
@@ -69,6 +83,9 @@ RECURRING_MIN_OUTLETS = 3
 RECURRING_MIN_COUNTRIES = 2
 RECURRING_SAMPLE_TITLES = 3
 DETECTORS = ("author_field", "byline_head", "front_cited")
+# The detectors a common name is held under until a second signal confirms it (see the module notes).
+PENDING_SUFFIX = "_pending"
+GUARDED_DETECTORS = ("author_field", "byline_head")
 
 # Generic bylines, after normalisation, that name a desk rather than a person. A byline equal to one
 # of these phrases, or containing one of the stop tokens, is left out of the recurring diagnostic.
@@ -205,6 +222,9 @@ def _entries(data: Dict, key: str, op_ids: set) -> List[Dict]:
         e = dict(e, id=eid)
         e["variants"] = _string_list(e.get("variants"), "variants", eid)
         e["variants_n"] = name_variants(e["name"], e["variants"])
+        if key == "personas":
+            e["common_name"] = bool(e.get("common_name"))
+            e["outlets"] = _string_list(e.get("outlets"), "outlets", eid)
         if key == "fronts":
             e["domains"] = _string_list(e.get("domains"), "domains", eid)
             e["domains_n"] = sorted({d.strip().casefold() for d in e["domains"] if d.strip()})
@@ -454,6 +474,47 @@ def match_fronts(title: Optional[str], body: Optional[str], fronts: List[Dict]) 
     return [(f, hits[f["id"]]) for f in fronts if f["id"] in hits]
 
 
+def _host(url: Optional[str]) -> str:
+    from urllib.parse import urlsplit
+    try:
+        host = (urlsplit(url or "").hostname or "").casefold()
+    except ValueError:
+        return ""
+    return host[4:] if host.startswith("www.") else host
+
+
+def _on_domain(host: str, domains: Iterable[str]) -> bool:
+    return bool(host) and any(host == d or host.endswith("." + d) for d in domains if d)
+
+
+def _day_str(value) -> str:
+    return str(value or "")[:10]
+
+
+def second_signal(persona: Dict, plist: Dict, outlet_id: Optional[str], url: Optional[str],
+                  published_at: Optional[str], discovered_at: Optional[str], cited_ops: Iterable[str]) -> Optional[str]:
+    """What, besides the name, ties an article to a persona's operation: "outlet", "window" or "front"
+    (see the module notes), or None. cited_ops are the operations whose fronts the article cites."""
+    op_id = persona.get("operation")
+    op = next((o for o in plist.get("operations") or [] if o.get("id") == op_id), {})
+    host = _host(url)
+    outlets = [x.strip().casefold() for x in list(persona.get("outlets") or []) +
+               _string_list(op.get("outlets"), "outlets", str(op_id)) if x.strip()]
+    if outlets and ((outlet_id or "").casefold() in outlets or _on_domain(host, [x for x in outlets if "." in x])):
+        return "outlet"
+    lo = _day_str(persona.get("active_from") or op.get("active_from"))
+    hi = _day_str(persona.get("active_to") or op.get("active_to"))
+    day = _day_str(published_at or discovered_at)
+    if (lo or hi) and day and (not lo or day >= lo) and (not hi or day <= hi):
+        return "window"
+    if op_id and op_id in set(cited_ops or ()):
+        return "front"
+    for f in plist.get("fronts") or []:
+        if f.get("operation") == op_id and _on_domain(host, f.get("domains_n") or []):
+            return "front"
+    return None
+
+
 def _context(text: str, start: int, end: int) -> str:
     a = max(0, start - EVIDENCE_CONTEXT)
     b = min(len(text), end + EVIDENCE_CONTEXT)
@@ -511,26 +572,43 @@ def scan(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float]
         conn.commit()
         return counts
     rows = conn.execute(
-        """SELECT id, url_hash, author, title, body_hash, fetched_at FROM articles
-           WHERE id > ? OR (fetched_at IS NOT NULL AND fetched_at > ?) ORDER BY id""",
+        """SELECT id, url_hash, url, outlet_id, author, title, body_hash, fetched_at, published_at, discovered_at
+           FROM articles WHERE id > ? OR (fetched_at IS NOT NULL AND fetched_at > ?) ORDER BY id""",
         (last_id, last_fetched)).fetchall()
     done_id = last_id
+    counts["pending"] = 0
+
+    def byline(r, detector, ps, evidence):
+        # A common name needs a second signal; without one it is held, never exported.
+        if ps.get("common_name"):
+            cited = [x[0] for x in conn.execute("SELECT operation_id FROM planted_flags WHERE article_id=? AND "
+                                                "detector='front_cited'", (r["id"],))]
+            if second_signal(ps, plist, r["outlet_id"], r["url"], r["published_at"], r["discovered_at"], cited) is None:
+                counts["pending"] += _flag(conn, r["id"], detector + PENDING_SUFFIX, ps["id"], "", ps.get("operation"),
+                                           evidence, now, version)
+                return
+        counts["flagged"] += _flag(conn, r["id"], detector, ps["id"], "", ps.get("operation"), evidence, now, version)
+
     for r in rows:
         if deadline is not None and time.monotonic() > deadline:
             counts["stopped_at_deadline"] = True
             break
         counts["scanned"] += 1
-        for ps, form in match_author(r["author"], personas_l):
-            counts["flagged"] += _flag(conn, r["id"], "author_field", ps["id"], "", ps.get("operation"),
-                                       "author field: %s" % (r["author"] or form), now, version)
+        body = None
         if r["body_hash"] and (r["id"] > last_id or (r["fetched_at"] or "") > last_fetched):
-            body = store.load_body(r["url_hash"])
+            body = store.load_body(r["url_hash"])        # None for a damaged file too: the scan goes on
+            if body is None and r["url_hash"] in store.UNREADABLE_BODIES:
+                counts["unreadable_bodies"] = counts.get("unreadable_bodies", 0) + 1
             if body:
                 counts["bodies"] += 1
-                for ps, ev in match_head(body, personas_l):
-                    counts["flagged"] += _flag(conn, r["id"], "byline_head", ps["id"], "", ps.get("operation"), ev, now, version)
+                # Fronts first: a front of the same operation is a second signal for a common name.
                 for fr, ev in match_fronts(r["title"], body, fronts_l):
                     counts["flagged"] += _flag(conn, r["id"], "front_cited", "", fr["id"], fr.get("operation"), ev, now, version)
+        for ps, form in match_author(r["author"], personas_l):
+            byline(r, "author_field", ps, "author field: %s" % (r["author"] or form))
+        if body:
+            for ps, ev in match_head(body, personas_l):
+                byline(r, "byline_head", ps, ev)
         done_id = r["id"]
         if counts["scanned"] % COMMIT_EVERY == 0:
             _set_state(conn, last_scanned_id=done_id, last_fetched_at=max_fetched, list_version=version)
@@ -639,18 +717,28 @@ def recurring_bylines(conn: sqlite3.Connection, days: int = config.PLANTED_RECUR
 def _flag_rows(conn: sqlite3.Connection, plist: Dict) -> List[Dict]:
     """Every flag whose persona or front is still on the list, newest article first. A flag whose
     entry was taken off the list (a corrected report) stays in the database and leaves the site."""
-    persona_ids = {p["id"] for p in plist["personas"]}
+    personas = {p["id"]: p for p in plist["personas"]}
     front_ids = {f["id"] for f in plist["fronts"]}
     rows = conn.execute(
         """SELECT f.article_id, f.detector, f.persona_id, f.front_id, f.operation_id, f.evidence, f.flagged_at,
                   a.title, a.url, a.outlet_id, a.country, a.published_at, a.discovered_at, o.name AS outlet
            FROM planted_flags f JOIN articles a ON a.id=f.article_id LEFT JOIN outlets o ON o.id=a.outlet_id
            ORDER BY a.discovered_at DESC, f.id DESC""").fetchall()
+    cited = defaultdict(set)
+    for r in rows:
+        if r["detector"] == "front_cited" and r["front_id"] in front_ids:
+            cited[r["article_id"]].add(r["operation_id"])
     out = []
     for r in rows:
-        if r["persona_id"] and r["persona_id"] not in persona_ids:
+        if r["detector"] not in DETECTORS:
+            continue      # a common name held for confirmation (PENDING_SUFFIX) is never published
+        if r["persona_id"] and r["persona_id"] not in personas:
             continue
         if r["front_id"] and r["front_id"] not in front_ids:
+            continue
+        ps = personas.get(r["persona_id"]) if r["persona_id"] else None
+        if ps and ps.get("common_name") and r["detector"] in GUARDED_DETECTORS and second_signal(
+                ps, plist, r["outlet_id"], r["url"], r["published_at"], r["discovered_at"], cited[r["article_id"]]) is None:
             continue
         out.append({"article_id": r["article_id"], "title": r["title"], "url": r["url"], "outlet_id": r["outlet_id"],
                     "outlet": r["outlet"] or r["outlet_id"], "country": r["country"], "published_at": r["published_at"],
@@ -719,6 +807,16 @@ def meta_block(conn: sqlite3.Connection, personas: Optional[Dict] = None) -> Dic
             "operations": len(plist["operations"])}
 
 
+def pending_rows(conn: sqlite3.Connection) -> List[Dict]:
+    """The byline matches on a common name held for confirmation (command line only, never exported)."""
+    rows = conn.execute(
+        """SELECT f.article_id, f.detector, f.persona_id, f.operation_id, f.evidence, f.flagged_at, a.title, a.url,
+                  a.outlet_id, a.country, a.published_at, a.discovered_at
+           FROM planted_flags f JOIN articles a ON a.id=f.article_id WHERE f.detector LIKE ?
+           ORDER BY a.discovered_at DESC, f.id DESC""", ("%" + PENDING_SUFFIX,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def build_export_quietly(conn: sqlite3.Connection) -> Dict:
     """build_export for the export stage: a failure is printed and becomes an empty structure,
     never a stop, in the spirit of scan_quietly."""
@@ -750,6 +848,7 @@ def main(argv=None):
     s.add_argument("--budget-seconds", type=float, default=None, help="stop cleanly after this long; the next scan resumes")
     r = sub.add_parser("recurring", help="bylines recurring across unrelated outlets (a diagnostic, never published)")
     r.add_argument("--days", type=int, default=config.PLANTED_RECURRING_DAYS)
+    sub.add_parser("pending", help="byline matches on a common name held for confirmation (never published)")
     args = ap.parse_args(argv)
     if not args.cmd:
         ap.print_help()
@@ -758,6 +857,8 @@ def main(argv=None):
     if args.cmd == "scan":
         deadline = time.monotonic() + args.budget_seconds if args.budget_seconds else None
         print(json.dumps(scan(conn, full=args.full, deadline=deadline)))
+    elif args.cmd == "pending":
+        print(json.dumps({"rows": pending_rows(conn)}, ensure_ascii=False, indent=1))
     else:
         print(json.dumps({"window_days": args.days, "rows": recurring_bylines(conn, args.days)}, ensure_ascii=False, indent=1))
     conn.close()

@@ -229,6 +229,63 @@ assert(filled[3] === "State outlets led.", "findings box: top ownership group la
 assert(C.fillFindingsTemplate(findingsTemplates, null, {}, {}) === null, "findings box hides cleanly with no meta.findings");
 assert(C.fillFindingsTemplate(findingsTemplates, {all_time: {state_share_of_china: null}}, {}, {})[0] === "Share n/a since the start of data collection.",
   "findings box fills missing pieces without throwing");
+/* The generated findings phrases (DECISIONS 6): "most" only above half, a tie said as a tie, unassessed
+   owners never the subject, underlying items beside placements. On 2026-10-17 the box said Australia's
+   940 came "most of them through The Courier (Ballarat)", which carried 94 tied with nine sister papers,
+   that most arrived by a route that carried 200 of 940, and that not assessed outlets led the per outlet rates. */
+var fT = ["{top_country} carried more than any other country in the last 30 days: {top_country_count} state-origin placements{top_country_items}, {top_country_share} of the world's total{top_carrier_clause}.",
+  "Among outlets with a known owner, {ownership_rate_comparison}, counted in placements per outlet.",
+  "In absolute numbers, {largest_group_comparison}."];
+var ownLabels = {private: "Private", public_service: "Public service", state: "State", party: "Party", unassessed: "Not assessed"};
+var fAus = {all_time: {}, top_country: {iso: "AUS", state_origin: 940, share_of_world: 0.3922, underlying: 94,
+  top_outlet: {id: "au_thecourier", name: "The Courier (Ballarat)", count: 94, total: 940, share: 0.1, tied: 10, network: "ACM", tied_names: ["A", "B", "C", "D", "E"]},
+  top_route: "wire_credit", top_route_detail: {id: "wire_credit", count: 200, total: 940, share: 0.2128, tied: 1, tied_ids: ["wire_credit"], unattributed: 700}},
+  by_ownership: {groups: [{id: "private", articles: 1768, outlets: 1146, per_outlet_rate: 1.543}, {id: "public_service", articles: 3, outlets: 56, per_outlet_rate: 0.054},
+    {id: "state", articles: 336, outlets: 168, per_outlet_rate: 2.0}, {id: "party", articles: 3, outlets: 11, per_outlet_rate: 0.273},
+    {id: "unassessed", articles: 864, outlets: 300, per_outlet_rate: 2.88}], top: {id: "unassessed", per_outlet_rate: 2.88}}};
+var fOut = C.fillFindingsTemplate(fT, fAus, {AUS: "Australia"}, ownLabels);
+assert(fOut[0] === "Australia carried more than any other country in the last 30 days: 940 state-origin placements (94 underlying items), 39% of the world's total, spread evenly across 10 ACM outlets (94 each).", "a tie is a tie: " + fOut[0]);
+assert(fOut[1] === "Among outlets with a known owner, state outlets publish state-origin articles at about 1.3 times the rate of private outlets (2.00 against 1.54 per outlet), counted in placements per outlet.", "unassessed never leads the rate comparison: " + fOut[1]);
+assert(fOut[2] === "In absolute numbers, most state-origin placements in outlets with a known owner (84%) are in private outlets, which make up 83% of those outlets.", "most only above half, outlet share instead of a cause: " + fOut[2]);
+assert(!/not assessed|simply because/i.test(fOut.join(" ")), "no finding about unassessed owners and no unsupported cause");
+var fRoute = C.findingsRouteSentence(fAus.top_country.top_route_detail, "Australia", function (id) { return id.replace("_", " "); });
+assert(fRoute === "In Australia, the wire credit route was the most common signed route, with 200 of 940 placements; 700 carried no route signature.", "route under half: " + fRoute);
+var oc = function (count, total, tied, extra) { return Object.assign({id: "x", name: "X Daily", count: count, total: total, share: count / total, tied: tied, tied_names: ["X Daily"]}, extra || {}); };
+assert(C.findingsCarrierClause(oc(612, 940, 1)) === ", most of them (65%) through X Daily", "over half is most");
+assert(C.findingsCarrierClause(oc(470, 940, 1)) === ", with X Daily carrying the most (470, 50%)", "exactly half is not most");
+assert(C.findingsCarrierClause(oc(300, 940, 2, {tied_names: ["X Daily", "Y Daily"]})) === ", led jointly by X Daily and Y Daily at 300 each (64% together)", "a partial tie names both");
+assert(C.findingsCarrierClause(oc(94, 940, 10, {tied_names: ["a", "b", "c", "d", "e"]})) === ", spread evenly across 10 outlets (94 each)", "a tie with no common network");
+assert(C.findingsCarrierClause({id: "x", name: "X Daily"}) === "" && C.findingsCarrierClause(null) === "", "an older export's carrier has no share, so nothing is claimed");
+assert(C.findingsCarrierClause(oc(612, 940, 1), 940) !== "" && C.findingsCarrierClause(oc(612, 940, 1), 94) === "", "a carrier counted over other placements than the sentence's is left out");
+var fOther = JSON.parse(JSON.stringify(fAus)); fOther.top_country.state_origin = 94;
+assert(/39% of the world's total\.$/.test(C.fillFindingsTemplate(fT, fOther, {AUS: "Australia"}, ownLabels)[0]), "no carrier clause beside a count it does not add up to");
+var rd = function (count, total, tied, ids, un) { return {id: ids[0], count: count, total: total, tied: tied, tied_ids: ids, unattributed: un}; };
+var lab = function (id) { return id.replace(/_/g, " "); };
+assert(C.findingsRouteSentence(rd(600, 940, 1, ["wire_credit"], 100), "Australia", lab) === "In Australia, most of it (600 of 940 placements) arrived by the wire credit route.", "route over half");
+assert(C.findingsRouteSentence(rd(470, 940, 1, ["wire_credit"], 470), "Australia", lab).indexOf("most of it") < 0, "half of every placement is not most, signed or not");
+assert(C.findingsRouteSentence(rd(300, 940, 2, ["wire_credit", "embassy_byline"], 340), "Australia", lab) === "In Australia, no single signed route led: wire credit and embassy byline carried 300 placements each of 940, and 340 carried no route signature.", "tied routes");
+assert(C.findingsRouteSentence(rd(600, 940, 1, ["wire_credit"], 100), "Australia", lab, 94) === "", "a route counted over other placements is left out");
+assert(C.findingsRouteSentence(null, "Australia", lab) === "" && C.findingsRouteSentence({id: "wire_credit", count: 3}, "Australia", lab) === "", "an older export's route has no total, so no sentence");
+var win = " in the 30 complete days ending 2026-10-14";
+assert(C.carrierTooltipLine(oc(94, 940, 10, {network: "ACM"}), win) === "Spread evenly across 10 ACM outlets (94 placements each in the 30 complete days ending 2026-10-14)", "tooltip tie");
+assert(C.carrierTooltipLine(oc(612, 940, 1), win) === "Carried mostly by X Daily (612 of 940 placements in the 30 complete days ending 2026-10-14)", "tooltip majority");
+assert(C.carrierTooltipLine(oc(400, 940, 1), "") === "Largest carrier: X Daily (400 of 940 placements)", "tooltip plurality");
+assert(C.carrierTooltipLine(oc(300, 940, 2, {tied_names: ["X Daily", "Y Daily"]}), "") === "Led jointly by X Daily and Y Daily (300 placements each, of 940)", "tooltip partial tie");
+assert(C.carrierTooltipLine({id: "x", name: "X", count: 3}, "") === null && C.routeTooltipLine({id: "wire_credit", count: 3}, lab) === null, "older entries are not described");
+assert(C.routeTooltipLine(rd(200, 940, 1, ["wire_credit"], 700), lab) === "Most common signed route: wire credit (200 of 940 placements; 700 carried no route signature)", "tooltip route under half");
+assert(C.routeTooltipLine(rd(600, 940, 1, ["wire_credit"], 0), lab) === "Mostly arrives as wire credit (600 of 940 placements)", "tooltip route over half");
+assert(C.routeTooltipLine(rd(2, 4, 2, ["wire_credit", "embassy_byline"], 0), lab) === "Most common signed routes, tied: wire credit and embassy byline (2 of 4 placements each)", "tooltip tied routes");
+/* Ties and edge cases in the ownership sentences, and a sentence with no phrase to make is left out. */
+var fTie = {all_time: {}, by_ownership: {groups: [{id: "private", articles: 10, outlets: 5, per_outlet_rate: 2}, {id: "state", articles: 10, outlets: 5, per_outlet_rate: 2},
+  {id: "party", articles: 0, outlets: 1, per_outlet_rate: 0}]}};
+var fTieOut = C.fillFindingsTemplate(fT, fTie, {}, ownLabels);
+assert(fTieOut.length === 2, "no top country: its sentence is left out, not filled with filler");
+assert(fTieOut[0] === "Among outlets with a known owner, private and state outlets publish state-origin articles at the same rate, 2.00 per outlet, counted in placements per outlet.", "rate tie: " + fTieOut[0]);
+assert(fTieOut[1] === "In absolute numbers, state-origin placements in outlets with a known owner are split evenly between private and state outlets (50% each).", "largest tie: " + fTieOut[1]);
+var fFew = C.fillFindingsTemplate(fT, {all_time: {}, by_ownership: {groups: [{id: "state", articles: 4, outlets: 2, per_outlet_rate: 2}, {id: "private", articles: 6, outlets: 6, per_outlet_rate: 1},
+  {id: "party", articles: 5, outlets: 1, per_outlet_rate: 5}]}}, {}, ownLabels);
+assert(fFew[1] === "In absolute numbers, the largest share of state-origin placements in outlets with a known owner (40%) is in private outlets, which make up 67% of those outlets.", "largest under half: " + fFew[1]);
+assert(C.fillFindingsTemplate(fT, {all_time: {}, by_ownership: {groups: [{id: "unassessed", articles: 9, outlets: 3, per_outlet_rate: 3}]}}, {}, ownLabels).length === 0, "unassessed alone gives no ownership sentence");
 /* Example snippets are trimmed to whole words with the highlight kept on the same phrase. */
 var ww = C.wholeWordSnippet(", presidente del Zoo.\nFoto: Agencia NA (Xinhua).\nEstamos encantados de dar la bienv", 39, 47);
 assert(ww.snippet === "\u2026 presidente del Zoo. Foto: Agencia NA (Xinhua). Estamos encantados de dar la \u2026", "snippet trimmed to whole words with ellipses: " + ww.snippet);
@@ -336,7 +393,7 @@ var wCap = C.scaleCap(wMonths, ["2026-09-01"], wLatest, "count_a", 30, "all", wC
 assert(wCap.max === 2 && wCap.values === 1, "the map's color scale ignores the stratum, which it cannot draw");
 var wCount = C.metricValue(wAgg.countries.WLD, "count_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg));
 var wLine = C.worldwideLegendLine(wCount, "count_a");
-assert(wLine === "Worldwide distribution via press release wires: 5 state-origin articles in this window, reaching every country and drawn in none.", "legend line for a count: " + wLine);
+assert(wLine === "Worldwide distribution via press release wires: 5 state-origin articles in this window, not tied to any one country and drawn in none.", "legend line for a count: " + wLine);
 assert(/0\.6% of every release the wires published/.test(C.worldwideLegendLine(wShare, "share_of_output_a")), "legend line follows the share of output basis: " + C.worldwideLegendLine(wShare, "share_of_output_a"));
 assert(/2\.50 state-origin articles per wire monitored/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "per_outlet_a", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "per_outlet_a")), "legend line follows the per outlet basis");
 assert(/China-related articles/.test(C.worldwideLegendLine(C.metricValue(wAgg.countries.WLD, "count_china", 2, "all", undefined, wCtx("WLD", wLatest.countries.WLD, wAgg)), "count_china")), "legend line follows the measure");
@@ -451,6 +508,8 @@ assert(pFb.iso === "FRA" && pFb.state_origin === 13 && pFb.share_of_world === 13
 assert(C.topCountryInWindow(null, "both", null, null) === null && C.topCountryInWindow(C.aggregateWindow({}, "2026-09-30", 30, "both"), "both", pTopExport, null) === null, "nothing to rank gives null");
 var pFilled = C.fillFindingsTemplate(["{top_country} {top_country_count} ({top_country_share})"], {all_time: {}, top_country: pSame}, {ITA: "Italy"}, {});
 assert(pFilled[0] === "Italy 5 (33%)", "the findings sentence reads the window's top country: " + pFilled[0]);
+assert(typeof pSame.underlying === "number" && pSame.underlying === C.aggregateWindow(pMonths, "2026-09-30", 30, "both").countries.ITA.uniqA, "the window's top country carries its underlying items: " + JSON.stringify(pSame));
+assert(pFb.underlying === null && C.topCountryInWindow(null, "both", Object.assign({}, pTopExport, {underlying: 4, top_route_detail: {id: "wire_credit", count: 2, total: 3}}), null).underlying === 4, "the export's underlying items are the fallback");
 /* The all time cards and the summary end on the map's last complete day: allTimeInWindow sums the daily files
    up to it, where the export's findings.all_time also counted the partial export day (2026-10-01 here). Under
    every Distribution mode each card equals the map's All time sum, the ranked list over the same days, and
@@ -600,6 +659,10 @@ assert(C.stabilityStatusText({relay_reliability_history: stHist, relay_study: {s
 var rdMeta = {rediscovery: {fixed_from: "2026-10-13", estimated_share: 0.08, measured_floor: 123682, measured_of: 3008671, window_share: 0.082}};
 assert(C.rediscoveryNote(rdMeta) === "Before 2026-10-13, items a feed kept listing were counted again after a prune, an estimated 8 percent of this total; see the methodology.", "rediscovery note with the field");
 assert(C.rediscoveryNote({}) === "" && C.rediscoveryNote(null) === "" && C.rediscoveryNote({rediscovery: null}) === "" && C.rediscoveryOf({}) === null, "no rediscovery note without the field");
+/* The repeats stopped at fixed_from, so their share of a running total that has grown since is computed, not fixed. */
+var rdGrown = {articles_discovered: 3352040, rediscovery: rdMeta.rediscovery};
+assert(C.rediscoveryPercent(rdGrown) === 7 && C.rediscoveryNote(rdGrown).indexOf("an estimated 7 percent of this total") >= 0, "rediscovery share of a grown total: " + C.rediscoveryNote(rdGrown));
+assert(C.rediscoveryPercent({articles_discovered: 100, rediscovery: rdMeta.rediscovery}) === 8 && C.rediscoveryPercent(rdMeta) === 8 && C.rediscoveryPercent({}) === null, "rediscovery share falls back to the measured share");
 assert(/^Before 2026-10-13, .*estimated 8 percent overall and unevenly by country/.test(C.rediscoveryShareNote(rdMeta, "2026-09-14")) && C.rediscoveryShareNote(rdMeta, "") !== "", "share note for a window reaching back before the fix");
 assert(C.rediscoveryShareNote(rdMeta, "2026-10-13") === "" && C.rediscoveryShareNote({}, "2026-09-14") === "", "no share note after the fix or without the field");
 console.log("frontend smoke ok");

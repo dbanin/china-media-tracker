@@ -11,7 +11,8 @@ name: pipeline
 #   update every day
 #   Mondays at 03:30  the same, then validate: check every feed, deactivate dead outlets
 #
-# Run workflow lets the owner pick a stage by hand.
+# Run workflow lets the owner pick a stage by hand. The test suite also runs on every push and pull
+# request (tests.yml), so a failing test shows up before it can hold back an export.
 
 on:
   schedule:
@@ -44,13 +45,16 @@ permissions:
   pages: write
   id-token: write
   issues: write
+  actions: read
 
 jobs:
   pipeline:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to a new release on its own schedule (Ubuntu 26 from 2026-10-19).
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
+    # ANTHROPIC_API_KEY is given only to the two steps that call the model, not to every step (pip
+    # installs included).
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       TRACKER_CONTACT: ${{ vars.TRACKER_CONTACT }}
       TRACKER_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
       TRACKER_LLM_MODEL: ${{ vars.TRACKER_LLM_MODEL }}
@@ -79,10 +83,16 @@ jobs:
         run: |
           stage="$STAGE_REQUESTED"
           if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$stage" = "collect" ]; then
+            # The site data at the branch tip, not in the commit that triggered the run: a run that waited
+            # in the queue behind an export must see that export, or it exports again.
+            git fetch --quiet origin "$GITHUB_REF_NAME" || echo "fetch failed; reading the checked out meta.json"
+            git show "origin/$GITHUB_REF_NAME:docs/data/meta.json" > "$RUNNER_TEMP/meta.json" 2>/dev/null \
+              || cp docs/data/meta.json "$RUNNER_TEMP/meta.json"
             age=$(python - <<'PY'
-          import json, datetime
+          import json, datetime, os
           try:
-              g = json.load(open("docs/data/meta.json")).get("generated_at") or json.load(open("docs/data/meta.json"))["generated"]
+              m = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "meta.json")))
+              g = m.get("generated_at") or m["generated"]
               t = datetime.datetime.fromisoformat(g.replace("Z", "+00:00"))
               print(int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() // 3600))
           except Exception:
@@ -94,19 +104,55 @@ jobs:
           fi
           echo "STAGE=$stage" >> "$GITHUB_ENV"
           echo "stage=$stage"
+      - name: Tests, before anything touches the database
+        # Before collection, so a failing test costs two minutes rather than a 35 minute collection, and
+        # before the database is restored: every test builds its own database in a temporary directory
+        # and none reads the collected one. A failure turns this export into a collect run (the hour's
+        # collection still happens and the site keeps its last good data) and fails the run at the end,
+        # which opens the failure issue.
+        id: tests
+        if: env.STAGE == 'export'
+        continue-on-error: true
+        run: |
+          status=0
+          python -m pytest -q -p no:cacheprovider || status=$?
+          if [ -e data/tracker.db ] || [ -e data/tracker.db-journal ]; then
+            # The restore would take a file left here for the cached database.
+            echo "::error::a test wrote data/tracker.db; it is removed"
+            rm -f data/tracker.db data/tracker.db-journal
+            status=1
+          fi
+          exit $status
+      - name: Collect only, since the tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "STAGE=collect" >> "$GITHUB_ENV"
+          echo "TESTS_FAILED=1" >> "$GITHUB_ENV"
+          echo "::error::the tests failed: this run collects and does not export"
       - name: Restore database from the most recent run
+        # The journal travels with the database (journal_mode=DELETE): a writer killed mid transaction
+        # leaves a hot journal, which SQLite rolls back on the next open. Without it the cache held a
+        # torn file and passed it on. The key carries the attempt, so a re-run saves under its own key.
         uses: actions/cache/restore@v5
         with:
           path: |
             data/tracker.db
+            data/tracker.db-journal
             data/bodies
-          key: tracker-db-${{ github.run_id }}
+          key: tracker-db-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: tracker-db-
       - name: Fall back to the snapshot or seed if no cache
+        # Checks the cached file with PRAGMA quick_check, and fails rather than fall back to the seed
+        # when a snapshot exists but cannot be read (scripts/db_restore.sh).
+        env:
+          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: scripts/db_restore.sh
       - name: Ingest the relay bundle from the owner's machine, if there is one
         # A bad bundle must never stop the daily update; the outlets it carries wait for the next run.
+        # A sealed bundle is opened with RELAY_BUNDLE_KEY (pipeline/bundle_crypto.py).
         continue-on-error: true
+        env:
+          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: python -m pipeline.relay ingest
       - name: Ingest session labels, if any
         # Labels the same model produced outside the API (data/labels/*.jsonl). Applied once to
@@ -114,13 +160,19 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.labels ingest
       - name: Discover, fetch, classify
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -o pipefail
           # The Message Batches API costs half and returns later, so a batch run submits and exits;
           # any later run collects whatever has finished.
           EXTRA=""
           [ "$BATCH_LLM" = "true" ] && EXTRA="--batch"
-          python -X faulthandler -m pipeline.run all --budget-minutes 35 $EXTRA 2>&1 | tee run.log
+          # A validate run then checks every feed (13 minutes on 2026-10-12) inside the job's 55, so it
+          # collects for less; a collection of 35 took the job to the edge of its timeout.
+          BUDGET=35
+          [ "$STAGE" = "validate" ] && BUDGET=20
+          python -X faulthandler -m pipeline.run all --budget-minutes $BUDGET $EXTRA 2>&1 | tee run.log
           python - <<'PY'
           import json, sqlite3
           c = sqlite3.connect("data/tracker.db")
@@ -138,15 +190,22 @@ jobs:
         # box on Run workflow forces a submission. It never fails the run: the daily update must not
         # depend on it.
         continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           ARGS=""
           [ "$STAGE" = "export" ] && ARGS="--submit"
           [ "$RELIABILITY" = "true" ] && ARGS="--submit --force"
           python -m pipeline.second_rater auto $ARGS
 
-      - name: Tests, before anything irreversible touches the database
+      - name: Refuse to export a database behind the site
+        # On a cache miss the September seed was once restored without a word and the export published
+        # totals weeks behind the site's. Compares the discoveries the database holds with
+        # articles_discovered at the branch tip (scripts/export_guard.py).
         if: env.STAGE == 'export'
-        run: python -m pytest -q
+        run: |
+          git fetch --quiet origin "$GITHUB_REF_NAME" || echo "fetch failed; comparing with the checked out meta.json"
+          python scripts/export_guard.py --ref "origin/$GITHUB_REF_NAME"
       - name: Export, rollups, site data and METHODOLOGY.md
         # Pruning and compacting are left for after the generated files have been checked and
         # committed, so a failed check never leaves the database advanced and the site stale.
@@ -168,10 +227,21 @@ jobs:
         if: env.STAGE == 'export'
         run: python -m pipeline.export housekeeping
       - name: Publish the compressed database snapshot
+        # The public copy is scrubbed (pipeline/snapshot_scrub.py); the whole database and the article
+        # bodies go up only encrypted with RELAY_BUNDLE_KEY, and are left out without it.
         if: env.STAGE == 'export'
+        env:
+          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: scripts/db_snapshot.sh
       - name: Validate every feed and deactivate dead outlets
+        # Capped, so the job's own timeout never lands on it; a stopped check leaves the registry as it
+        # was, and a write it was making is rolled back from the journal on the next open.
+        # It reads the relay's feed health from the sealed bundle, opened with RELAY_BUNDLE_KEY; without
+        # the key the relay outlets are only reported.
         if: env.STAGE == 'validate'
+        timeout-minutes: 15
+        env:
+          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: python -m pipeline.validate_sources --apply --json validation.json
       - name: Commit registry changes
         if: env.STAGE == 'validate'
@@ -189,15 +259,36 @@ jobs:
         with:
           path: |
             data/tracker.db
+            data/tracker.db-journal
             data/bodies
-          key: tracker-db-${{ github.run_id }}
-      - name: Acknowledge the relay bundles the saved database holds
-        # Only once the database is saved: the relay's next bundle then carries only what changed since
-        # (pipeline.relay.push_ack, the relay-ack branch). A failed acknowledgement only makes the next
-        # bundle whole again; it never fails the run.
+          key: tracker-db-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Confirm the database is in the cache
+        # actions/cache/save can end in success without saving (a key already taken, as a re-run once
+        # did under a key without the attempt), so the cache itself is asked before the relay is told.
+        id: saved
         if: always() && steps.save_db.outcome == 'success'
         continue-on-error: true
+        run: |
+          key="tracker-db-${{ github.run_id }}-${{ github.run_attempt }}"
+          for i in 1 2 3 4 5 6; do
+            if gh cache list --key "$key" --json key -q '.[].key' | grep -qx "$key"; then
+              echo "found=true" >> "$GITHUB_OUTPUT"; echo "cache $key saved"; exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::cache $key not found; the relay is not acknowledged this run"
+      - name: Acknowledge the relay bundles the saved database holds
+        # Only once the database is in the cache: the relay's next bundle then carries only what changed
+        # since (pipeline.relay.push_ack, the relay-ack branch). A failed acknowledgement only makes the
+        # next bundle whole again; it never fails the run.
+        if: always() && steps.saved.outputs.found == 'true'
+        continue-on-error: true
         run: python -m pipeline.relay ack
+      - name: Fail the run, since the tests failed
+        if: always() && env.TESTS_FAILED == '1'
+        run: |
+          echo "::error::the test suite failed before collection; this run collected but did not export"
+          exit 1
       - uses: actions/configure-pages@v5
         if: env.STAGE == 'export'
       - uses: actions/upload-pages-artifact@v4
@@ -227,7 +318,7 @@ jobs:
         with:
           script: |
             const title = "Pipeline workflow failing";
-            const body = "The pipeline workflow failed at stage " + process.env.STAGE + ". See the run: " + context.serverUrl + "/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId + "\n\nLast failure: " + new Date().toISOString();
+            const body = "The pipeline workflow failed at stage " + process.env.STAGE + (process.env.TESTS_FAILED ? " (the tests failed, so it did not export)" : "") + ". See the run: " + context.serverUrl + "/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId + "\n\nLast failure: " + new Date().toISOString();
             const issues = await github.rest.issues.listForRepo({owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "pipeline-failure"});
             const existing = issues.data.find(i => i.title === title);
             if (existing) await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});

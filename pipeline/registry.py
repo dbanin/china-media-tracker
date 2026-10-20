@@ -48,11 +48,37 @@ def country_name(iso: str) -> str:
     return _NAMES.get(iso, iso)
 
 
+# The C YAML parser where PyYAML was built with libyaml (the pure Python one took 2.5 s per parse of
+# sources/outlets.yaml, four parses an export). Both are safe loaders and read the registry the same way.
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+# Parsed registries by (path, mtime, size): {"blob": pickled outlets, "valid": schema key it was validated
+# against}. tests/conftest.py keeps its own cache of the same shape for the real file.
+_OUTLETS_CACHE: Dict = {}
+
+
+def _file_key(path: Path):
+    st = Path(path).stat()
+    return str(Path(path).resolve()), st.st_mtime_ns, st.st_size
+
+
 def load_outlets(path: Path = config.OUTLETS_PATH, validate: bool = True) -> List[Dict]:
-    with open(path, "r", encoding="utf-8") as fh:
-        outlets = yaml.safe_load(fh) or []
+    """The registry, parsed once per version of the file (path, mtime, size) and validated once per
+    version of the file and of the schema; every call gets its own fresh copy, which it may change."""
+    import pickle
+    key = _file_key(path)
+    entry = _OUTLETS_CACHE.get(key)
+    if entry is None:
+        with open(path, "r", encoding="utf-8") as fh:
+            outlets = yaml.load(fh, Loader=_YAML_LOADER) or []
+        if len(_OUTLETS_CACHE) > 8:
+            _OUTLETS_CACHE.clear()
+        entry = _OUTLETS_CACHE[key] = {"blob": pickle.dumps(outlets), "valid": None}
+    outlets = pickle.loads(entry["blob"])
     if validate:
-        validate_outlets(outlets)
+        schema = _file_key(config.OUTLETS_SCHEMA_PATH)
+        if entry["valid"] != schema:
+            validate_outlets(outlets)       # raises on every call while the file is invalid
+            entry["valid"] = schema
     return outlets
 
 
@@ -86,6 +112,41 @@ def validate_outlets(outlets: List[Dict]) -> None:
                 raise ValueError("active outlet %s needs junk_feed until, the day it stopped polling the feed" % o["id"])
             if o["active"] and junk["url"] in {e["url"] for e in feed_entries(o)}:
                 raise ValueError("active outlet %s still polls its junk_feed %s" % (o["id"], junk["url"]))
+    shared = shared_feed_urls(outlets)
+    if shared:
+        raise ValueError("editorial feed polled by more than one active outlet (items are credited to whichever outlet "
+                         "polls first, and its feed health flips between them): %s" % "; ".join(
+                             "%s on %s" % (u, ", ".join(ids)) for u, ids in sorted(shared.items())))
+
+
+def feed_key(url: str) -> str:
+    """A feed URL as the duplicate check compares it: scheme, a leading www. and a trailing slash
+    dropped and the host lower cased, so http://www.x.com/feed/ and https://x.com/feed are one feed."""
+    from urllib.parse import urlsplit
+    p = urlsplit(url.strip())
+    host = p.netloc.lower()
+    host = host[4:] if host.startswith("www.") else host
+    path = p.path.rstrip("/")
+    return host + path + ("?" + p.query if p.query else "")
+
+
+def shared_feed_urls(outlets: List[Dict]) -> Dict[str, List[str]]:
+    """Every editorial feed (RSS or news sitemap) that two or more active outlets poll:
+    {url: [outlet ids]}. An editorial feed belongs to one outlet: the first outlet to poll an item is
+    credited with it, so a feed shared by two editions (NZZ, Infobae) or listed under two countries
+    (Daily NK) gave one edition all the items, the other none, and feed health that flipped between
+    them. Press release, sponsored and partner section feeds are left out on purpose: one network's
+    sponsored section (France 24, RFI) or release page (RNZ) serves its editions by design, like the
+    AAP widget mirrored to the ACM mastheads."""
+    by_key = {}
+    for o in outlets:
+        if not o.get("active"):
+            continue
+        for e in feed_entries(o):
+            if e["kind"] != EDITORIAL:
+                continue
+            by_key.setdefault(feed_key(e["url"]), (e["url"], []))[1].append(o["id"])
+    return {u: sorted(set(ids)) for u, ids in by_key.values() if len(set(ids)) > 1}
 
 
 def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict]:
@@ -102,10 +163,10 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
-    key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "section_feeds", "release_sections", "tier", "notes",
+    key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "section_feeds", "release_sections", "tier", "network", "notes",
                  "audience_rank", "rank_source", "political_leaning", "leaning_source", "leaning_second_source", "ownership", "ownership_source",
                  "government_stance", "stance_source", "stance_as_of",
-                 "collector", "active", "inactive_reason", "inactive_since", "junk_feed"]
+                 "collector", "collector_since", "active", "inactive_reason", "inactive_since", "junk_feed"]
     # Every field the schema allows must be listed, or saving drops it silently. The weekly feed
     # validation saves through here, so a missing key would erase that field from the whole registry.
     with open(config.OUTLETS_SCHEMA_PATH, "r", encoding="utf-8") as fh:

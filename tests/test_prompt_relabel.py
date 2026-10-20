@@ -114,10 +114,12 @@ def test_candidates_are_older_prompt_model_labels_oldest_first(monkeypatch, tmp_
 
 
 def test_candidates_come_in_priority_order_then_oldest_first(monkeypatch, tmp_path):
-    """Unchecked state sourcing first, then independent journalism labels with official Chinese sourcing
-    and no independent confirmation, then state origin, then the rest; oldest label first within each."""
+    """Model state origin labels on no credit, stamp or byline first, then unchecked state sourcing, then
+    independent journalism labels with official Chinese sourcing and no independent confirmation, then the
+    other state origin labels, then the rest; oldest label first within each. A model state origin label
+    with no route yet counts as unattributed."""
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
-    assert cl.RELABEL_PRIORITY == ("B", "body_refreshed", "C_official_unconfirmed", "A")
+    assert cl.RELABEL_PRIORITY == ("A_model_weak", "B", "body_refreshed", "C_official_unconfirmed", "A")
     conn = _db()
 
     def label(n, when, category, trigger=None, cited=None, confirmed=None, dup=None):
@@ -140,8 +142,11 @@ def test_candidates_come_in_priority_order_then_oldest_first(monkeypatch, tmp_pa
     c_cited = label(7, "2026-09-21T00:00:00+00:00", "C", cited=["MOFA spokesperson Mao Ning"], confirmed=False)
     a_new = label(8, "2026-10-06T00:00:00+00:00", "A")
     b_old = label(9, "2026-09-25T00:00:00+00:00", "B")
+    a_wire = label(10, "2026-09-15T00:00:00+00:00", "A")
+    conn.execute("UPDATE classifications SET route='wire_credit' WHERE article_id=?", (a_wire,))
+    conn.commit()
     assert [r["id"] for r in cl.relabel_candidates(conn)] == [
-        b_old, b_new, c_trigger, c_cited, a_old, a_new, not_rel, c_confirmed, c_plain]
+        a_old, a_new, b_old, b_new, c_trigger, c_cited, a_wire, not_rel, c_confirmed, c_plain]
 
 
 def test_a_near_duplicate_group_is_relabelled_at_its_highest_priority(monkeypatch, tmp_path):

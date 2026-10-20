@@ -6,13 +6,14 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "84";
+  var ASSET_VERSION = "85";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
     meta: null, latest: null, series: [], months: {}, outlets: [], names: {}, officialNames: {}, numToIso: {}, topo: null,
     content: null, examples: null, planted: null, plantedShowAll: false, measureData: {},
-    articlesCache: {}, scaleCache: {}, loadFailures: [], mapped: null
+    articlesCache: {}, scaleCache: {}, loadFailures: [], mapped: null,
+    monthsAll: [], monthsFailed: {}, monthsLoading: null, seriesByDate: {}, generations: [], barsShowAll: false
   };
 
   /* ------------------------------------------------------------------ data */
@@ -25,7 +26,82 @@
     return fetch(url, {cache: "no-cache"}).then(function (r) {
       if (!r.ok) throw new Error(url + " " + r.status);
       return r.json();
+    }).then(function (j) { noteGeneration(url, j); return j; });
+  }
+  /* Which export wrote each data file, when the file says so (generated_at, schema_version), so the page
+     can tell a reader when the files it loaded come from different exports (renderStaleNotice). */
+  function noteGeneration(url, j) {
+    if (String(url).indexOf("data/") !== 0 || !j || typeof j !== "object" || Array.isArray(j)) return;
+    if (j.generated_at === undefined && j.schema_version === undefined) return;
+    state.generations.push({url: String(url).split("?")[0], at: j.generated_at || null, schema: j.schema_version === undefined ? null : j.schema_version});
+  }
+
+  /* ------------------------------------------------------------ daily months
+     The daily files grow by one a month and every one of them used to load before the first render. Only
+     the months the opening view reads load first: the 31 days ending the last complete day, and the partial
+     export day after it. The rest load once, on demand (ensureAllMonths), when an earlier day, Total, Play,
+     a country's full time series or the daily CSV needs them. Until then every figure that would read the
+     missing days says which days it covers, or takes them from global_series.json, which holds every day. */
+  function monthKeys(series) {
+    var seen = {}, out = [];
+    (series || []).forEach(function (d) { var m = d && d.date ? String(d.date).slice(0, 7) : null; if (m && !seen[m]) { seen[m] = 1; out.push(m); } });
+    return out.sort();
+  }
+  function loadMonth(m, failed) {
+    return getJSON("data/daily/" + m + ".json").then(function (j) { state.months[m] = j; })
+      .catch(function (e) { console.error(e); state.monthsFailed[m] = true; failed.push("data/daily/" + m + ".json"); });
+  }
+  function monthsComplete() {
+    return state.monthsAll.every(function (m) { return state.months[m] || state.monthsFailed[m]; });
+  }
+  /* The first day every loaded month covers without a gap back to the latest month, or null once every
+     month has been asked for. A window starting on or after it reads only loaded days. */
+  function loadedFrom() {
+    if (monthsComplete()) return null;
+    var from = null;
+    for (var i = state.monthsAll.length - 1; i >= 0; i--) {
+      var m = state.monthsAll[i];
+      if (!(state.months[m] || state.monthsFailed[m])) break;
+      from = m + "-01";
+    }
+    return from || "9999-12-31";
+  }
+  function windowStart(end, w) { return !end ? null : w === "all" ? "" : C.shiftDate(end, 1 - Math.max(1, Number(w) || 1)); }
+  function covered(from) { var lf = loadedFrom(); return lf === null || (from !== null && from !== "" && from >= lf); }
+  /* Loads every month not yet loaded, once; the promise is shared by every caller while it runs. When the
+     months arrive every cache built from the partial set is dropped and the page is drawn again. */
+  function ensureAllMonths() {
+    if (monthsComplete()) return null;
+    if (state.monthsLoading) return state.monthsLoading;
+    var failed = [];
+    updateDateLabel(true);
+    state.monthsLoading = Promise.all(state.monthsAll.filter(function (m) { return !(state.months[m] || state.monthsFailed[m]); })
+      .map(function (m) { return loadMonth(m, failed); })).then(function () {
+      state.monthsLoading = null;
+      state.loadFailures = (state.loadFailures || []).concat(failed);
+      state.scaleCache = {}; themeCapCache = {}; state._allTime = null;
+      try { renderLoadFailures(); renderStaleNotice(); } catch (e) { console.error(e); }
+      try { rerenderAll(); } catch (e) { console.error("render after loading the daily files failed", e); }
     });
+    return state.monthsLoading;
+  }
+  /* True when the window ending end needs months not loaded yet; it then starts loading them, and the page
+     is drawn again when they arrive. */
+  function demandMonths(end, w) {
+    if (covered(windowStart(end, w))) return false;
+    return !!ensureAllMonths();
+  }
+  function rerenderAll() {
+    updateDateLabel();
+    renderMap(); renderSpark(); renderThemes(); renderLeaning(); renderPanel(); renderFindings();
+  }
+  /* Every day the export holds: the dates in global_series.json, which lists all of them, and any loaded
+     day it lacks. A month that failed to load is left out, as it was when every month loaded up front. */
+  function allDays() {
+    var seen = {}, out = [];
+    state.series.forEach(function (d) { if (d && d.date && !seen[d.date] && !state.monthsFailed[String(d.date).slice(0, 7)]) { seen[d.date] = 1; out.push(d.date); } });
+    days().forEach(function (d) { if (!seen[d]) { seen[d] = 1; out.push(d); } });
+    return out.sort();
   }
 
   /* Every fallback here is recorded. A file that fails to arrive renders as zero everywhere it is read,
@@ -64,17 +140,18 @@
       state.content = res[7] || null;
       state.examples = res[8] || null;
       state.planted = res[9] || null;
+      state.series.forEach(function (d) { if (d && d.date) state.seriesByDate[d.date] = d; });
+      state.monthsAll = monthKeys(state.series);
+      /* The opening view: the 31 days ending the last complete day, worked out from the series alone. */
+      var openingDay = lastCompleteDay(), firstMonth = openingDay ? C.shiftDate(openingDay, -30).slice(0, 7) : null;
       var monthsWanted = {};
-      state.series.forEach(function (d) { monthsWanted[d.date.slice(0, 7)] = true; });
+      state.monthsAll.forEach(function (m) { if (!firstMonth || m >= firstMonth) monthsWanted[m] = true; });
       /* The research measures' side files (meta.measures[id].file), loaded quietly: a missing one shows
          that measure's empty state and is not a figure on the map. */
       var measureLoads = measureFiles().map(function (mf) {
         return quiet("data/" + mf.file, null).then(function (j) { state.measureData[mf.id] = j; });
       });
-      return Promise.all(Object.keys(monthsWanted).map(function (m) {
-        return getJSON("data/daily/" + m + ".json").then(function (j) { state.months[m] = j; })
-          .catch(function (e) { console.error(e); failed.push("data/daily/" + m + ".json"); });
-      }).concat(measureLoads));
+      return Promise.all(Object.keys(monthsWanted).map(function (m) { return loadMonth(m, failed); }).concat(measureLoads));
     }).then(function () { state.loadFailures = failed; });
   }
 
@@ -86,6 +163,46 @@
       + (failed.length === 1 ? "it reads" : "them reads") + " as zero and this page is incomplete: " + failed.join(", ")
       + ". Reload the page, or check whether the last export ran.";
     n.classList.remove("hidden");
+  }
+
+  /* A page whose data is old, or assembled from different exports, says so above everything else. Built
+     from meta.generated_at alone (meta.stale_after_hours, when an export states it, replaces the 24 hours),
+     and from the generated_at and schema_version each data file carries, where it carries them. */
+  var STALE_HOURS = 24, GENERATION_GAP_HOURS = 2;
+  function utcText(iso) { return String(iso || "").slice(0, 16).replace("T", " ") + " UTC"; }
+  function staleLines(meta, gens, now) {
+    var lines = [], at = meta && meta.generated_at ? Date.parse(meta.generated_at) : NaN;
+    var limit = meta && typeof meta.stale_after_hours === "number" && meta.stale_after_hours > 0 ? meta.stale_after_hours : STALE_HOURS;
+    if (!isNaN(at)) {
+      var hours = (now - at) / 36e5;
+      if (hours > limit) lines.push("This data was exported " + (hours < 48 ? Math.floor(hours) + " hours" : Math.floor(hours / 24) + " days") + " ago, at " + utcText(meta.generated_at) +
+        ". The export normally runs every day, so the most recent days are missing and every figure may be out of date.");
+    }
+    var schemas = {}, far = [];
+    (gens || []).forEach(function (g) {
+      if (g.schema !== null && g.schema !== undefined) (schemas[String(g.schema)] = schemas[String(g.schema)] || []).push(g.url);
+      var t = g.at ? Date.parse(g.at) : NaN;
+      if (!isNaN(t) && !isNaN(at) && Math.abs(t - at) > GENERATION_GAP_HOURS * 36e5) far.push(g.url.replace(/^data\//, "") + " (" + utcText(g.at) + ")");
+    });
+    var versions = Object.keys(schemas).sort();
+    if (versions.length > 1 || far.length) lines.push("The data files on this page come from different exports" +
+      (far.length ? ": " + far.join(", ") + (isNaN(at) ? "" : " against " + utcText(meta.generated_at) + " for the rest") : "") +
+      (versions.length > 1 ? (far.length ? "; " : ": ") + "schema versions " + versions.join(" and ") : "") +
+      ". Figures that combine them can disagree. Reload the page; if this stays, the last export was published only in part.");
+    return lines;
+  }
+  function renderStaleNotice() {
+    var lines = staleLines(state.meta, state.generations, Date.now());
+    var n = el("stale-notice"), dn = el("data-notice");
+    if (!n && !lines.length) return;
+    if (!n) {
+      if (!dn || !dn.parentNode) return;
+      n = document.createElement("div");
+      n.id = "stale-notice"; n.className = "notice"; n.setAttribute("role", "status");
+      dn.parentNode.insertBefore(n, dn.nextSibling);
+    }
+    n.textContent = lines.join(" ");
+    n.classList.toggle("hidden", !lines.length);
   }
 
   /* ------------------------------------------------------------ projection */
@@ -121,6 +238,16 @@
     var view = el("view");
     if (!view) return;
     Array.prototype.forEach.call(view.querySelectorAll("button"), function (b) { b.classList.toggle("active", b.getAttribute("data-view") === v); });
+    syncPressed();
+  }
+  /* At 720 pixels or less the ranked list is the default view (style.css), so unless the reader chose a
+     view the toggle must say List there, and Map above it. */
+  var SMALL_SCREEN = "(max-width: 720px)";
+  function smallScreen() { return !!(window.matchMedia && window.matchMedia(SMALL_SCREEN).matches); }
+  function syncDefaultView() {
+    var b = document.body;
+    if (b.classList.contains("force-map") || b.classList.contains("force-list")) return;
+    syncViewButtons(smallScreen() ? "list" : "map");
   }
 
   /* --------------------------------------------------------------- helpers */
@@ -152,7 +279,52 @@
   function wiresOnly() { return state.distribution === "wires"; }
   function countryOnly() { return state.distribution === "country"; }
   /* The ranked rows for the view shown, under the Distribution toggle. */
-  function rankedRows(agg) { return C.rankCountries(agg || currentAgg(), state.latest, state.metric, state.mode, state.names, ctxFor, state.distribution); }
+  function rankedRows(agg) {
+    var rows = C.rankCountries(agg || currentAgg(), state.latest, state.metric, state.mode, state.names, ctxFor, state.distribution);
+    if (!metricDef().allItems) return rows;
+    /* A share of monitored output of exactly zero where the country has some of the measure is not an
+       observed zero (outputShareGap): n/a, with its reason, ranked with the other rows that have no value. */
+    var changed = false;
+    rows.forEach(function (r) {
+      var m = metricDef().measure, own = m === "b" ? r.unverified_relay : m === "china" ? r.china_total : r.state_origin;
+      var gap = r.value === 0 ? outputShareGap(Number(own) || 0, (state.latest.countries || {})[r.iso]) : null;
+      if (gap) { r.value = null; r.fill = "sparse"; r.note = gap + (r.note ? " " + r.note : ""); changed = true; }
+    });
+    if (changed) rows.sort(function (x, y) {
+      var xv = x.value === null ? -1 : x.value, yv = y.value === null ? -1 : y.value;
+      return yv - xv || x.name.localeCompare(y.name);
+    });
+    return rows;
+  }
+  /* % of all its news divides a measure's articles in a country's counted outlets (its audience ranked
+     outlets where the registry ranks any, otherwise every active outlet) by everything those outlets
+     published. When they carried none of the country's articles in the measure but its other outlets did,
+     the share reads 0 although the country has some: not an observed zero, so it is shown as n/a with this
+     reason. own is the country's count in the measure; null when there is no gap. */
+  function outputShareGap(own, entry) {
+    if (!own || !entry) return null;
+    var who = entry.top_outlets_ranked ? (entry.top_outlets ? "The " + entry.top_outlets + " audience ranked outlets" : "The audience ranked outlets") : "The counted outlets";
+    return who + " this share divides by carried none of the country's " + plural(own, measureNounFor(metricDef().measure).replace(/s$/, ""), measureNounFor(metricDef().measure)) +
+      " in this window, which ran in its other monitored outlets, so the share is not shown.";
+  }
+  /* metricValue with the share of monitored output gap (outputShareGap) read as a value not shown. */
+  function withOutputGap(mv, entry) {
+    if (!metricDef().allItems || !mv || mv.value !== 0) return mv;
+    var m = metricDef().measure, gap = outputShareGap(m === "b" ? mv.b : m === "china" ? mv.chinaTotal : mv.aAll, entry);
+    return gap ? Object.assign({}, mv, {value: null, sparse: true, note: gap}) : mv;
+  }
+  /* The value as the ranked list, the panel and the legend print it: a share of monitored output per
+     1,000 published items, as the key reads it, since almost every such share is a fraction of one percent. */
+  function valueText(v, metric) {
+    var def = C.METRICS[metric] || {};
+    if (def.allItems) return v === null || v === undefined || isNaN(v) ? "n/a" : (v === 0 ? "0" : C.formatKeyNumber(v, C.keyUnit(metric), 2)) + " per 1,000";
+    return C.formatValue(v, def.format || "int");
+  }
+  /* What a share of monitored output divides by, named for the heading of the ranked list and the panel. */
+  function outputShareLabel() {
+    var noun = measureNounFor(metricDef().measure);
+    return noun.charAt(0).toUpperCase() + noun.slice(1) + " per 1,000 items published by each country's counted outlets (its audience ranked outlets where the registry ranks any, otherwise every active outlet)";
+  }
   function metricDef() { return C.METRICS[state.metric] || {}; }
   function metricLabel() { return metricDef().label || state.metric; }
   function windowLabel() { return windowLabelFor(state.endDate, state.windowDays); }
@@ -235,16 +407,30 @@
   }
   /* Only hand coding takes the provisional marking away (since 12 October 2026). The export states why the
      counts are provisional; a data file from before it did gets the rule built from the study block. */
+  /* A study that failed under the rule of 2026-10 can carry no kappa at all, only the reason it failed
+     (failed_reason); its words are then used, never a kappa it did not compute. */
+  function studyFailedReason() {
+    var hs = (state.meta && state.meta.relay_human_study) || {};
+    return hs.state === "failed" && (hs.kappa_bc === null || hs.kappa_bc === undefined) && hs.failed_reason ? String(hs.failed_reason) : null;
+  }
+  /* The two states of a study whose labels predate the current instructions, as one sentence each. */
+  var STUDY_STATE_TEXT = {
+    sample_superseded: "the first hand coding sample was set aside because its labels predate the current instructions; a new sample is drawn once labels are re-judged",
+    stale: "the last study checked labels made under earlier instructions"
+  };
   function humanStudyText() {
     var m = state.meta || {}, hs = m.relay_human_study || {};
     if (m.relay_provisional_reason) return m.relay_provisional_reason;
-    return "The counts stay provisional until a hand coding study of a fixed random sample, about " + (hs.per_language || 200) +
+    var lead = STUDY_STATE_TEXT[hs.state] ? STUDY_STATE_TEXT[hs.state].charAt(0).toUpperCase() + STUDY_STATE_TEXT[hs.state].slice(1) + ". " : "";
+    return lead + "The counts stay provisional until a hand coding study of a fixed random sample, about " + (hs.per_language || 200) +
       " articles in each language with at least " + (hs.min_labelled || 300) + " model labelled articles, stratified by language and, within each language, by the model\u2019s current category, puts Cohen\u2019s kappa with the model on unchecked state sourcing versus independent journalism at or above " +
       (m.kappa_warning_threshold || 0.6) + ", overall and in each language.";
   }
   function humanStudyShort() {
     var hs = (state.meta && state.meta.relay_human_study) || {};
     if (hs.state === "passed") return "hand coding passed, kappa " + (hs.kappa_bc === null || hs.kappa_bc === undefined ? "n/a" : hs.kappa_bc.toFixed(2));
+    if (studyFailedReason()) return studyFailedReason();
+    if (STUDY_STATE_TEXT[hs.state]) return STUDY_STATE_TEXT[hs.state];
     if (hs.state === "failed") return "hand coding put kappa below " + ((state.meta && state.meta.kappa_warning_threshold) || 0.6);
     if (hs.state === "incomplete") return "hand coding under way, " + (hs.coded || 0) + " of " + (hs.sampled || 0) + " sampled articles coded";
     if (hs.state === "inconclusive") return "the hand coding sample could not produce a kappa";
@@ -303,11 +489,12 @@
       var relay = relayFor(null), k = m.kappa;
       if (!relay.measured) short.push("unchecked state sourcing not yet measured");
       else if (relay.provisional) short.push("unchecked state sourcing is provisional, " + humanStudyShort());
-      else if (!relay.publishable) short.push(k && k.bc !== null && k.bc !== undefined ? "unchecked state sourcing withheld, hand coding kappa " + k.bc.toFixed(2) + " below " + m.kappa_warning_threshold
+      else if (!relay.publishable) short.push(studyFailedReason() ? "unchecked state sourcing withheld: " + studyFailedReason() : k && k.bc !== null && k.bc !== undefined ? "unchecked state sourcing withheld, hand coding kappa " + k.bc.toFixed(2) + " below " + m.kappa_warning_threshold
         : stabilityUnstable() ? "unchecked state sourcing withheld, stability check below " + m.kappa_warning_threshold : "unchecked state sourcing withheld pending hand coding");
       if (!relay.measured) kparts.push("Unchecked state sourcing has not been measured: the verification stage that separates it from independent journalism has not run. It is shown as not yet measured, never as zero, and the map defaults to state origin only.");
       else if (relay.provisional) kparts.push("Unchecked state sourcing counts are provisional. They are one model\u2019s judgement of whether an article passes on official Chinese sourcing unchecked, and no hand coding has checked that judgement yet. Every figure that contains them is marked provisional here and in the CSV export. " + humanStudyText() + " If the study falls below that threshold the counts are withheld. " + stabilityText());
-      else if (!relay.publishable) kparts.push(k && k.bc !== null && k.bc !== undefined
+      else if (!relay.publishable) kparts.push(studyFailedReason() ? "Unchecked state sourcing counts are withheld: " + studyFailedReason().replace(/\.?$/, ".")
+        : k && k.bc !== null && k.bc !== undefined
         ? "Unchecked state sourcing counts are withheld. Cohen's kappa between hand coding and the model on the unchecked sourcing versus independent journalism judgement is " + k.bc.toFixed(2) + " (n = " + k.n_bc + "), below the " + m.kappa_warning_threshold + " threshold, so the counts are not published."
         : stabilityUnstable() ? "Unchecked state sourcing counts are withheld. " + stabilityText()
         : "Unchecked state sourcing counts are withheld until hand coding checks the unchecked sourcing versus independent journalism judgement. " + humanStudyText());
@@ -395,10 +582,11 @@
     var tc = windowTopCountry(f, "both");
     var sentences = C.fillFindingsTemplate(content.findings_template, Object.assign({}, f, {all_time: allTimeFindings(f).at, since: f.since ? allTimeSpan(f) : f.since, top_country: tc}), state.names, ownershipLabels());
     if (!sentences) { box.hidden = true; return; }
-    var routeText = tc && tc.top_route ? contentRouteName(tc.top_route) : null;
+    /* "most" only above half of every placement, signed or not, and a tie as a tie (C.findingsRouteSentence). */
+    var routeSentence = tc ? C.findingsRouteSentence(tc.top_route_detail, countryName(tc.iso), function (id) { return lowerLabel(contentRouteName(id)); }, tc.state_origin) : "";
     var at = findingsForMode(f);
     var html = '<div class="fb-kicker">What we found</div><p>' + sentences.map(esc).join(" ") +
-      (routeText && tc ? " In " + esc(countryName(tc.iso)) + ", most of it arrived by the " + esc(lowerLabel(routeText)) + " route." : "") + '</p>' +
+      (routeSentence ? " " + esc(routeSentence) : "") + '</p>' +
       '<p class="fb-meta">Pilot data since ' + esc(f.since ? allTimeSpan(f) : "n/a") + '. ' + intComma(at.state_origin) + ' state origin' +
       (at.unchecked !== null && at.unchecked !== undefined ? ', ' + intComma(at.unchecked) + ' unchecked state sourcing' + (relayFor(null).provisional ? ' (provisional)' : '') : '') +
       ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far' +
@@ -406,6 +594,10 @@
     if (MS) html += MS.findingsHtml(measureBlocks(), state.measureData, measureApi);
     box.innerHTML = html;
     box.hidden = false;
+    /* The sentences count both distributions whatever the toggle says, so under Country outlets or
+       Worldwide wires they disagree with the cards above them; the kicker says which they count. */
+    var fbKick = box.querySelector(".fb-kicker");
+    if (fbKick && state.distribution !== "both") { fbKick.textContent += " (both distributions)"; fbKick.title = "These sentences count the country outlets and the worldwide wires together, whatever the Distribution toggle shows; the cards above follow the toggle."; }
     renderKpis(f);
     if (tc && tc.iso) {
       var see = document.createElement("a");
@@ -414,6 +606,7 @@
       /* Exactly the click handler the map itself uses, so the link opens the country view the same way. */
       see.addEventListener("click", function (ev) {
         ev.preventDefault(); selectCountry(tc.iso);
+        if (window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
         var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
       });
       box.appendChild(see);
@@ -429,9 +622,9 @@
      daily files are absent, and then through is null. Cached, since it reads every day's item ids. */
   function allTimeFindings(f) {
     var lastDay = lastCompleteDay();
-    var key = lastDay + "|" + ((state.meta && state.meta.generated_at) || "");
+    var key = lastDay + "|" + ((state.meta && state.meta.generated_at) || "") + "|" + (loadedFrom() || "");
     if (state._allTime && state._allTime.key === key && state._allTime.f === f) return state._allTime.value;
-    var agg = lastDay ? C.aggregateWindow(state.months, lastDay, null, "both") : null;
+    var agg = lastDay ? (loadedFrom() === null ? C.aggregateWindow(state.months, lastDay, null, "both") : exportAllTimeAgg(lastDay)) : null;
     var value = {at: C.allTimeInWindow(agg, (f && f.all_time) || {}), through: agg ? lastDay : null, totals: null, wld: null};
     /* The same days summed per count, for the side panel's all time table: every country and the stratum, and the stratum alone. */
     if (agg) {
@@ -441,6 +634,28 @@
     }
     state._allTime = {key: key, f: f, value: value};
     return value;
+  }
+  /* Before every month has loaded, the same all time sums come from the export's own totals, latest.json's
+     all_time, which the daily files add up to exactly, less the loaded days after lastDay (the partial
+     export day, always in the latest month, which loads first). Shaped like an aggregateWindow result,
+     the stratum apart. null when latest.json carries no totals; the export's findings are then the fallback. */
+  function exportAllTimeAgg(lastDay) {
+    var lt = state.latest && state.latest.totals && state.latest.totals.all_time;
+    if (!lt) return null;
+    var wEntry = state.latest.countries && state.latest.countries[C.WORLDWIDE_ISO];
+    var rest = C.addInto(C.emptyCounts(), lt), wld = C.addInto(C.emptyCounts(), (wEntry && wEntry.all_time) || {});
+    days().forEach(function (d) {
+      if (d <= lastDay) return;
+      var e = C.dayEntry(state.months, d);
+      Object.keys((e && e.countries) || {}).forEach(function (iso) {
+        var k = e.countries[iso] || {};
+        Object.keys(rest).forEach(function (c) { rest[c] -= k[c] || 0; if (iso === C.WORLDWIDE_ISO) wld[c] -= k[c] || 0; });
+      });
+    });
+    Object.keys(rest).forEach(function (c) { rest[c] -= wld[c]; });
+    var countries = {_rest: rest};
+    countries[C.WORLDWIDE_ISO] = wld;
+    return {countries: countries};
   }
   /* "since <first day> through <last complete day>", the span every all time card and the summary count. */
   function allTimeSpan(f) {
@@ -469,8 +684,8 @@
     if (agg === undefined) agg = lastDay ? C.aggregateWindow(state.months, lastDay, 30, distribution) : null;
     var t = C.topCountryInWindow(agg, distribution, f && f.top_country, last30ForFindings(f));
     var lc = t && state.latest && state.latest.countries && state.latest.countries[t.iso];
-    if (t && !t.top_outlet && lc && lc.top_carrier) t.top_outlet = {id: lc.top_carrier.id, name: lc.top_carrier.name};
-    if (t && !t.top_route && lc && lc.top_route) t.top_route = lc.top_route.id;
+    if (t && !t.top_outlet && lc && lc.top_carrier) t.top_outlet = lc.top_carrier;
+    if (t && !t.top_route && lc && lc.top_route) { t.top_route = lc.top_route.id; t.top_route_detail = lc.top_route; }
     if (t) t.window_end = agg ? lastDay : ((f && f.last_30d && f.last_30d.window_end) || null);
     return t;
   }
@@ -489,7 +704,7 @@
   function rediscoveryLegendNote() {
     if (!state.endDate) return "";
     var w = state.windowDays;
-    return C.rediscoveryShareNote(state.meta, w === "all" ? (days()[0] || "") : C.shiftDate(state.endDate, 1 - Number(w)));
+    return C.rediscoveryShareNote(state.meta, w === "all" ? (allDays()[0] || "") : C.shiftDate(state.endDate, 1 - Number(w)));
   }
   function renderKpis(f) {
     var wrap = el("kpis");
@@ -510,10 +725,10 @@
     /* The words a toggled card adds so the reader knows which part of the dataset it counts. */
     var modeTail = wiresOnly() ? ", on the worldwide wires alone" : countryOnly() ? ", in the country outlets alone" : "";
     var firstCard = wiresOnly()
-      ? {label: "State-origin releases on the wires", value: intComma(at.state_origin), note: "Text placed by the Chinese state and pushed through the worldwide distribution wires to every country at once, since " + since + "."}
+      ? {label: "State-origin releases on the wires", value: intComma(at.state_origin), note: "Text written or commissioned by the Chinese state and pushed through the worldwide distribution wires, since " + since + "."}
       : countryOnly()
-      ? {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered by the country outlets, since " + since + (wldA > 0 ? "; " + intComma(wldA) + " more arrived through the worldwide wires" : "") + "."}
-      : {label: "State-origin articles", value: intComma(at.state_origin), note: "Text placed by the Chinese state and run unaltered, since " + since + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."};
+      ? {label: "State-origin articles", value: intComma(at.state_origin), note: "Text written or commissioned by the Chinese state and run without substantive change by the country outlets, since " + since + (wldA > 0 ? "; " + intComma(wldA) + " more arrived through the worldwide wires" : "") + "."}
+      : {label: "State-origin articles", value: intComma(at.state_origin), note: "Text written or commissioned by the Chinese state and run without substantive change, since " + since + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."};
     /* The 30 day state-origin counts come from the daily files over the same complete days the map opens on,
        so the cards, the ranked list and the legend line under the map give one number. The export's last_30d
        also counts the day the export ran, which is partial, so it is only the fallback when the daily files
@@ -530,9 +745,9 @@
       if (aggW.countries[C.WORLDWIDE_ISO]) wires30 = aggW.countries[C.WORLDWIDE_ISO].A || 0;
     }
     var topCard = wiresOnly()
-      ? (wires30 !== null && wires30 !== undefined ? {label: "Worldwide wires, last 30 days", value: intComma(wires30), note: "State-origin releases on the wires. They reach every country at once, so no country is ranked in this mode."} : null)
+      ? (wires30 !== null && wires30 !== undefined ? {label: "Worldwide wires, last 30 days", value: intComma(wires30), note: "State-origin releases on the wires. They are not tied to any one country, so no country is ranked in this mode."} : null)
       : tc ? {label: "Top country, last 30 days", value: esc(countryName(tc.iso)) + (tc.share_of_world ? " <em>" + Math.round(tc.share_of_world * 100) + "%</em>" : ""),
-              note: intComma(tc.state_origin) + " articles" + (tc.window_end ? " in the 30 complete days ending " + tc.window_end : "") + (tc.top_outlet ? ", mostly through " + tc.top_outlet.name : "") + (countryOnly() ? ", share of the country outlets' total" : "") + ".", html: true} : null;
+              note: intComma(tc.state_origin) + " placements" + (typeof tc.underlying === "number" ? " (" + plural(tc.underlying, "underlying item") + ")" : "") + (tc.window_end ? " in the 30 complete days ending " + tc.window_end : "") + esc(C.findingsCarrierClause(tc.top_outlet, tc.state_origin)) + (countryOnly() ? ", share of the country outlets' total" : "") + ".", html: true} : null;
     /* Unchecked state sourcing is shown only when the relay helpers say it may be: withheld after a failed
        study, not yet measured before the model has run, marked when provisional. Its note always says who
        made the judgement and what checked it. */
@@ -553,7 +768,7 @@
     var cards = [
       /* Row 1, the screening: how much was read, how much concerned China, how much of that the state placed. */
       has(m.articles_discovered) ? {label: "Articles screened, running total", value: intComma(m.articles_discovered),
-        note: "Every item the monitored feeds and wires published since " + (f.since || "the start") + ", each checked against the China keyword list, up to " + exportAt + ", the day the export ran included." +
+        note: "Every item the tracker saw in the monitored feeds and wires since " + (f.since || "the start") + ", each checked against the China keyword list, up to " + exportAt + ", the day the export ran included." +
               (C.rediscoveryNote(m) ? " " + C.rediscoveryNote(m) : "")} : null,
       has(at.china_total) ? {label: "China-related articles", value: intComma(at.china_total),
         note: "Articles that substantively concern China after the full text was read, since " + since + modeTail + "." +
@@ -583,6 +798,42 @@
         (c.html ? c.value : esc(c.value)) + '</div><div class="k-note">' + esc(c.note) + '</div></div>';
     }).join("");
     wrap.hidden = false;
+    renderIssuerLine();
+  }
+
+  /* Who issued a release, from meta.issuer_type_totals (exports since the issuer rule of 2026-10-17): state
+     origin from state-owned enterprises and from Hong Kong or Macao SAR government bodies stated apart,
+     so a reader can leave them out, and private releases, which are not state origin, as their own count.
+     All time and both distributions, as the export counts them. An export without the field shows nothing. */
+  var ISSUER_LABELS = {state_media: "State media", government: "Government", party: "Party", diplomatic: "Diplomatic",
+    state_owned_enterprise: "State-owned enterprise", sar_government: "SAR government", private_release: "Private release"};
+  function issuerBadge(type) {
+    var label = type && ISSUER_LABELS[type];
+    return label ? '<span class="badge issuer-' + esc(type) + '" title="Issuer of the release">' + esc(label) + '</span>' : '';
+  }
+  function issuerLineText(it) {
+    if (!it || typeof it !== "object" || !it.by_type) return "";
+    var by = it.by_type, n = function (t, k) { return (by[t] && by[t][k]) || 0; };
+    var all = function (t) { var o = by[t] || {}; return Object.keys(o).reduce(function (s, k) { return s + (Number(o[k]) || 0); }, 0); };
+    var parts = [];
+    var soe = n("state_owned_enterprise", "A"), sar = n("sar_government", "A"), priv = all("private_release");
+    if (soe || sar) parts.push("Of the state origin articles, " + intComma(soe) + " are releases of state-owned enterprises and " + intComma(sar) + " come from Hong Kong or Macao SAR government bodies.");
+    if (priv) parts.push(intComma(priv) + " releases from private issuers are counted as independent journalism or as not about China, never as state origin.");
+    if (it.unrecorded) parts.push(intComma(it.unrecorded) + " labels were made before the issuer rule and have not been judged again under it.");
+    return parts.length ? parts.join(" ") + " All time, both distributions." : "";
+  }
+  function renderIssuerLine() {
+    var wrap = el("kpis");
+    if (!wrap || !wrap.parentNode) return;
+    var text = issuerLineText(state.meta && state.meta.issuer_type_totals), line = el("issuer-line");
+    if (!text) { if (line) line.hidden = true; return; }
+    if (!line) {
+      line = document.createElement("p");
+      line.id = "issuer-line"; line.className = "issuer-line";
+      wrap.parentNode.insertBefore(line, wrap.nextSibling);
+    }
+    line.textContent = text;
+    line.hidden = false;
   }
 
   var START_HERE_LS_KEY = "tracker_start_here_closed";
@@ -596,7 +847,7 @@
       try { localStorage.setItem(START_HERE_LS_KEY, det.open ? "0" : "1"); } catch (e) { /* private mode or blocked storage: nothing persists, page still works */ }
     });
   }
-  var ROUTE_CARD_ORDER = ["wire_credit", "distribution_stamp", "sponsored_disclosure", "diplomatic_byline", "uncredited_copy"];
+  var ROUTE_CARD_ORDER = ["wire_credit", "distribution_stamp", "sponsored_disclosure", "diplomatic_byline", "uncredited_copy", "unattributed"];
   function renderRouteCards() {
     var wrap = el("sh-routes");
     if (!wrap) return;
@@ -620,6 +871,8 @@
     var value = "route:" + id;
     var found = Array.prototype.some.call(sel.options, function (o) { return o.value === value; });
     if (!found) return;
+    /* Under another measure the select is disabled; choosing a route card switches to state origin, as choosing the route does. */
+    sel.disabled = false;
     sel.value = value;
     sel.dispatchEvent(new Event("change"));
     var wrap = el("map-wrap");
@@ -956,9 +1209,23 @@
   /* The scale cap for the current measure, window, mode and route, pooled over every date of the timeline
      and cached, so moving the day never rescales the map. */
   function scaleFor() {
-    var key = [state.metric, state.windowDays, state.mode, state.route ? state.route.kind + ":" + state.route.id : "", (state.meta && state.meta.generated_at) || ""].join("|");
-    if (!state.scaleCache[key]) state.scaleCache[key] = C.scaleCap(state.months, tlDays, state.latest, state.metric, windowArg(state.windowDays), state.mode, ctxFor);
+    var key = [state.metric, state.windowDays, state.mode, state.route ? state.route.kind + ":" + state.route.id : "", (state.meta && state.meta.generated_at) || "", loadedFrom() || ""].join("|");
+    if (!state.scaleCache[key]) state.scaleCache[key] = C.scaleCap(state.months, scaleDays(state.windowDays), state.latest, state.metric, windowArg(state.windowDays), state.mode, ctxFor);
     return state.scaleCache[key];
+  }
+  /* The end dates a scale is pooled over: every day of the timeline once every month has loaded, and
+     before that only the days whose window lies inside the loaded months, so no pooled value is a window
+     cut short by a month that has not arrived. */
+  function scaleDays(w) {
+    if (loadedFrom() === null) return tlDays;
+    return tlDays.filter(function (d) { return covered(windowStart(d, w)); });
+  }
+  /* The words the keys add while only the opening months are loaded. */
+  function partialScaleNote() {
+    var lf = loadedFrom();
+    if (lf === null) return "";
+    var first = tlDays.filter(function (d) { return d >= lf; })[0] || lf;
+    return " Only the days from " + first + " have loaded so far, so the scale is pooled over the dates whose window they cover; an earlier day, Total or Play loads the whole timeline, and the scale is then pooled over every date.";
   }
 
   function renderMap() {
@@ -968,7 +1235,7 @@
     var perIso = {};
     C.distributionIsos(state.latest.countries || {}, state.distribution).forEach(function (iso) {
       var entry = state.latest.countries[iso];
-      var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg));
+      var mv = withOutputGap(C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg)), entry);
       var cls = C.fillClass(entry, mv);
       perIso[iso] = {entry: entry, mv: mv, cls: cls};
       if (cls === "value") vals.push(mv.value);
@@ -1013,7 +1280,7 @@
   function renderMapCaption() {
     var cap = el("map-caption");
     if (!cap) return;
-    cap.textContent = wiresOnly() ? "Worldwide wires are not drawn by country: a release on the wires reaches every country at once, so the map is left unfilled and the figure is the line under the legend and the one row in the ranked list." : "";
+    cap.textContent = wiresOnly() ? "Worldwide wires are not drawn by country: a release on the wires is not tied to any one country, so the map is left unfilled and the figure is the line under the legend and the one row in the ranked list." : "";
     cap.hidden = !wiresOnly();
   }
 
@@ -1080,7 +1347,7 @@
       count: "Number of " + (routeActive() ? lowerLabel(Noun) : noun) + " in the window",
       per_outlet: Noun + " per active monitored outlet",
       share_of_china: Noun + " as a percent of the country’s China coverage",
-      share_of_output: Noun + " per 1,000 items the monitored outlets published; 1 per 1,000 is 0.1%"
+      share_of_output: Noun + " per 1,000 items the country's counted outlets published (its audience ranked outlets where the registry ranks any, otherwise every active outlet); 1 per 1,000 is 0.1%"
     }[parts.basis] || metricLabel();
   }
   /* The heading names the three things that set the scale: measure, basis and window. */
@@ -1093,7 +1360,7 @@
   /* A 30 day window over a shorter timeline covers the same days as Total, so the two share one key.
      Say so, or flipping between them looks like the key failed to update. */
   function sameWindowNote() {
-    var all = days(), w = state.windowDays;
+    var all = allDays(), w = state.windowDays;
     if (!all.length || !tlDays.length) return "";
     var span = Math.round((Date.parse(tlDays[tlDays.length - 1]) - Date.parse(all[0])) / 864e5) + 1;
     var twin = w === "all" ? [7, 30].filter(function (n) { return n >= span; })[0] : (Number(w) > 1 && Number(w) >= span ? "all" : null);
@@ -1128,7 +1395,7 @@
           '<li><span class="sw" style="background:' + ZERO_COLOR + '"></span><span>None found</span></li>' +
           steps.join("") +
         '</ul>' +
-        '<p class="lg-note">Until the next data update, the scale is fixed for this measure, basis and window across every date on the timeline, so a shade means the same number on every day. ' + esc(C.CAP_UPDATE_NOTE) +
+        '<p class="lg-note">Until the next data update, the scale is fixed for this measure, basis and window across every date on the timeline, so a shade means the same number on every day. ' + esc(C.CAP_UPDATE_NOTE) + esc(partialScaleNote()) +
           (state._capped ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatKeyNumber(state._trueMax, key.unit, 3)) + (key.unit.per1000 ? ' per 1,000 items' : '') + '.' : '') +
           (key.tiers.length < STEPS ? ' The cap is small enough that ' + plural(STEPS - key.tiers.length, "shade holds", "shades hold") + ' no whole number, so ' + (STEPS - key.tiers.length === 1 ? 'it is' : 'they are') + ' left out.' : '') +
           esc(sameWindowNote()) + '</p>' +
@@ -1181,8 +1448,11 @@
         if (metricDef().allItems) html += '<div class="muted">' + mv.allItems + ' items published by ' + (e.top_outlets_ranked ? 'the ' + e.top_outlets + ' largest monitored outlets' : 'all ' + e.top_outlets + ' monitored outlets (no audience ranks are recorded)') + ', ' + mv.allItemsChina + ' China items among them</div>';
         /* latest.json counts the carrier and route over the 30 complete days before the export, the window the map opens on. */
         var carrierStart = state.latest && state.latest.window_start_30d;
-        if (e.top_carrier) html += '<div class="muted">Carried mostly by ' + esc(e.top_carrier.name) + ' (' + plural(e.top_carrier.count, "article") + (carrierStart ? ' in the 30 complete days ending ' + esc(C.shiftDate(carrierStart, 29)) : '') + ')</div>';
-        if (e.top_route) html += '<div class="muted">Mostly arrives as ' + esc(lowerLabel(contentRouteName(e.top_route.id))) + '</div>';
+        /* "mostly" only above half of the window's placements, and a tie as a tie (C.carrierTooltipLine, C.routeTooltipLine). */
+        var carrierLine = C.carrierTooltipLine(e.top_carrier, carrierStart ? ' in the 30 complete days ending ' + C.shiftDate(carrierStart, 29) : '');
+        var routeLine = C.routeTooltipLine(e.top_route, function (id) { return lowerLabel(contentRouteName(id)); });
+        if (carrierLine) html += '<div class="muted">' + esc(carrierLine) + '</div>';
+        if (routeLine) html += '<div class="muted">' + esc(routeLine) + '</div>';
         var noteText = iso && state.content && state.content.country_notes && state.content.country_notes[iso];
         if (noteText) html += '<div class="muted">' + esc(shortNoteText(noteText)) + '</div>';
       }
@@ -1198,23 +1468,33 @@
   function hideTip() { el("tooltip").style.display = "none"; }
 
   /* ------------------------------------------------------------------ bars */
+  var BARS_SMALL = 25;
   function renderBars(agg) {
     var rows = rankedRows(agg);
     var fmt = metricDef().format || "int";
     var max = d3.max(rows, function (r) { return r.value || 0; }) || 1;
     var itemsMeasure = metricDef().measure;
     var showItems = (itemsMeasure === "a" || itemsMeasure === "b") && state.basis === "count" && !routeActive();
-    el("bars-title").textContent = metricLabel() + (routeActive() ? ", " + lowerLabel(routeLabel(state.route)) : "") + ", " + windowLabel() +
+    el("bars-title").textContent = (metricDef().allItems ? outputShareLabel() : metricLabel()) + (routeActive() ? ", " + lowerLabel(routeLabel(state.route)) : "") + ", " + windowLabel() +
       (wiresOnly() ? ", worldwide wires only" : countryOnly() ? ", country outlets only" : "");
     var capEl = el("bars-caption");
     if (capEl) { var capText = caption("ranked_list"); capEl.textContent = capText || ""; capEl.hidden = !capText; }
+    /* On a small screen the list is the default view and runs to every monitored country, so it opens on
+       the top rows, the selected country kept, with a button for the rest. */
+    var allRows = rows, cut = smallScreen() && !state.barsShowAll && rows.length > BARS_SMALL;
+    if (cut) {
+      rows = rows.slice(0, BARS_SMALL);
+      var selRow = allRows.filter(function (r) { return r.iso === state.selected; })[0];
+      if (selRow && rows.indexOf(selRow) === -1) rows.push(selRow);
+    }
+    el("bars").classList.toggle("per1000", !!metricDef().allItems);
     el("bars").innerHTML = rows.map(function (r) {
       var w = r.value ? Math.max(2, 100 * r.value / max) : 0;
       /* sparse keeps its own class: a value that could not be computed is never drawn as an observed zero. */
       var cls = r.fill === "value" ? "" : r.fill;
       var entry = state.latest.countries[r.iso] || {};
       var warns = countryWarnings(entry, agg);
-      var num = r.fill === "withheld" ? relayText(relayFor(entry), 0) : C.formatValue(r.value, fmt);
+      var num = r.fill === "withheld" ? relayText(relayFor(entry), 0) : fmt === "pct" ? valueText(r.value, state.metric) : C.formatValue(r.value, fmt);
       /* Article count and underlying-item count used to run together with only a CSS gap between
          them; spelled out as "290 articles, 211 underlying items" they cannot be misread as one number. */
       var itemsCount = itemsMeasure === "b" ? r.unverified_relay_underlying_items : r.state_origin_underlying_items;
@@ -1225,6 +1505,17 @@
         '<span class="num">' + numHtml + '</span>' +
         '<span class="bar-warn"' + (warns.length ? ' title="' + esc(warns.join("; ")) + '">!' : '>') + '</span></div>';
     }).join("") || '<p class="muted">' + (wiresOnly() ? 'The data holds no worldwide distribution stratum yet; the next export adds it.' : 'No countries in the dataset.') + '</p>';
+    if (smallScreen() && allRows.length > BARS_SMALL) {
+      el("bars").insertAdjacentHTML("beforeend", '<p class="bars-more"><button type="button" id="bars-more">' +
+        (cut ? 'Show all ' + allRows.length + ' countries' : 'Show the top ' + BARS_SMALL + ' only') + '</button>' +
+        (cut ? ' <span class="muted">Top ' + BARS_SMALL + ' of ' + allRows.length + ' shown.</span>' : '') + '</p>');
+      el("bars-more").addEventListener("click", function () {
+        state.barsShowAll = !state.barsShowAll;
+        renderBars(state._agg || currentAgg());
+        var again = el("bars-more");
+        if (again) again.focus();
+      });
+    }
     Array.prototype.forEach.call(el("bars").querySelectorAll(".bar-row"), function (row) {
       function open() { selectCountry(row.getAttribute("data-iso")); }
       row.addEventListener("click", open);
@@ -1378,14 +1669,16 @@
      charts read the same way and the key says how many articles each shade needs for the measure shown.
      The share of the row each cell holds is in its tooltip. Like the map, the tiers are pooled over every
      day of the theme timeline, so moving the counter's day never changes what a shade means. */
-  function inkOn(color) { return d3.lab(color).l > 62 ? "#0c0d0f" : "#f3ede2"; }
+  /* Dark ink from Lab lightness 55 up: between 55 and 62 the light ink fell under 4.5:1 on the mid reds. */
+  function inkOn(color) { return d3.lab(color).l > 55 ? "#0c0d0f" : "#f3ede2"; }
   var THEME_ROWS = 15;
   var themeCapCache = {};
   function themeKey(iso) {
     var mi = measureIndex(), ids = ((state.meta && state.meta.themes) || []).map(function (c) { return c.id; });
     var w = iso ? 1 : windowArg(state.themeWindow);
     var k = [mi, iso ? "day:" + iso : state.themeWindow, (state.meta && state.meta.generated_at) || ""].join("|");
-    if (!themeCapCache[k]) themeCapCache[k] = C.themeScaleCap(state.months, tlDays, w, mi, ids, iso || null);
+    k += "|" + (loadedFrom() || "");
+    if (!themeCapCache[k]) themeCapCache[k] = C.themeScaleCap(state.months, scaleDays(w === null ? "all" : w), w, mi, ids, iso || null);
     var sc = themeCapCache[k];
     var key = keyFor(sc.cap || sc.max || 1, C.WHOLE_UNIT);
     key.max = sc.max;
@@ -1405,6 +1698,16 @@
     if (mi === 0) return k.A + k.B + k.C + (k.pending || 0);
     if (mi === 3) return k.B;
     return k.A;
+  }
+  /* One day's world total from global_series.json, for a day whose month has not loaded: the measure slot
+     as denominator() reads it, under a Distribution mode (the series carries the wires as wld). null when
+     the series lacks the day. */
+  function seriesTotal(d, mi, distribution) {
+    var s = state.seriesByDate[d];
+    if (!s) return null;
+    var pick = function (k) { k = k || {}; return mi === 0 ? (k.A || 0) + (k.B || 0) + (k.C || 0) + (k.pending || 0) : mi === 3 ? (k.B || 0) : (k.A || 0); };
+    var all = pick(s), wld = pick(s.wld);
+    return distribution === "wires" ? wld : distribution === "country" ? all - wld : all;
   }
   function pctText(share) { return share >= 0.995 ? "100%" : (share < 0.005 && share > 0 ? "<1%" : Math.round(100 * share) + "%"); }
 
@@ -1481,7 +1784,7 @@
       (selName && !sel ? '<p class="muted">No ' + esc(noun) + ' for this country in ' + esc(themeWindowLabel()) + '. The grid beside this shows its own days, so anything it has outside this window appears there. Switch to Whole world to compare countries.</p>' :
       '<ul class="tf-list">' + list.map(function (x) {
         var share = focus.n ? x.v / focus.n : 0;
-        return '<li data-theme="' + esc(x.c.id) + '"' + (state.themeSort === x.c.id ? ' class="active"' : '') + ' title="Rank the countries by ' + esc(lowerLabel(x.c.label)) + '">' +
+        return '<li data-theme="' + esc(x.c.id) + '"' + (state.themeSort === x.c.id ? ' class="active"' : '') + ' tabindex="0" role="button" aria-pressed="' + (state.themeSort === x.c.id) + '" title="Rank the countries by ' + esc(lowerLabel(x.c.label)) + '">' +
           '<span class="tf-label">' + esc(x.c.label) + '</span>' +
           '<span class="tf-track"><span class="tf-bar" style="width:' + (x.v ? Math.max(1.5, 100 * x.v / fmax) : 0) + '%"></span></span>' +
           '<span class="tf-v">' + x.v + '</span><span class="tf-s">' + (x.v ? pctText(share) : "") + '</span></li>';
@@ -1505,11 +1808,11 @@
     el("theme-grid").innerHTML =
       '<thead><tr><th class="c-country" scope="col">Country</th><th class="c-n" scope="col">' + esc(noun.charAt(0).toUpperCase() + noun.slice(1)) + '</th>' +
       catalog.map(function (c) {
-        return '<th scope="col" class="c-theme' + (sortKey === c.id ? ' sorted' : '') + '" data-theme="' + esc(c.id) + '" title="' + esc(c.label) + '">' + esc(c.short) + '</th>';
+        return '<th scope="col" class="c-theme' + (sortKey === c.id ? ' sorted' : '') + '" data-theme="' + esc(c.id) + '" tabindex="0"' + (sortKey === c.id ? ' aria-sort="descending"' : '') + ' title="' + esc(c.label) + ': rank the countries by it">' + esc(c.short) + '</th>';
       }).join("") + '</tr></thead><tbody>' +
       shown.map(function (r) {
         return '<tr data-iso="' + esc(r.iso) + '"' + (r.iso === state.selected ? ' class="selected"' : '') + '>' +
-          '<th scope="row" class="c-country">' + esc(r.name) + '</th><td class="c-n">' + r.n + '</td>' +
+          '<th scope="row" class="c-country" tabindex="0" title="Open ' + esc(r.name) + '">' + esc(r.name) + '</th><td class="c-n">' + r.n + '</td>' +
           catalog.map(function (c) {
             var v = r.t[c.id] || 0, share = Math.min(1, v / Math.max(r.n, 1)), bg = v > 0 ? heat(v) : null;
             return '<td class="cell" data-theme="' + esc(c.id) + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
@@ -1521,7 +1824,7 @@
       themeKeyItems(tkey) +
       '<span class="tl-foot">Same steps and colors as the map. Until the next data update, the tiers are fixed for this measure and window across every day of the theme timeline' +
       (tkey.max > tkey.cap ? '; the darkest shade holds everything above the 95th percentile, up to ' + tkey.max.toLocaleString("en-US") : '') +
-      '. ' + esc(C.CAP_UPDATE_NOTE) + ' Hover a cell for its share of the country’s ' + esc(noun) + '. The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
+      '. ' + esc(C.CAP_UPDATE_NOTE) + esc(partialScaleNote()) + ' Hover a cell for its share of the country’s ' + esc(noun) + '. The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
       (sortKey ? ' in ' + esc(lowerLabel(label[sortKey].label)) : '') + ' in this window' +
       (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
   }
@@ -1558,7 +1861,7 @@
       }).join("") + '</tr></thead><tbody>' +
       order.map(function (c) {
         return '<tr data-theme-row="' + esc(c.id) + '"' + (state.themeSort === c.id ? ' class="selected"' : '') + '>' +
-          '<th scope="row" class="c-country">' + esc(c.label) + '</th><td class="c-n">' + total(c.id) + '</td>' +
+          '<th scope="row" class="c-country" tabindex="0" title="Mark this theme">' + esc(c.label) + '</th><td class="c-n">' + total(c.id) + '</td>' +
           perDay.map(function (p) {
             var v = p.t[c.id] || 0, share = Math.min(1, v / Math.max(p.n, 1)), bg = v > 0 ? shade(v) : null;
             return '<td class="cell" data-theme="' + esc(c.id) + '" data-day="' + esc(p.d) + '" data-n="' + p.n + '" data-v="' + v + '" data-share="' + share.toFixed(4) + '"' + (bg ? ' style="background:' + bg + ';color:' + inkOn(bg) + '"' : '') + '>' + (v || "") + '</td>';
@@ -1570,7 +1873,7 @@
       themeKeyItems(dkey) +
       '<span class="tl-foot">Same steps and colors as the map. Until the next data update, the tiers are fixed for this measure and country across every day of the timeline' +
       (dkey.max > dkey.cap ? '; the darkest shade holds everything above the 95th percentile, up to ' + dkey.max.toLocaleString("en-US") : '') +
-      '. ' + esc(C.CAP_UPDATE_NOTE) + ' The ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
+      '. ' + esc(C.CAP_UPDATE_NOTE) + esc(partialScaleNote()) + ' The ' + perDay.length + ' days ending ' + esc(state.themeEnd || "") + ' (day of the month across the top). The Window column counts ' + esc(themeWindowLabel()) + '. Switch to Whole world to compare countries.</span>';
   }
 
   /* The grid scrolls sideways only when the column is too narrow for every theme; say so when it does. */
@@ -1590,24 +1893,45 @@
         var v = b.getAttribute("data-theme-window");
         state.themeWindow = v === "all" ? "all" : Number(v);
         Array.prototype.forEach.call(document.querySelectorAll("[data-theme-window-group] button"), function (x) { x.classList.toggle("active", x === b); });
+        syncPressed();
+        if (demandThemeMonths()) return;
         renderThemes(); renderLeaning();
       });
     });
     el("theme-grid-wrap").addEventListener("scroll", updateGridScroll);
     window.addEventListener("resize", updateGridScroll);
-    function toggleSort(id) { state.themeSort = state.themeSort === id ? null : id; renderThemes(); renderLeaning(); }
-    el("theme-focus").addEventListener("click", function (ev) {
+    /* Every theme, heading and row that answers a click is focusable and answers Enter and Space too;
+       the redraw replaces them, so the focus is put back on the same one. */
+    function toggleSort(id, refocus) {
+      state.themeSort = state.themeSort === id ? null : id; renderThemes(); renderLeaning();
+      if (refocus) { var again = document.querySelector(refocus); if (again) again.focus(); }
+    }
+    function cssId(v) { return String(v).replace(/[^A-Za-z0-9_:-]/g, ""); }
+    function focusAction(ev, kb) {
       var li = ev.target.closest("li[data-theme]");
-      if (li) toggleSort(li.getAttribute("data-theme"));
-    });
-    el("theme-grid").addEventListener("click", function (ev) {
+      if (li) { toggleSort(li.getAttribute("data-theme"), kb ? '#theme-focus li[data-theme="' + cssId(li.getAttribute("data-theme")) + '"]' : null); return true; }
+      return false;
+    }
+    function gridAction(ev, kb) {
       var th = ev.target.closest("th[data-theme]");
-      if (th) { toggleSort(th.getAttribute("data-theme")); return; }
+      if (th) { toggleSort(th.getAttribute("data-theme"), kb ? '#theme-grid th[data-theme="' + cssId(th.getAttribute("data-theme")) + '"]' : null); return true; }
       var row = ev.target.closest("tr[data-theme-row]");
-      if (row) { toggleSort(row.getAttribute("data-theme-row")); return; }
+      if (row) { toggleSort(row.getAttribute("data-theme-row"), kb ? '#theme-grid tr[data-theme-row="' + cssId(row.getAttribute("data-theme-row")) + '"] th' : null); return true; }
       var tr = ev.target.closest("tr[data-iso]");
-      if (tr) selectCountry(tr.getAttribute("data-iso"));
-    });
+      if (tr) { selectCountry(tr.getAttribute("data-iso")); return true; }
+      return false;
+    }
+    function onKey(action) {
+      return function (ev) {
+        if (ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
+        if (!ev.target.matches || !ev.target.matches("li[data-theme], th[data-theme], th.c-country")) return;
+        if (action(ev, true)) ev.preventDefault();
+      };
+    }
+    el("theme-focus").addEventListener("click", function (ev) { focusAction(ev, false); });
+    el("theme-focus").addEventListener("keydown", onKey(focusAction));
+    el("theme-grid").addEventListener("click", function (ev) { gridAction(ev, false); });
+    el("theme-grid").addEventListener("keydown", onKey(gridAction));
     var tip = el("theme-tip");
     el("theme-grid").addEventListener("mousemove", function (ev) {
       var td = ev.target.closest("td.cell");
@@ -1643,35 +1967,89 @@
     renderThemes(); renderLeaning();
     renderPanel();
     if (toBoth) renderFindings();
+    state._revealed = state.selected ? revealPanel(false) : false;
+  }
+  /* On a small screen the panel sits below the map and every row of the ranked list, thousands of pixels
+     down, so a country opened from above it would change nothing in view. When the panel's top is below
+     the fold, or force says so, it is scrolled into view and its heading takes the focus. Returns whether
+     it did. */
+  function revealPanel(force) {
+    var panel = el("panel");
+    if (!panel || !panel.getBoundingClientRect) return false;
+    var top = panel.getBoundingClientRect().top, vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    if (!force && !(top > vh - 48)) return false;
+    var smooth = !(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (panel.scrollIntoView) panel.scrollIntoView({behavior: smooth ? "smooth" : "auto", block: "start"});
+    var h = panel.querySelector("h2");
+    if (h) { h.setAttribute("tabindex", "-1"); try { h.focus({preventScroll: true}); } catch (e) { h.focus(); } }
+    return true;
   }
   function countryName(iso) { return String(iso).indexOf("name:") === 0 ? String(iso).slice(5) : (state.names[iso] || iso); }
-  /* The Country search boxes above the map and above the theme counter open the same single country
-     view. Typing filters the monitored countries: names that start with the query first, then any
-     name, ISO code or common alias that contains it, ignoring accents. */
-  var COUNTRY_ALIASES = {USA: "usa us america united states", GBR: "uk britain great britain england", KOR: "south korea", PRK: "north korea",
+  /* The Country search boxes above the map, the ranked list and the theme counter open the same single
+     country view. Typing filters the monitored countries, ignoring accents and full stops, ranked: an exact
+     ISO code, name or common alias first ("us" is the United States, "uk" the United Kingdom), then names
+     that start with the query, then names or aliases with a word that starts with it, then any that
+     contain every typed word; alphabetical within each rank. */
+  var EXACT_ALIASES = {us: "USA", usa: "USA", america: "USA", "united states": "USA", "united states of america": "USA",
+    uk: "GBR", britain: "GBR", "great britain": "GBR", "united kingdom": "GBR", england: "GBR",
+    holland: "NLD", "the netherlands": "NLD", prc: "CHN", "peoples republic of china": "CHN", "mainland china": "CHN",
+    uae: "ARE", drc: "COD", "south korea": "KOR", "north korea": "PRK", burma: "MMR", "ivory coast": "CIV", czechia: "CZE", turkiye: "TUR"};
+  var COUNTRY_ALIASES = {USA: "usa us u.s. u.s.a. america united states", GBR: "uk u.k. britain great britain england", NLD: "holland netherlands", CHN: "prc p.r.c. people's republic mainland china",
+    KOR: "south korea", PRK: "north korea",
     RUS: "russia", VNM: "vietnam", IRN: "iran", TWN: "taiwan", CZE: "czech republic czechia", TUR: "turkey turkiye", BOL: "bolivia",
     VEN: "venezuela", TZA: "tanzania", SYR: "syria", LAO: "laos", MDA: "moldova", COD: "drc congo kinshasa", COG: "congo brazzaville",
     CIV: "ivory coast", ARE: "uae emirates", HKG: "hong kong", MAC: "macau macao", PSE: "palestine", MMR: "burma myanmar", SWZ: "swaziland eswatini",
     WLD: "worldwide distribution press release wires pr newswire globenewswire world"};
   function foldText(t) { return String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+  function searchEntry(iso, name, official) {
+    return {iso: iso, name: name, fold: foldText(name), key: foldText(name + " " + iso + " " + (official || "") + " " + (COUNTRY_ALIASES[iso] || ""))};
+  }
+  /* The panel's notes on a country's languages. A language a project rule excludes (latest.json
+     excluded_languages, a list or a {language: outlets} map) is not read at all, so it gets its own
+     sentence, never the keyword list one. The export caps support at partial for an excluded language
+     alone, so with one present the keyword sentence is kept only for support of none, which no cap makes. */
+  function languageName(code) {
+    try { if (typeof Intl !== "undefined" && Intl.DisplayNames) { var n = new Intl.DisplayNames(["en"], {type: "language"}).of(String(code)); if (n && n !== String(code)) return n; } } catch (e) { /* an unknown code reads as itself */ }
+    return String(code);
+  }
+  function languageNotes(entry) {
+    var out = [], ex = entry && entry.excluded_languages;
+    var excluded = Array.isArray(ex) ? ex.filter(Boolean) : ex && typeof ex === "object" ? Object.keys(ex) : [];
+    if (excluded.length) out.push("Outlets in " + excluded.map(languageName).join(", ") + " are registered but not monitored (project rule), so their coverage is not counted.");
+    var support = entry && entry.language_support;
+    if (support && support !== "full" && (!excluded.length || support === "none"))
+      out.push("Keyword lists cover " + (support === "none" ? "none" : "only some") + " of this country's outlet languages (" + ((entry.languages || []).join(", ")) + "); the rest are matched on international and English terms only.");
+    return out;
+  }
+  function rankCountryMatches(entries, q) {
+    var bare = q.replace(/[.'’]/g, "").replace(/\s+/g, " ").trim();
+    var words = q.replace(/[,()]/g, " ").split(/\s+/).filter(Boolean);
+    var exact = EXACT_ALIASES[bare] || null;
+    var ranked = [];
+    entries.forEach(function (e) {
+      var r;
+      if (!q) r = 3;
+      else if (e.iso.toLowerCase() === bare || e.iso === exact || e.fold === q || e.fold.replace(/[.'’]/g, "") === bare) r = 0;
+      else if (e.fold.indexOf(q) === 0) r = 1;
+      else if ((" " + e.key.replace(/[,()]/g, " ")).indexOf(" " + q) !== -1) r = 2;
+      /* Every typed word must appear somewhere, in any order, so "republic of korea" finds "Korea, Republic of". */
+      else if (words.every(function (w) { return e.key.indexOf(w) !== -1; })) r = 3;
+      else return;
+      ranked.push({e: e, r: r});
+    });
+    ranked.sort(function (x, y) { return x.r - y.r || x.e.name.localeCompare(y.e.name); });
+    return ranked.map(function (x) { return x.e; });
+  }
   function setupCountryPicks() {
     var entries = Object.keys((state.latest && state.latest.countries) || {}).map(function (iso) {
-      var name = String(countryName(iso));
-      return {iso: iso, name: name, fold: foldText(name), key: foldText(name + " " + iso + " " + (state.officialNames[iso] || "") + " " + (COUNTRY_ALIASES[iso] || ""))};
+      return searchEntry(iso, String(countryName(iso)), state.officialNames[iso]);
     }).sort(function (x, y) { return x.name.localeCompare(y.name); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-country-pick]"), function (box) {
       var input = box.querySelector("input"), list = box.querySelector("ul"), matches = [], active = -1;
       function close() { list.hidden = true; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); active = -1; }
       function draw() {
         var q = foldText(input.value.trim());
-        var words = q.replace(/[,()]/g, " ").split(/\s+/).filter(Boolean);
-        var first = [], rest = [];
-        /* Every typed word must appear somewhere, in any order, so "republic of korea" finds "Korea, Republic of". */
-        entries.forEach(function (e) {
-          if (!q || e.fold.indexOf(q) === 0) first.push(e);
-          else if (words.every(function (w) { return e.key.indexOf(w) !== -1; })) rest.push(e);
-        });
-        matches = first.concat(rest);
+        matches = rankCountryMatches(entries, q);
         if (active >= matches.length) active = matches.length - 1;
         list.innerHTML = matches.length ? matches.map(function (e, i) {
           var at = q ? e.fold.indexOf(q) : -1;
@@ -1688,7 +2066,9 @@
         } else input.removeAttribute("aria-activedescendant");
       }
       function restore() { input.value = state.selected ? countryName(state.selected) : ""; }
-      function choose(iso) { close(); input.blur(); selectCountry(iso); restore(); }
+      /* The focus stays in the box, so a keyboard reader can search again; only a panel that had to be
+         scrolled into view takes it (revealPanel). */
+      function choose(iso) { close(); selectCountry(iso); restore(); if (!state._revealed && document.activeElement === input) input.select(); }
       input.addEventListener("focus", function () { input.select(); active = -1; draw(); });
       input.addEventListener("input", function () { active = input.value.trim() ? 0 : -1; draw(); });
       input.addEventListener("keydown", function (ev) {
@@ -1727,6 +2107,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("[data-scope-group] button"), function (b) {
       b.classList.toggle("active", (b.getAttribute("data-scope") === "country") === !!state.selected);
     });
+    syncPressed();
   }
 
   var RELEASE_LABELS = {found: "found", none_found: "none", blocked: "blocked", unreachable: "unreachable", not_searched: "not searched"};
@@ -1765,10 +2146,17 @@
     var countryNote = state.content && state.content.country_notes && state.content.country_notes[iso];
     if (countryNote) html += '<div class="panel-note-box"><h3>Why this number</h3><p>' + linkifyHtml(countryNote) + '</p></div>';
     var relay = relayFor(entry);
-    var mv = C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg));
-    html += '<p>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(lowerLabel(routeLabel(state.route))) : '') + ', ' + esc(windowLabel()) + ': <strong>' + (mv.withheld ? esc(relayText(relay, 0)) : C.formatValue(mv.value, metricDef().format) + (mv.provisional ? " (provisional)" : "")) + '</strong></p>';
+    var mv = withOutputGap(C.metricValue(agg.countries[iso], state.metric, entry.outlets_active, state.mode, agg.reviewed[iso], ctxFor(iso, entry, agg)), entry);
+    /* A share of monitored output names what it divides by in this country, and reads per 1,000 items. */
+    var shareHead = metricDef().allItems ? measureNounFor(metricDef().measure).replace(/^./, function (c) { return c.toUpperCase(); }) + ' per 1,000 items published by ' +
+      (entry.top_outlets_ranked ? 'its ' + (entry.top_outlets || '') + ' audience ranked outlets' : 'all ' + (entry.top_outlets || entry.outlets_active || '') + ' active monitored outlets') : null;
+    html += '<p>' + esc(shareHead || metricLabel()) + (routeActive() ? ', ' + esc(lowerLabel(routeLabel(state.route))) : '') + ', ' + esc(windowLabel()) + ': <strong>' + (mv.withheld ? esc(relayText(relay, 0)) : (metricDef().allItems ? valueText(mv.value, state.metric).replace(/ per 1,000$/, '') : C.formatValue(mv.value, metricDef().format)) + (mv.provisional ? " (provisional)" : "")) + '</strong></p>';
     if (mv.note && mv.value === null) html += '<p class="panel-note">' + esc(mv.note) + '</p>';
-    html += '<h3>Time series, all days</h3><svg class="mini" id="mini"></svg>';
+    /* The time series reads the loaded months; before the rest have loaded it says where it starts. */
+    var miniFrom = loadedFrom();
+    html += miniFrom === null ? '<h3>Time series, all days</h3><svg class="mini" id="mini"></svg>'
+      : '<h3>Time series, from ' + esc(tlDays.filter(function (d) { return d >= miniFrom; })[0] || miniFrom) + '</h3><svg class="mini" id="mini"></svg>' +
+        '<p class="panel-note">Earlier days have not loaded yet. <button type="button" class="mini-load" id="mini-load">Load every day</button></p>';
     var k = agg.countries[iso] || C.emptyCounts();
     var rv = agg.reviewed[iso] || {A: 0, B: 0, C: 0, N: 0};
     /* relay.visible governs every relay figure in this panel: the breakdown, the outlet table below it and
@@ -1800,8 +2188,9 @@
       var searched = rs.outlets_active - (rs.not_searched || 0);
       html += '<p class="panel-note">Press release, sponsored and partner sections searched at ' + searched + ' of ' + rs.outlets_active + ' active outlets' + (searched ? ', found at ' + (rs.found || 0) : '') + '. Where no section was searched, state origin placed there cannot be found.</p>';
     }
-    if (entry.language_support && entry.language_support !== "full") html += '<p class="panel-note">Keyword lists cover ' + (entry.language_support === "none" ? 'none' : 'only some') + ' of this country\'s outlet languages (' + esc((entry.languages || []).join(", ")) + '); the rest are matched on international and English terms only.</p>';
-    html += '<h3>Monitored outlets</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Unchecked' + relayNote + '</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th><th>Release section</th></tr>';
+    languageNotes(entry).forEach(function (t) { html += '<p class="panel-note">' + esc(t) + '</p>'; });
+    /* The outlet counts come from outlets.json, which counts every day to the export, not the window above. */
+    html += '<h3>Monitored outlets, all time to the last export</h3><table><tr><th>Outlet</th><th class="num">State origin</th><th class="num">Unchecked' + relayNote + '</th><th class="num">Pending</th><th class="num">Independent</th><th class="num">Paywalled</th><th>Feeds</th><th>Release section</th></tr>';
     state.outlets.filter(function (o) { return o.country === iso; }).sort(function (a, b) { return (b.active - a.active) || a.name.localeCompare(b.name); }).forEach(function (o) {
       /* Health counts editorial feeds; release section feeds are listed in the title but never make an outlet look failing. */
       var editorial = o.feeds.filter(function (f) { return !f.kind || f.kind === "editorial"; });
@@ -1813,6 +2202,8 @@
     html += '<h3>State origin, unchecked state sourcing and unjudged candidates first, then the rest</h3><p class="muted">State placements, unchecked state sourcing, and pieces flagged for the model that still await its judgement (official Chinese sourcing, a weak signature, or a near copy of a credited state item), each with the sentence or match that flagged it. The unjudged candidates are listed for inspection only and are not a finding. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
     body.innerHTML = html;
     bindClose();
+    var loadAllBtn = el("mini-load");
+    if (loadAllBtn) loadAllBtn.addEventListener("click", function () { loadAllBtn.disabled = true; loadAllBtn.textContent = "Loading"; ensureAllMonths(); });
     renderMini(iso, relay);
     loadArticles(iso);
   }
@@ -1863,7 +2254,7 @@
         var href = safeUrl(a.url);
         var title = escText(a.title || a.url);
         return '<div class="article">' + (href ? '<a class="a-title" href="' + esc(href) + '" target="_blank" rel="noopener">' + title + '</a>' : '<span class="a-title">' + title + '</span>') +
-          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(catLabel) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + '</span>' +
+          '<span class="a-meta">' + esc(outletName[a.outlet_id] || a.outlet_id) + ', ' + esc(a.date) + ' <span class="badge cat-' + esc(cat) + '">' + esc(catLabel) + (a.human_category && a.human_category !== a.category ? ' (machine said ' + esc(C.nameOf(a.category)) + ')' : '') + '</span><span class="badge prov-' + esc(a.provenance) + '">' + prov + '</span>' + (a.dup_group ? '<span class="badge" title="One of several placements of the same underlying item">syndicated</span>' : '') + issuerBadge(a.issuer_type) + '</span>' +
           translateHtml(outletLang(a.outlet_id), decodeEntities(a.title || "") + (a.evidence_quote ? "\n\n" + decodeEntities(a.evidence_quote) : ""), href) +
           srcs + route + (a.evidence_quote ? '<p class="a-quote">' + escText(a.evidence_quote) + '</p>' : '') +
           (a.signatures && a.signatures.length ? '<div class="a-meta">Signatures: ' + escText(a.signatures.join(", ")) + '</div>' : '') + '</div>';
@@ -1886,27 +2277,31 @@
 
   /* -------------------------------------------------------------- timeline */
   var tlDays = [];
-  /* The last day the export saw in full: the export day itself is partial. The timeline opens here and the
+  /* The last day the export saw in full: the export day itself is partial. The timeline ends here and the
      KPI cards that count a 30 day window end here too. */
   function lastCompleteDay() {
-    var all = days(), first = state.meta && state.meta.first_discovered;
+    var all = allDays(), first = state.meta && state.meta.first_discovered;
     all = all.filter(function (d) { return !first || d >= first; });
     if (!all.length) return null;
     var gen = state.meta && state.meta.generated_at ? state.meta.generated_at.slice(0, 10) : null;
     var i = all.length - 1;
-    if (i > 0 && gen && all[i] >= gen) i -= 1;
+    while (i > 0 && gen && all[i] >= gen) i -= 1;
     return all[i];
+  }
+  /* The partial day the export ran, when the timeline leaves it out, for the line under the timeline. */
+  function partialExportDay() {
+    var all = allDays(), last = lastCompleteDay();
+    return last && all.length && all[all.length - 1] > last ? all[all.length - 1] : null;
   }
   function setupTimeline() {
     var first = state.meta && state.meta.first_discovered;
-    tlDays = days().filter(function (d) { return !first || d >= first; });
+    /* The day the export ran is always partial, so the timeline ends on the last complete day: neither
+       scrubber, Play nor a day sent by another script can reach a day that was still being collected. */
+    var lastDay = lastCompleteDay();
+    tlDays = allDays().filter(function (d) { return (!first || d >= first) && (!lastDay || d <= lastDay); });
     var scrub = el("scrub");
     scrub.max = Math.max(0, tlDays.length - 1);
-    /* The day the export ran is always partial, so the scrubber opens on the last complete day. */
-    var gen = state.meta && state.meta.generated_at ? state.meta.generated_at.slice(0, 10) : null;
-    var start = tlDays.length - 1;
-    if (start > 0 && tlDays[start] >= gen) start -= 1;
-    scrub.value = Math.max(0, start);
+    scrub.value = Math.max(0, tlDays.length - 1);
     state.endDate = tlDays.length ? tlDays[scrub.value] : null;
     scrub.addEventListener("input", function () { stopPlay(); setDay(Number(scrub.value)); });
     el("step-back").addEventListener("click", function () { stopPlay(); setDay(Number(scrub.value) - 1); });
@@ -1921,10 +2316,17 @@
     el("scrub").value = i;
     state.endDate = tlDays[i];
     updateDateLabel();
+    /* A day whose window reaches before the loaded months is drawn when they arrive. */
+    if (demandMonths(state.endDate, state.windowDays)) return;
     renderMap();
     if (state.selected) renderPanel();
   }
-  function updateDateLabel() { el("tl-date").textContent = state.endDate || "no days"; }
+  function updateDateLabel(loading) {
+    var busy = loading || !!state.monthsLoading;
+    el("tl-date").textContent = (state.endDate || "no days") + (busy ? ", loading earlier days" : "");
+    var th = el("th-date");
+    if (th && state.themeEnd) th.textContent = state.themeEnd + (busy ? ", loading earlier days" : "");
+  }
   /* Dragging the scrubber against a running interval is a fight the interval wins, so moving the day
      by hand stops playback first. */
   function stopPlay() {
@@ -1936,6 +2338,9 @@
   function togglePlay() {
     if (state.playing) { stopPlay(); return; }
     if (!tlDays.length) return;
+    /* Play runs over every day, so it waits for the months not loaded yet. */
+    var wait = ensureAllMonths();
+    if (wait) { el("play").textContent = "Loading"; wait.then(function () { el("play").textContent = "Play"; togglePlay(); }); return; }
     stopThemePlay();
     if (Number(el("scrub").value) >= tlDays.length - 1) setDay(0);
     el("play").textContent = "Pause";
@@ -1957,7 +2362,10 @@
     var pts = tlDays.map(function (d, i) {
       var e = C.dayEntry(state.months, d);
       var tot = 0;
-      if (e) {
+      /* A day whose month has not loaded yet reads its world total from global_series.json; a route
+         total is not in it, so that day is left undrawn until the month arrives. */
+      if (!e && !state.months[d.slice(0, 7)]) tot = byRoute ? null : state.measure === "b" && !relayFor(null).visible ? 0 : seriesTotal(d, state.measure === "a" ? 2 : state.measure === "b" ? 3 : 0, state.distribution);
+      else if (e) {
         if (byRoute) {
           var src = state.route.kind === "arrival" ? e.arrivals : e.routes;
           C.distributionIsos(src || {}, state.distribution).forEach(function (c) { tot += (src[c] || {})[state.route.id] || 0; });
@@ -1973,11 +2381,14 @@
     var mapCap = caption("map_timeline_caption");
     el("tl-hint").textContent = "The shaded curve is the global daily number of " + noun + (wiresOnly() ? " on the worldwide wires alone" : countryOnly() ? " in the country outlets alone" : "") + ". " + (mapCap ||
       "Moves only the map; the theme counter keeps its own day and window. Amber bars are days on which more articles were waiting than the daily model call cap allowed, so those days are truncated rather than quiet; the cap binds the draw and a run can stop at its time budget before spending it. Red ticks along the bottom are days the collector on the owner's machine ran too few hours, so counts for the outlets only it collects are incomplete. Dashed vertical lines are ruleset changes, and grey ticks along the top are days whose labels still carry an older ruleset or an older model prompt, waiting to be judged again. Gold dotted lines are relevance gate changes, which apply only to items discovered after them.");
+    var partial = partialExportDay();
+    if (partial && tlDays.length) el("tl-hint").textContent += " The timeline ends on " + tlDays[tlDays.length - 1] + ", the last complete day: " + partial + ", the day the export ran, was still being collected and is left out.";
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
-    var area = d3.area().x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX);
+    var area = d3.area().defined(function (p) { return p.v !== null; }).x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX);
     s.append("path").attr("d", area(pts));
+    if (byRoute && pts.some(function (p) { return p.v === null; })) el("tl-hint").textContent += " Days before " + (loadedFrom() || "") + " are drawn by route once they load: choose an earlier day, Total or Play.";
     pts.forEach(function (p) {
       if (p.ceiling) s.append("rect").attr("class", "ceiling").attr("x", x(p.i) - 2).attr("y", 0).attr("width", 4).attr("height", h);
       if (p.relayGap) s.append("rect").attr("class", "relay-gap").attr("x", x(p.i) - 3).attr("y", h - 3).attr("width", 6).attr("height", 3);
@@ -2029,7 +2440,12 @@
     el("th-scrub").value = i;
     state.themeEnd = tlDays[i];
     el("th-date").textContent = state.themeEnd;
+    if (demandThemeMonths()) return;
     renderThemes(); renderLeaning();
+  }
+  /* The theme counter reads its window, and in the single country view up to 31 days ending its day. */
+  function demandThemeMonths() {
+    return demandMonths(state.themeEnd, state.themeWindow === "all" ? "all" : Math.max(31, Number(state.themeWindow) || 1));
   }
   function stopThemePlay() {
     if (!state.themePlaying) return;
@@ -2040,6 +2456,8 @@
   function toggleThemePlay() {
     if (state.themePlaying) { stopThemePlay(); return; }
     if (!tlDays.length) return;
+    var wait = ensureAllMonths();
+    if (wait) { el("th-play").textContent = "Loading"; wait.then(function () { el("th-play").textContent = "Play"; toggleThemePlay(); }); return; }
     stopPlay();
     if (Number(el("th-scrub").value) >= tlDays.length - 1) setThemeDay(0);
     el("th-play").textContent = "Pause";
@@ -2058,7 +2476,9 @@
     s.attr("viewBox", "0 0 " + w + " " + h);
     var pts = tlDays.map(function (d, i) {
       var e = C.dayEntry(state.months, d), v = 0;
-      if (e && !relayHidden()) Object.keys(e.countries || {}).forEach(function (c) { if (!state.selected || state.selected === c) v += denominator(e.countries[c], mi); });
+      /* An unloaded month: the world total comes from global_series.json, one country is left undrawn. */
+      if (!e && !state.months[d.slice(0, 7)] && !relayHidden()) v = state.selected ? null : seriesTotal(d, mi, "both");
+      else if (e && !relayHidden()) Object.keys(e.countries || {}).forEach(function (c) { if (!state.selected || state.selected === c) v += denominator(e.countries[c], mi); });
       return {i: i, v: v};
     });
     var who = state.selected ? (state.names[state.selected] || state.selected) : "all monitored countries";
@@ -2068,7 +2488,8 @@
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
-    s.append("path").attr("d", d3.area().x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX)(pts));
+    s.append("path").attr("d", d3.area().defined(function (p) { return p.v !== null; }).x(function (p) { return x(p.i); }).y0(h - 1).y1(function (p) { return y(p.v); }).curve(d3.curveMonotoneX)(pts));
+    if (pts.some(function (p) { return p.v === null; })) el("th-hint").textContent += " Days before " + (loadedFrom() || "") + " are drawn for one country once they load: choose an earlier day, Total or Play.";
     /* Themes version changes, marked the way ruleset and gate changes are on the map timeline. A wide
        transparent line under each mark gives the tooltip something to hover. */
     marks.forEach(function (m) {
@@ -2093,7 +2514,7 @@
       ["% of all its news", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
       ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified" +
-        (C.rediscoveryOf(m) ? "; before " + C.rediscoveryOf(m).fixed_from + " the discovered count includes items a feed kept listing, counted again after a prune, an estimated " + Math.round(C.rediscoveryOf(m).estimated_share * 100) + " percent of it" : "")],
+        (C.rediscoveryOf(m) ? "; before " + C.rediscoveryOf(m).fixed_from + " the discovered count includes items a feed kept listing, counted again after a prune, an estimated " + C.rediscoveryPercent(m) + " percent of it" : "")],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles: missing from every count, but still counted in the share of monitored output denominator, so that share is a lower bound" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
       ["Unchecked state sourcing", !relay.measured ? "not yet measured: the verification stage has not run"
         : (relay.publishable ? "published, " + (m.relay_qualifier || "basis not recorded") : relay.provisional ? "provisional: shown and marked, " + humanStudyShort() : "withheld until hand coding settles it")
@@ -2158,6 +2579,9 @@
     download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "distribution", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "relay_basis", "official_sourcing_pending", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "china_in_published_items", "language_support", "warnings", "citation"]));
   }
   function exportDaily() {
+    /* The daily table is every day, so it waits for the months not loaded yet. */
+    var wait = ensureAllMonths();
+    if (wait) { el("export-daily").disabled = true; wait.then(function () { el("export-daily").disabled = false; exportDaily(); }); return; }
     var rows = [];
     var cite = C.citation(new Date().toISOString().slice(0, 10), CITATION_AUTHOR);
     var routeCols = routeList().map(function (r) { return "route_" + r.id; }).concat(arrivalList().map(function (r) { return "arrival_" + r.id; }));
@@ -2203,22 +2627,7 @@
        chart, and every copy stays in step. A route applies to state origin only, so choosing one
        switches the category to state origin. */
     function applyMetric() {
-      /* A measure that no longer exists, such as the removed state-linked measure, falls back to state origin. */
-      if (!C.GRID[state.measure]) state.measure = "a";
-      if (!C.basisAvailable(state.measure, state.basis)) state.basis = "count";
-      state.metric = C.gridMetric(state.measure, state.basis);
-      Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
-        var basis = b.getAttribute("data-basis"), ok = C.basisAvailable(state.measure, basis);
-        b.classList.toggle("active", basis === state.basis);
-        /* All China coverage is its own denominator, so its share of itself is always 100 percent. */
-        b.disabled = !ok;
-        b.title = ok ? (b.getAttribute("data-title") || b.title)
-                     : "Every article that concerns China is all of a country's China coverage, so this share is always 100 percent.";
-      });
-      Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
-        b.classList.toggle("active", b.getAttribute("data-measure") === state.measure);
-      });
-      el("route").value = state.route ? state.route.kind + ":" + state.route.id : "";
+      syncMetric();
       renderMap(); renderSpark(); renderThemes(); renderLeaning(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
@@ -2236,6 +2645,7 @@
       b.addEventListener("click", function () {
         state.leanAxis = b.getAttribute("data-axis");
         Array.prototype.forEach.call(el("lean-axis").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
+        syncPressed();
         renderLeaning();
       });
     });
@@ -2250,8 +2660,8 @@
     });
     /* The Window toggle is repeated above the map and above the ranked list, like Basis. */
     function applyWindow(v) {
-      state.windowDays = v === "all" ? "all" : Number(v);
-      Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) { b.classList.toggle("active", b.getAttribute("data-window") === v); });
+      syncWindow(v);
+      if (demandMonths(state.endDate, state.windowDays)) return;
       renderMap(); if (state.selected) renderPanel();
     }
     Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) {
@@ -2261,6 +2671,7 @@
       b.addEventListener("click", function () {
         state.mode = b.getAttribute("data-mode");
         Array.prototype.forEach.call(el("mode").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
+        syncPressed();
         renderMap(); renderThemes(); renderLeaning(); if (state.selected) renderPanel();
       });
     });
@@ -2270,11 +2681,63 @@
         document.body.classList.toggle("force-map", v === "map");
         document.body.classList.toggle("force-list", v === "list");
         Array.prototype.forEach.call(el("view").querySelectorAll("button"), function (x) { x.classList.toggle("active", x === b); });
+        syncPressed();
         renderMap();
       });
     });
     el("export-view").addEventListener("click", exportView);
     el("export-daily").addEventListener("click", exportDaily);
+    /* The View toggle names the view on screen, which a resize across 720 pixels can change. */
+    syncDefaultView();
+    if (window.matchMedia) {
+      var mq = window.matchMedia(SMALL_SCREEN), onMq = function () { syncDefaultView(); renderBars(state._agg || currentAgg()); };
+      if (mq.addEventListener) mq.addEventListener("change", onMq); else if (mq.addListener) mq.addListener(onMq);
+    }
+    syncMetric();
+  }
+
+  /* The Measure and Basis rows and the route select, set from state without drawing anything. */
+  function syncMetric() {
+    /* A measure that no longer exists, such as the removed state-linked measure, falls back to state origin. */
+    if (!C.GRID[state.measure]) state.measure = "a";
+    if (state.measure !== "a") state.route = null;
+    if (!C.basisAvailable(state.measure, state.basis)) state.basis = "count";
+    state.metric = C.gridMetric(state.measure, state.basis);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-basis-group] button"), function (b) {
+      var basis = b.getAttribute("data-basis"), ok = C.basisAvailable(state.measure, basis);
+      b.classList.toggle("active", basis === state.basis);
+      /* All China coverage is its own denominator, so its share of itself is always 100 percent. */
+      b.disabled = !ok;
+      b.title = ok ? (b.getAttribute("data-title") || b.title)
+                   : "Every article that concerns China is all of a country's China coverage, so this share is always 100 percent.";
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-measure-group] button"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-measure") === state.measure);
+    });
+    /* Routes split state origin only, so under another measure the select is reset, disabled and says why. */
+    var sel = el("route");
+    if (sel) {
+      sel.value = state.route ? state.route.kind + ":" + state.route.id : "";
+      sel.disabled = state.measure !== "a";
+      sel.title = sel.disabled ? "Routes split state origin only. Choose State origin to filter by route." : "";
+    }
+    var rn = el("route-note");
+    if (rn) { rn.textContent = state.measure !== "a" ? "State origin only" : ""; rn.hidden = state.measure === "a"; }
+    syncPressed();
+  }
+  /* The map Window row, set from state without drawing anything. */
+  function syncWindow(v) {
+    state.windowDays = v === "all" || v === "total" ? "all" : (Number(v) || 30);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-window-group] button"), function (b) { b.classList.toggle("active", b.getAttribute("data-window") === String(state.windowDays)); });
+    syncPressed();
+  }
+  /* Every segmented control of the page says which of its buttons is on to assistive technology, as
+     Distribution does: aria-pressed follows the active class. Only the groups index.html marks as groups;
+     a measure's own segments (docs/m_*.js) keep their own state. */
+  function syncPressed() {
+    Array.prototype.forEach.call(document.querySelectorAll('.segment[role="group"] button'), function (b) {
+      b.setAttribute("aria-pressed", b.classList.contains("active") ? "true" : "false");
+    });
   }
 
   /* The Distribution toggle drives every figure that sums across countries: the map, the ranked list and
@@ -2291,10 +2754,51 @@
   }
 
   /* The public hook other scripts open a country and a day with (docs/m_spikes.js does, for an unusual
-     day): window.TrackerApp, and a "tracker:select" event on document with detail {iso, day}. A country
+     day): window.TrackerApp, and a "tracker:select" event on document with detail {iso, day, measure,
+     window, distribution}. Each field is optional. measure, window and distribution set those controls
+     first (an unusual day opens as state origin, That day, Both), then the day, then the country. A country
      opens through selectCountry, so one the Distribution toggle hides opens under Both with every figure
      redrawn for it. A day off the timeline opens the last day before it, or the first day; the timeline
-     itself caps it at the last. */
+     itself caps it at the last complete day. */
+  var MEASURE_ALIASES = {a: "a", A: "a", state_origin: "a", "state origin": "a", b: "b", B: "b", unchecked: "b", unchecked_state_sourcing: "b", unverified_relay: "b",
+    china: "china", all: "china", all_china: "china", all_china_coverage: "china"};
+  var WINDOW_ALIASES = {"1": 1, day: 1, that_day: 1, "that day": 1, "7": 7, "30": 30, all: "all", total: "all"};
+  function viewFields(d) {
+    d = d || {};
+    var m = d.measure === undefined || d.measure === null ? null : MEASURE_ALIASES[String(d.measure)] || null;
+    var w = d.window === undefined || d.window === null ? null : WINDOW_ALIASES[String(d.window).toLowerCase()];
+    var dist = d.distribution && C.DISTRIBUTIONS.indexOf(String(d.distribution)) !== -1 ? String(d.distribution) : null;
+    return {measure: m, window: w === undefined ? null : w, distribution: dist};
+  }
+  function openView(d) {
+    d = d || {};
+    var v = viewFields(d);
+    var end = d.day !== undefined && d.day !== null ? dayIndex(d.day) : null;
+    var endDate = end === null ? state.endDate : tlDays[end];
+    var win = v.window === null ? state.windowDays : v.window;
+    /* The window asked for may reach before the loaded months: open the view once they have arrived. */
+    if (!covered(windowStart(endDate, win)) && ensureAllMonths()) { state.monthsLoading.then(function () { openView(d); }); return state.endDate; }
+    stopPlay();
+    if (v.measure) state.measure = v.measure;
+    if (v.measure || v.window !== null || v.distribution) {
+      syncMetric();
+      if (v.window !== null) syncWindow(v.window);
+      if (v.distribution) setDistribution(v.distribution, true);
+    }
+    if (end !== null) setDay(end);
+    if (d.iso) selectCountry(String(d.iso));
+    else if (end === null) renderMap();
+    renderSpark(); renderThemes(); renderLeaning(); renderPanel(); renderFindings();
+    return state.endDate;
+  }
+  function dayIndex(day) {
+    var i = typeof day === "number" ? day : -1;
+    if (i === -1 && /^\d{4}-\d{2}-\d{2}$/.test(String(day))) {
+      i = 0;
+      tlDays.forEach(function (x, k) { if (x <= day) i = k; });
+    }
+    return i === -1 || isNaN(i) ? null : i;
+  }
   function openDay(day) {
     var i = typeof day === "number" ? day : -1;
     if (i === -1 && /^\d{4}-\d{2}-\d{2}$/.test(String(day))) {
@@ -2306,11 +2810,15 @@
     setDay(i);
     return state.endDate;
   }
-  window.TrackerApp = {selectCountry: selectCountry, setDay: openDay};
+  window.TrackerApp = {selectCountry: selectCountry, setDay: openDay, open: openView,
+    /* Pure helpers, for tests/app_smoke.js. */
+    helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
+              monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
-    if (d.day !== undefined && d.day !== null) openDay(d.day);
-    if (d.iso) selectCountry(String(d.iso));
+    openView(d);
+    /* In one column the panel sits below the map and the list, so the country is brought into view there. */
+    if (d.iso && window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
     var card = el("map-card");
     if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
   });
@@ -2329,7 +2837,7 @@
         ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
         ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderFindings", renderFindings],
         ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures],
-        ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures]
+        ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures], ["renderStaleNotice", renderStaleNotice]
       ];
       var failed = [];
       steps.forEach(function (step) {

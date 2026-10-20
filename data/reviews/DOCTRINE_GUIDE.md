@@ -13,12 +13,18 @@ the article agrees with the phrase, who said it, or how many phrases the tracker
 
 ## The sheet
 
-Draw a sample with `python -m pipeline.measures sample doctrine --n 200`. It writes
-`data/reviews/doctrine_sample_<date>.csv` and a `.key.json` beside it. Do not open the key.
+Draw a sample with `python -m pipeline.measures sample doctrine` (200 matches by default; `--n`
+takes fewer). It writes `data/reviews/doctrine_sample_<date>.csv` and a `.key.json` beside it; a
+second draw on the same day is written as `_<date>_2` and never overwrites the first, and a draw
+with nothing to draw writes nothing. Do not open the key.
 
 Each row is one match: the article link, its language, the family it was counted for, the matched
 term, and a snippet of about 30 words either side with the match between `[[` and `]]`. Rows are
-spread evenly over families and languages, so rare families and languages are represented.
+spread evenly over the families first, so each of the 13 families gets about 15 rows (a family with
+fewer matches gives its share to the others), and within a family the languages take turns, so rare
+languages are represented too. The snippets are stored when an article is tagged, so a sample drawn
+on a machine without the article bodies still shows matches found in the body, not only in
+headlines.
 
 Fill in three columns:
 
@@ -43,8 +49,16 @@ Answer one question: **is the text between `[[` and `]]` the family's phrase, us
 - `no` when the match is a fragment of a longer phrase with another meaning (for example a family
   name inside an organisation's name), or a navigation link, a tag list or another story's headline
   on the page rather than the article.
-- Muted families (Belt and Road, Global South) are coded the same way: is it the phrase? Their
-  common use outside Chinese state media is expected and is a `yes`.
+- Muted families (Belt and Road, Global South, Multipolar world, People-to-people exchanges) are
+  coded the same way: is it the phrase? Their common use outside Chinese state media is expected
+  and is a `yes`.
+- Multipolar world and People-to-people exchanges count only when a China word (China, Chinese,
+  Beijing, Xi Jinping or their rendering in the article's language) is within about 140 characters
+  of the match. Code the match itself, as above: `yes` when it is the phrase, whoever says it. Note
+  in `note` when the phrase is about another country's policy (India's multipolar world, Vietnam's
+  people-to-people exchanges with Laos); that tells whether the China word rule is close enough.
+- An acronym in brackets right after its full term ("Belt and Road Initiative (BRI)") is counted
+  once with the full term, so it does not appear as a match of its own.
 
 If you read the article itself, judge only the matched occurrence in the snippet, not the article
 as a whole.

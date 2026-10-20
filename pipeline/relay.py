@@ -34,6 +34,7 @@ import hashlib
 import io
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -162,10 +163,17 @@ def delta_since(ack: Optional[str], since_days: int = BUNDLE_DAYS, now: Optional
     return start.astimezone(dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
-def build_bundle(conn, since_days: int = BUNDLE_DAYS, ack: Optional[str] = None, outlets=None) -> bytes:
+def build_bundle(conn, since_days: int = BUNDLE_DAYS, ack: Optional[str] = None, outlets=None,
+                 include_bodies: bool = True) -> bytes:
     """The bundle: every row of the window (no acknowledgement), or only the article rows and shared-feed
     polls changed since the runner's acknowledgement (ack, the build time of the latest bundle it took
-    in without a gap). The small per feed and per day records always cover the whole window."""
+    in without a gap). The small per feed and per day records always cover the whole window.
+
+    This is the bundle in clear, for sealing (make_bundle). With include_bodies False no article or
+    reference body is in it, a paywalled one included: each record that would have carried one says
+    body_withheld instead, and bundle_meta says bodies "withheld", so the runner knows those bodies are
+    to be fetched again where it can (classify_rules.ensure_body). push_bundle never pushes a bundle
+    in clear that carries a body."""
     ensure_change_log(conn)
     built_at = store.utcnow()
     now = dt.datetime.now(dt.timezone.utc)
@@ -191,7 +199,8 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS, ack: Optional[str] = None,
         # First, what this bundle covers: ingest advances the acknowledgement only when it follows on
         # from what the runner already holds (_advance_ack).
         fh.write(json.dumps({"_type": "bundle_meta", "built_at": built_at, "since": changed,
-                             "window_days": since_days}) + "\n")
+                             "window_days": since_days,
+                             "bodies": "included" if include_bodies else "withheld"}) + "\n")
         # Feed health travels too, so the site shows the relayed feeds as healthy rather than
         # as the hosted runner sees them.
         for h in conn.execute("SELECT * FROM feed_health"):
@@ -230,15 +239,43 @@ def build_bundle(conn, since_days: int = BUNDLE_DAYS, ack: Optional[str] = None,
                 continue      # ingest would not insert it (shared_stale_gated), and the runner's own copy needs nothing
             item = {k: r[k] for k in ARTICLE_FIELDS}
             body = store.load_body(r["url_hash"]) if r["status"] in ("fetched", "classified", "awaiting_llm", "paywalled") else None
-            if body:
+            if body and include_bodies:
                 item["body"] = base64.b64encode(gzip.compress(body.encode("utf-8"))).decode("ascii")
+            elif body:
+                item["body_withheld"] = True
             fh.write(json.dumps(item, ensure_ascii=False) + "\n")
         # The relay's reference items (pipeline/reference.py, sources with collector: self_hosted), body
         # inline; the hosted side writes them into reference_items and nothing else.
         from pipeline import reference
         for rec in reference.bundle_records(conn, changed or since):
+            if not include_bodies and rec.pop("body", None):
+                rec["body_withheld"] = True
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
     return buf.getvalue()
+
+
+_KEY_FROM_ENV = object()
+
+
+def make_bundle(conn, ack: Optional[str] = None, outlets=None, key=_KEY_FROM_ENV) -> bytes:
+    """The bundle as it may be pushed to the public relay branch (scratchpad DECISIONS 7): sealed with
+    the relay key (pipeline/bundle_crypto.py) and carrying bodies when there is a key, or in clear with
+    every body left out when there is none. key defaults to the one the environment gives
+    (RELAY_BUNDLE_KEY, or the file RELAY_BUNDLE_KEY_FILE names); it is never written anywhere."""
+    from pipeline import bundle_crypto
+    if key is _KEY_FROM_ENV:
+        key = bundle_crypto.load_key()
+    data = build_bundle(conn, ack=ack, outlets=outlets, include_bodies=bool(key))
+    return bundle_crypto.seal(data, key) if key else data
+
+
+def bodies_in_clear(data: bytes) -> int:
+    """How many records of a bundle in clear carry a body (0 for a sealed bundle, and for bytes that
+    are not a gzipped bundle at all, which ingest could not read either)."""
+    from pipeline import bundle_crypto
+    if bundle_crypto.is_sealed(data) or not data.startswith(b"\x1f\x8b"):
+        return 0
+    return sum(1 for item in iter_bundle(data) if item.get("body"))
 
 
 def _origin_url() -> str:
@@ -272,7 +309,14 @@ def push_bundle(data: bytes, branch: str = RELAY_BRANCH, url: Optional[str] = No
     The commit is made and pushed from a throwaway repository, not the checkout. Made in the checkout,
     every hourly bundle stayed in its object store, and the push recorded each one in the reflog of
     origin/relay, which kept them all from garbage collection: on 2026-10-12 the owner's checkout held
-    230 old bundles, 667 MiB, although the branch never has more than one commit."""
+    230 old bundles, 667 MiB, although the branch never has more than one commit.
+
+    The branch is public: a bundle in clear that carries any body is refused (make_bundle seals one
+    that does, or leaves the bodies out without a key)."""
+    n = bodies_in_clear(data)
+    if n:
+        raise ValueError("refusing to push %d article bodies in clear to the public relay branch; "
+                         "set RELAY_BUNDLE_KEY or build the bundle with make_bundle" % n)
     url = url or _origin_url()
     with tempfile.TemporaryDirectory(prefix="relay-push-") as tmp:
         git = _scratch_git(tmp)
@@ -394,7 +438,9 @@ def run_relay(conn, budget_minutes: float = 30.0, push: bool = True, main_db=Non
         conn.rollback()
         counts["reference"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
     ack = fetch_ack() if push else None
-    data = build_bundle(conn, ack=ack)
+    data = make_bundle(conn, ack=ack)
+    from pipeline import bundle_crypto
+    counts["bundle_sealed"] = bundle_crypto.is_sealed(data)    # False: in clear, bodies left out
     counts["bundle_bytes"] = len(data)
     counts["bundle_since"] = delta_since(ack)      # None: the whole window
     if push:
@@ -410,25 +456,99 @@ def run_relay(conn, budget_minutes: float = 30.0, push: bool = True, main_db=Non
 # ingest side
 # ---------------------------------------------------------------------------
 
-def fetch_bundle(branch: str = RELAY_BRANCH) -> Optional[bytes]:
+def fetch_bundle(branch: str = RELAY_BRANCH, key=_KEY_FROM_ENV) -> Optional[bytes]:
+    """The bundle on the relay branch, in clear, or None when there is none or it cannot be opened.
+    A sealed bundle (pipeline/bundle_crypto.py) is opened with RELAY_BUNDLE_KEY (an Actions secret on
+    the runner); without the key, or when its tag does not verify, the reason is printed and the run
+    goes on as if there were no bundle. A bundle in clear (no key on the relay yet) carries no bodies."""
     r = _git("fetch", "--quiet", "origin", "%s:refs/remotes/origin/%s" % (branch, branch), check=False)
     if r.returncode != 0:
         return None
     r = _git("show", "origin/%s:%s" % (branch, BUNDLE_NAME), check=False)
-    return r.stdout if r.returncode == 0 else None
+    return open_bundle(r.stdout, key) if r.returncode == 0 else None
 
 
-def iter_bundle(data: bytes) -> Iterable[Dict]:
-    with gzip.open(io.BytesIO(data), "rt", encoding="utf-8") as fh:
-        for line in fh:
-            if line.strip():
-                yield json.loads(line)
+def open_bundle(data: Optional[bytes], key=_KEY_FROM_ENV) -> Optional[bytes]:
+    """A fetched bundle in clear: a sealed one opened with the key, one in clear as it is, None when
+    a sealed one cannot be opened (no key, a wrong key, a changed bundle)."""
+    from pipeline import bundle_crypto
+    if not data or not bundle_crypto.is_sealed(data):
+        return data
+    if key is _KEY_FROM_ENV:
+        key = bundle_crypto.load_key()
+    try:
+        return bundle_crypto.open_sealed(data, key)
+    except (bundle_crypto.BundleKeyError, bundle_crypto.BundleAuthError) as exc:
+        print("relay ingest: the sealed bundle was not opened: %s" % exc, file=sys.stderr)
+        return None
 
 
-def _save_body(item: Dict) -> bool:
+def iter_bundle(data: bytes, problems: Optional[Dict] = None) -> Iterable[Dict]:
+    """The bundle's records in order. Without `problems` a damaged bundle raises. With it (ingest), a
+    line that is not a JSON object is skipped and counted in problems["malformed_lines"], and a stream
+    that ends early (a truncated gzip) stops there with problems["truncated"] set: the records read
+    before it are kept."""
+    import zlib
+    if problems is None:
+        with gzip.open(io.BytesIO(data), "rt", encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    yield json.loads(line)
+        return
+    with gzip.GzipFile(fileobj=io.BytesIO(data)) as fh:
+        while True:
+            try:
+                line = fh.readline()
+            except (EOFError, OSError, zlib.error) as exc:
+                problems["truncated"] = "%s: %s" % (type(exc).__name__, str(exc)[:120])
+                return
+            if not line:
+                return
+            if not line.strip():
+                continue
+            try:
+                item = json.loads(line.decode("utf-8"))
+            except ValueError:
+                item = None
+            if not isinstance(item, dict):
+                problems["malformed_lines"] = problems.get("malformed_lines", 0) + 1
+                continue
+            yield item
+
+
+def _save_body(item: Dict, counts: Optional[Dict] = None) -> bool:
+    """Store a record's body. A body that does not decode (bad base64, a truncated gzip, not UTF-8)
+    is left out and counted in counts["body_malformed"]; the article itself is still taken in."""
+    import binascii
+    import zlib
     if not item.get("body"):
         return False
-    store.save_body(item["url_hash"], gzip.decompress(base64.b64decode(item["body"])).decode("utf-8"))
+    try:
+        text = gzip.decompress(base64.b64decode(item["body"])).decode("utf-8")
+    except (binascii.Error, EOFError, OSError, TypeError, ValueError, zlib.error) as exc:
+        if counts is not None:
+            counts["body_malformed"] = counts.get("body_malformed", 0) + 1
+        print("relay ingest: body of %s left out: %s" % (item.get("url_hash"), type(exc).__name__), file=sys.stderr)
+        return False
+    store.save_body(item["url_hash"], text)
+    return True
+
+
+def fill_body(conn, row, item: Dict, counts: Optional[Dict] = None) -> bool:
+    """A delivered body for a hosted row that changed in nothing else but has no body file: stored when
+    the row's recorded body is this very text (a body withheld from an earlier bundle, before the bundle
+    key existed, arrives now), or when the row records no body at all (it then takes the relay's body_hash
+    and body_chars). A row whose recorded body is another text keeps it: its label was made on that one."""
+    if not item.get("body") or row["status"] == "junk_feed" or store.body_path(item["url_hash"]).exists():
+        return False
+    recorded = row["body_hash"] if "body_hash" in row.keys() else None
+    if recorded and recorded != item.get("body_hash"):
+        return False
+    if not _save_body(item, counts):
+        return False
+    if not recorded and item.get("body_hash"):
+        store.update_article(conn, row["id"], body_hash=item["body_hash"],
+                             **({"body_chars": item["body_chars"]} if item.get("body_chars") is not None else {}))
     return True
 
 
@@ -578,6 +698,13 @@ def reconcile_poll(conn, ev: Dict) -> Optional[Dict]:
     return {"saturated_own": sat_own, "saturated": sat, "rejudged": rejudged}
 
 
+# What a malformed record raises while it is taken in (a missing field, a value of the wrong type, a value
+# SQLite will not bind or a constraint refuses). A locked or full database is not among them: that stops
+# the ingest as before.
+_MALFORMED_RECORD = (KeyError, TypeError, ValueError, AttributeError, IndexError,
+                     sqlite3.IntegrityError, sqlite3.InterfaceError)
+
+
 def ingest(conn, data: bytes, outlets=None) -> Dict:
     """Insert every article the main database does not know, and bring forward the ones whose relay
     copy is further along. Discovery is never counted twice.
@@ -602,134 +729,166 @@ def ingest(conn, data: bytes, outlets=None) -> Dict:
     cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=14)).isoformat()
     conn.execute("DELETE FROM relay_seen WHERE seen_at < ?", (cutoff,))
     meta = None
-    for item in iter_bundle(data):
-        if item.get("_type") == "bundle_meta":
-            meta = item
-            continue
-        if item.get("_type") in ("outlet_discovery", "feed_health", "feed_poll") and item.get("outlet_id") in shared:
-            counts["shared_skipped"] = counts.get("shared_skipped", 0) + 1
-            continue
-        if item.get("_type") == "feed_poll_event":
-            done = reconcile_poll(conn, item)
-            if done is not None:
-                counts["shared_polls"] = counts.get("shared_polls", 0) + 1
-                counts["shared_polls_saturated"] = counts.get("shared_polls_saturated", 0) + (1 if done["saturated"] else 0)
-                counts["shared_polls_rejudged"] = counts.get("shared_polls_rejudged", 0) + done["rejudged"]
-            continue
-        if item.get("_type") == "outlet_discovery":
-            item = junk_feeds.relay_outlet_day(conn, item, junk)
-            if item is None:
-                counts["junk_outlet_days"] = counts.get("junk_outlet_days", 0) + 1
+    # Each record is taken in under its own savepoint: one that cannot be (bad JSON, a missing field,
+    # a value of the wrong type) is rolled back alone and counted in skipped_malformed, and the rest of
+    # the bundle goes on. A damaged bundle (skipped lines, a truncated stream) holds the acknowledgement,
+    # so the next bundle sends the window again; taking a record in twice changes nothing.
+    problems = {}
+    for item in iter_bundle(data, problems):
+        if not conn.in_transaction:
+            conn.execute("BEGIN")
+        conn.execute("SAVEPOINT relay_record")
+        commit_due, counted = False, dict(counts)
+        try:
+            if item.get("_type") == "bundle_meta":
+                meta = item
                 continue
-            conn.execute(
-                """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered, gate_relevant) VALUES (?,?,?,?,?)
-                   ON CONFLICT(date, outlet_id) DO UPDATE SET country=excluded.country, discovered=excluded.discovered,
-                     gate_relevant=excluded.gate_relevant""",
-                (item["date"], item["outlet_id"], item["country"], item["discovered"], item.get("gate_relevant", 0)))
-            counts["outlet_days"] = counts.get("outlet_days", 0) + 1
-            continue
-        if item.get("_type") == "relay_run":
-            conn.execute("INSERT OR IGNORE INTO relay_runs(started_at, finished_at, ok) VALUES (?,?,?)",
-                         (item["started_at"], item.get("finished_at"), item.get("ok")))
-            conn.execute("UPDATE relay_runs SET finished_at=?, ok=? WHERE started_at=? AND finished_at IS NULL",
-                         (item.get("finished_at"), item.get("ok"), item["started_at"]))
-            counts["relay_runs"] = counts.get("relay_runs", 0) + 1
-            continue
-        if item.get("_type") == "feed_health":
-            conn.execute(
-                """INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, last_error, last_entries,
-                   consecutive_failures, total_checks, total_failures) VALUES (?,?,?,?,?,?,?,?,?)
-                   ON CONFLICT(feed_url) DO UPDATE SET outlet_id=excluded.outlet_id, last_checked=excluded.last_checked,
-                     last_ok=excluded.last_ok, last_error=excluded.last_error, last_entries=excluded.last_entries,
-                     consecutive_failures=excluded.consecutive_failures, total_checks=excluded.total_checks,
-                     total_failures=excluded.total_failures""",
-                (item["feed_url"], item["outlet_id"], item["last_checked"], item["last_ok"], item["last_error"],
-                 item["last_entries"], item["consecutive_failures"], item["total_checks"], item["total_failures"]))
-            counts["feeds"] = counts.get("feeds", 0) + 1
-            continue
-        if item.get("_type") == "feed_poll":
-            # Keyed by day, feed and collector, and replaced rather than added to: the relay's row is
-            # its running total for the day, so a re-sent or later bundle never counts a poll twice,
-            # and the runner's own polls of the same feed stay in their own row.
-            conn.execute(
-                """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items,
-                                          missed_estimate, collector, estimator) VALUES (?,?,?,?,?,?,?,?,?,?,?)
-                   ON CONFLICT(date, feed_url, collector) DO UPDATE SET outlet_id=excluded.outlet_id,
-                     country=excluded.country, polls=excluded.polls, saturated=excluded.saturated,
-                     entries=excluded.entries, new_items=excluded.new_items, missed_estimate=excluded.missed_estimate,
-                     estimator=excluded.estimator""",
-                (item["date"], item["feed_url"], item["outlet_id"], item["country"], item.get("polls", 0),
-                 item.get("saturated", 0), item.get("entries", 0), item.get("new_items", 0),
-                 item.get("missed_estimate", 0.0), RELAY_COLLECTOR, item.get("estimator") or "v1"))
-            counts["feed_poll_days"] = counts.get("feed_poll_days", 0) + 1
-            continue
-        if item.get("_type") == "reference_item":
-            # A reference source item (pipeline/reference.py): into reference_items only, never an article.
-            from pipeline import reference
-            done = reference.ingest_record(conn, item)
-            counts["reference_" + done] = counts.get("reference_" + done, 0) + 1
-            continue
-        if item.get("_type") or "url_hash" not in item:
-            # A record type this version does not know, from a newer relay. Skip it rather than fail
-            # the whole run: on 2026-09-14 a bundle with a new record type stopped two hourly runs.
-            counts["skipped_unknown"] = counts.get("skipped_unknown", 0) + 1
-            continue
-        counts["seen"] += 1
-        existing = conn.execute(
-            "SELECT id, status, gate_relevant, country, title, fail_reason FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()
-        if existing:
-            changed = update_existing(conn, existing, item)
-            if changed:
-                counts["updated"] += 1
-                if "gate_relevant" in changed:
-                    counts["promoted_relevant"] = counts.get("promoted_relevant", 0) + 1
-                    link_near_duplicates(conn, existing["id"], item.get("title") or existing["title"] or "",
-                                         item.get("country") or existing["country"])
-                if _save_body(item):
+            if item.get("_type") in ("outlet_discovery", "feed_health", "feed_poll") and item.get("outlet_id") in shared:
+                counts["shared_skipped"] = counts.get("shared_skipped", 0) + 1
+                continue
+            if item.get("_type") == "feed_poll_event":
+                done = reconcile_poll(conn, item)
+                if done is not None:
+                    counts["shared_polls"] = counts.get("shared_polls", 0) + 1
+                    counts["shared_polls_saturated"] = counts.get("shared_polls_saturated", 0) + (1 if done["saturated"] else 0)
+                    counts["shared_polls_rejudged"] = counts.get("shared_polls_rejudged", 0) + done["rejudged"]
+                continue
+            if item.get("_type") == "outlet_discovery":
+                item = junk_feeds.relay_outlet_day(conn, item, junk)
+                if item is None:
+                    counts["junk_outlet_days"] = counts.get("junk_outlet_days", 0) + 1
+                    continue
+                conn.execute(
+                    """INSERT INTO daily_outlet_discovery(date, outlet_id, country, discovered, gate_relevant) VALUES (?,?,?,?,?)
+                       ON CONFLICT(date, outlet_id) DO UPDATE SET country=excluded.country, discovered=excluded.discovered,
+                         gate_relevant=excluded.gate_relevant""",
+                    (item["date"], item["outlet_id"], item["country"], item["discovered"], item.get("gate_relevant", 0)))
+                counts["outlet_days"] = counts.get("outlet_days", 0) + 1
+                continue
+            if item.get("_type") == "relay_run":
+                conn.execute("INSERT OR IGNORE INTO relay_runs(started_at, finished_at, ok) VALUES (?,?,?)",
+                             (item["started_at"], item.get("finished_at"), item.get("ok")))
+                conn.execute("UPDATE relay_runs SET finished_at=?, ok=? WHERE started_at=? AND finished_at IS NULL",
+                             (item.get("finished_at"), item.get("ok"), item["started_at"]))
+                counts["relay_runs"] = counts.get("relay_runs", 0) + 1
+                continue
+            if item.get("_type") == "feed_health":
+                conn.execute(
+                    """INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, last_error, last_entries,
+                       consecutive_failures, total_checks, total_failures, newest_entry) VALUES (?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(feed_url) DO UPDATE SET outlet_id=excluded.outlet_id, last_checked=excluded.last_checked,
+                         last_ok=excluded.last_ok, last_error=excluded.last_error, last_entries=excluded.last_entries,
+                         consecutive_failures=excluded.consecutive_failures, total_checks=excluded.total_checks,
+                         total_failures=excluded.total_failures,
+                         newest_entry=COALESCE(excluded.newest_entry, feed_health.newest_entry)""",
+                    (item["feed_url"], item["outlet_id"], item["last_checked"], item["last_ok"], item["last_error"],
+                     item["last_entries"], item["consecutive_failures"], item["total_checks"], item["total_failures"],
+                     item.get("newest_entry")))
+                counts["feeds"] = counts.get("feeds", 0) + 1
+                continue
+            if item.get("_type") == "feed_poll":
+                # Keyed by day, feed and collector, and replaced rather than added to: the relay's row is
+                # its running total for the day, so a re-sent or later bundle never counts a poll twice,
+                # and the runner's own polls of the same feed stay in their own row.
+                conn.execute(
+                    """INSERT INTO feed_polls(date, feed_url, outlet_id, country, polls, saturated, entries, new_items,
+                                              missed_estimate, collector, estimator) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(date, feed_url, collector) DO UPDATE SET outlet_id=excluded.outlet_id,
+                         country=excluded.country, polls=excluded.polls, saturated=excluded.saturated,
+                         entries=excluded.entries, new_items=excluded.new_items, missed_estimate=excluded.missed_estimate,
+                         estimator=excluded.estimator""",
+                    (item["date"], item["feed_url"], item["outlet_id"], item["country"], item.get("polls", 0),
+                     item.get("saturated", 0), item.get("entries", 0), item.get("new_items", 0),
+                     item.get("missed_estimate", 0.0), RELAY_COLLECTOR, item.get("estimator") or "v1"))
+                counts["feed_poll_days"] = counts.get("feed_poll_days", 0) + 1
+                continue
+            if item.get("_type") == "reference_item":
+                # A reference source item (pipeline/reference.py): into reference_items only, never an article.
+                from pipeline import reference
+                done = reference.ingest_record(conn, item)
+                counts["reference_" + done] = counts.get("reference_" + done, 0) + 1
+                continue
+            if item.get("_type") or "url_hash" not in item:
+                # A record type this version does not know, from a newer relay. Skip it rather than fail
+                # the whole run: on 2026-09-14 a bundle with a new record type stopped two hourly runs.
+                counts["skipped_unknown"] = counts.get("skipped_unknown", 0) + 1
+                continue
+            counts["seen"] += 1
+            existing = conn.execute(
+                "SELECT id, status, gate_relevant, country, title, fail_reason, body_hash FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()
+            if existing:
+                changed = update_existing(conn, existing, item)
+                if changed:
+                    counts["updated"] += 1
+                    if "gate_relevant" in changed:
+                        counts["promoted_relevant"] = counts.get("promoted_relevant", 0) + 1
+                        link_near_duplicates(conn, existing["id"], item.get("title") or existing["title"] or "",
+                                             item.get("country") or existing["country"])
+                    if _save_body(item, counts):
+                        counts["bodies"] += 1
+                    commit_due = True
+                elif fill_body(conn, existing, item, counts):
                     counts["bodies"] += 1
+                    counts["bodies_filled"] = counts.get("bodies_filled", 0) + 1
+                    commit_due = True
+                continue
+            if conn.execute("SELECT 1 FROM relay_seen WHERE url_hash=?", (item["url_hash"],)).fetchone():
+                counts["already_delivered"] += 1   # delivered earlier and pruned since; not a new item
+                continue
+            # An article this database held and pruned (store.seen_urls): outside the gate it stays out and
+            # is not counted again; inside it now, it is taken in on the day its discovery was counted here.
+            seen = store.seen_before(conn, item["url_hash"])
+            if seen is not None and (seen[1] or not item.get("gate_relevant")):
+                counts["seen_before"] = counts.get("seen_before", 0) + 1
+                continue
+            seen_day = seen[0] if seen is not None else None
+            if seen_day is not None:
+                item = dict(item, day_of_record=seen_day)
+                store.forget_seen(conn, item["url_hash"])
+            is_shared = item.get("outlet_id") in shared
+            if is_shared and not item.get("gate_relevant") and item.get("status") == "gated_out" \
+                    and (item.get("discovered_at") or "") < stale_gated:
+                counts["shared_stale_gated"] = counts.get("shared_stale_gated", 0) + 1
+                continue
+            cols = [k for k in ARTICLE_FIELDS if k in item]
+            conn.execute("INSERT INTO articles (%s) VALUES (%s)" % (", ".join(cols), ", ".join("?" * len(cols))),
+                         [item[k] for k in cols])
+            new_id = conn.execute("SELECT id FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()[0]
+            conn.execute("INSERT OR REPLACE INTO relay_seen(url_hash, seen_at) VALUES (?,?)", (item["url_hash"], store.utcnow()))
+            counts["inserted"] += 1
+            relevant = bool(item.get("gate_relevant"))
+            # Discovery counts for relay outlets come from the bundle's own per outlet-day rows above; a
+            # shared outlet's are counted here, once, on the day the relay found the article.
+            if is_shared and seen_day is not None:
+                store.record_relevant_again(conn, item["country"], item["outlet_id"], seen_day)
+            elif is_shared:
+                store.record_discovery(conn, item["country"], relevant, item["outlet_id"],
+                                       item.get("day_of_record") or (item.get("discovered_at") or "")[:10] or None)
+            if _save_body(item, counts):
+                counts["bodies"] += 1
+            if relevant:
+                counts["relevant"] += 1
+                link_near_duplicates(conn, new_id, item.get("title") or "", item["country"])
+            if counts["inserted"] % 200 == 0:
+                commit_due = True
+        except _MALFORMED_RECORD as exc:
+            conn.execute("ROLLBACK TO relay_record")
+            counts.clear()
+            counts.update(counted)
+            counts["skipped_malformed"] = counts.get("skipped_malformed", 0) + 1
+            counts["last_malformed"] = "%s: %s: %s" % (item.get("_type") or "article", type(exc).__name__, str(exc)[:160])
+        finally:
+            conn.execute("RELEASE relay_record")
+            if commit_due:
                 conn.commit()
-            continue
-        if conn.execute("SELECT 1 FROM relay_seen WHERE url_hash=?", (item["url_hash"],)).fetchone():
-            counts["already_delivered"] += 1   # delivered earlier and pruned since; not a new item
-            continue
-        # An article this database held and pruned (store.seen_urls): outside the gate it stays out and
-        # is not counted again; inside it now, it is taken in on the day its discovery was counted here.
-        seen = store.seen_before(conn, item["url_hash"])
-        if seen is not None and (seen[1] or not item.get("gate_relevant")):
-            counts["seen_before"] = counts.get("seen_before", 0) + 1
-            continue
-        seen_day = seen[0] if seen is not None else None
-        if seen_day is not None:
-            item = dict(item, day_of_record=seen_day)
-            store.forget_seen(conn, item["url_hash"])
-        is_shared = item.get("outlet_id") in shared
-        if is_shared and not item.get("gate_relevant") and item.get("status") == "gated_out" \
-                and (item.get("discovered_at") or "") < stale_gated:
-            counts["shared_stale_gated"] = counts.get("shared_stale_gated", 0) + 1
-            continue
-        cols = [k for k in ARTICLE_FIELDS if k in item]
-        conn.execute("INSERT INTO articles (%s) VALUES (%s)" % (", ".join(cols), ", ".join("?" * len(cols))),
-                     [item[k] for k in cols])
-        new_id = conn.execute("SELECT id FROM articles WHERE url_hash=?", (item["url_hash"],)).fetchone()[0]
-        conn.execute("INSERT OR REPLACE INTO relay_seen(url_hash, seen_at) VALUES (?,?)", (item["url_hash"], store.utcnow()))
-        counts["inserted"] += 1
-        relevant = bool(item.get("gate_relevant"))
-        # Discovery counts for relay outlets come from the bundle's own per outlet-day rows above; a
-        # shared outlet's are counted here, once, on the day the relay found the article.
-        if is_shared and seen_day is not None:
-            store.record_relevant_again(conn, item["country"], item["outlet_id"], seen_day)
-        elif is_shared:
-            store.record_discovery(conn, item["country"], relevant, item["outlet_id"],
-                                   item.get("day_of_record") or (item.get("discovered_at") or "")[:10] or None)
-        if _save_body(item):
-            counts["bodies"] += 1
-        if relevant:
-            counts["relevant"] += 1
-            link_near_duplicates(conn, new_id, item.get("title") or "", item["country"])
-        if counts["inserted"] % 200 == 0:
-            conn.commit()
+    if problems.get("malformed_lines"):
+        counts["skipped_malformed"] = counts.get("skipped_malformed", 0) + problems["malformed_lines"]
+    if problems.get("truncated"):
+        counts["bundle_truncated"] = problems["truncated"]
     conn.commit()
-    if meta is not None:
+    if meta is not None and (counts.get("skipped_malformed") or counts.get("bundle_truncated")):
+        counts["ack_held"] = True
+    elif meta is not None:
         counts.update(_advance_ack(conn, meta))
     return counts
 
@@ -800,7 +959,7 @@ def main(argv=None):
     if args.cmd == "run":
         print(json.dumps(run_relay(conn, args.budget_minutes, push=not args.no_push)))
     elif args.cmd == "bundle":
-        data = build_bundle(conn, ack=None if args.no_push else fetch_ack())
+        data = make_bundle(conn, ack=None if args.no_push else fetch_ack())
         print(json.dumps({"commit": push_bundle(data)} if not args.no_push else {"bytes": len(data)}))
     elif args.cmd == "ack":
         print("relay ack:", json.dumps(push_ack(conn)))

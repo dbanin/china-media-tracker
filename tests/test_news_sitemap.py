@@ -357,3 +357,27 @@ def test_poll_outlet_reads_a_sitemap_feed_with_the_sitemap_reader(monkeypatch):
     out = fetch_feeds.poll_outlet(outlet)
     assert called == [("rss", "https://x.test/feed/"), ("map", "https://x.test/news-sitemap.xml")]
     assert [g["type"] for g in out] == ["rss", "news_sitemap"] and all(g["kind"] == "editorial" for g in out)
+
+
+def test_get_xml_checks_robots_on_every_redirect_target(monkeypatch):
+    """requests.get(..., allow_redirects=True) followed a redirect without the robots.txt check on its
+    target; get_xml now goes through fetch_articles.polite_get, as article and feed fetches do."""
+    from pipeline import fetch_articles as fa
+    import requests
+    asked, waited = [], []
+    monkeypatch.setattr(fa, "can_fetch", lambda url: (False, "robots_disallowed") if "blocked" in url
+                        else (True, "robots_allowed"))
+    monkeypatch.setattr(fa, "_rate_wait", lambda domain: waited.append(domain))
+
+    class _Moved:
+        status_code = 301
+        headers = {"Location": "https://blocked.test/news.xml"}
+        content = b""
+
+    def get(url, headers=None, allow_redirects=True, **k):
+        asked.append((url, allow_redirects))
+        return _Moved()
+    monkeypatch.setattr(requests, "get", get)
+    assert ns.get_xml("https://www.asiaone.com/googlenews.xml") == (None, None, "redirect_robots_disallowed")
+    assert asked == [("https://www.asiaone.com/googlenews.xml", False)], "the disallowed target is never requested"
+    assert waited == ["www.asiaone.com"]

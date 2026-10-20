@@ -1,0 +1,8 @@
+Farhadi’s “Parallel Tales” wins best screenplay award at Silk Road International Film Festival - Tehran Times
+article
+Culture
+Silk Road International Film Festival,Parallel Tales,Asghar Farhadi
+genre: news
+keywords: Silk Road International Film Festival, Parallel Tales, Asghar Farhadi
+@type: NewsArticle
+@type: BreadcrumbList

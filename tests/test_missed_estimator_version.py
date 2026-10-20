@@ -7,11 +7,32 @@ from which day, while polls and saturated polls stay counted over every row."""
 import datetime as dt
 import json
 import sqlite3
+import types
+
+import pytest
 
 from pipeline import config, export, relay, store
 
 FEED = "https://x.test/feed"
-TODAY = dt.datetime.now(dt.timezone.utc).date().isoformat()
+TODAY = None        # set per test by _one_day: the day store's clock is held on
+
+
+@pytest.fixture(autouse=True)
+def _one_day(monkeypatch):
+    """store's clock held at the instant the test starts, so the rows it writes and TODAY name the same
+    day even when the test runs across midnight (a module level TODAY, read at collection, did not)."""
+    global TODAY
+    held = store.dt.datetime.now(dt.timezone.utc)
+    real = store.dt.datetime
+
+    class Held(real):
+        @classmethod
+        def now(cls, tz=None):
+            return held if tz is not None else held.replace(tzinfo=None)
+    clock = types.SimpleNamespace(**{k: getattr(store.dt, k) for k in dir(store.dt) if not k.startswith("__")})
+    clock.datetime = Held
+    monkeypatch.setattr(store, "dt", clock)
+    TODAY = held.date().isoformat()
 OUTLETS = [{"id": "o", "name": "O", "country": "ITA", "language": "it", "feeds": [FEED], "tier": "regional",
             "active": True}]
 

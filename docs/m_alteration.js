@@ -1,7 +1,10 @@
 /* Alteration score (measure alteration): how much of the state text an outlet changed when it ran a
    state origin copy, from data/alteration.json (pipeline/copies.py). Renders into #copies-alteration:
-   the status chip, one band bar per route, a ranked outlet table with n and median score, and a
-   coverage line. Report only; no label or count changes. Never shows body text.
+   the status chip, a band bar for each kind of original (the state outlet's own page, or an earlier
+   monitored copy, never pooled in the lead) and one per route, a ranked outlet table with n, distinct
+   originals and median score, a coverage line and the reference sources' fetch status. Lead shares
+   count each underlying item once, with the copies beside them. Report only; no label or count
+   changes. Never shows body text.
    Loaded in the browser after measures.js, and in Node or jsc with module.exports. */
 (function (root, factory) {
   var M = root && root.TrackerMeasures;
@@ -21,33 +24,39 @@
     no_reference_match: "no reference item matched",
     alignment_rejected: "candidates under 30% aligned"
   };
+  var SOURCES = {ref_xinhua_en: "Xinhua English", ref_cgtn_en: "CGTN", ref_china_daily_en: "China Daily",
+                 ref_global_times_en: "Global Times", ref_peoples_daily_en: "People's Daily English",
+                 ref_ecns_en: "ECNS"};
 
   function esc(s) { return M ? M.esc(s) : String(s === null || s === undefined ? "" : s); }
   function pct(x) { return typeof x === "number" ? Math.round(x * 100) + "%" : "n/a"; }
   function num(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
   function plural(n, one, many) { return num(n) + " " + (n === 1 ? one : (many || one + "s")); }
 
-  /* Band shares of a group, from its counts, or null when nothing in it was scored. */
-  function shares(g) {
-    var total = 0, out = {};
-    BANDS.forEach(function (b) { total += ((g && g.bands) || {})[b] || 0; });
+  /* Band shares of a group, from its copy counts (or, with byItems, its item weights, each underlying
+     item counted once), or null when nothing in it was scored. */
+  function shares(g, byItems) {
+    var src = (g && (byItems ? g.item_bands : g.bands)) || {}, total = 0, out = {};
+    BANDS.forEach(function (b) { total += src[b] || 0; });
     if (!total) return null;
-    BANDS.forEach(function (b) { out[b] = (g.bands[b] || 0) / total; });
+    BANDS.forEach(function (b) { out[b] = (src[b] || 0) / total; });
     return out;
   }
 
-  /* One stacked bar: the four bands of a group, with a text equivalent for screen readers. */
-  function bar(label, g) {
-    var s = shares(g);
+  /* One stacked bar: the four bands of a group, with a text equivalent for screen readers. byItems
+     weighs each underlying item once and says so beside the copies. */
+  function bar(label, g, byItems) {
+    var s = shares(g, byItems);
     if (!s) return "";
     var segs = "", words = [];
     BANDS.forEach(function (b) {
       if (!s[b]) return;
       segs += '<span class="alt-seg alt-' + b + '" style="width:' + (Math.round(s[b] * 1000) / 10) + '%" title="' +
-        esc(BAND_TEXT[b] + ": " + pct(s[b]) + " (" + g.bands[b] + ")") + '"></span>';
+        esc(BAND_TEXT[b] + ": " + pct(s[b]) + (byItems ? "" : " (" + g.bands[b] + ")")) + '"></span>';
       words.push(BAND_TEXT[b].toLowerCase() + " " + pct(s[b]));
     });
-    return '<div class="alt-row"><div class="alt-label">' + esc(label) + ' <span class="alt-n">n = ' + num(g.scored) + '</span></div>' +
+    var n = byItems ? plural(g.items, "item") + ", " + plural(g.scored, "copy", "copies") : "n = " + num(g.scored);
+    return '<div class="alt-row"><div class="alt-label">' + esc(label) + ' <span class="alt-n">' + esc(n) + '</span></div>' +
       '<div class="alt-bar" role="img" aria-label="' + esc(label + ": " + words.join(", ")) + '">' + segs + '</div></div>';
   }
 
@@ -73,37 +82,74 @@
     Object.keys(reasons).sort(function (a, b) { return reasons[b] - reasons[a]; }).forEach(function (k) {
       parts.push(num(reasons[k]) + " " + (REASONS[k] || k.replace(/_/g, " ")));
     });
-    return "Of " + plural(n, "state origin copy", "state origin copies") + ", " + num(paired) + " have an original (" +
-      num(c.reference || 0) + " from a reference source, " + num(c.monitored || 0) + " an earlier monitored copy) and " +
+    return "Of " + plural(n, "state origin copy", "state origin copies") +
+      (typeof c.items === "number" ? " (" + plural(c.items, "underlying item") + ")" : "") + ", " + num(paired) + " have an original (" +
+      num(c.reference || 0) + " from a reference source, " + num(c.monitored || 0) + " an earlier monitored copy" +
+      (typeof c.originals === "number" ? "; " + plural(c.originals, "distinct original") : "") + ") and " +
       num(c.scored || 0) + " could be scored with both texts available." +
       (parts.length ? " No original: " + parts.join(", ") + "." : "") +
+      (c.sister_only ? " " + plural(c.sister_only, "copy", "copies") + " had an earlier copy only at a sister outlet of the same media group, which is the same placement and is not taken as an original." : "") +
       (c.translation ? " In all " + plural(c.translation, "copy is a translation", "copies are translations") + " of state text first published in another language; they are never matched across languages." : "") +
       " Bodies are kept only where the tracker runs, so copies whose texts are missing are not scored.";
   }
 
+  /* The reference sources' fetch status: why reference originals are few, source by source. */
+  function sourcesLine(data) {
+    var rows = (data && data.reference_sources) || [];
+    if (!rows.length) return "";
+    return "State outlets' own pages read as originals: " + rows.map(function (d) {
+      var st = d.statuses || {}, bits = [num(st.fetched) + " of " + num(d.items) + " fetched"];
+      if (st.expired) bits.push(num(st.expired) + " expired unread");
+      if (st.failed) bits.push(num(st.failed) + " failed");
+      if (st.paywalled) bits.push(num(st.paywalled) + " paywalled");
+      if ((d.flags || []).indexOf("date only after day one") !== -1) bits.push(pct(d.share_date_only_after_day_one) + " still date only after a day");
+      return (SOURCES[d.source] || d.source) + " " + bits.join(", ");
+    }).join("; ") + ".";
+  }
+
   function outletTable(data, api) {
     var rows = (data && data.by_outlet) || [];
-    if (!rows.length) return '<p class="m-empty">No outlet has ' + num((data && data.outlet_min_n) || 5) + ' scored copies yet.</p>';
+    if (!rows.length) return '<p class="m-empty">No outlet has scored copies of ' + num((data && data.outlet_min_n) || 5) + ' distinct originals yet.</p>';
     var cn = (api && api.countryName) || function (x) { return x; };
     return '<div class="m-table-wrap"><table class="m-table alt-table"><thead><tr><th>Outlet</th><th>Country</th>' +
-      '<th class="num">n</th><th class="num">Median score</th><th class="num">Substantial</th><th class="num">Original kept</th></tr></thead><tbody>' +
+      '<th class="num">n</th><th class="num">Originals</th><th class="num">Median score</th><th class="num">Substantial</th><th class="num">Original kept</th></tr></thead><tbody>' +
       rows.map(function (r) {
         var s = shares(r) || {};
         return '<tr><td>' + esc(r.name || r.id) + '</td><td>' + esc(cn(r.country || "")) + '</td><td class="num">' + num(r.scored) +
+          '</td><td class="num">' + (typeof r.originals === "number" ? num(r.originals) : "n/a") +
           '</td><td class="num">' + pct(r.median_novel) + '</td><td class="num">' + pct(s.substantial) + '</td><td class="num">' + pct(r.median_kept) + '</td></tr>';
-      }).join("") + '</tbody></table></div>';
+      }).join("") + '</tbody></table></div>' +
+      '<p class="alt-note">Outlets with copies of at least ' + num((data && data.outlet_min_n) || 5) + ' distinct originals. n counts copies, Originals the distinct texts they were compared with.</p>';
   }
 
-  /* The lead sentence over all scored copies. */
-  function lead(data) {
-    var t = (data && data.totals) || {};
-    var s = shares(t);
+  /* One kind of original in words: shares over distinct underlying items, with copies and originals beside them. */
+  function kindSentence(g, kind) {
+    var s = shares(g, true);
     if (!s) return "";
+    var counts = plural(g.items, "distinct item") + ", " + plural(g.scored, "copy", "copies") + ", " + plural(g.originals, "original");
+    if (kind === "reference")
+      return "Against the state outlet's own text (" + counts + "), " + pct(s.verbatim) + " of the items were run verbatim and " +
+        pct(s.substantial) + " had 40% or more of the words changed; the median item kept " + pct(g.median_kept_items) + " of the state text.";
+    return "Against an earlier copy of the same item at another monitored outlet, outside the copy's own media group (" + counts + "), " +
+      pct(s.verbatim) + " of the items repeated that copy verbatim and " + pct(s.substantial) + " changed 40% or more of its words.";
+  }
+
+  /* The lead: each kind of original apart, the state text first; shares count each underlying item once. */
+  function lead(data) {
+    var t = (data && data.totals) || {}, ag = t.against;
     var hc = t.headline_compared || 0;
-    return '<p class="alt-lead">Of ' + plural(t.scored, "copy", "copies") + ' scored against their original, ' +
-      pct(s.verbatim) + ' ran the state text verbatim and ' + pct(s.substantial) + ' changed 40% or more of the words. ' +
-      'The median copy added or rewrote ' + pct(t.median_novel) + ' of its words and kept ' + pct(t.median_kept) + ' of the original.' +
-      (hc ? ' ' + pct((t.headline_rewritten || 0) / hc) + ' carry a rewritten headline.' : '') + '</p>';
+    var tail = hc ? ' ' + pct((t.headline_rewritten || 0) / hc) + ' of the ' + plural(hc, "copy", "copies") + ' with a headline compared carry a rewritten headline.' : '';
+    if (!ag) {
+      var s = shares(t);
+      if (!s) return "";
+      return '<p class="alt-lead">Of ' + plural(t.scored, "copy", "copies") + ' scored against an original (a state outlet\'s page or an earlier monitored copy), ' +
+        pct(s.verbatim) + ' repeated it verbatim and ' + pct(s.substantial) + ' changed 40% or more of the words.' + tail + '</p>';
+    }
+    var ref = ag.reference || {}, mon = ag.monitored || {}, parts = [];
+    if (ref.items) parts.push(kindSentence(ref, "reference"));
+    else parts.push("No copy has been scored against the state outlet's own text yet, so these figures do not say how much of the state text outlets kept.");
+    if (mon.items) parts.push(kindSentence(mon, "monitored"));
+    return '<p class="alt-lead">' + esc(parts.join(" ")) + esc(tail) + '</p>';
   }
 
   function render(block, data, api) {
@@ -117,15 +163,21 @@
       slot.innerHTML = head + M.emptyState(block, data, "alteration score") + (cov && !M.isWithheld(block) ? '<p class="alt-coverage">' + esc(cov) + '</p>' : '');
       return;
     }
-    var bars = bar("All routes", data.totals);
-    ((data.by_route) || []).forEach(function (g) { if (g.scored) bars += bar(routeLabel(g.id, data, api), g); });
+    var ag = data.totals.against || {}, bars = "";
+    if (ag.reference && ag.reference.items) bars += bar("Against the state outlet's own text", ag.reference, true);
+    if (ag.monitored && ag.monitored.items) bars += bar("Against an earlier monitored copy", ag.monitored, true);
+    var routes = "";
+    ((data.by_route) || []).forEach(function (g) { if (g.scored) routes += bar(routeLabel(g.id, data, api), g); });
+    var src = sourcesLine(data);
     slot.innerHTML = head + lead(data) +
-      '<div class="alt-bars">' + bars + '</div>' + legend() +
+      (bars ? '<div class="alt-bars">' + bars + '</div>' : '') +
+      '<h4 class="alt-sub">By route, copies against any original</h4><div class="alt-bars">' + bar("All routes", data.totals) + routes + '</div>' + legend() +
       '<h4 class="alt-sub">Outlets by median score' + esc(M.provisionalSuffix(block)) + '</h4>' + outletTable(data, api) +
-      '<p class="alt-coverage">' + esc(coverageLine(data)) + '</p>';
+      '<p class="alt-coverage">' + esc(coverageLine(data)) + '</p>' +
+      (src ? '<p class="alt-coverage">' + esc(src) + '</p>' : '');
   }
 
   var spec = {render: render};
   if (M) M.register(ID, spec);
-  return {ID: ID, render: render, shares: shares, coverageLine: coverageLine, BANDS: BANDS};
+  return {ID: ID, render: render, shares: shares, coverageLine: coverageLine, sourcesLine: sourcesLine, lead: lead, BANDS: BANDS};
 }));

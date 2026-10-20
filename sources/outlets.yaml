@@ -96,7 +96,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Il_Fatto_Quotidiano
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: it_messaggero
   name: Il Messaggero
@@ -170,13 +170,13 @@
       label: Comunicati
       readable: true
   tier: agency
-  notes: Agenzia Giornalistica Italia. Verified 2026-09-02.
+  notes: 'Agenzia Giornalistica Italia. Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://www.agi.it/estero/rss answered HTTP 200 with 20 entries, newest 2026-10-17.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Agenzia_Giornalistica_Italia
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
-  inactive_since: '2026-10-05'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: it_rainews
   name: Rai News
   country: ITA
@@ -331,7 +331,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: it_secolo
   name: Secolo d'Italia
@@ -541,13 +541,14 @@
       label: Sponsored Content
       readable: true
   tier: national_daily
+  network: torstar
   notes: Search endpoint feed. Site rate limits aggressively (429). Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/toronto-star/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/toronto-star/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: ca_nationalpost
   name: National Post
@@ -589,6 +590,7 @@
       label: Sponsored
       readable: true
   tier: national_daily
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/national-post/
@@ -678,6 +680,7 @@
       label: BC Top Employers
       readable: true
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/vancouver-sun/
@@ -706,6 +709,7 @@
       label: National Capital Region's Top Employers
       readable: true
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/ottawa-citizen/
@@ -751,6 +755,7 @@
       label: More News Releases >
       readable: true
   tier: business
+  network: postmedia
   notes: Postmedia. Feed carries press releases, which is analytically useful. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/financial-post/
@@ -770,6 +775,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: quebecor
   notes: Québecor. Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://mediabiasfactcheck.com/le-journal-de-montreal/
@@ -815,6 +821,7 @@
       label: More News Releases >
       readable: true
   tier: national_daily
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://mediabiasfactcheck.com/toronto-sun/
@@ -852,6 +859,7 @@
       label: Alberta's Top Employers
       readable: true
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/calgary-herald/
@@ -879,6 +887,7 @@
       label: Alberta's Top Employers
       readable: true
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/edmonton-journal/
@@ -941,6 +950,7 @@
     status: none_found
     sections: []
   tier: broadcaster
+  network: quebecor
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/tva-nouvelles/
@@ -995,6 +1005,7 @@
       label: More News Releases >
       readable: true
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/the-province-bias/
@@ -1012,31 +1023,34 @@
     status: none_found
     sections: []
   tier: regional
+  network: postmedia
   notes: Postmedia. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/windsor-star/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Canada
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-19 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-19 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-09-28'
 - id: ca_citynews
   name: CityNews
   country: CAN
   language: en
   feeds:
-  - https://www.citynews.ca/feed/
+  - https://toronto.citynews.ca/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Rogers. Carries Canadian Press and AP wire copy. Verified 2026-09-02.
+  notes: 'Rogers. Carries Canadian Press and AP wire copy. Verified 2026-09-02. Feed changed 2026-10-17: https://www.citynews.ca/feed/ was frozen (its 10 entries dated 2021-07-17 to 2022-03-10, relisted after every prune); the site now publishes per city, and https://toronto.citynews.ca/feed/ carried 15 entries all from 2026-10-17, so it is on both collectors (collector: both) to keep up.'
   audience_rank: 6
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/citynews/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/citynews/
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ca_acadienouvelle
   name: Acadie Nouvelle
@@ -1122,6 +1136,7 @@
   feeds:
   - https://montrealgazette.com/feed/
   tier: regional
+  network: postmedia
   notes: Feed returns 403 to the project user agent.
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
@@ -1159,6 +1174,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: nine
   notes: Nine. Metered paywall. Shares wire and world copy with The Age, Brisbane Times and WAtoday, which the near-duplicate detector will link. Verified 2026-09-02.
   audience_rank: 6
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
@@ -1179,6 +1195,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: nine
   notes: Nine. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/the-age-australia/
@@ -1197,6 +1214,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: guardian_media_group
   notes: Australian edition only. Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
@@ -1234,6 +1252,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_conversation
   notes: Academic commentary, Creative Commons. Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/the-conversation/
@@ -1268,6 +1287,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: seven_west
   notes: Seven West Media. Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/The_West_Australian
@@ -1285,6 +1305,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: nine
   notes: Nine. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/brisbane-times-bias-and-credibility/
@@ -1302,6 +1323,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: nine
   notes: Nine. Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -1333,6 +1355,7 @@
       label: Sponsored
       readable: false
   tier: regional
+  network: acm
   notes: ACM. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/canberra-times-bias-and-credibility/
@@ -1418,6 +1441,7 @@
       label: Sponsored
       readable: false
   tier: regional
+  network: acm
   notes: ACM. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/newcastle-herald-bias/
@@ -1450,6 +1474,7 @@
       label: Sponsored
       readable: false
   tier: regional
+  network: acm
   notes: ACM. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/illawarra-mercury-bias/
@@ -1482,6 +1507,7 @@
       label: Sponsored
       readable: false
   tier: regional
+  network: acm
   notes: ACM, Launceston. Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/launceston-examiner-bias/
@@ -1499,6 +1525,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: seven_west
   notes: Seven West Media. Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -1524,6 +1551,7 @@
       rejected_on: '2026-10-12'
       reason: the dormant Your Feed topic page, not a sponsored section; its feed carries the latest stories across desks, mostly sport and 7you, and of 716 items it carried 2 were relevant
   tier: broadcaster
+  network: seven_west
   notes: 'Seven Network. Verified 2026-09-02. Sponsored section feed https://7news.com.au/lifestyle/sponsored/feed removed 2026-10-12: the homepage links /lifestyle/sponsored as "Sponsored", but it is the dormant "Your Feed" topic (described as deals, products and offers) that the site also tags sport and 7you stories with, so its feed carries the latest stories across desks (63 sport, 23 7you of 100 items on 2026-10-12), every card on the page is marked not sponsored, and of 716 items it carried 2 were relevant. No sponsored, partner or branded content section with its own feed was found: /sponsored and /brandedcontent return 404.'
   audience_rank: 4
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
@@ -1539,6 +1567,7 @@
   feeds:
   - https://www.theaustralian.com.au/feed/
   tier: national_daily
+  network: news_corp
   notes: News Corp. Hard paywall and feed returns 403 to the project user agent.
   active: false
   inactive_reason: 'feed returned HTTP 403 to identified crawler on 2026-09-02; News Corp Australia titles block non-browser clients. Retested 2026-10-12: robots.txt now disallows the crawler for the feed path (named agents only), not fetched'
@@ -1550,6 +1579,7 @@
   feeds:
   - https://www.afr.com/rss/feed.xml
   tier: business
+  network: nine
   notes: 'Nine. Hard paywall. Inactive 2026-09-02 to 2026-10-12 for want of a feed. Reactivated 2026-10-12: /rss/feed.xml, the site-wide path Nine mastheads use (The Age), robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent; /rss/world returns 404. Nine feeds already answer the hosted runner. Paywalled articles are recorded as paywalled and never retrieved by another route.'
   active: true
 - id: au_heraldsun
@@ -1559,6 +1589,7 @@
   feeds:
   - https://www.heraldsun.com.au/feed
   tier: regional
+  network: news_corp
   notes: News Corp.
   active: false
   inactive_reason: 'feed returned HTTP 403 to identified crawler on 2026-09-02. Retested 2026-10-12: robots.txt now disallows the crawler for the feed path (named agents only), not fetched'
@@ -1611,6 +1642,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_thecourier
@@ -1634,6 +1666,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_bordermail
@@ -1657,6 +1690,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_standard
@@ -1680,6 +1714,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_dailyadvertiser
@@ -1703,6 +1738,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_theadvocate
@@ -1726,6 +1762,7 @@
       label: Press Releases from AAP
       readable: true
   tier: regional
+  network: acm
   notes: 'ACM. Added 2026-10-12 to widen Australian regional coverage. Feed at /rss.xml, the path every ACM masthead uses (Newcastle Herald, Canberra Times); robots.txt allows it for the crawler; HTTP 200 with 20 items on 2026-10-12 from the owner''s Mac with the project user agent. ACM feeds already answer the hosted runner. Shares syndicated copy with the other ACM titles, which the near-duplicate detector links.'
   active: true
 - id: au_thenewdaily
@@ -1779,6 +1816,7 @@
   feeds:
   - https://www.news.com.au/content-feeds/latest-news-national/
   tier: national_daily
+  network: news_corp
   notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
   active: false
   inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
@@ -1790,6 +1828,7 @@
   feeds:
   - https://www.skynews.com.au/feed
   tier: broadcaster
+  network: news_corp
   notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
   active: false
   inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
@@ -1801,6 +1840,7 @@
   feeds:
   - https://www.dailytelegraph.com.au/feed
   tier: regional
+  network: news_corp
   notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
   active: false
   inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
@@ -1812,6 +1852,7 @@
   feeds:
   - https://www.couriermail.com.au/feed
   tier: regional
+  network: news_corp
   notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
   active: false
   inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
@@ -1823,6 +1864,7 @@
   feeds:
   - https://www.adelaidenow.com.au/feed
   tier: regional
+  network: news_corp
   notes: 'News Corp. Added 2026-10-12 so the gap is visible. robots.txt allows only a list of named agents and disallows every other crawler, ours included, so the feed was never requested.'
   active: false
   inactive_reason: 'robots.txt disallowed the crawler for the feed path on 2026-10-12 (News Corp allows named agents only); not fetched'
@@ -2108,6 +2150,42 @@
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
+- id: ao_noticiasdeangola
+  name: Notícias de Angola
+  country: AGO
+  language: pt
+  feeds:
+  - https://noticiasdeangola.co.ao/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Angolan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 days old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1711, 1253 and 2749 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ao_holdonangola
+  name: Hold On Angola
+  country: AGO
+  language: pt
+  feeds:
+  - https://holdonangola.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Angolan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 1 day old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (4366, 3812 and 1697 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ao_mercado
+  name: Mercado
+  country: AGO
+  language: pt
+  feeds:
+  - https://mercado.co.ao/feed/
+  tier: business
+  notes: 'Business weekly; many items are short company news, and one feed item is the magazine''s landing page. Added 2026-10-17 to widen Angolan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 5 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (821, 460 and 977 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: al_ata
   name: ATA
   country: ALB
@@ -2435,7 +2513,7 @@
   ownership: private
   ownership_source: https://chequeado.com/funding/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ar_clarin
   name: Clarín
@@ -2480,7 +2558,7 @@
   ownership: private
   ownership_source: https://www.infobae.com/economia/2021/07/14/el-grupo-america-compro-el-100-del-paquete-accionario-del-diario-el-cronista/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ar_eldia
   name: El Día La Plata
@@ -2625,6 +2703,7 @@
     status: none_found
     sections: []
   tier: broadcaster
+  network: todo_noticias
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/argentina
@@ -2644,6 +2723,7 @@
     status: none_found
     sections: []
   tier: broadcaster
+  network: todo_noticias
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://argentina.mom-gmr.org/es/medios/detail/outlet/tn/
@@ -2665,7 +2745,7 @@
   political_leaning: unassessed
   ownership: unassessed
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-21 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-21 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: am_aravot
   name: Aravot
@@ -2966,12 +3046,12 @@
   feeds:
   - https://report.az/rss/
   tier: agency
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://report.az/rss/ answered HTTP 200 with 30 entries, newest 2026-10-17.'
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/oxu.az/
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: az_report_en
   name: Report.az English
   country: AZE
@@ -2979,10 +3059,10 @@
   feeds:
   - https://report.az/en/rss/
   tier: agency
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://report.az/en/rss/ answered HTTP 200 with 30 entries, newest 2026-10-17.'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: az_trend
   name: Trend
   country: AZE
@@ -3082,6 +3162,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: dpg_media
   notes: Verified 2026-09-02.
   audience_rank: 7
   political_leaning: unassessed
@@ -3099,6 +3180,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: dpg_media
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/de-morgen-bias-and-credibility/
@@ -3145,6 +3227,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: dpg_media
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/belgium
@@ -3389,7 +3472,7 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: bf_burkina24
   name: Burkina 24
@@ -3537,7 +3620,7 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Burkina_Faso
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-25 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-25 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: bf_sidwaya
   name: Sidwaya
@@ -3795,7 +3878,7 @@
   tier: national_daily
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-09-28: feed verified again.'
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: bd_somoy
   name: Somoy TV
@@ -3849,6 +3932,7 @@
     status: unreachable
     sections: []
   tier: business
+  network: economedia
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Capital_(Bulgarian_newspaper)
@@ -3866,6 +3950,7 @@
     status: unreachable
     sections: []
   tier: national_daily
+  network: economedia
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Capital_(Bulgarian_newspaper)
@@ -3891,7 +3976,7 @@
   ownership: private
   ownership_source: https://voxeurop.eu/en/source/mediapool-bg-2/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-26 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-26 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: bg_offnews
   name: OFFNews
@@ -4817,12 +4902,14 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 54 of the hosted runner''s 69 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/brazil
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Universo_Online
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: br_valor
   name: Valor Econômico
@@ -4950,6 +5037,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: one_caribbean_media
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/barbadostoday.bb/
@@ -5101,7 +5189,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 500, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: bt_businessbhutan
   name: Business Bhutan
@@ -5240,7 +5328,7 @@
   political_leaning: unassessed
   ownership: unassessed
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-02 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-02 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: cf_ndjoni
   name: Ndjoni Sango
@@ -5975,6 +6063,30 @@
   political_leaning: unassessed
   ownership: unassessed
   active: true
+- id: cd_congoprofond
+  name: Congo Profond
+  country: COD
+  language: fr
+  feeds:
+  - https://congoprofond.net/feed/
+  tier: national_daily
+  notes: 'The newest item was five days old when verified, so the feed may go quiet between checks. Added 2026-10-17 to widen Congolese coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 5 days old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (3926, 9798 and 1081 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: cd_habarirdc
+  name: Habari RDC
+  country: COD
+  language: fr
+  feeds:
+  - https://habarirdc.net/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Congolese coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 8 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (5121, 3923 and 3705 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: cg_adiac
   name: ADIAC / Les Dépêches de Brazzaville
   country: COG
@@ -6207,7 +6319,9 @@
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   government_stance: state_controlled
   stance_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
-  active: true
+  active: false
+  inactive_reason: 'the feed https://www.rtvcnoticias.com/rss.xml is frozen: on 2026-10-17 it still listed the same 10 entries, the newest dated 2026-05-30, and the homepage advertises no other feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
+  inactive_since: '2026-10-17'
 - id: co_semana
   name: Semana
   country: COL
@@ -6393,6 +6507,7 @@
     status: none_found
     sections: []
   tier: business
+  network: grupo_nacion
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -6446,6 +6561,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: grupo_nacion
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/costa-rica/news-and-media/
@@ -6621,7 +6737,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
-  active: true
+  active: false
+  inactive_reason: 'the feed https://cubasi.cu/es/rss.xml has failed since 2026-10-05: robots.txt unreachable from the GitHub Actions runner and HTTP 503 from the owner''s network on 2026-10-17'
+  inactive_since: '2026-10-17'
 - id: cu_diariodecuba
   name: Diario de Cuba
   country: CUB
@@ -6647,10 +6765,10 @@
   feeds:
   - https://eltoque.com/feed
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://eltoque.com/feed answered HTTP 200 with 10 entries, newest 2026-10-17.'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: cu_escambray
   name: Escambray
   country: CUB
@@ -6929,13 +7047,14 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: economia_cz
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://www.eurotopics.net/en/148407/aktualn-cz
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Economia
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: cz_blesk
   name: Blesk
@@ -6948,6 +7067,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: czech_news_center
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/czech-republic/news-and-media/
@@ -7020,6 +7140,7 @@
     status: none_found
     sections: []
   tier: business
+  network: czech_news_center
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -7054,6 +7175,7 @@
     status: none_found
     sections: []
   tier: business
+  network: economia_cz
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Hospod%C3%A1%C5%99sk%C3%A9_noviny
@@ -7072,6 +7194,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: mafra
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/czech-republic/news-and-media/
@@ -7112,6 +7235,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: mafra
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Lidov%C3%A9_noviny
@@ -7265,7 +7389,7 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/frankfurter-rundschau-bias-and-credibility/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: de_handelsblatt
   name: Handelsblatt
@@ -7302,7 +7426,7 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/munchner-merkur-bias/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: de_ntv
   name: n-tv
@@ -7378,7 +7502,9 @@
   leaning_source: https://mediabiasfactcheck.com/neue-zurcher-zeitung-nzz-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Switzerland
-  active: true
+  active: false
+  inactive_reason: 'duplicate of ch_nzz: polled the same feed (https://www.nzz.ch/international.rss) and sponsored page; NZZ publishes no separate feed for its German edition (https://www.nzz.ch/international/deutschland.rss does not parse, 2026-10-17), so the items are counted once, under ch_nzz'
+  inactive_since: '2026-10-17'
 - id: de_rnd
   name: RedaktionsNetzwerk Deutschland
   country: DEU
@@ -7870,7 +7996,7 @@
   ownership: private
   ownership_source: https://eldia.com.do/quienes-somos/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: do_elnuevodiario
   name: El Nuevo Diario
@@ -8147,7 +8273,7 @@
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_Universo_(diario)
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ec_expreso
   name: Expreso
@@ -8462,6 +8588,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: vocento
   notes: Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/ABC_(newspaper)
@@ -8526,6 +8653,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: vocento
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/El_Correo
@@ -8592,6 +8720,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: unidad_editorial
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/es/newspapers
@@ -8612,6 +8741,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: prisa
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://www.semrush.com/trending-websites/es/newspapers
@@ -8637,7 +8767,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Peri%C3%B3dico_de_Catalunya
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 406, so it stays inactive'
   inactive_since: '2026-09-28'
 - id: es_europapress
   name: Europa Press
@@ -8680,6 +8810,7 @@
     status: none_found
     sections: []
   tier: business
+  network: unidad_editorial
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Unidad_Editorial
@@ -8725,6 +8856,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: vocento
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Las_Provincias
@@ -8786,7 +8918,7 @@
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/RTVE
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: ee_aripaev
   name: Äripäev
@@ -9016,6 +9148,32 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Fana_Broadcasting_Corporate
   collector: both
+  active: true
+- id: et_bbcamharic
+  name: BBC News Amharic
+  country: ETH
+  language: am
+  feeds:
+  - https://feeds.bbci.co.uk/amharic/rss.xml
+  tier: broadcaster
+  notes: 'Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12). Added 2026-10-17 to widen Ethiopian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 44 items, the newest 14 hours old, from the owner''s Mac with the project user agent; one sample article read through the extractor (2919 characters of running prose); one sample, not three, to keep to five requests on bbc.com across the four BBC services added, whose page template BBC Hindi already reads. Not yet seen from the hosted runner.'
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/bbc/
+  ownership: state_funded_international
+  ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
+  collector: hosted
+  active: true
+- id: et_ethiopiaobserver
+  name: Ethiopia Observer
+  country: ETH
+  language: en
+  feeds:
+  - https://www.ethiopiaobserver.com/feed/
+  tier: national_daily
+  notes: 'Publishes in English and some Amharic, and not every day; the feed may go quiet between checks. Added 2026-10-17 to widen Ethiopian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 6 days old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (655, 992 and 1237 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
   active: true
 - id: fi_aamulehti
   name: Aamulehti
@@ -9676,7 +9834,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ouest-France
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: fr_rfi
   name: RFI
@@ -9894,6 +10052,7 @@
     status: unreachable
     sections: []
   tier: national_daily
+  network: dmg_media
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/united-kingdom
@@ -9977,6 +10136,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: guardian_media_group
   notes: Verified 2026-09-02.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/united-kingdom
@@ -10036,6 +10196,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: dmg_media
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/inews/
@@ -10185,7 +10346,7 @@
   ownership: private
   ownership_source: https://www.ecoi.net/en/source/11045.html
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: ge_jamnews
   name: JAMnews
@@ -10265,7 +10426,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Asaase_Radio
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: gh_gbc
   name: GBC
@@ -10653,7 +10814,9 @@
   ownership: private
   ownership_source: https://www.accessgambia.com/extra/the-standard-newspaper.html
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'the feed https://standard.gm/feed/ returns HTTP 404 from both networks since 2026-10-12 (the relay never succeeded in 38 checks) and the homepage advertises no feed (checked 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: gm_thevoice
   name: The Voice Gambia
   country: GMB
@@ -11407,7 +11570,7 @@
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/Criterio.hn
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: hn_elheraldo
   name: El Heraldo
@@ -11777,7 +11940,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'robots.txt disallows the crawler for the feed: every check from the relay on the owner''s network failed with robots_disallowed since 2026-09-28 or earlier (checked 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: ht_haitiantimes
   name: The Haitian Times
   country: HTI
@@ -11981,6 +12146,7 @@
     status: unreachable
     sections: []
   tier: national_daily
+  network: kesma
   notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
     is private and aligned with the opposition, no longer state controlled.'
   political_leaning: unassessed
@@ -12046,6 +12212,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: kesma
   notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
     is private and aligned with the opposition, no longer state controlled.'
   political_leaning: right
@@ -12067,6 +12234,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: kesma
   notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
     is private and aligned with the opposition, no longer state controlled.'
   political_leaning: right
@@ -12183,6 +12351,7 @@
     status: none_found
     sections: []
   tier: business
+  network: kesma
   notes: 'Verified 2026-09-02. Reclassified 2026-09-28: part of the KESMA group, built to serve the Orban government; after the April 2026 election Fidesz is the former ruling party (RSF 2026), so the outlet
     is private and aligned with the opposition, no longer state controlled.'
   political_leaning: centre_right
@@ -12437,7 +12606,9 @@
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/Radio_Republik_Indonesia
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'every feed has returned HTTP 403 to the relay on the owner''s network since 2026-10-07 (92 consecutive failures by 2026-10-17); the hosted runner is refused as well'
+  inactive_since: '2026-10-17'
 - id: id_sindonews
   name: Sindonews
   country: IDN
@@ -12490,6 +12661,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_conversation
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -12863,7 +13035,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Republic_TV
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
-  active: true
+  active: false
+  inactive_reason: 'the feed https://www.republicworld.com/rss/world-news.xml is frozen: on 2026-10-17 it still listed the same 34 entries, the newest dated 2026-08-19, and the homepage advertises no other feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
+  inactive_since: '2026-10-17'
 - id: in_scroll
   name: Scroll.in
   country: IND
@@ -13032,6 +13206,85 @@
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
   active: true
+- id: in_bbctamil
+  name: BBC News Tamil
+  country: IND
+  language: ta
+  feeds:
+  - https://feeds.bbci.co.uk/tamil/rss.xml
+  tier: broadcaster
+  notes: 'Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12). Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 24 items, the newest 2 hours old, from the owner''s Mac with the project user agent; one sample article read through the extractor (5631 characters of running prose); one sample, not three, to keep to five requests on bbc.com across the four BBC services added, whose page template BBC Hindi already reads. Not yet seen from the hosted runner.'
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/bbc/
+  ownership: state_funded_international
+  ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
+  collector: hosted
+  active: true
+- id: in_dinamani
+  name: Dinamani
+  country: IND
+  language: ta
+  feeds:
+  - https://www.dinamani.com/stories.rss
+  tier: regional
+  notes: 'Tamil daily of The New Indian Express Group; the site wide feed, at the same path as in_newindianexpress. Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 219 items, the newest 1 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2782, 1664 and 1224 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Dinamani
+  collector: hosted
+  active: true
+- id: in_sangbadpratidin
+  name: Sangbad Pratidin
+  country: IND
+  language: bn
+  feeds:
+  - https://www.sangbadpratidin.in/feed/
+  tier: regional
+  notes: 'Kolkata Bengali daily. Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 20 items, the newest 2 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1948, 1973 and 4413 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Sangbad_Pratidin
+  collector: hosted
+  active: true
+- id: in_news18bangla
+  name: News18 Bangla
+  country: IND
+  language: bn
+  feeds:
+  - https://bengali.news18.com/commonfeeds/v1/ben/rss/latest.xml
+  tier: broadcaster
+  notes: 'Network18 Bengali service; feed found as the RSS alternate link on the homepage. Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 200 items, the newest 1 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (816, 5514 and 1981 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/News18_Bangla
+  collector: hosted
+  active: true
+- id: in_news18urdu
+  name: News18 Urdu
+  country: IND
+  language: ur
+  feeds:
+  - https://urdu.news18.com/commonfeeds/v1/urd/rss/latest.xml
+  tier: broadcaster
+  notes: 'Network18 Urdu service; the latest stories feed, at the path News18 Bangla uses. Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 200 items, the newest 9 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (5013, 919 and 1986 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/News18_Urdu
+  collector: hosted
+  active: true
+- id: in_siasaturdu
+  name: Siasat Urdu
+  country: IND
+  language: ur
+  feeds:
+  - https://urdu.siasat.com/feed/
+  tier: regional
+  notes: 'Urdu edition of The Siasat Daily, Hyderabad. Article pages carry short bodies. Added 2026-10-17 to widen Indian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (680, 497 and 898 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/The_Siasat_Daily
+  collector: hosted
+  active: true
 - id: ie_independent
   name: Irish Independent
   country: IRL
@@ -13121,7 +13374,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Journal_(Ireland)
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ir_bbcpersian
   name: BBC Persian
@@ -13248,7 +13501,7 @@
   tier: agency
   notes: Verified 2026-09-02.
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-09-21'
 - id: ir_iranwire
   name: IranWire
@@ -13273,7 +13526,7 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 44 of the hosted runner''s 140 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/iranintl.com/
   political_leaning: centre
@@ -13282,6 +13535,8 @@
   ownership_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Iranian_Students%27_News_Agency
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ir_isna_en
   name: ISNA English
@@ -13334,7 +13589,7 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 51 of the hosted runner''s 138 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and its Google News sitemap (https://www.mehrnews.com/sitemap/news/sitemap.xml) carried only 30 items of the last two days on 2026-10-17, no more than the RSS; the relay''s hourly polls are added.'
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/iranintl.com/
   political_leaning: right
@@ -13343,6 +13598,8 @@
   ownership_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Mehr_News_Agency
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ir_mehr_en
   name: Mehr News English
@@ -13615,10 +13872,10 @@
   feeds:
   - https://www.icelandreview.com/feed/
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://www.icelandreview.com/feed/ answered HTTP 200 with 9 entries, newest 2026-10-17.'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: is_mbl
   name: Morgunblaðið
   country: ISL
@@ -14009,7 +14266,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Times_of_Israel
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'robots.txt disallows the crawler for the feed: every check from the relay on the owner''s network failed with robots_disallowed since 2026-09-28 or earlier (checked 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: il_walla
   name: Walla
   country: ISR
@@ -14453,7 +14712,9 @@
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/NHK
-  active: true
+  active: false
+  inactive_reason: 'the feed https://www3.nhk.or.jp/rss/news/cat0.xml is frozen: on 2026-10-17 it still listed the same 7 entries, the newest dated 2026-08-08, and the homepage advertises no other feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
+  inactive_since: '2026-10-17'
 - id: jp_nhk_ja
   name: NHK News
   country: JPN
@@ -14757,17 +15018,17 @@
   country: KEN
   language: en
   feeds:
-  - https://nation.africa/kenya/rss
+  - https://nation.africa/kenya/rss.xml
   tier: national_daily
-  notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
+  notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-19 on the relay (collector: self_hosted) with the feed https://nation.africa/kenya/rss.xml, which answered HTTP 200 from the owner''s network with 25 entries, all from 2026-10-19; the old feed https://nation.africa/kenya/rss had returned HTTP 403. One article page sampled from the owner''s network still returned HTTP 403, so some article fetches may be refused.'
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/kenya
   political_leaning: unassessed
   ownership: private
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/kenya
-  active: false
-  inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
-  inactive_since: '2026-09-02'
+  collector: self_hosted
+  collector_since: '2026-10-19'
+  active: true
 - id: ke_ntv
   name: NTV Kenya
   country: KEN
@@ -14851,6 +15112,42 @@
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
+- id: ke_kahawatungu
+  name: Kahawa Tungu
+  country: KEN
+  language: en
+  feeds:
+  - https://kahawatungu.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Kenyan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 15 items, the newest 6 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (3507, 3487 and 3683 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ke_tuko
+  name: Tuko
+  country: KEN
+  language: en
+  feeds:
+  - https://www.tuko.co.ke/rss/all.rss
+  tier: national_daily
+  notes: 'The all stories feed carries many entertainment items. The Swahili edition (kiswahili.tuko.co.ke/rss/all.rss) was not added: its newest item was 85 days old on 2026-10-17. Added 2026-10-17 to widen Kenyan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 30 items, the newest 1 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (9679, 10387 and 9345 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ke_kenyans
+  name: Kenyans.co.ke
+  country: KEN
+  language: en
+  feeds:
+  - https://www.kenyans.co.ke/feeds/news
+  tier: national_daily
+  notes: 'Feed found as the RSS alternate link on the homepage. Added 2026-10-17 to widen Kenyan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 20 items, the newest 7 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2147, 2294 and 2216 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: kg_24kg
   name: 24.kg
   country: KGZ
@@ -14896,6 +15193,7 @@
     status: none_found
     sections: []
   tier: agency
+  network: akipress
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/24.kg/
@@ -14903,7 +15201,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/AKIpress
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: parse_error: SAXParseException, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: kg_akipress_en
   name: AKIpress English
@@ -14916,6 +15214,7 @@
     status: none_found
     sections: []
   tier: agency
+  network: akipress
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -15000,7 +15299,7 @@
   stance_source: https://freedomhouse.org/country/kyrgyzstan/freedom-net/2024
   stance_as_of: 2024
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: kg_kloop
   name: Kloop
@@ -15056,6 +15355,7 @@
     status: none_found
     sections: []
   tier: business
+  network: akipress
   notes: Verified 2026-09-02.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/24.kg/
@@ -15063,7 +15363,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/AKIpress
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: parse_error: SAXParseException, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: kg_vesti
   name: Vesti.kg
@@ -15403,7 +15703,7 @@
   ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Korean_Broadcasting_System
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: kr_khan
   name: Kyunghyang Shinmun
@@ -15579,11 +15879,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 41 of the hosted runner''s 69 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Segye_Ilbo
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Segye_Ilbo
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: kr_seoul
   name: Seoul Shinmun
@@ -15601,7 +15903,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Seoul_Shinmun
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: kr_yonhap
   name: Yonhap News
@@ -16818,13 +17120,13 @@
       label: Advertorial
       readable: false
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://macaudailytimes.com.mo/feed answered HTTP 200 with 10 entries, newest 2026-10-17.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Macau_Daily_Times
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-21 (auto)
-  inactive_since: '2026-10-05'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: mo_pontofinal
   name: Ponto Final
   country: MAC
@@ -17027,7 +17329,7 @@
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/la-vie-eco/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ma_lebrief
   name: LeBrief
@@ -17463,6 +17765,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: grupo_reforma
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Reforma_(newspaper)
@@ -17481,6 +17784,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: prisa
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://en.wikipedia.org/wiki/El_Pa%C3%ADs
@@ -17628,6 +17932,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: grupo_reforma
   notes: Verified 2026-09-02.
   audience_rank: 11
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/mexico
@@ -17855,15 +18160,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://bamada.net/feed answered HTTP 200 with 15 entries, newest 2026-10-17.'
   audience_rank: 6
   rank_source: https://premise.com/blog/news-sources-in-mali/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://bamada.net/a-propos-de-nous
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
-  inactive_since: '2026-10-05'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: ml_journaldumali
   name: Journal du Mali
   country: MLI
@@ -18210,7 +18515,7 @@
   ownership: private
   ownership_source: https://montenegro.mom-gmr.org/en/media/detail/outlet/cdm/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: me_mina
   name: MINA
@@ -18409,6 +18714,46 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://zitamar.com/about/
+  active: true
+- id: mz_jornaldomingo
+  name: Domingo
+  country: MOZ
+  language: pt
+  feeds:
+  - https://www.jornaldomingo.co.mz/feed/
+  tier: national_daily
+  notes: 'State controlled weekly. Added 2026-10-17 to widen Mozambican coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1613, 1013 and 1506 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
+  ownership: state
+  ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Mass_media_in_Mozambique
+  collector: hosted
+  active: true
+- id: mz_mznews
+  name: MZNews
+  country: MOZ
+  language: pt
+  feeds:
+  - https://mznews.co.mz/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Mozambican coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 8 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1607, 1129 and 967 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: mz_ikweli
+  name: Ikweli
+  country: MOZ
+  language: pt
+  feeds:
+  - https://ikweli.co.mz/feed/
+  tier: regional
+  notes: 'Nampula newspaper. Added 2026-10-17 to widen Mozambican coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 13 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1576, 2106 and 2128 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
   active: true
 - id: mr_alakhbar
   name: Alakhbar
@@ -18670,15 +19015,51 @@
     status: blocked
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://times.mw/feed/ answered HTTP 200 with 10 entries, newest 2026-10-17.'
   audience_rank: 4
   rank_source: https://www.scimagomedia.com/rankings.php?country=Malawi
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Malawi
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
-  inactive_since: '2026-10-05'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
+- id: mw_mfn
+  name: Malawi Freedom Network
+  country: MWI
+  language: en
+  feeds:
+  - https://www.malawifreedomnetwork.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Malawian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 5 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (3543, 6758 and 5857 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: mw_maraviexpress
+  name: Maravi Express
+  country: MWI
+  language: en
+  feeds:
+  - https://maraviexpress.com/feed
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Malawian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 1 day old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2324, 5690 and 9961 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: mw_businessmalawi
+  name: Business Malawi
+  country: MWI
+  language: en
+  feeds:
+  - https://businessmalawi.com/feed
+  tier: business
+  notes: 'Added 2026-10-17 to widen Malawian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 7 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (5053, 4399 and 4504 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: my_bharian
   name: Berita Harian
   country: MYS
@@ -18690,6 +19071,7 @@
     status: unreachable
     sections: []
   tier: national_daily
+  network: media_prima
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/malaysia
@@ -18770,6 +19152,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: media_prima
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/malaysia
@@ -18832,6 +19215,7 @@
       label: Branded Content
       readable: false
   tier: national_daily
+  network: media_prima
   notes: Verified 2026-09-02.
   audience_rank: 6
   political_leaning: centre
@@ -18874,7 +19258,9 @@
   ownership: private
   ownership_source: https://www.scoop.my/opinion-analysis/101496/heres-the-scoop/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'robots.txt disallows the crawler for the feed: every check from the relay on the owner''s network failed with robots_disallowed since 2026-09-28 or earlier (checked 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: my_sinchew_zh
   name: Sin Chew Daily
   country: MYS
@@ -19172,6 +19558,30 @@
   tier: national_daily
   notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
+  active: true
+- id: ne_nigerinter
+  name: Niger Inter
+  country: NER
+  language: fr
+  feeds:
+  - https://www.nigerinter.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Nigerien coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 days old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (4858, 5511 and 3506 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ne_journalduniger
+  name: Journal du Niger
+  country: NER
+  language: fr
+  feeds:
+  - https://www.journalduniger.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Nigerien coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 1 day old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2186, 5397 and 2394 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
   active: true
 - id: ng_arise
   name: Arise News
@@ -19730,7 +20140,7 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/dutch-news-bias-and-credibility/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: nl_nltimes
   name: NL Times
@@ -19983,7 +20393,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/DN_Media_Group
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: no_e24
   name: E24
@@ -20067,6 +20477,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_local
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/the-local-norway/
@@ -20225,15 +20636,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://ratopati.com/feed answered HTTP 200 with 30 entries, newest 2026-10-17.'
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/onlinekhabar.com/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.ratopati.com/
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-01 (auto)
-  inactive_since: '2026-10-12'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: np_republica
   name: myRepublica
   country: NPL
@@ -20348,6 +20759,7 @@
       label: Media Releases
       readable: true
   tier: broadcaster
+  network: rnz
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://en.wikipedia.org/wiki/Media_of_New_Zealand
@@ -20377,6 +20789,7 @@
       label: Media Releases
       readable: true
   tier: broadcaster
+  network: rnz
   notes: Verified 2026-09-02. Ownership recorded as state_funded_international, not public_service, because it is funded by the New Zealand government to broadcast to audiences abroad (methodology review 2026-10-12).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/rnz/
@@ -20395,6 +20808,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: stuff_nz
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://en.wikipedia.org/wiki/Media_of_New_Zealand
@@ -20413,6 +20827,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_conversation
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/the-conversation/
@@ -20430,6 +20845,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: stuff_nz
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -20446,6 +20862,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: stuff_nz
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -20468,7 +20885,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Spinoff
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-04 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-10-04 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: nz_waikatotimes
   name: Waikato Times
@@ -20481,6 +20898,7 @@
     status: none_found
     sections: []
   tier: regional
+  network: stuff_nz
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -20497,10 +20915,12 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Moved to the relay (collector: self_hosted) 2026-10-17: the GitHub Actions runner has been refused with HTTP 403 on every check, while from the owner''s network https://alroya.om/rss answered HTTP 200 with 90 entries, newest 2026-10-17.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://unglobalcompact.org/what-is-gc/participants/158197-Al-Roya-Newspaper-LLC
+  collector: self_hosted
+  collector_since: '2026-10-17'
   active: true
 - id: om_alwatan
   name: https://alwatan.om
@@ -20602,16 +21022,16 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://www.app.com.pk/feed/ answered HTTP 200 with 10 entries, newest 2026-10-17, https://www.app.com.pk/global/feed/ answered HTTP 200 with 10 entries, newest 2026-10-14.'
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-29 (auto)
-  inactive_since: '2026-10-12'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: pk_ary
   name: ARY News
   country: PAK
@@ -21023,6 +21443,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: grupo_el_comercio
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/peru
@@ -21064,6 +21485,7 @@
       label: Notas Contratadas
       readable: true
   tier: business
+  network: grupo_el_comercio
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -21175,6 +21597,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: grupo_el_comercio
   notes: Verified 2026-09-02.
   political_leaning: right
   leaning_source: https://es.wikipedia.org/wiki/Trome
@@ -21332,7 +21755,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/People%27s_Journal
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: ph_manilabulletin
   name: Manila Bulletin
@@ -21585,6 +22008,7 @@
     status: none_found
     sections: []
   tier: business
+  network: wirtualna_polska
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -21728,6 +22152,7 @@
     status: none_found
     sections: []
   tier: aggregator
+  network: wirtualna_polska
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -22155,7 +22580,7 @@
   leaning_source: https://mediabiasfactcheck.com/pnn-palestine-news-network-bias-and-credibility/
   ownership: unassessed
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ps_ultrapalestine
   name: Ultra Palestine
@@ -22788,13 +23213,15 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 53 of the hosted runner''s 128 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
   audience_rank: 6
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
   political_leaning: right
   leaning_source: https://www.eurotopics.net/en/170195/moskovskij-komsomolets
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Moskovsky_Komsomolets
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ru_ng
   name: Nezavisimaya Gazeta
@@ -23006,13 +23433,15 @@
     status: unreachable
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 36 of the hosted runner''s 69 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and its robots.txt answered HTTP 403 on 2026-10-17, and no Google News sitemap could be found; the relay''s hourly polls are added.'
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/TASS
   ownership: state
   ownership_source: https://en.wikipedia.org/wiki/TASS
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/TASS
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ru_tass_en
   name: TASS English
@@ -23092,7 +23521,7 @@
   ownership: private
   ownership_source: https://ru.wikipedia.org/wiki/URA.RU
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: ru_vedomosti
   name: Vedomosti
@@ -23481,6 +23910,43 @@
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
+- id: sd_sudantribunear
+  name: Sudan Tribune Arabic
+  country: SDN
+  language: ar
+  feeds:
+  - https://sudantribune.net/feed/
+  tier: national_daily
+  notes: 'Arabic edition of Sudan Tribune (Paris based, like the English edition sd_sudantribune, whose feed refuses the crawler). Added 2026-10-17 to widen Sudanese coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1724, 920 and 2945 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: private
+  ownership_source: https://en.wikipedia.org/wiki/Sudan_Tribune
+  collector: hosted
+  active: true
+- id: sd_darfur24
+  name: Darfur24
+  country: SDN
+  language: ar
+  feeds:
+  - https://www.darfur24.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Sudanese coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 4 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (1231, 982 and 1081 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: sd_ayin
+  name: Ayin Network
+  country: SDN
+  language: ar
+  feeds:
+  - https://3ayin.com/feed/
+  tier: national_daily
+  notes: 'Independent Sudanese investigative outlet; the feed carries its Arabic stories. Added 2026-10-17 to widen Sudanese coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 30 items, the newest 2 days old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (7331, 8083 and 23137 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: sn_aps
   name: APS
   country: SEN
@@ -23671,6 +24137,7 @@
       label: Paid Press Release
       readable: true
   tier: business
+  network: sph_media
   notes: Verified 2026-09-02.
   audience_rank: 6
   political_leaning: centre_right
@@ -23831,6 +24298,7 @@
       label: Branded content
       readable: true
   tier: national_daily
+  network: sph_media
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/singapore
@@ -23861,6 +24329,7 @@
     status: none_found
     sections: []
   tier: aggregator
+  network: yahoo
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -24119,7 +24588,7 @@
   ownership: private
   ownership_source: https://www.revistafactum.com/quienes-somos/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: so_goobjoog
   name: Goobjoog
@@ -24205,6 +24674,60 @@
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: unassessed
+  active: true
+- id: so_bbcsomali
+  name: BBC News Somali
+  country: SOM
+  language: so
+  feeds:
+  - https://feeds.bbci.co.uk/somali/rss.xml
+  tier: broadcaster
+  notes: 'Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12). Added 2026-10-17 to widen Somali coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 41 items, the newest 9 hours old, from the owner''s Mac with the project user agent; one sample article read through the extractor (3835 characters of running prose); one sample, not three, to keep to five requests on bbc.com across the four BBC services added, whose page template BBC Hindi already reads. Not yet seen from the hosted runner.'
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/bbc/
+  ownership: state_funded_international
+  ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
+  collector: hosted
+  active: true
+- id: so_caasimada
+  name: Caasimada Online
+  country: SOM
+  language: so
+  feeds:
+  - https://www.caasimada.net/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Somali coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 2 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (5856, 2250 and 2119 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: so_radiomuqdisho
+  name: Radio Muqdisho
+  country: SOM
+  language: so
+  feeds:
+  - https://radiomuqdisho.so/feed/
+  tier: broadcaster
+  notes: 'Federal government radio station. Added 2026-10-17 to widen Somali coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 17 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2088, 683 and 524 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: state_controlled
+  leaning_source: https://en.wikipedia.org/wiki/Radio_Mogadishu
+  ownership: state
+  ownership_source: https://en.wikipedia.org/wiki/Radio_Mogadishu
+  government_stance: state_controlled
+  stance_source: https://en.wikipedia.org/wiki/Radio_Mogadishu
+  collector: hosted
+  active: true
+- id: so_horseedmedia
+  name: Horseed Media
+  country: SOM
+  language: so
+  feeds:
+  - https://horseedmedia.net/feed/
+  tier: national_daily
+  notes: 'The feed mixes Somali and English stories; the gate always applies the English terms as well. Added 2026-10-17 to widen Somali coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 11 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2826, 1279 and 2525 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
   active: true
 - id: rs_b92
   name: B92
@@ -24602,7 +25125,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/De_Ware_Tijd
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: sr_gfc
   name: GFC Nieuws
@@ -25160,6 +25683,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_local
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/the-local-sweden/
@@ -25529,7 +26053,7 @@
   ownership: private
   ownership_source: https://www.journaldutchad.com/mentions-legales/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: td_lepays
   name: Le Pays Tchad
@@ -25700,7 +26224,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'robots.txt disallows the crawler for the feed: every check from the relay on the owner''s network failed with robots_disallowed since 2026-09-28 or earlier (checked 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: th_bangkokpost
   name: Bangkok Post
   country: THA
@@ -25891,16 +26417,16 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://www.thairath.co.th/rss/news answered HTTP 200 with 20 entries, newest 2026-10-17.'
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/thailand
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/thairath-bias-and-credibility/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Thai_Rath
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-23 (auto)
-  inactive_since: '2026-10-05'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: th_thestandard
   name: The Standard
   country: THA
@@ -26002,7 +26528,7 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Khovar
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: tj_pressa
   name: Pressa.tj
@@ -26067,7 +26593,7 @@
   political_leaning: unassessed
   ownership: unassessed
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: tm_arzuw
   name: Arzuw News
@@ -26087,7 +26613,7 @@
   ownership: private
   ownership_source: https://arzuw.news/about
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: tm_bt
   name: Business Turkmenistan
@@ -26344,7 +26870,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Trinidad_and_Tobago_Newsday
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: tt_wired868
   name: Wired868
@@ -26679,6 +27205,7 @@
     status: none_found
     sections: []
   tier: business
+  network: ciner
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -26835,6 +27362,7 @@
       label: ŞİRKETLER
       readable: false
   tier: broadcaster
+  network: ciner
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.similarweb.com/top-websites/turkey/news-and-media/
@@ -27251,6 +27779,32 @@
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
+- id: tz_bbcswahili
+  name: BBC News Swahili
+  country: TZA
+  language: sw
+  feeds:
+  - https://feeds.bbci.co.uk/swahili/rss.xml
+  tier: broadcaster
+  notes: 'Ownership recorded as state_funded_international, not public_service, because it is funded by the BBC licence fee and a UK Foreign Office grant to broadcast to audiences abroad (methodology review 2026-10-12). Serves Kenya and Tanzania alike; registered under Tanzania, the larger Swahili audience with the thinner coverage. Added 2026-10-17 to widen Tanzanian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 41 items, the newest 7 hours old, from the owner''s Mac with the project user agent; one sample article read through the extractor (3705 characters of running prose); one sample, not three, to keep to five requests on bbc.com across the four BBC services added, whose page template BBC Hindi already reads. Not yet seen from the hosted runner.'
+  political_leaning: centre
+  leaning_source: https://mediabiasfactcheck.com/bbc/
+  ownership: state_funded_international
+  ownership_source: https://en.wikipedia.org/wiki/BBC_World_Service
+  collector: hosted
+  active: true
+- id: tz_michuzi
+  name: Michuzi Blog
+  country: TZA
+  language: sw
+  feeds:
+  - https://issamichuzi.blogspot.com/feeds/posts/default
+  tier: national_daily
+  notes: 'Widely read Swahili news blog; the Blogger feed links to articles on michuzi.co.tz. Added 2026-10-17 to widen Tanzanian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 25 items, the newest 6 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (3856, 4144 and 4711 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: ug_independent
   name: The Independent Uganda
   country: UGA
@@ -27298,7 +27852,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://rsf.org/en/country/uganda
-  active: true
+  active: false
+  inactive_reason: 'the feed https://nbs.ug/feed/ is frozen: on 2026-10-17 it still listed the same 10 entries, the newest dated 2025-05-12, and the homepage advertises no other feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
+  inactive_since: '2026-10-17'
 - id: ug_nilepost
   name: Nile Post
   country: UGA
@@ -27343,6 +27899,30 @@
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
+- id: ug_watchdog
+  name: Watchdog Uganda
+  country: UGA
+  language: en
+  feeds:
+  - https://www.watchdoguganda.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Ugandan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 6 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (8470, 1797 and 2842 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: ug_pmldaily
+  name: PML Daily
+  country: UGA
+  language: en
+  feeds:
+  - https://www.pmldaily.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Ugandan coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 5 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (3203, 6385 and 6493 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
 - id: ua_censor
   name: Censor.NET
   country: UKR
@@ -27500,7 +28080,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Obozrevatel
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: ua_pravda
   name: Ukrainska Pravda
@@ -27513,6 +28093,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: ukrainska_pravda
   notes: Verified 2026-09-02.
   audience_rank: 4
   rank_source: https://www.similarweb.com/top-websites/ukraine/news-and-media/
@@ -27533,6 +28114,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: ukrainska_pravda
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/Ukrayinska_Pravda
@@ -27583,6 +28165,7 @@
       label: Новини компаній
       readable: false
   tier: business
+  network: ukrainska_pravda
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
@@ -27662,7 +28245,9 @@
   leaning_source: https://www.eurotopics.net/en/191798/unian
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/UNIAN
-  active: true
+  active: false
+  inactive_reason: 'the feed https://rss.unian.net/site/news_eng.rss is frozen: on 2026-10-17 it still listed the same 100 entries, the newest dated 2024-05-24, and the homepage advertises no other feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
+  inactive_since: '2026-10-17'
 - id: ua_zn
   name: ZN.ua
   country: UKR
@@ -27710,6 +28295,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: el_pais_uruguay
   notes: Verified 2026-09-02.
   audience_rank: 1
   rank_source: https://www.similarweb.com/top-websites/uruguay/news-and-media/
@@ -27730,6 +28316,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: el_pais_uruguay
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://es.wikipedia.org/wiki/El_País_(Uruguay)
@@ -27840,7 +28427,7 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/axios/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: us_baltimoresun
   name: The Baltimore Sun
@@ -28098,7 +28685,9 @@
   ownership: private
   ownership_source: https://www.contentpowered.com/blog/prweb-newswire-globe-best/
   collector: both
-  active: true
+  active: false
+  inactive_reason: 'the feed returned HTTP 403 on every check from the GitHub Actions runner since 2026-10-09 and on every check from the relay on the owner''s network since it was shared (38 checks, none successful), and once more from the owner''s network on 2026-10-17; refused on both networks, so moving it to the relay would not help'
+  inactive_since: '2026-10-17'
 - id: us_honolulu
   name: Honolulu Star-Advertiser
   country: USA
@@ -28219,6 +28808,7 @@
     status: blocked
     sections: []
   tier: business
+  network: news_corp
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/marketwatch/
@@ -28290,6 +28880,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: news_corp
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/new-york-post/
@@ -28509,13 +29100,14 @@
     status: none_found
     sections: []
   tier: aggregator
+  network: yahoo
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/yahoo-news/
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/yahoo-news/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-16 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-09-28'
 - id: us_seattletimes
   name: The Seattle Times
@@ -28806,6 +29398,7 @@
     status: blocked
     sections: []
   tier: business
+  network: news_corp
   notes: Verified 2026-09-02.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/wall-street-journal/
@@ -28823,6 +29416,7 @@
     status: none_found
     sections: []
   tier: aggregator
+  network: yahoo
   notes: Verified 2026-09-02.
   political_leaning: centre_left
   leaning_source: https://mediabiasfactcheck.com/yahoo-news/
@@ -29053,13 +29647,13 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://eldiario.com/feed/ answered HTTP 200 with 12 entries, newest 2026-10-17.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://eldiario.com/
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
-  inactive_since: '2026-10-12'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: ve_elestimulo
   name: El Estímulo
   country: VEN
@@ -29211,7 +29805,7 @@
   tier: national_daily
   notes: Verified 2026-09-02.
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-12 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-09-21'
 - id: vn_dantri
   name: Dân Trí
@@ -29377,6 +29971,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: vietnam_news_agency
   notes: Verified 2026-09-02.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
@@ -29397,6 +29992,7 @@
     status: none_found
     sections: []
   tier: agency
+  network: vietnam_news_agency
   notes: Verified 2026-09-02.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
@@ -29416,6 +30012,7 @@
     status: none_found
     sections: []
   tier: agency
+  network: vietnam_news_agency
   notes: Verified 2026-09-02.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
@@ -29567,7 +30164,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kallxo
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 403, so it stays inactive'
   inactive_since: '2026-10-12'
 - id: xk_koha
   name: Koha Ditore
@@ -29929,7 +30526,7 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/South_African_Broadcasting_Corporation
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto); re-tested from the owner''s network on 2026-10-17: robots_unavailable, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: za_sanews
   name: SAnews
@@ -29961,6 +30558,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: the_conversation
   notes: Verified 2026-09-02.
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/The_Conversation_(website)
@@ -30030,7 +30628,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mwebantu
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: zm_newsdiggers
   name: News Diggers
@@ -30072,6 +30670,30 @@
   ownership_source: https://rsf.org/en/country/zambia
   government_stance: state_controlled
   stance_source: https://rsf.org/en/country/zambia
+  active: true
+- id: zm_zambiamonitor
+  name: Zambia Monitor
+  country: ZMB
+  language: en
+  feeds:
+  - https://www.zambiamonitor.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Zambian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 10 items, the newest 3 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (2705, 4889 and 2787 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
+  active: true
+- id: zm_zambianobserver
+  name: The Zambian Observer
+  country: ZMB
+  language: en
+  feeds:
+  - https://zambianobserver.com/feed/
+  tier: national_daily
+  notes: 'Added 2026-10-17 to widen Zambian coverage. Verified 2026-10-17: robots.txt allows the feed for the crawler; HTTP 200 with 100 items, the newest 1 hours old, from the owner''s Mac with the project user agent; three sample articles read through the extractor (8076, 10527 and 2549 characters of running prose). Not yet seen from the hosted runner.'
+  political_leaning: unassessed
+  ownership: unassessed
+  collector: hosted
   active: true
 - id: zw_263chat
   name: 263Chat
@@ -30140,6 +30762,7 @@
     status: none_found
     sections: []
   tier: national_daily
+  network: alpha_media_holdings
   notes: Verified 2026-09-02.
   audience_rank: 3
   rank_source: https://www.ibzim.com/telecom/rankings/top-100-most-visited-websites-in-zimbabwe/
@@ -30219,12 +30842,13 @@
     status: blocked
     sections: []
   tier: national_daily
+  network: alpha_media_holdings
   notes: Verified 2026-09-02.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Standard_(Zimbabwe)
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: zw_zbc
   name: ZBC News
@@ -30425,7 +31049,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/KKHJ-FM
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: tf_taaf
   name: TAAF
@@ -30715,7 +31339,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Bernews
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: bv_bv
   name: Bouvet Island
@@ -30836,21 +31460,21 @@
   country: DMA
   language: en
   feeds:
-  - https://emonewsdm.com/feed/
+  - https://emonewsdm.com/feed.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 with the feed the homepage now advertises (https://emonewsdm.com/feed.xml, 50 entries, newest 2026-10-16); the old WordPress feed https://emonewsdm.com/feed/ returns no entries since the site moved platform.'
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/dominicanewsonline.com/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://emonewsdm.com/emonews-launch/
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
-  inactive_since: '2026-10-12'
+  collector: hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: er_awate
   name: Awate
   country: ERI
@@ -31119,7 +31743,7 @@
   ownership: private
   ownership_source: https://www.mediaisleofman.im/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-15 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-15 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 404, so it stays inactive'
   inactive_since: '2026-09-28'
 - id: im_iomtoday
   name: Isle of Man Today
@@ -31243,15 +31867,15 @@
     status: none_found
     sections: []
   tier: regional
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. Reactivated 2026-10-17 on the relay (collector: self_hosted): it had been deactivated automatically after the GitHub Actions runner failed on it, but from the owner''s network https://www.caribjournal.com/feed/ answered HTTP 200 with 10 entries, newest 2026-10-17.'
   audience_rank: 5
   rank_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Saint_Kitts_and_Nevis
   political_leaning: unassessed
   ownership: private
   ownership_source: https://www.caribjournal.com/about/
-  active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
-  inactive_since: '2026-10-12'
+  collector: self_hosted
+  collector_since: '2026-10-17'
+  active: true
 - id: kn_timescaribbean
   name: Times Caribbean
   country: KNA
@@ -31419,7 +32043,7 @@
   ownership: private
   ownership_source: https://www.hellomonaco.com/about-hellomonaco/welcome-hello-monaco-and-olga-taran/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: mc_monacoinfo
   name: Monaco Info
@@ -31460,7 +32084,7 @@
   ownership: private
   ownership_source: https://www.monacolife.net/
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: mc_monacomatin
   name: Monaco-Matin
@@ -31587,7 +32211,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Montserrat_Reporter
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-22 (auto)'
   inactive_since: '2026-10-05'
 - id: yt_journal
   name: Le Journal de Mayotte
@@ -31895,7 +32519,9 @@
   leaning_source: https://mediabiasfactcheck.com/daily-nk-bias/
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Daily_NK
-  active: true
+  active: false
+  inactive_reason: 'duplicate of kr_dailynk: the same feed (https://www.dailynk.com/english/feed/) under a second country; Daily NK is published from Seoul, so its items are counted once, under kr_dailynk (shared feed check, 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: kp_nkne
   name: NK News
   country: PRK
@@ -31913,7 +32539,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/NK_News
-  active: true
+  active: false
+  inactive_reason: 'duplicate of kr_nknews: the same feed (https://www.nknews.org/feed/) under a second country; NK News is published from Seoul, so its items are counted once, under kr_nknews (shared feed check, 2026-10-17)'
+  inactive_since: '2026-10-17'
 - id: kp_rfa
   name: RFA Korean
   country: PRK
@@ -32601,12 +33229,14 @@
   feeds:
   - https://www.elbalad.news/rss.aspx
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. On both collectors (collector: both) since 2026-10-17: 67 of the hosted runner''s 71 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and the sitemap its robots.txt lists (https://www.elbalad.news/sitemaps.xml) carried no Google News entries on 2026-10-17, so the relay''s hourly polls are added.'
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://egypt.mom-gmr.org/en/media/detail/outlet/sada-el-balad-news/
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: tn_babnet
   name: Babnet Tunisie
@@ -32827,7 +33457,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Rwanda
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: rw_imvahonshya
   name: Imvaho Nshya
@@ -33005,6 +33635,7 @@
   feeds:
   - https://www.infobae.com/arc/outboundfeeds/rss/
   tier: national_daily
+  network: infobae
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/argentina
@@ -33077,6 +33708,7 @@
   feeds:
   - https://starcomnetwork.net/feed/
   tier: broadcaster
+  network: one_caribbean_media
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/barbadostoday.bb/
@@ -33121,6 +33753,7 @@
   feeds:
   - https://www.lateja.cr/rss
   tier: national_daily
+  network: grupo_nacion
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/costa-rica/news-and-media/
@@ -33327,7 +33960,7 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/El_Universal_(Mexico_City)
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-24 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-24 (auto)'
   inactive_since: '2026-10-05'
 - id: mx_tvazteca
   name: TV Azteca News
@@ -33348,9 +33981,10 @@
   country: PER
   language: es
   feeds:
-  - https://www.infobae.com/arc/outboundfeeds/rss/
+  - https://www.infobae.com/arc/outboundfeeds/rss/category/peru/
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  network: infobae
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Feed changed 2026-10-17 from the site wide feed, which ar_infobae also polls, to the Peru edition's own feed (100 entries, all under infobae.com/peru/, 2026-10-17).
   audience_rank: 6
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/peru
   political_leaning: centre_right
@@ -33456,6 +34090,7 @@
   - https://www.ctvnews.ca/arc/outboundfeeds/rss/?outputType=xml
   - https://www.ctvnews.ca/arc/outboundfeeds/rss/category/world/?outputType=xml
   tier: broadcaster
+  network: bell_media
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/canada
@@ -33471,6 +34106,7 @@
   feeds:
   - https://www.cp24.com/arc/outboundfeeds/rss/?outputType=xml
   tier: broadcaster
+  network: bell_media
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/canada
@@ -33586,6 +34222,7 @@
   feeds:
   - https://stomp.straitstimes.com/rss.xml
   tier: national_daily
+  network: sph_media
   notes: Added 2026-09-23 from the readership research.
   audience_rank: 5
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/singapore
@@ -33654,7 +34291,7 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Radio-Televis%C3%A3o_Timor_Leste
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto)
+  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: parse_error: SAXParseException, so it stays inactive'
   inactive_since: '2026-10-05'
 - id: tl_stl
   name: Suara Timor Lorosae
@@ -33718,7 +34355,7 @@
   stance_source: https://rsf.org/en/country/armenia
   stance_as_of: 2026
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: am_168am
   name: 168.am
@@ -33858,11 +34495,13 @@
   feeds:
   - https://samanews.ps/ar/rss.php
   tier: agency
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. Moved to the relay (collector: self_hosted) 2026-10-17: the GitHub Actions runner has been refused with HTTP 403 on every check, while from the owner''s network https://samanews.ps/ar/rss.php answered HTTP 200 with 15 entries.'
   audience_rank: 4
   rank_source: https://www.semrush.com/trending-websites/ps/newspapers
   political_leaning: unassessed
   ownership: unassessed
+  collector: self_hosted
+  collector_since: '2026-10-17'
   active: true
 - id: qa_alsharq
   name: Al Sharq
@@ -33888,11 +34527,13 @@
   feeds:
   - https://sa24.co/rss.php
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. On both collectors (collector: both) since 2026-10-17: 65 of the hosted runner''s 71 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/ye/newspapers
   political_leaning: unassessed
   ownership: unassessed
+  collector: both
+  collector_since: '2026-10-17'
   active: true
 - id: ye_sabanew
   name: Saba News Agency (sabanew.net)
@@ -34045,12 +34686,14 @@
   feeds:
   - https://www.stiripesurse.ro/rss/stiri.xml
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. Moved to the relay (collector: self_hosted) 2026-10-17: the GitHub Actions runner has been refused with HTTP 403 on every check, while from the owner''s network https://www.stiripesurse.ro/rss/stiri.xml answered HTTP 200 with 100 entries, newest 2026-10-17.'
   audience_rank: 4
   rank_source: https://www.similarweb.com/top-websites/romania/news-and-media/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://ro.wikipedia.org/wiki/%C8%98tiripesurse.ro
+  collector: self_hosted
+  collector_since: '2026-10-17'
   active: true
 - id: sk_sme
   name: Sme
@@ -34269,7 +34912,7 @@
   ownership: private
   ownership_source: https://www.noticiasaominuto.com/ficha-tecnica
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: pt_cnnportugal
   name: CNN Portugal
@@ -34479,6 +35122,7 @@
   feeds:
   - https://www.dailymail.co.uk/auhome/index.rss
   tier: national_daily
+  network: dmg_media
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
   audience_rank: 7
   rank_source: https://www.mediaweek.com.au/abc-news-holds-off-rivals-online-online-battle
@@ -34779,10 +35423,12 @@
   feeds:
   - https://www.paradisefm.cw/feed/
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: 'Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Moved to the relay (collector: self_hosted) 2026-10-17: the GitHub Actions runner has been refused with HTTP 403 on every check, while from the owner''s network https://www.paradisefm.cw/feed/ answered HTTP 200 with 10 entries, newest 2026-10-16.'
   audience_rank: 6
   political_leaning: unassessed
   ownership: unassessed
+  collector: self_hosted
+  collector_since: '2026-10-17'
   active: true
 - id: ec_extra
   name: Extra
@@ -34848,7 +35494,7 @@
   ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: ve_telesur
   name: teleSUR
@@ -34908,7 +35554,7 @@
   ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Radio_Free_Europe/Radio_Liberty
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-28 (auto)'
   inactive_since: '2026-10-12'
 - id: by_belapan
   name: BelaPAN
@@ -34942,7 +35588,7 @@
   ownership: state_funded_international
   ownership_source: https://en.wikipedia.org/wiki/Current_Time_TV
   active: false
-  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)
+  inactive_reason: 'robots.txt disallows the crawler for every feed (re-tested from the owner''s network on 2026-10-17), so neither collector may poll it; deactivated automatically on the GitHub Actions runner with the reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-30 (auto)'
   inactive_since: '2026-10-12'
 - id: ie_dublinlive
   name: Dublin Live
@@ -35618,7 +36264,9 @@
   - http://www.nordlysid.fo/feed/
   tier: regional
   notes: Added 2026-09-28 from the readership research.
-  active: true
+  active: false
+  inactive_reason: 'the feed http://www.nordlysid.fo/feed/ returned HTTP 403 on every check from the GitHub Actions runner (it never succeeded) and again from the owner''s network on 2026-10-17, so no collector can reach it'
+  inactive_since: '2026-10-17'
 - id: li_1fltv
   name: 1FLTV
   country: LIE

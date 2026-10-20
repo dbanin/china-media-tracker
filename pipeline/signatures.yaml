@@ -17,13 +17,15 @@
 #             tail    = last 600 characters of the body
 #             body    = whole body (default)
 #             any     = author, title and body
+#             disclosure = author, page labels, head and tail, read with post_check
+#                       disclosure_marker (classify_rules.DISCLOSURE_CHECK)
 #   note      why this pattern exists
 #
 # Decision rule (classify_rules.py): any strong match, or weak matches from two
 # different groups, gives Category A with confidence 1.0 and no LLM call. One
 # weak match routes to the LLM as an A candidate. Exclusions are applied first
 # and remove the matched span from the text before patterns run.
-ruleset_version: "2026.10.1"
+ruleset_version: "2026.10.2"
 
 # Spans removed before matching, so a photo credit is not read as a text credit.
 exclusions:
@@ -187,10 +189,10 @@ groups:
         scope: author
         note: The author field holds the state outlet's name and nothing else, the native script form of xinhua_author_field.
       - id: state_outlet_wire_end_native
-        regex: '(?m)^\s*[（(]?\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|Πρακτορείο Νέα Κίνα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua Haber Ajansı|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|وكالة أنباء الصين الجديدة|شينخوا|شينهوا|신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社|中国国际广播电台|中國國際廣播電台|中國國際廣播電臺|国际在线|國際在線|中国国際放送局|중국국제방송국|중국국제방송)\s*[)）]?\s*$'
+        regex: '(?m)^(?<![-•·*]\n)(?<![-•·*][ \t]\n)[ \t]*[（(]?[ \t]*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|Πρακτορείο Νέα Κίνα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua Haber Ajansı|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|Медиакорпорация Китая|Жэньминь жибао|Хуаньцю шибао|Центральное телевидение Китая|وكالة أنباء الصين الجديدة|شينخوا|شينهوا|신화통신사|신화통신|신화사|인민일보|환구시보|중국중앙방송총국|중국중앙방송|차이나데일리|新華社通信|新華社|チャイナ・デイリー|チャイナデイリー|中国中央テレビ|新华社|新华网|新華網|中国日报|中國日報|环球时报|環球時報|人民日报|人民日報|中国中央电视台|中央电视台|中央广播电视总台|中央廣播電視總台|中国国际电视台|中国新闻社|中新社|中国国际广播电台|中國國際廣播電台|中國國際廣播電臺|国际在线|國際在線|中国国際放送局|중국국제방송국|중국국제방송)[ \t]*[)）]?[ \t]*$(?=(?:\n[^\n]{0,79})*\Z)'
         strength: strong
         scope: tail
-        note: The state outlet's name alone on a line at the end of the body, where a credit sits. The native script form of xinhua_wire_end. Photo and picture credits are removed first by photo_credit_native.
+        note: 'The state outlet''s name alone on a line at the end of the body, where a credit sits. The native script form of xinhua_wire_end. Photo and picture credits are removed first by photo_credit_native. From ruleset 2026.10.2 the line must close the body (only lines under 80 characters may follow it, a copyright or photo line) and must not follow a line holding only a list mark: Maeil Business adds an AI glossary under its stories ("-", then "신화통신", then a sentence defining it), and the term line of that glossary had labelled a Maeil report state origin.'
       - id: state_outlet_dateline_native
         regex: '(?m)^[^\n]{0,60}[（(]\s*(Σινχούα|Σινχουά|Σίνχουα|Σινχουα|Ξινχούα|Ξινχουά|Ξίνχουα|Ξινχουα|שינחואה|סינחואה|شین[\u200c ]?هوا|Şinhua|Tân Hoa Xã|Tân Hoa xã|Синьхуа|شينخوا|شينهوا|신화통신|新華社|新华社|中新社)\s*[)）]\s*(--|—|–)|^\s*(新华社|新華社|中新社|中新網|中新网)[^\n]{0,24}(电|電)\b|^\s*【\s*(新華社|新华社)[^\n]{0,24}】|[（(][^\n]{0,20}=\s*(신화통신|신화사)\s*[)）]'
         strength: strong
@@ -236,13 +238,17 @@ groups:
       carry navigation strips, ad slots and site-wide menu items that name no article.
     patterns:
       - id: sponsored_with_state_entity_en
-        regex: '(?is)\b(sponsored (content|by|post|feature|article)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content|advertisement feature|special report by)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China|Consulate General of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute|Hainan|Guangdong|Shandong|Sichuan|Zhejiang|Jiangsu|Fujian|Hubei|Hunan|Yunnan|Chongqing|Tianjin|Shanghai|Beijing)\b.{0,80}?\b(government|province|provincial|municipal|department|bureau|administration|office|committee|council|daily|times|CGTN|Xinhua|embassy|consulate|institute|group|cent(er|re)|People.s Daily)\b'
+        regex: '(?is)(?<![\w-])(?P<marker>sponsored (content|by|post|feature|article)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content|advertisement feature|special report by)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China|Consulate General of (the People.s Republic of )?China|China Cultural Cent(er|re)|Confucius Institute|Hainan|Guangdong|Shandong|Sichuan|Zhejiang|Jiangsu|Fujian|Hubei|Hunan|Yunnan|Chongqing|Tianjin|Shanghai|Beijing)\b.{0,80}?\b(government|province|provincial|municipal|department|bureau|administration|office|committee|council|daily|times|CGTN|Xinhua|embassy|consulate|institute|group|cent(er|re)|People.s Daily)\b'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: state_entity_then_sponsored_en
-        regex: '(?is)\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,600}?\b(sponsored (content|by|post|feature)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content)\b'
+        regex: '(?is)\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|People.s Daily|Chinese Embassy|Embassy of (the People.s Republic of )?China)\b.{0,600}?(?<![\w-])(?P<marker>sponsored (content|by|post|feature)|paid (post|content|partnership|for by)|branded content|advertorial|partner content|brought to you by|promoted content)\b'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: china_watch_supplement
         regex: '(?i)\bChina Watch\b.{0,200}\b(China Daily|supplement|paid|sponsored|advertising)\b|\b(China Daily)\b.{0,200}\bChina Watch\b'
         strength: strong
@@ -257,9 +263,11 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_it_with_state_entity
-        regex: '(?is)\b(contenuto sponsorizzato|publiredazionale|pubbliredazionale|branded content|informazione pubblicitaria|contenuto promozionale|sponsorizzato da|realizzato da)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Ambasciata della Cina|Consolato (Generale )?Cinese|Consolato della Cina|Istituto Confucio|Centro Culturale Cinese|Ufficio (Informazioni|Turistico) (della|del) Cina|Governo (Popolare )?(Provinciale|Municipale)|Provincia (dello|del|di) (Shandong|Hainan|Sichuan|Zhejiang|Jiangsu|Fujian|Guangdong|Hubei|Hunan|Yunnan|Henan|Anhui|Shaanxi|Shanxi|Hebei))\b'
+        regex: '(?is)\b(?P<marker>contenuto sponsorizzato|publiredazionale|pubbliredazionale|branded content|informazione pubblicitaria|contenuto promozionale|sponsorizzato da|realizzato da)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Ambasciata (della Repubblica Popolare )?Cinese|Ambasciata della Cina|Consolato (Generale )?Cinese|Consolato della Cina|Istituto Confucio|Centro Culturale Cinese|Ufficio (Informazioni|Turistico) (della|del) Cina|Governo (Popolare )?(Provinciale|Municipale)|Provincia (dello|del|di) (Shandong|Hainan|Sichuan|Zhejiang|Jiangsu|Fujian|Guangdong|Hubei|Hunan|Yunnan|Henan|Anhui|Shaanxi|Shanxi|Hebei))\b'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: cairorcs_studio
         regex: '(?i)\b(CairoRcs Studio|Cairo Rcs Studio|RCS Studio|Studio Rcs|Corriere Innovazione Studio|Rcs MediaGroup Studio|Rcs Studio)\b'
         strength: weak
@@ -274,33 +282,41 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_fr_with_state_entity
-        regex: "(?is)\\b(contenu sponsorisé|contenu partenaire|publireportage|publi-reportage|article sponsorisé|contenu commandité)\\b.{0,600}?\\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Quotidien du Peuple|ambassade de (la République populaire de )?Chine|consulat (général )?de Chine|Institut Confucius|Centre culturel (de )?Chin(e|ois)|gouvernement (populaire )?(provincial|municipal)|province d[eu] )"
+        regex: "(?is)\\b(?P<marker>contenu sponsorisé|contenu partenaire|publireportage|publi-reportage|article sponsorisé|contenu commandité)\\b.{0,600}?\\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Quotidien du Peuple|ambassade de (la République populaire de )?Chine|consulat (général )?de Chine|Institut Confucius|Centre culturel (de )?Chin(e|ois)|gouvernement (populaire )?(provincial|municipal)|province d[eu] )"
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_es
         regex: '(?i)\b(publirreportaje|publi-reportaje|contenido patrocinado|contenido de marca|branded content|patrocinado por|contenido pagado|contenido promocionado|espacio patrocinado)\b'
         strength: weak
         scope: byline_head
       - id: sponsored_es_with_state_entity
-        regex: '(?is)\b(publirreportaje|contenido patrocinado|contenido de marca|patrocinado por|contenido pagado)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diario del Pueblo|embajada de (la República Popular )?China|consulado (general )?de China|Instituto Confucio|Centro Cultural (de )?China|gobierno (popular )?(provincial|municipal)|provincia de )'
+        regex: '(?is)\b(?P<marker>publirreportaje|contenido patrocinado|contenido de marca|patrocinado por|contenido pagado)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diario del Pueblo|embajada de (la República Popular )?China|consulado (general )?de China|Instituto Confucio|Centro Cultural (de )?China|gobierno (popular )?(provincial|municipal)|provincia de )'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_pt
         regex: '(?i)\b(conteúdo patrocinado|conteudo patrocinado|publieditorial|informe publicitário|conteúdo de marca|patrocinado por|conteúdo pago|branded content)\b'
         strength: weak
         scope: byline_head
       - id: sponsored_pt_with_state_entity
-        regex: '(?is)\b(conteúdo patrocinado|publieditorial|informe publicitário|patrocinado por|conteúdo pago)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diário do Povo|embaixada da (República Popular da )?China|consulado (geral )?da China|Instituto Confúcio|Centro Cultural da China|governo (popular )?(provincial|municipal)|província de )'
+        regex: '(?is)\b(?P<marker>conteúdo patrocinado|publieditorial|informe publicitário|patrocinado por|conteúdo pago)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Diário do Povo|embaixada da (República Popular da )?China|consulado (geral )?da China|Instituto Confúcio|Centro Cultural da China|governo (popular )?(provincial|municipal)|província de )'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_de
         regex: '(?i)\b(gesponsert|gesponserter (beitrag|inhalt|artikel)|sponsored content|advertorial|bezahlter (beitrag|inhalt)|partnerinhalt|native ad)\b'
         strength: weak
         scope: byline_head
       - id: sponsored_de_with_state_entity
-        regex: '(?is)\b(gesponsert|gesponserter|anzeige|advertorial|bezahlter|partnerinhalt)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Volkszeitung|Botschaft der Volksrepublik China|chinesische(n|r)? Botschaft|Generalkonsulat der Volksrepublik China|Konfuzius-?Institut|Chinesisches Kulturzentrum|Provinzregierung|Provinz )'
+        regex: '(?is)\b(?P<marker>gesponsert|gesponserter|advertorial|bezahlter|partnerinhalt)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Volkszeitung|Botschaft der Volksrepublik China|chinesische(n|r)? Botschaft|Generalkonsulat der Volksrepublik China|Konfuzius-?Institut|Chinesisches Kulturzentrum|Provinzregierung|Provinz )'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_nl
         regex: '(?i)\b(gesponsorde (inhoud|content|bijdrage)|advertorial|betaald (bericht|artikel)|in samenwerking met|aangeboden door|partnercontent|branded content)\b'
         strength: weak
@@ -310,33 +326,41 @@ groups:
         strength: weak
         scope: byline_head
       - id: sponsored_other_with_state_entity
-        regex: '(?is)\b(treść sponsorowana|artykuł sponsorowany|materiał partnera|sponzorovaný obsah|komerční sdělení|szponzorált tartalom|conținut sponsorizat|спонсориран|спонсорирано|sponzorisani sadržaj|sponzorirani sadržaj|χορηγούμενο|sponsorlu içerik|sponsoroitu sisältö|sponsrat innehåll|sponset innhold|sponsoreret indhold)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Синьхуа|Ambasad[ay] (Chińskiej Republiki Ludowej|Chin)|Velvyslanectví Čínské|Kínai Nagykövetség|Ambasada (Republicii Populare )?Chineze|Посолство на Китай|Ambasada (Narodne Republike )?Kine|Πρεσβεία της Κίνας|Çin Büyükelçiliği|Kiinan suurlähetystö|Kinas ambassad|Kinas ambassade)\b'
+        regex: '(?is)\b(?P<marker>treść sponsorowana|artykuł sponsorowany|materiał partnera|sponzorovaný obsah|komerční sdělení|szponzorált tartalom|conținut sponsorizat|спонсориран|спонсорирано|sponzorisani sadržaj|sponzorirani sadržaj|χορηγούμενο|sponsorlu içerik|sponsoroitu sisältö|sponsrat innehåll|sponset innhold|sponsoreret indhold)\b.{0,600}?\b(China Daily|CGTN|Xinhua|Global Times|China Media Group|CCTV|Синьхуа|Ambasad[ay] (Chińskiej Republiki Ludowej|Chin)|Velvyslanectví Čínské|Kínai Nagykövetség|Ambasada (Republicii Populare )?Chineze|Посолство на Китай|Ambasada (Narodne Republike )?Kine|Πρεσβεία της Κίνας|Çin Büyükelçiliği|Kiinan suurlähetystö|Kinas ambassad|Kinas ambassade)\b'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_ru
         regex: '(?i)(на правах рекламы|партнерский материал|партнёрский материал|спонсорский материал|реклама\b)'
         strength: weak
         scope: byline_head
       - id: sponsored_ru_with_state_entity
-        regex: '(?is)(на правах рекламы|партн[её]рский материал|спонсорский материал).{0,600}?(Синьхуа|Xinhua|CGTN|China Daily|Global Times|Жэньминь жибао|Медиакорпорац[ия][яи] Китая|Посольств[оа] (Китайской Народной Республики|КНР|Китая)|Генеральн[оы][ег]о? консульств[оа] (КНР|Китая)|Институт Конфуция|Китайский культурный центр|Народное правительство)'
+        regex: '(?is)(?P<marker>на правах рекламы|партн[её]рский материал|спонсорский материал).{0,600}?(Синьхуа|Xinhua|CGTN|China Daily|Global Times|Жэньминь жибао|Медиакорпорац[ия][яи] Китая|Посольств[оа] (Китайской Народной Республики|КНР|Китая)|Генеральн[оы][ег]о? консульств[оа] (КНР|Китая)|Институт Конфуция|Китайский культурный центр|Народное правительство)'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_ar
         regex: '(?i)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع)'
         strength: weak
         scope: byline_head
       - id: sponsored_ar_with_state_entity
-        regex: '(?is)(محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع).{0,600}?(شينخوا|سي جي تي إن|CGTN|تشاينا ديلي|China Daily|غلوبال تايمز|صحيفة الشعب|سفارة (جمهورية )?الصين|القنصلية (العامة )?الصينية|معهد كونفوشيوس|المركز الثقافي الصيني)'
+        regex: '(?is)(?P<marker>محتوى مدفوع|محتوى إعلاني|محتوى برعاية|إعلان مدفوع).{0,600}?(شينخوا|سي جي تي إن|CGTN|تشاينا ديلي|China Daily|غلوبال تايمز|صحيفة الشعب|سفارة (جمهورية )?الصين|القنصلية (العامة )?الصينية|معهد كونفوشيوس|المركز الثقافي الصيني)'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
       - id: sponsored_asia
         regex: '(?i)(konten bersponsor|konten berbayar|artikel sponsor|iklan\b|nội dung được tài trợ|bài viết tài trợ|quảng cáo\b|เนื้อหาที่ได้รับการสนับสนุน|โฆษณา|スポンサード|広告|PR記事|提供:|스폰서 콘텐츠|광고\b|협찬|प्रायोजित सामग्री|विज्ञापन)'
         strength: weak
         scope: byline_head
       - id: sponsored_asia_with_state_entity
-        regex: '(?is)(konten bersponsor|konten berbayar|artikel sponsor|nội dung được tài trợ|bài viết tài trợ|เนื้อหาที่ได้รับการสนับสนุน|スポンサード|PR記事|提供:|스폰서 콘텐츠|협찬|प्रायोजित).{0,600}?(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Kedutaan (Besar )?(Republik Rakyat )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc|Tân Hoa Xã|สถานทูตจีน|ซินหัว|新華社|中国大使館|中国国際テレビ|中国日報|신화통신|중국 대사관|चीनी दूतावास|शिन्हुआ)'
+        regex: '(?is)(?P<marker>konten bersponsor|konten berbayar|artikel sponsor|nội dung được tài trợ|bài viết tài trợ|เนื้อหาที่ได้รับการสนับสนุน|スポンサード|PR記事|提供:|스폰서 콘텐츠|협찬|प्रायोजित).{0,600}?(Xinhua|CGTN|China Daily|Global Times|China Media Group|CCTV|Kedutaan (Besar )?(Republik Rakyat )?(Tiongkok|China|Cina)|Đại sứ quán Trung Quốc|Tân Hoa Xã|สถานทูตจีน|ซินหัว|新華社|中国大使館|中国国際テレビ|中国日報|신화통신|중국 대사관|चीनी दूतावास|शिन्हुआ)'
         strength: strong
-        scope: labels_head_tail
+        scope: disclosure
+        post_check: disclosure_marker
+        note: 'From ruleset 2026.10.2 the disclosure (the named group marker) counts only where one attached to this item sits (post_check disclosure_marker): the author field; the item''s own page labels (its meta values and JSON-LD sponsor, funder, articleSection, genre, keywords or creator) anywhere; the headline tag, or a short line of the body''s first 400 or last 600 characters, only when the disclosure opens it; and a line of page chrome (a kicker, ad slot or menu item) only when the state entity is named on that same line. Menu items and ad slots such as "(Anzeige) Solaranlagen", "Kostenlose Onlinespiele (Partnerangebot)", "Contenuto sponsorizzato", "materiał partnera" and a sidebar of "Sponsored Content" links had labelled news state origin whenever a state outlet was named within 600 characters.'
 
   authored_by_state:
     description: Signed pieces by Chinese ambassadors, consuls general, embassy spokespersons and Ministry of Foreign Affairs officials. Matched on the author field and on the biographical line that opens or closes the piece, never on the body, because "the Chinese ambassador said" is ordinary reporting.

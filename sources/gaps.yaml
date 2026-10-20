@@ -1,5 +1,8 @@
 # Countries where no working feed could be found. Read by the front end so
-# absence of data is never displayed as absence of content.
+# absence of data is never displayed as absence of content. An entry applies only while the
+# country has no active outlet (the export shows a country with one as monitored), so a country
+# that gains one leaves this file: Western Sahara (ESH, Sahara Press Service and five local
+# outlets) and Kiribati (KIR, ki_bpa) were removed on 2026-10-17.
 - country: ATA
   name: Antarctica
   reason: Antarctica has research stations and no news outlet. No candidate feed returned items to the identified crawler on 2026-09-02; 3 feed URLs tried.
@@ -33,42 +36,12 @@
   candidates_tried:
   - https://www.shire.gov.cx/feed
   - https://www.theislander.cx/feed/
-- country: ESH
-  name: Western Sahara
-  reason: Sahara Press Service feeds did not respond; solidarity blogs abroad were not counted as Western Saharan press. No candidate feed returned items to the identified crawler on 2026-09-02; 13 feed
-    URLs tried.
-  checked: '2026-09-02'
-  candidates_tried:
-  - https://futurosahara.net/feed/
-  - https://saharalibre.es/feed/
-  - https://saharaoccidental.es/feed/
-  - https://saharatoday.net/feed/
-  - https://www.ecsaharaui.com/feeds/posts/default
-  - https://www.ecsaharaui.com/feeds/posts/default?alt=rss
-  - https://www.spsrasd.info/en/rss
-  - https://www.spsrasd.info/es/rss
-  - https://www.spsrasd.info/es/rss.xml
-  - https://www.spsrasd.info/news/en/rss
 - country: HMD
   name: Heard Island and McDonald Islands
   reason: Heard Island and McDonald Islands are uninhabited. No candidate feed returned items to the identified crawler on 2026-09-02; 1 feed URLs tried.
   checked: '2026-09-02'
   candidates_tried:
   - https://heardisland.antarctica.gov.au/feed
-- country: KIR
-  name: Kiribati
-  reason: Kiribati's outlets expose no feed; regional coverage comes through RNZ Pacific, registered under New Zealand. No candidate feed returned items to the identified crawler on 2026-09-02; 8 feed URLs
-    tried.
-  checked: '2026-09-02'
-  candidates_tried:
-  - https://kiribatiindependent.com/feed/
-  - https://kiribatiupdates.com.ki/feed/
-  - https://uekera.com.ki/feed/
-  - https://www.kiribati.gov.ki/feed/
-  - https://www.kiribatiindependent.com/feed/
-  - https://www.president.gov.ki/feed/
-  - https://www.radiokiribati.com/feed/
-  - https://www.teuekera.com/feed/
 - country: NFK
   name: Norfolk Island
   reason: Norfolk Island's two small outlets expose no feed. No candidate feed returned items to the identified crawler on 2026-09-02; 6 feed URLs tried.

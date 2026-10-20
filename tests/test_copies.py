@@ -237,8 +237,8 @@ def test_old_rows_are_not_paired_again_unless_the_version_changes(conn, monkeypa
     aid = _article(conn, "https://paper.example/a", "us_paper", TITLE, None, hours_ago=20 * 24, sigs=["xinhua_dateline"])
     assert _run(conn)["paired"] == 1
     assert _run(conn)["todo"] == 0
-    monkeypatch.setattr(copies, "VERSION", "2")
-    assert _run(conn)["paired"] == 1 and _row(conn, aid)["version"] == "2"
+    monkeypatch.setattr(copies, "VERSION", copies.VERSION + "x")
+    assert _run(conn)["paired"] == 1 and _row(conn, aid)["version"] == copies.VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -352,8 +352,13 @@ def test_export_shape_and_no_body_text(conn):
     assert exp["bands"] == ["verbatim", "light", "moderate", "substantial"]
     assert exp["coverage"]["reference"] == 6 and exp["coverage"]["scored"] == 6
     assert {g["id"] for g in exp["by_country"]} == {"USA", "WLD"}
-    assert [g["id"] for g in exp["by_outlet"]] == ["us_paper"] and exp["by_outlet"][0]["n"] == 5
-    assert exp["by_outlet"][0]["name"] == "US Paper" and exp["by_outlet"][0]["median_novel"] is not None
+    # Six copies of one original are one original and one underlying item: no outlet is ranked on it,
+    # no group median is given, and the item weighted shares count the item once.
+    t = exp["totals"]
+    assert t["scored"] == 6 and t["originals"] == 1 and t["items"] == 1 and exp["by_outlet"] == []
+    assert t["item_shares"] == {"verbatim": 0.5, "light": 0.0, "moderate": 0.0, "substantial": 0.5}
+    assert t["scored_reference"] == 6 and t["scored_monitored"] == 0 and t["against"]["reference"]["items"] == 1
+    assert all(g["median_novel"] is None and g["originals"] == 1 for g in exp["by_route"])
     assert exp["by_source"][0]["id"] == "ref_xinhua_en"
     assert exp["by_route"][0]["id"] == "wire_credit" and exp["by_route"][0]["label"]
     assert sum(exp["by_route"][0]["bands"].values()) == 6
@@ -368,6 +373,8 @@ def test_export_shape_and_no_body_text(conn):
     assert all(PARAS[0][:40] not in v for r in rows for v in r.values() if v)
     s = copies.meta_summary(conn, ctx)
     assert s["copies"] == 6 and s["reference"] == 6 and s["scored"] == 6
+    assert s["scored_reference"] == 6 and s["originals"] == 1 and s["items"] == 1
+    assert s["reference_sources"]["ref_xinhua_en"]["fetched"] == 1 and "reference_sources" in exp
 
 
 def test_the_review_file_never_lands_in_the_repository_from_another_export(tmp_path):
@@ -420,7 +427,13 @@ def test_score_check_maths():
 
 
 def test_methodology_text_is_plain():
-    t = copies.methodology_text({"status": "provisional", "summary": {"copies": 10, "reference": 2, "monitored": 3, "scored": 4}})
+    t = copies.methodology_text({"status": "provisional", "summary": {"copies": 10, "reference": 2, "monitored": 3, "scored": 4,
+                                                                    "scored_reference": 0, "scored_monitored": 4,
+                                                                    "originals": 2, "items": 2}})
+    # No reference pair scored: the text never says the copies were set beside the state text.
+    assert "beside the original state text" not in t and "No copy has yet been scored against the state outlet's own text" in t
+    assert "4 had both texts available to score: 0 against a reference original and 4 against an earlier monitored copy" in t
+    assert "2 distinct originals and 2 distinct underlying items" in t and "media group" in t
     assert "without substantive editorial alteration" in t and "report only" in t
     assert "\u2013" not in t and "\u2014" not in t and " - " not in t and "--" not in t
     assert "Category" not in t and "verbatim" in t and "substantial" in t
@@ -434,3 +447,114 @@ def test_the_module_offers_the_whole_interface(conn):
     assert copies.inputs_present(conn) == 0
     spec = next(m for m in measures.load_config() if m["id"] == "alteration")
     assert spec["module"] == "pipeline.copies" and spec["enabled"]
+
+
+# ---------------------------------------------------------------------------
+# Networks, distinct originals and items, cleaners (F6a)
+# ---------------------------------------------------------------------------
+
+NETWORK_OUTLETS = [{"id": "au_newcastleherald", "name": "Newcastle Herald", "country": "AUS", "network": "acm"},
+                   {"id": "au_canberratimes", "name": "The Canberra Times", "country": "AUS", "network": "acm"},
+                   {"id": "au_illawarramercury", "name": "Illawarra Mercury", "country": "AUS", "network": "acm"},
+                   {"id": "us_paper", "name": "US Paper", "country": "USA"}]
+
+
+def test_an_earlier_copy_at_a_sister_outlet_of_the_same_network_is_never_the_original(conn):
+    first = _article(conn, "https://newcastleherald.example/1", "au_newcastleherald", TITLE, ORIGINAL, hours_ago=5,
+                     country="AUS", sigs=["xinhua_dateline"])
+    conn.execute("UPDATE articles SET dup_group_id=? WHERE id=?", (first, first))
+    sister = _article(conn, "https://canberratimes.example/1", "au_canberratimes", TITLE, ORIGINAL, hours_ago=3,
+                      country="AUS", sigs=["xinhua_dateline"], dup_group=first)
+    other = _article(conn, "https://paper.example/1", "us_paper", TITLE, ORIGINAL, hours_ago=1, sigs=["xinhua_dateline"],
+                     dup_group=first)
+    conn.commit()
+    ctx = {"outlets": NETWORK_OUTLETS, "export_dir": conn_dir(conn)}
+    copies.compute(conn, ctx, None, sources=SOURCES)
+    a, b, c = _row(conn, first), _row(conn, sister), _row(conn, other)
+    assert a["original_kind"] == "none"
+    assert b["original_kind"] == "none" and json.loads(b["details"])["sister_only"] == 1
+    assert c["original_kind"] == "monitored" and c["original_article_id"] == first and c["band"] == "verbatim"
+    exp = copies.build_export(conn, ctx)
+    assert exp["coverage"]["sister_only"] == 1 and exp["coverage"]["monitored"] == 1
+    assert exp["totals"]["scored_monitored"] == 1 and exp["totals"]["scored_reference"] == 0
+    # Without the network field the sister's earlier copy would have been taken (recent copies are paired again).
+    copies.compute(conn, {"outlets": [dict(o, network=None) for o in NETWORK_OUTLETS]}, None, sources=SOURCES)
+    assert _row(conn, sister)["original_kind"] == "monitored" and _row(conn, sister)["original_article_id"] == first
+
+
+def test_network_map_reads_the_registry_and_the_context():
+    assert copies.network_map({"outlets": NETWORK_OUTLETS}) == {"au_newcastleherald": "acm", "au_canberratimes": "acm",
+                                                               "au_illawarramercury": "acm"}
+    reg = copies.network_map(None)
+    assert reg["au_canberratimes"] == reg["au_bendigoadvertiser"] == "acm"
+    assert reg["ca_nationalpost"] == reg["ca_torontosun"] == "postmedia" and reg["ca_torontostar"] == "torstar"
+    assert reg["au_smh"] == "nine" and reg["au_heraldsun"] == "news_corp"
+    assert copies.same_network(reg, "au_smh", "au_theage") and not copies.same_network(reg, "au_smh", "au_canberratimes")
+    assert not copies.same_network(reg, "it_corriere", "it_repubblica")      # no network recorded: never the same
+
+
+def test_distinct_originals_and_items_in_the_export(conn):
+    # Two state texts: one run by four outlets (one original, one item), one by two.
+    outlets = [{"id": "o%d" % i, "name": "Outlet %d" % i, "country": "USA"} for i in range(6)]
+    texts = [(TITLE, ORIGINAL), ("Beijing hosts forum on rural revitalisation and green farming in the west",
+                                  "\n".join(p.replace("China", "The province") for p in PARAS))]
+    ids = []
+    for t, (title, body) in enumerate(texts):
+        first = None
+        for j in range(4 if t == 0 else 2):
+            aid = _article(conn, "https://o%d.example/%d" % (j + 2 * t, t), "o%d" % (j + 2 * t), title, body,
+                           hours_ago=10 - j, sigs=["xinhua_dateline"], dup_group=first)
+            if first is None:
+                first = aid
+                conn.execute("UPDATE articles SET dup_group_id=? WHERE id=?", (aid, aid))
+            ids.append(aid)
+    conn.commit()
+    ctx = {"outlets": outlets, "export_dir": conn_dir(conn)}
+    copies.compute(conn, ctx, None, sources=SOURCES)
+    exp = copies.build_export(conn, ctx)
+    t = exp["totals"]
+    assert t["scored"] == 4 and t["originals"] == 2 and t["items"] == 2
+    assert exp["coverage"]["items"] == 2 and exp["coverage"]["originals"] == 2 and exp["coverage"]["paired_items"] == 2
+    assert t["item_shares"]["verbatim"] == 1.0 and t["item_bands"]["verbatim"] == 2.0
+    assert t["against"]["monitored"]["scored"] == 4 and t["against"]["reference"]["scored"] == 0
+    rows = copies.attach_items(conn, [dict(r) for r in conn.execute("SELECT s.*, a.dup_group_id FROM state_copies s JOIN articles a ON a.id = s.copy_id")])
+    assert len({r["item_key"] for r in rows}) == 2 and {r["orig_key"] for r in rows if r["orig_key"]} == {"a%d" % ids[0], "a%d" % ids[4]}
+
+
+def test_item_summary_weighs_each_item_once():
+    rows = [{"item_key": "x", "orig_key": "a1", "band": "verbatim", "novel_share": 0.0, "kept_share": 1.0, "copy_id": i}
+            for i in range(9)] + [{"item_key": "y", "orig_key": "a2", "band": "substantial", "novel_share": 0.6,
+                                   "kept_share": 0.5, "copy_id": 10}]
+    s = copies.item_summary(rows)
+    assert s["scored"] == 10 and s["items"] == 2 and s["originals"] == 2
+    assert s["bands"]["verbatim"] == 9 and s["item_shares"] == {"verbatim": 0.5, "light": 0.0, "moderate": 0.0, "substantial": 0.5}
+    assert s["median_novel_items"] == 0.3
+    assert copies.item_summary([])["item_shares"]["verbatim"] is None
+
+
+@pytest.mark.parametrize("line,out", [
+    ("BEIJING, Oct. 13 (Xinhua) -- China and the EU agreed", "China and the EU agreed"),
+    ("ROMA (ITALPRESS) - Il testo", "Il testo"),
+    ("Jakarta (ANTARA) - Indonesia said", "Indonesia said"),
+    ("NEW YORK (AP) \u2014 The talks", "The talks"),
+    ("Roma, 13 ott. (Adnkronos) - Il governo", "Il governo"),
+    # Text that only looks like a dateline is kept: words in brackets, lower case, a sentence before them.
+    ("The minister (who spoke) - and others said", "The minister (who spoke) - and others said"),
+    ("Officials said on Monday in the capital of the province (ap) - that", "Officials said on Monday in the capital of the province (ap) - that"),
+    ("He said (in Beijing) - that trade would grow", "He said (in Beijing) - that trade would grow"),
+])
+def test_the_dateline_rule_is_case_sensitive_and_short(line, out):
+    assert copies.normalise(line + " " + "word " * 12)[0] == (out + " " + "word " * 12).strip()
+    # A short opening paragraph with a dateline is text, not a credit line.
+    assert copies.normalise(line)[0] == out
+
+
+@pytest.mark.parametrize("line,credit", [
+    ("(Photo by Li Ming/Xinhua)", True), ("Source: Xinhua", True), ("Photo: AP", True), ("AFP", True), ("(ANSA)", True),
+    ("Xinhua/Li Ming", True), ("\u00a9 Xinhua", True), ("Fonte: Agenzia Nova", True), ("By Xinhua", True), ("fsc/abr", True),
+    ("Asked by AP, she said no.", False), ("ap", False), ("The agi of nova", False), ("CNA reporters said so.", False),
+    ("By the way the AP is great", False), ("Reporting by AP showed that the island ports were closed today.", False),
+    ("Apa kata Xinhua?", False), ("The cna of the matter", False),
+])
+def test_credit_lines_need_an_agency_in_a_credits_place(line, credit):
+    assert copies.is_credit_line(line) is credit

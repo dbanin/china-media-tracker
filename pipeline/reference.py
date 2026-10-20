@@ -22,15 +22,34 @@ known (lookalike.published_ts and tie_rank read that as day resolution). A date 
 Beijing date; the Global Times sitemap date is its UTC date. Either is replaced at fetch by the page's
 own time when the source has a page_time rule and the page time is within a day of the date.
 
-Fetching (fetch). Up to config.REFERENCE_FETCH_PER_RUN discovered items of the last FETCH_MAX_AGE_DAYS
-days, newest first, one worker per host so the hosts are read side by side, each request under
-fetch_articles.can_fetch and get_page. extract.extract gives the text; the source's cleaner strips its
+Fetching (fetch). Up to config.REFERENCE_FETCH_PER_RUN items a run, one worker per host so the hosts
+are read side by side, each request under fetch_articles.can_fetch and get_page. Candidates come
+first: items whose headline nearly repeats the headline of a current state origin copy that has no
+reference original yet (CANDIDATE_TITLE_JACCARD, over copies first seen in the last
+CANDIDATE_COPY_DAYS days), taken while they are up to CANDIDATE_MAX_AGE_DAYS old, even once expired.
+Then the newest discovered items of the last FETCH_MAX_AGE_DAYS days. The fetch stage has a slice of
+its own (FETCH_SLICE_SECONDS), taken even when the run's article fetch has used the run's budget, so
+reference pages are read on every run. extract.extract gives the text; the source's cleaner strips its
 template lines (the CGTN language menu and footer, the People's Daily related links); the cleaned text is
 stored with store.save_body under body_key(url_hash), a key of its own, so a reference body never
 overwrites or deletes the body of a monitored article at the same address; and body_dups.fingerprint
 gives the sig and shingle count kept on the row. A paywalled page is marked paywalled and never retried
 (no body is kept: a teaser is not an original). A refusal by robots.txt is final; a transient failure
-leaves the item to a later run until it is FETCH_MAX_AGE_DAYS old, after which it is marked expired.
+leaves the item to a later run until it is FETCH_MAX_AGE_DAYS old, after which it is marked expired
+(a candidate is not expired while it is a candidate).
+
+Status (source_status). Per source: items by status (fetched, expired, failed, paywalled, discovered,
+blocked by robots.txt), bodies kept, the share of dated items that carry a date only, and that share
+among items more than a day old, which should be near zero once fetch has read the page times; a
+source where it stays at DATE_ONLY_AFTER_DAY_FLAG or more is flagged. The research measures export
+it (pipeline/copies.py, pipeline/speed.py).
+
+Time checks (time_checks). An item listed by two listings of one source with different time rules
+(CGTN's RSS and its latest news sitemap) is a check on the rules: the time each listing gives is
+recorded in reference_time_checks, and a source where the second listing reads more than an hour
+earlier (or later) than the first for TIME_CHECK_FLAG of its items is flagged. CGTN's sitemap writes
+Beijing time with a "Z"; if CGTN starts writing true UTC, the sitemap times read 8 hours early and
+this check says so.
 
 Retention (prune_bodies). The body of an item no state copy was paired with (no state_copies row
 names it) is deleted config.REFERENCE_UNPAIRED_BODY_DAYS after it was fetched, and body_pruned_at is
@@ -79,10 +98,33 @@ UTC = dt.timezone.utc
 # The time one stage may take within a pipeline run (run_stage); the run's own deadline may be earlier.
 POLL_SECONDS = 150
 FETCH_SECONDS = 240
+# The fetch stage's own slice: it may take this long even when the run's deadline leaves less (the
+# article fetch before it can use the whole budget), so reference pages are read on every run. The
+# workflow's job timeout leaves far more room than this.
+FETCH_SLICE_SECONDS = 90
 # Listing entries older than this are not stored: index pages carry evergreen and topic links.
 MAX_ENTRY_AGE_DAYS = 30
 # Items still not fetched this many days after discovery are marked expired and left alone.
 FETCH_MAX_AGE_DAYS = 3
+# Fetch candidates: reference items whose headline nearly repeats that of a current state origin copy
+# with no reference original, copies first seen in the last CANDIDATE_COPY_DAYS days; a candidate is
+# fetched while it is up to CANDIDATE_MAX_AGE_DAYS old, even once expired (pairing looks up to eleven
+# days back, pipeline/copies.py WINDOW_AFTER_DAYS).
+CANDIDATE_TITLE_JACCARD = 0.4
+CANDIDATE_COPY_DAYS = 14
+CANDIDATE_MAX_AGE_DAYS = 10
+# Status: an item more than a day old should carry the page's time; a source where at least this share
+# of such items (from DATE_ONLY_MIN_ITEMS of them) still has a date only is flagged.
+DATE_ONLY_AFTER_DAY_FLAG = 0.25
+DATE_ONLY_MIN_ITEMS = 10
+# Time checks between two listings of one source: a difference over TIME_CHECK_TOLERANCE seconds is
+# earlier or later than expected; a source is flagged when TIME_CHECK_FLAG of at least TIME_CHECK_MIN
+# compared items of the last TIME_CHECK_DAYS days differ one way. Rows older than TIME_CHECK_KEEP_DAYS go.
+TIME_CHECK_TOLERANCE = 3600
+TIME_CHECK_FLAG = 0.2
+TIME_CHECK_MIN = 10
+TIME_CHECK_DAYS = 7
+TIME_CHECK_KEEP_DAYS = 14
 # A host that fails this many times with a transient error in one fetch stage is left for the next run.
 HOST_TRANSIENT_LIMIT = 3
 MIN_BODY_CHARS = 200
@@ -267,6 +309,34 @@ def normalise_time(raw: Optional[str], rule: str, parsed=None, link: Optional[st
     if rule == "bjt":
         return _iso(naive.replace(tzinfo=BJT))
     raise ValueError("unknown time_rule %r" % rule)
+
+
+# The zone of the calendar dates each time_rule stores when a value has no time of day, in minutes east
+# of UTC: a URL date, and a Beijing stamp without its time, is a Beijing date; date_only keeps the date
+# the listing wrote, which for the Global Times sitemap (its only user) is the UTC date (see its
+# evidence in sources/reference.yaml); an RSS date as published is read as UTC.
+RULE_DATE_ZONES = {"url_date": 480, "bjt": 480, "bjt_if_unzoned": 480, "date_only": 0, "as_published": 0}
+BJT_MINUTES = 480
+
+
+def date_zone_minutes(src: Dict) -> Optional[int]:
+    """Minutes east of UTC of the dates a source stores without a time of day: the zone of its
+    date giving listings (url_date and date_only) when they agree, else of all its listings when
+    they agree, else None (pipeline/speed.py then takes a Beijing date)."""
+    rules = [f.get("time_rule") for f in _listings(src)]
+    for pick in ([r for r in rules if r in ("url_date", "date_only")], rules):
+        zones = {RULE_DATE_ZONES[r] for r in pick if r in RULE_DATE_ZONES}
+        if len(zones) == 1:
+            return zones.pop()
+        if zones:
+            return None
+    return None
+
+
+def date_zones(sources: Optional[List[Dict]] = None) -> Dict[str, Optional[int]]:
+    """{source id: date_zone_minutes} for every source in the registry (or those given)."""
+    srcs = load_sources(validate=False) if sources is None else sources
+    return {s["id"]: date_zone_minutes(s) for s in srcs}
 
 
 _JSONLD_DATE = re.compile(r'"datePublished"\s*:\s*"([^"]+)"')
@@ -562,6 +632,8 @@ def poll(conn, deadline: Optional[float] = None, sources: Optional[List[Dict]] =
                 _warn("reference poll of %s failed: %s: %s" % (src["id"], type(exc).__name__, exc))
                 continue
             per = counts.setdefault("by_source", {}).setdefault(src["id"], {"new": 0, "entries": 0, "feeds_ok": 0})
+            first_times: Dict[str, Tuple[Dict, str]] = {}
+            checks: List[Tuple] = []
             for feed, r in group:
                 if r is None:
                     counts["feeds_skipped"] += 1
@@ -576,18 +648,116 @@ def poll(conn, deadline: Optional[float] = None, sources: Optional[List[Dict]] =
                 for item in entries_to_items(src, feed, r["entries"], now):
                     counts["entries"] += 1
                     per["entries"] += 1
+                    check = _cross_check(first_times, feed, item)
+                    if check:
+                        checks.append(check)
                     done = store_item(conn, src, item, stamp)
                     if done == "new":
                         counts["new"] += 1
                         per["new"] += 1
                     elif done == "upgraded":
                         counts["upgraded"] += 1
+            if checks:
+                counts["time_checks"] = counts.get("time_checks", 0) + record_time_checks(conn, src["id"], checks, stamp)
             conn.commit()
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
     counts["also_monitored"] = refresh_also_monitored(conn)
     conn.commit()
     return counts
+
+
+# ---------------------------------------------------------------------------
+# Time checks between listings
+# ---------------------------------------------------------------------------
+
+_TIME_CHECKS_SQL = """CREATE TABLE IF NOT EXISTS reference_time_checks (
+    source_id TEXT NOT NULL,
+    url_hash TEXT NOT NULL,
+    first_listing TEXT NOT NULL,
+    first_rule TEXT NOT NULL,
+    first_time TEXT NOT NULL,
+    other_listing TEXT NOT NULL,
+    other_rule TEXT NOT NULL,
+    other_time TEXT NOT NULL,
+    diff_seconds INTEGER NOT NULL,
+    checked_at TEXT NOT NULL,
+    PRIMARY KEY (source_id, url_hash, other_listing)
+)"""
+
+
+def _ts(iso: Optional[str]) -> Optional[float]:
+    try:
+        return dt.datetime.fromisoformat((iso or "").replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _cross_check(first_times: Dict, feed: Dict, item: Dict) -> Optional[Tuple]:
+    """An item's time from this listing against the time the first listing that gave it a time of day
+    gave, when the two listings read times by different rules (CGTN's RSS and sitemap); None otherwise.
+    Records the first timed sighting in first_times."""
+    t = item.get("published_at")
+    if not _timed(t):
+        return None
+    url = item["url"]
+    seen = first_times.get(url)
+    if seen is None:
+        first_times[url] = (feed, t)
+        return None
+    f0, t0 = seen
+    if f0["url"] == feed["url"] or f0.get("time_rule") == feed.get("time_rule"):
+        return None
+    a, b = _ts(t0), _ts(t)
+    if a is None or b is None:
+        return None
+    return (store.url_hash(url), f0["url"], f0.get("time_rule"), t0, feed["url"], feed.get("time_rule"), t, int(round(b - a)))
+
+
+def record_time_checks(conn, source_id: str, checks: List[Tuple], stamp: Optional[str] = None) -> int:
+    """Store this poll's cross listing time checks of one source in reference_time_checks (a table of
+    this module's own, created here) and drop rows older than TIME_CHECK_KEEP_DAYS."""
+    conn.execute(_TIME_CHECKS_SQL)
+    stamp = stamp or store.utcnow()
+    conn.executemany(
+        """INSERT OR REPLACE INTO reference_time_checks(source_id, url_hash, first_listing, first_rule, first_time,
+               other_listing, other_rule, other_time, diff_seconds, checked_at) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        [(source_id,) + tuple(c) + (stamp,) for c in checks])
+    base = _ts(stamp)
+    ref_time = dt.datetime.fromtimestamp(base, UTC) if base is not None else _now()
+    old = _iso(ref_time - dt.timedelta(days=TIME_CHECK_KEEP_DAYS))
+    conn.execute("DELETE FROM reference_time_checks WHERE checked_at < ?", (old,))
+    return len(checks)
+
+
+def time_checks(conn, now: Optional[dt.datetime] = None, days: int = TIME_CHECK_DAYS) -> Dict[str, Dict]:
+    """Per source with cross listing checks in the last `days` days: compared, how many read earlier
+    or later than the first listing by more than TIME_CHECK_TOLERANCE, the shares, the median
+    difference in hours (other minus first), and flags: "earlier than expected" (the CGTN sitemap
+    reading 8 h early is what a switch to true UTC looks like) or "later than expected"."""
+    try:
+        rows = conn.execute("SELECT source_id, diff_seconds FROM reference_time_checks WHERE checked_at >= ?",
+                            (_iso((now or _now()) - dt.timedelta(days=days)),)).fetchall()
+    except Exception:  # noqa: BLE001  no table yet: no check has run
+        return {}
+    by: Dict[str, List[int]] = {}
+    for r in rows:
+        by.setdefault(r[0], []).append(int(r[1]))
+    out = {}
+    for sid, diffs in sorted(by.items()):
+        n = len(diffs)
+        early = sum(1 for d in diffs if d < -TIME_CHECK_TOLERANCE)
+        late = sum(1 for d in diffs if d > TIME_CHECK_TOLERANCE)
+        ds = sorted(diffs)
+        mid = ds[n // 2] if n % 2 else (ds[n // 2 - 1] + ds[n // 2]) / 2.0
+        flags = []
+        if n >= TIME_CHECK_MIN and early / float(n) >= TIME_CHECK_FLAG:
+            flags.append("earlier than expected")
+        if n >= TIME_CHECK_MIN and late / float(n) >= TIME_CHECK_FLAG:
+            flags.append("later than expected")
+        out[sid] = {"compared": n, "earlier": early, "later": late, "share_earlier": round(early / float(n), 3),
+                    "share_later": round(late / float(n), 3), "median_diff_hours": round(mid / 3600.0, 2), "flags": flags}
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -600,13 +770,19 @@ _CGTN_DROP = {"breaking news", "subscribe", "get timely updates on major events 
 _CGTN_DURATION = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
 _CGTN_LABELS = re.compile(r"^[A-Za-z&' ]+(;[A-Za-z&' ]+)+$")
 _CD_DROP = {"share - wechat", "- search", "photo", "top"}
+# The CGTN head: the language menu (each language in English and in its own script) and the cookie
+# notice. Its accept line has been "I agree"; other wordings are taken too, and when there is no accept
+# line the head ends after the cookie notice, or after the run of short menu lines.
+_CGTN_ACCEPT = {"i agree", "agree", "i accept", "accept", "accept all", "accept cookies", "got it", "ok", "okay"}
+_CGTN_MENU_HEAD = "choose your language"
 _CD_NAV = re.compile(r"^- [A-Z]+$")
 
 
 def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
     """The extracted body without the source's template lines.
       cgtn           the head up to the cookie notice's "I agree" (the "Choose your language" menu, about
-                     90 lines of language names), the section label and "16:39, 13-Oct-2026" time line
+                     90 lines of language names; _cgtn_head, which also copes with another accept line
+                     or none), the section label and "16:39, 13-Oct-2026" time line
                      after it, the breaking news banner lines, and everything from "Search Trends",
                      "CHOOSE YOUR LANGUAGE", "DOWNLOAD OUR APP" or the "Copyright ... CGTN" line on. The
                      bare "CGTN" credit line and "Source(s): ..." lines are kept.
@@ -620,14 +796,11 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
     2026-10-14 (3 pages a source)."""
     lines = (text or "").split("\n")
     if cleaner == "cgtn":
-        if lines and lines[0].strip().lower() == "choose your language":
-            for i, line in enumerate(lines[:250]):
-                if line.strip() == "I agree":
-                    lines = lines[i + 1:]
-                    break
+        lines = _cgtn_head(lines)
         for i, line in enumerate(lines):
             s = line.strip()
-            if s.lower() in _CGTN_TAIL or (s.startswith("Copyright") and "CGTN" in s):
+            low = s.lower()
+            if low in _CGTN_TAIL or (low.startswith(("copyright", "\u00a9")) and "cgtn" in low):
                 lines = lines[:i]
                 break
         for i, line in enumerate(lines[:4]):
@@ -656,6 +829,35 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
                 break
         lines = [line for line in lines if line.strip().lower() not in _CD_DROP and not _CD_NAV.match(line.strip())]
     return "\n".join(lines).strip()
+
+
+def _cgtn_head(lines: List[str]) -> List[str]:
+    """The CGTN body without its head: the "Choose your language" menu (it opens the page, or one of its
+    first five lines) through the cookie notice's accept line. Without an accept line, through the
+    cookie notice ("cookies" in a line); without either, through the run of short lines (three words
+    or fewer) that follows the menu heading, stopping before the section label and time line. Text with
+    no menu heading is returned as it is."""
+    head = [i for i, line in enumerate(lines[:5]) if line.strip().lower() == _CGTN_MENU_HEAD]
+    if not head:
+        return lines
+    window = lines[:250]
+    # The head ends before the first long line that is not the cookie notice: the body has begun.
+    for j, line in enumerate(window):
+        if len(line.split()) > 12 and "cookie" not in line.lower():
+            window = window[:j]
+            break
+    for i, line in enumerate(window):
+        if line.strip().lower() in _CGTN_ACCEPT:
+            return lines[i + 1:]
+    for i, line in enumerate(window):
+        if "cookie" in line.lower():
+            return lines[i + 1:]
+    i = head[-1] + 1
+    while i < len(lines) and len(lines[i].split()) <= 3 and not _CGTN_TIME_LINE.match(lines[i].strip()):
+        i += 1
+    if i < len(lines) and _CGTN_TIME_LINE.match(lines[i].strip()) and i - 1 > head[-1]:
+        i -= 1       # keep the section label before the time line; the time line rule removes both
+    return lines[i:]
 
 
 _extract_lock = threading.Lock()
@@ -745,29 +947,92 @@ def _record_fetch(conn, res: Dict, src: Dict, counts: Dict) -> None:
     counts[fields.get("status", "fetched")] = counts.get(fields.get("status", "fetched"), 0) + 1
 
 
+def fetch_candidates(conn, source_ids: List[str], now: Optional[dt.datetime] = None) -> Dict[int, float]:
+    """{reference item id: best headline similarity} for the items not yet fetched (discovered, or
+    expired while up to CANDIDATE_MAX_AGE_DAYS old) whose headline nearly repeats (Jaccard of title
+    words at least CANDIDATE_TITLE_JACCARD) that of a current state origin copy in the same language,
+    first seen in the last CANDIDATE_COPY_DAYS days, with no reference original yet. Read only."""
+    from pipeline import lookalike
+    if not source_ids:
+        return {}
+    now = now or _now()
+    since = _iso(now - dt.timedelta(days=CANDIDATE_COPY_DAYS))
+    try:
+        copies = conn.execute(
+            """SELECT a.id, a.title, a.language FROM classifications c JOIN articles a ON a.id = c.article_id
+               WHERE c.is_current = 1 AND c.category = 'A' AND a.discovered_at >= ?
+                 AND NOT EXISTS (SELECT 1 FROM state_copies s WHERE s.copy_id = a.id AND s.current = 1
+                                 AND s.original_kind = 'reference')""", (since,)).fetchall()
+    except Exception:  # noqa: BLE001  a database without the tables: no candidates
+        return {}
+    idx: Dict[str, "lookalike._Index"] = {}
+    for r in copies:
+        ts = lookalike.title_set(r["title"] or "")
+        if len(ts) >= lookalike.TITLE_MIN_TOKENS:
+            idx.setdefault(r["language"], lookalike._Index()).add(r["id"], ts)
+    if not idx:
+        return {}
+    marks = ",".join("?" * len(source_ids))
+    oldest = _iso(now - dt.timedelta(days=CANDIDATE_MAX_AGE_DAYS))
+    out = {}
+    for r in conn.execute(
+            """SELECT id, title, language FROM reference_items
+               WHERE source_id IN (%s) AND discovered_at >= ? AND status IN ('discovered', 'expired')""" % marks,
+            list(source_ids) + [oldest]):
+        ix = idx.get(r["language"])
+        ts = lookalike.title_set(r["title"] or "")
+        if ix is None or len(ts) < lookalike.TITLE_MIN_TOKENS:
+            continue
+        best = ix.best_jaccard(ts)
+        if best and best[1] >= CANDIDATE_TITLE_JACCARD:
+            out[r["id"]] = round(best[1], 4)
+    return out
+
+
 def fetch(conn, deadline: Optional[float] = None, limit: Optional[int] = None, sources: Optional[List[Dict]] = None,
           now: Optional[dt.datetime] = None) -> Dict:
-    """Fetch the newest discovered items of this collector's sources (up to config.REFERENCE_FETCH_PER_RUN),
-    one worker per host, then prune the bodies of unpaired items (prune_bodies). deadline is a
-    time.monotonic() value."""
+    """Fetch this collector's reference items, up to config.REFERENCE_FETCH_PER_RUN: first the
+    candidates for current copies (fetch_candidates, most similar first), then the newest discovered
+    items of the last FETCH_MAX_AGE_DAYS days; one worker per host. Then prune the bodies of unpaired
+    items (prune_bodies). deadline is a time.monotonic() value."""
     from pipeline import fetch_articles
     srcs = collectable(load_sources()) if sources is None else sources
-    counts = {"candidates": 0, "fetched": 0, "transient": 0, "page_times": 0, "expired": 0}
+    counts = {"candidates": 0, "copy_candidates": 0, "fetched": 0, "transient": 0, "page_times": 0, "expired": 0}
     by_id = {s["id"]: s for s in srcs}
     if by_id:
         now = now or _now()
         marks = ",".join("?" * len(by_id))
+        wanted = fetch_candidates(conn, list(by_id), now)
         cutoff = _iso(now - dt.timedelta(days=FETCH_MAX_AGE_DAYS))
+        # A candidate is not expired while it is one.
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS _ref_keep(id INTEGER PRIMARY KEY)")
+        conn.execute("DELETE FROM _ref_keep")
+        conn.executemany("INSERT OR IGNORE INTO _ref_keep(id) VALUES (?)", [(i,) for i in wanted])
         counts["expired"] = conn.execute(
             "UPDATE reference_items SET status='expired' WHERE status='discovered' AND discovered_at < ? "
-            "AND source_id IN (%s)" % marks, [cutoff] + list(by_id)).rowcount
+            "AND source_id IN (%s) AND id NOT IN (SELECT id FROM _ref_keep)" % marks, [cutoff] + list(by_id)).rowcount
+        conn.execute("DROP TABLE _ref_keep")
         conn.commit()
         n = config.REFERENCE_FETCH_PER_RUN if limit is None else limit
-        rows = conn.execute(
-            """SELECT id, source_id, url, url_hash, title, author, published_at FROM reference_items
-               WHERE status='discovered' AND source_id IN (%s)
-               ORDER BY COALESCE(published_at, discovered_at) DESC, id DESC LIMIT ?""" % marks,
-            list(by_id) + [n]).fetchall()
+        cols = "id, source_id, url, url_hash, title, author, published_at, discovered_at"
+        rows = []
+        if wanted:
+            ids = sorted(wanted, key=lambda i: (-wanted[i], -i))[:n]
+            got = {}
+            for i in range(0, len(ids), 500):
+                part = ids[i:i + 500]
+                for r in conn.execute("SELECT %s FROM reference_items WHERE id IN (%s) AND status IN ('discovered', 'expired')"
+                                      % (cols, ",".join("?" * len(part))), part):
+                    got[r["id"]] = r
+            rows = [got[i] for i in ids if i in got]
+        counts["copy_candidates"] = len(rows)
+        if len(rows) < n:
+            have = {r["id"] for r in rows}
+            newest = conn.execute(
+                """SELECT %s FROM reference_items WHERE status='discovered' AND source_id IN (%s)
+                   ORDER BY COALESCE(published_at, discovered_at) DESC, id DESC LIMIT ?""" % (cols, marks),
+                list(by_id) + [n]).fetchall()
+            rows += [r for r in newest if r["id"] not in have][:n - len(rows)]
         counts["candidates"] = len(rows)
         hosts: Dict[str, List] = {}
         for r in rows:
@@ -825,11 +1090,16 @@ def prune_bodies(conn, now: Optional[dt.datetime] = None, days: Optional[int] = 
 
 def run_stage(conn, stage: str, deadline: Optional[float] = None) -> Dict:
     """poll or fetch within its own cap (POLL_SECONDS, FETCH_SECONDS) and the run's wall clock deadline
-    (time.time based, as pipeline/run.py and relay.run_relay keep it)."""
+    (time.time based, as pipeline/run.py and relay.run_relay keep it). fetch has a slice of its own,
+    FETCH_SLICE_SECONDS, which it takes even when the run's deadline leaves less or has passed: the
+    article fetch before it may use the whole budget, and the reference pages would then never be read."""
     cap = POLL_SECONDS if stage == "poll" else FETCH_SECONDS
     mono = time.monotonic() + cap
     if deadline is not None:
-        mono = min(mono, time.monotonic() + (deadline - time.time()))
+        left = deadline - time.time()
+        if stage == "fetch":
+            left = max(left, FETCH_SLICE_SECONDS)
+        mono = min(mono, time.monotonic() + left)
     if mono <= time.monotonic():
         return {"skipped": "no time left"}
     if stage == "poll":
@@ -969,6 +1239,54 @@ def validate(conn=None, sources: Optional[List[Dict]] = None, days: int = 7) -> 
                                       % (s["id"], RELAY_SUGGEST_FAILURES))
         report["sources"][s["id"]] = entry
     return report
+
+
+SOURCE_STATUSES = ("fetched", "expired", "failed", "paywalled", "discovered", "blocked_robots")
+
+
+def source_status(conn, now: Optional[dt.datetime] = None) -> List[Dict]:
+    """Per reference source, for the research measures' exports: items, the count in each status
+    (SOURCE_STATUSES), bodies kept, the share of dated items with a date only, and that share among
+    items discovered more than a day ago (by then fetch should have read the page's time), with the
+    flag "date only after day one" when it is DATE_ONLY_AFTER_DAY_FLAG or more over at least
+    DATE_ONLY_MIN_ITEMS items. Read only; [] for a database without the table."""
+    now = now or _now()
+    day_ago = _iso(now - dt.timedelta(days=1))
+    try:
+        rows = conn.execute("SELECT source_id, status, published_at, discovered_at, body_hash, body_pruned_at "
+                            "FROM reference_items").fetchall()
+    except Exception:  # noqa: BLE001
+        return []
+    by: Dict[str, Dict] = {}
+    for r in rows:
+        d = by.setdefault(r["source_id"], {"items": 0, "statuses": {k: 0 for k in SOURCE_STATUSES}, "bodies": 0,
+                                           "dated": 0, "date_only": 0, "old_dated": 0, "old_date_only": 0})
+        d["items"] += 1
+        st = r["status"] or "discovered"
+        d["statuses"][st] = d["statuses"].get(st, 0) + 1
+        if r["body_hash"] and not r["body_pruned_at"]:
+            d["bodies"] += 1
+        p = (r["published_at"] or "").strip()
+        if not p:
+            continue
+        only = not _timed(p)
+        d["dated"] += 1
+        d["date_only"] += only
+        if (r["discovered_at"] or "") < day_ago:
+            d["old_dated"] += 1
+            d["old_date_only"] += only
+    out = []
+    for sid in sorted(by):
+        d = by[sid]
+        share = round(d["date_only"] / float(d["dated"]), 3) if d["dated"] else None
+        late = round(d["old_date_only"] / float(d["old_dated"]), 3) if d["old_dated"] else None
+        flags = []
+        if d["old_dated"] >= DATE_ONLY_MIN_ITEMS and late is not None and late >= DATE_ONLY_AFTER_DAY_FLAG:
+            flags.append("date only after day one")
+        out.append({"source": sid, "items": d["items"], "statuses": d["statuses"], "bodies": d["bodies"],
+                    "share_date_only": share, "items_after_day_one": d["old_dated"],
+                    "share_date_only_after_day_one": late, "flags": flags})
+    return out
 
 
 def status(conn) -> Dict:

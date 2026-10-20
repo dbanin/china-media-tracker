@@ -7,7 +7,11 @@ articles.doctrine as {"v": version, "b": 1 when the body was read, 0 when only t
 were, "f": {family: occurrences}}. ensure() tags whatever is missing, from another version, or was
 tagged without a body that has since arrived; a body-read tag is never replaced by a title-only tag of
 the same version. It is resumable: it stops at the export's deadline, newest articles first, and the
-next export carries on.
+next export carries on. With each tag it stores, in the table doctrine_snippets, up to SNIPPETS_KEPT
+matches per family with about SNIPPET_WORDS words either side, so a hand check sample can be drawn on a
+machine that does not hold the bodies (the owner's machine draws from the runner's database) without
+leaning to the matches in headlines. The table holds short excerpts of article text: a public copy of
+the database should leave it out.
 
 doctrine.json gives, per day of record and country (distribution wires as WLD, exactly as build_daily
 places theme counts), each family's [China coverage, state origin, unchecked state sourcing,
@@ -33,6 +37,7 @@ MEASURE_ID = "doctrine"
 DOCTRINE_PATH = config.ROOT / "pipeline" / "doctrine.yaml"
 SAMPLE_MAX = 200
 SNIPPET_WORDS = 30
+SNIPPETS_KEPT = 5          # matches stored per article and family for the hand check
 CHECK_PRECISION = 0.9      # a family is checked at this precision or more ...
 CHECK_MIN_CODED = 15       # ... on at least this many coded matches
 WITHHOLD_PRECISION = 0.8   # a family is withheld below this precision ...
@@ -49,6 +54,10 @@ HISTORY = [
     {"version": "2026.10.1", "date": "2026-10-14",
      "change": "doctrine term tracker introduced: thirteen families of the Chinese state's set phrases, "
                "matched in the title, the feed summary and the body"},
+    {"version": "2026.10.2", "date": "2026-10-17",
+     "change": "multipolar world and people-to-people exchanges muted and counted only within 140 characters "
+               "of a China word; the generic Spanish, French, Russian and Portuguese forms of people-to-people "
+               "exchanges and power politics dropped; an acronym in brackets beside its full term counts once"},
 ]
 
 # One character for one character, so offsets in the normalised text stay meaningful for snippets.
@@ -112,12 +121,20 @@ def compiled(language: str) -> Dict[str, termlists.TermSet]:
     data = load()
     aliases = data.get("language_aliases") or {}
     subs = data.get("substring_languages") or []
+    context = _norm_lists(data.get("china_context"))
     out = {}
     for f in data["families"]:
         req = {a: [normalise(t) for t in full] for a, full in (f.get("requires") or {}).items()}
+        window = int(f.get("china_context") or 0)
         out[f["id"]] = termlists.compile(_norm_lists(f.get("terms")), language or "en", aliases, subs,
-                                         exclude=_norm_lists(f.get("exclude")), requires=req)
+                                         exclude=_norm_lists(f.get("exclude")), requires=req,
+                                         context=context if window else None, context_window=window)
     return out
+
+
+def context_families() -> Dict[str, int]:
+    """{family id: characters} for the families counted only beside a China word."""
+    return {f["id"]: int(f["china_context"]) for f in load()["families"] if f.get("china_context")}
 
 
 def text_of(title: Optional[str], summary: Optional[str], body: Optional[str]) -> str:
@@ -128,6 +145,56 @@ def text_of(title: Optional[str], summary: Optional[str], body: Optional[str]) -
 def tag(title: Optional[str], summary: Optional[str], body: Optional[str], language: str) -> Dict[str, int]:
     """{family: occurrences} for the families found; {} when none."""
     return termlists.count_all(compiled(language or "en"), text_of(title, summary, body))
+
+
+def tag_with_snippets(title: Optional[str], summary: Optional[str], body: Optional[str],
+                      language: str) -> Tuple[Dict[str, int], Dict[str, List[List[str]]]]:
+    """({family: occurrences}, {family: [[matched term, snippet], ...]}): the tag and up to SNIPPETS_KEPT
+    of each family's matches, spread over the article (the first, the last and evenly between)."""
+    text = text_of(title, summary, body)
+    counts, snips = {}, {}
+    for fid, ts in compiled(language or "en").items():
+        found = ts.find(text)
+        if not found:
+            continue
+        counts[fid] = len(found)
+        k = min(SNIPPETS_KEPT, len(found))
+        picks = sorted({round(i * (len(found) - 1) / float(k - 1)) for i in range(k)}) if k > 1 else [0]
+        snips[fid] = [[" ".join(found[i][2].split()), _snippet(text, found[i][0], found[i][1])] for i in picks]
+    return counts, snips
+
+
+SNIPPET_TABLE = """CREATE TABLE IF NOT EXISTS doctrine_snippets (
+    article_id INTEGER NOT NULL,
+    family TEXT NOT NULL,
+    version TEXT NOT NULL,
+    from_body INTEGER NOT NULL,
+    matches TEXT NOT NULL,          -- JSON [[matched term, snippet], ...], at most SNIPPETS_KEPT
+    PRIMARY KEY (article_id, family)
+)"""
+
+
+def ensure_snippet_table(conn: sqlite3.Connection) -> None:
+    conn.execute(SNIPPET_TABLE)
+
+
+def _has_snippet_table(conn: sqlite3.Connection) -> bool:
+    return conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='doctrine_snippets'").fetchone() is not None
+
+
+def stored_snippets(conn: sqlite3.Connection, article_id: int, family: str, v: Optional[str] = None) -> List[List[str]]:
+    """The matches stored for an article and family under version v (the current one by default)."""
+    if not _has_snippet_table(conn):
+        return []
+    r = conn.execute("SELECT matches FROM doctrine_snippets WHERE article_id=? AND family=? AND version=?",
+                     (article_id, family, v or version())).fetchone()
+    if r is None:
+        return []
+    try:
+        m = json.loads(r[0])
+    except (ValueError, TypeError):
+        return []
+    return [x for x in m if isinstance(x, list) and len(x) == 2] if isinstance(m, list) else []
 
 
 def parse(stored: Optional[str]) -> Optional[Dict]:
@@ -155,6 +222,7 @@ def ensure(conn: sqlite3.Connection, deadline: Optional[float] = None) -> Dict:
     body now exists. Newest first; stops at deadline (a time.monotonic() value) and resumes next time.
     A body-read tag (b=1) is never replaced by a title-only one of the same version."""
     v = version()
+    ensure_snippet_table(conn)
     rows = conn.execute("SELECT id, title, summary, language, url_hash, doctrine FROM articles "
                         "WHERE gate_relevant=1 ORDER BY id DESC").fetchall()
     tagged = with_body = retagged = 0
@@ -172,14 +240,20 @@ def ensure(conn: sqlite3.Connection, deadline: Optional[float] = None) -> Dict:
         b = 1 if body else 0
         if current and not b:
             continue   # the body file is empty or unreadable: nothing new to read
-        f = tag(r["title"], r["summary"], body, r["language"])
+        f, snips = tag_with_snippets(r["title"], r["summary"], body, r["language"])
         conn.execute("UPDATE articles SET doctrine=? WHERE id=?",
                      (json.dumps({"v": v, "b": b, "f": f}, sort_keys=True), r["id"]))
+        conn.execute("DELETE FROM doctrine_snippets WHERE article_id=?", (r["id"],))
+        conn.executemany("INSERT INTO doctrine_snippets(article_id, family, version, from_body, matches) "
+                         "VALUES (?,?,?,?,?)",
+                         [(r["id"], fid, v, b, json.dumps(m, ensure_ascii=False)) for fid, m in sorted(snips.items())])
         tagged += 1
         with_body += b
         retagged += 1 if current else 0
         if tagged % 500 == 0:
             conn.commit()
+    # Snippets of articles that are gone or no longer relevant are dropped with them.
+    conn.execute("DELETE FROM doctrine_snippets WHERE article_id NOT IN (SELECT id FROM articles WHERE gate_relevant=1)")
     conn.commit()
     return {"tagged": tagged, "with_body": with_body, "retagged_with_body": retagged, "complete": not stopped}
 
@@ -238,7 +312,11 @@ def build_export(conn: sqlite3.Connection, ctx: Dict) -> Dict:
                   c.category AS m_cat
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1""")
+    from pipeline import placements
+    shadow = placements.shadowed(conn)   # copies counted through another row, as in the daily files
     for r in rows:
+        if r["id"] in shadow:
+            continue
         pending = r["status"] in PENDING
         cat = r["m_cat"]
         if not (pending or cat in slot):
@@ -283,34 +361,52 @@ def meta_summary(conn: sqlite3.Connection, ctx: Dict) -> Dict:
             "family_status": {fid: s.get("status", "provisional") for fid, s in statuses.items()}}
 
 
+def _join(labels: List[str]) -> str:
+    return labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
 def methodology_text(block: Dict) -> str:
     fams = catalog()
     muted = [f["label"] for f in fams if not f["distinctive"]]
+    ctx_ids = context_families()
+    ctx = [f["label"] for f in fams if f["id"] in ctx_ids]
+    window = max(ctx_ids.values()) if ctx_ids else 0
+    if muted:
+        muted_text = ("%s %s common well beyond Chinese state usage, so %s shown muted and left out of the share "
+                      "of articles using the vocabulary." % (_join(muted), "are" if len(muted) > 1 else "is",
+                                                             "they are" if len(muted) > 1 else "it is"))
+    else:
+        muted_text = "No family is common enough beyond Chinese state usage to be muted."
+    if ctx:
+        muted_text += (" %s %s also the stated policy of other governments, India, Russia, Vietnam and the BRICS "
+                       "among them, so %s counted only when a China word (China, Chinese, Beijing, Xi Jinping and "
+                       "their renderings in the article's language) appears within %d characters of the phrase." % (
+                           _join(ctx), "are" if len(ctx) > 1 else "is", "they are" if len(ctx) > 1 else "it is",
+                           window))
     paras = [
         "The doctrine term tracker counts how often China coverage uses the Chinese state's own set phrases, "
         "such as community with a shared future, true multilateralism, Chinese modernization and the "
         "one-China principle. There are %d families of terms. Each family is matched in English and in the "
         "renderings Chinese state media and the Chinese foreign ministry publish in the outlet's language; a "
-        "language is left out of a family when no such rendering was found, and every language is also "
-        "matched on the English terms. The terms are read in the headline, the feed summary and the whole "
-        "body, and every occurrence is counted. A match is a keyword match, not a reading of the article: it "
-        "says the phrase is there, not who used it or whether the article endorses it." % len(fams),
+        "language is left out of a family when no such rendering was found, or when the rendering is ordinary "
+        "prose in that language, and every language is also matched on the English terms. The terms are read "
+        "in the headline, the feed summary and the whole body, and every occurrence is counted, though an acronym "
+        "in brackets beside its full term is the same mention and counts once with it. A match is a keyword match, not a reading of the article: "
+        "it says the phrase is there, not who used it or whether the article endorses it." % len(fams),
         "Some matches are excluded by rule. A bare win-win is ordinary English and never counts, only "
         "win-win cooperation; hegemonism counts but the generic hegemony does not; the one-China principle "
         "is kept apart from the one China policy other governments state. An acronym counts only when a full "
         "term of the same family appears in the same article, and GSI only beside Global Security Initiative "
-        "itself, so BRI in Indonesian football or banking news is not the Belt and Road. %s common well "
-        "beyond Chinese state usage, so %s shown muted and left out of the share of articles using the "
-        "vocabulary." % (" and ".join(muted) + (" are" if len(muted) > 1 else " is") if muted else "No family is",
-                          "they are" if len(muted) > 1 else "it is"),
+        "itself, so BRI in Indonesian football or banking news is not the Belt and Road. " + muted_text,
         "Rates are per 1,000 China articles of each kind (state origin, unchecked state sourcing, independent "
         "journalism) on the same days, counting only articles already tagged under the current term list. "
         "Where a body has not been read the headline and summary alone are matched, which finds fewer "
         "phrases; the article is tagged again once its body arrives. A hand check codes up to %d matches, "
-        "spread over families and languages, each shown with about %d words either side. A family is checked "
-        "at a precision of at least %.1f on at least %d coded matches and withheld below %.1f once %d are "
-        "coded, and a withheld family shows no figure; the measure as a whole is checked when the matches of "
-        "the families still shown reach %.1f together." % (
+        "spread evenly over the families first and over each family's languages within it, each shown with "
+        "about %d words either side, stored when the article is tagged so the sample does not depend on where "
+        "it is drawn. A family is checked at a precision of at least %.1f on at least %d coded matches and "
+        "withheld below %.1f once %d are coded, and a withheld family shows no figure; the measure as a whole "
+        "is checked when the matches of the families still shown reach %.1f together." % (
             SAMPLE_MAX, SNIPPET_WORDS, CHECK_PRECISION, CHECK_MIN_CODED, WITHHOLD_PRECISION, WITHHOLD_MIN_CODED,
             CHECK_PRECISION),
     ]
@@ -338,14 +434,31 @@ def _outlet_names() -> Dict[str, str]:
         return {}
 
 
-def draw_sample(conn: sqlite3.Connection, n: int, seed, out_dir: Path) -> Tuple[Path, Path]:
-    """Up to 200 matches, spread evenly over (family, language) strata: each stratum gives one match
-    in turn until n are drawn. Each row shows the matched term and about 30 words either side; the
-    coder marks correct yes or no."""
-    n = max(0, min(int(n), SAMPLE_MAX))
+def _interleave(queues: Dict[str, List[int]]) -> List[Tuple[str, int]]:
+    """One family's candidates, one language at a time in turn: [(language, article id)]."""
+    out, langs = [], sorted(queues)
+    qs = {l: list(queues[l]) for l in langs}
+    while any(qs.values()):
+        for l in langs:
+            if qs[l]:
+                out.append((l, qs[l].pop()))
+    return out
+
+
+def draw_sample(conn: sqlite3.Connection, n: Optional[int] = SAMPLE_MAX, seed=None,
+                out_dir: Optional[Path] = None) -> Tuple[Path, Path]:
+    """Up to SAMPLE_MAX matches, spread evenly over the families first: each family gives one match in
+    turn until n are drawn, so a family with few matches in few languages still reaches the coded
+    matches its status needs, and within a family the languages take turns. Each row shows the matched
+    term and about 30 words either side, from the matches stored at tag time (doctrine_snippets), so the
+    draw does not depend on the machine holding the bodies; a match is reproduced from the stored text
+    only for a tag made before snippets were kept. The coder marks correct yes or no. Refuses to write
+    an empty sample."""
+    n = max(0, min(int(SAMPLE_MAX if n is None else n), SAMPLE_MAX))
     v = version()
     labels = {f["id"]: f["label"] for f in catalog()}
-    strata: Dict[Tuple[str, str], List[int]] = defaultdict(list)
+    order = [f["id"] for f in catalog()]
+    per_fam: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))
     arts = {}
     for r in conn.execute("SELECT id, url, outlet_id, language, title, summary, url_hash, doctrine FROM articles "
                           "WHERE gate_relevant=1 AND doctrine IS NOT NULL ORDER BY id"):
@@ -354,42 +467,58 @@ def draw_sample(conn: sqlite3.Connection, n: int, seed, out_dir: Path) -> Tuple[
             continue
         arts[r["id"]] = r
         for fid in st["f"]:
-            strata[(fid, _alias(r["language"]))].append(r["id"])
+            per_fam[fid][_alias(r["language"])].append(r["id"])
     rng = random.Random(str(seed))
-    queues = {}
-    for key in sorted(strata):
-        ids = sorted(strata[key])
-        rng.shuffle(ids)
-        queues[key] = ids
+    queues: Dict[str, List[Tuple[str, int]]] = {}
+    for fid in sorted(per_fam, key=lambda f: (order.index(f) if f in order else len(order), f)):
+        langs = {}
+        for lang in sorted(per_fam[fid]):
+            ids = sorted(per_fam[fid][lang])
+            rng.shuffle(ids)
+            langs[lang] = ids
+        queues[fid] = _interleave(langs)
+        queues[fid].reverse()   # popped from the end: the interleaved order first
     names = _outlet_names()
     rows, key_rows = [], {}
-    order = sorted(queues)
+    fam_order = list(queues)
+    stored_n = 0
     while len(rows) < n and any(queues.values()):
-        for k in order:
+        for fid in fam_order:
             if len(rows) >= n:
                 break
-            q = queues[k]
+            q = queues[fid]
             while q:
-                aid = q.pop()
+                lang, aid = q.pop()
                 r = arts[aid]
-                text = text_of(r["title"], r["summary"], _body(r["url_hash"]))
-                found = compiled(r["language"] or "en")[k[0]].find(text)
-                if not found:
-                    continue   # the tag no longer reproduces (a body went missing): draw the next one
-                s, e, term, _ = rng.choice(found)
+                stored = stored_snippets(conn, aid, fid, v)
+                if stored:
+                    term, snippet = rng.choice(stored)
+                    stored_n += 1
+                else:
+                    text = text_of(r["title"], r["summary"], _body(r["url_hash"]))
+                    found = compiled(r["language"] or "en")[fid].find(text)
+                    if not found:
+                        continue   # an old tag that no longer reproduces (a body went missing): the next one
+                    s_, e_, term, _ = rng.choice(found)
+                    term, snippet = " ".join(term.split()), _snippet(text, s_, e_)
                 sid = "d-%03d" % (len(rows) + 1)
                 rows.append({"sample_id": sid, "article_id": aid, "url": r["url"],
                              "outlet": names.get(r["outlet_id"], r["outlet_id"]), "language": r["language"],
-                             "family": k[0], "family_label": labels.get(k[0], k[0]), "matched_term": term,
-                             "snippet": _snippet(text, s, e), "correct": "", "coder": "", "note": ""})
-                key_rows[sid] = {"article_id": aid, "family": k[0], "language": k[1], "term": term}
+                             "family": fid, "family_label": labels.get(fid, fid), "matched_term": term,
+                             "snippet": snippet, "correct": "", "coder": "", "note": ""})
+                key_rows[sid] = {"article_id": aid, "family": fid, "language": lang, "term": term,
+                                 "stored": bool(stored)}
                 break
-    key = {"rows": key_rows, "families": [f["id"] for f in catalog()],
+    if not rows:
+        raise ValueError("no doctrine matches of version %s to draw from" % v)
+    key = {"rows": key_rows, "families": [f["id"] for f in catalog()], "strata": "family first, then language",
+           "from_stored_snippets": stored_n,
            "rule": {"check_precision": CHECK_PRECISION, "check_min_coded": CHECK_MIN_CODED,
                     "withhold_precision": WITHHOLD_PRECISION, "withhold_min_coded": WITHHOLD_MIN_CODED}}
     fields = ["sample_id", "article_id", "url", "outlet", "language", "family", "family_label", "matched_term",
               "snippet", "correct", "coder", "note"]
-    return measures.write_sample(Path(out_dir), MEASURE_ID, rows, fields, key, version=VERSION, seed=seed)
+    return measures.write_sample(Path(out_dir or measures.REVIEWS_DIR), MEASURE_ID, rows, fields, key,
+                                 version=VERSION, seed=seed)
 
 
 def family_status(precision: Optional[float], coded: int) -> str:

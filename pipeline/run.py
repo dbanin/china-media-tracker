@@ -107,10 +107,13 @@ def cmd_discover(conn, run_id, args, deadline):
 
 
 def cmd_fetch(conn, run_id, args, deadline):
-    from pipeline import fetch_articles
-    counts = fetch_articles.run(conn, run_id, deadline=deadline, limit=args.limit)
-    _planted_scan(conn, counts, deadline)
-    _body_links(conn, counts, deadline)
+    from pipeline import fetch_articles, reference
+    # The reference fetch takes its slice (reference.FETCH_SLICE_SECONDS) even when the budget is spent,
+    # so what comes before it ends that much earlier and the slice fits inside the run's budget.
+    early = None if deadline is None else deadline - reference.FETCH_SLICE_SECONDS
+    counts = fetch_articles.run(conn, run_id, deadline=early, limit=args.limit)
+    _planted_scan(conn, counts, early)
+    _body_links(conn, counts, early)
     _reference(conn, counts, "fetch", deadline)
     print("fetch:", json.dumps(counts))
     return counts

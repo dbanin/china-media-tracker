@@ -1,0 +1,40 @@
+name: tests
+
+# The test suite on every push and pull request. The pipeline workflow ran the tests only on export
+# runs, after a 35 minute collection, so a failing test was found hours after the commit that broke
+# it, and twice froze the site for a day or more. The tests build their own databases in temporary
+# directories and never touch the network, so they need no secrets and no collected data.
+#
+# The relay and relay-ack branches each hold one data file, force-pushed every hour by the owner's
+# machine and the pipeline; they carry no code to test.
+
+on:
+  push:
+    branches-ignore: [relay, relay-ack]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    # Pinned like the pipeline: ubuntu-latest moves to a new release on its own schedule.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+      - run: pip install -r requirements.txt
+      - name: Tests
+        run: python -m pytest -q -p no:cacheprovider

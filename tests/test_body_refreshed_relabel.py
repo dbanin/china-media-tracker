@@ -171,7 +171,8 @@ def test_refreshed_labels_come_right_after_unchecked_state_sourcing(tmp_path, mo
     b_refreshed = _labelled(conn, 6, "2026-09-21T00:00:00+00:00", category="B", model_version=CURRENT, refreshed=mark)
     _labelled(conn, 7, "2026-09-04T00:00:00+00:00", category="C", model_version=CURRENT)   # current, not refreshed
     conn.commit()
-    assert [r["id"] for r in cl.relabel_candidates(conn)] == [b, b_refreshed, refreshed_old, refreshed_new, c_official, a_old]
+    # A model state origin label with no route yet counts as unattributed, and those come first (RELABEL_PRIORITY).
+    assert [r["id"] for r in cl.relabel_candidates(conn)] == [a_old, b, b_refreshed, refreshed_old, refreshed_new, c_official]
 
 
 def test_a_refreshed_relabel_copies_only_a_sibling_label_made_since(tmp_path, monkeypatch):

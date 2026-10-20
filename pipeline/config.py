@@ -92,8 +92,8 @@ LLM_BODY_CHAR_LIMIT = 12000
 # and the session route is a fallback for when the budget is spent.
 LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "0"))
 # When the classifier prompt changes (classify_llm.PROMPT_VERSION), current model labels made under
-# an older prompt are judged again (unchecked state sourcing labels first, then oldest first within
-# each tier; classify_llm.RELABEL_PRIORITY) and keep their old label until the new one arrives.
+# an older prompt are judged again (model state origin labels on no credit, stamp or byline first, then
+# unchecked state sourcing, oldest first within each tier; classify_llm.RELABEL_PRIORITY) and keep their old label until the new one arrives.
 # They take what the new articles leave of each run's calls, and never more than this share of the
 # day's binding cap (the lower of the call ceiling and the budget cap), paced over the day.
 LLM_RELABEL_DAY_SHARE = float(_env("TRACKER_LLM_RELABEL_SHARE", "0.5"))
@@ -208,6 +208,22 @@ RELAY_STALE_HOURS = 6
 # Share of a country's feed polls that came back as a full window with no overlap with the previous
 # poll, above which the country is warned that items were probably lost between polls.
 FEED_SATURATION_WARNING_SHARE = 0.25
+# Share of a country's feed items estimated missed between polls (missed against missed plus found, over
+# the polls the current estimator covers), at or above which the country is warned. Saturated polls
+# alone understated it: no country reached 25 percent of polls saturated while Egypt lost about half
+# its items (measured 2026-10-17).
+FEED_MISSED_WARNING_SHARE = 0.10
+# A feed whose newest item is older than this many days is frozen: it answers, but with old items, so
+# it counts as failing in feed health and in the warnings (feed_health.newest_entry).
+FEED_FROZEN_DAYS = 14
+# Share of attempted article fetches that could not be read for any reason (paywalled, failed or
+# blocked by robots.txt together), at or above which the country is warned.
+UNREADABLE_WARNING_SHARE = 0.33
+# Fewer China relevant items than this in the last 30 days and a country's figures are too few to
+# compare with other countries.
+MIN_RELEVANT_ITEMS_30D = 50
+# The site marks the data stale when meta.generated_at is older than this many hours.
+DATA_STALE_HOURS = 24
 
 # The missed-items estimator (pipeline/fetch_feeds.py saturation) a feed_polls row was made by, kept on
 # the row (feed_polls.estimator; "v1" for every row made before 2026-10-12, which inflated batch
@@ -219,7 +235,7 @@ MISSED_ESTIMATOR_VERSION = "2026-10-12"
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml or diplomats.yaml changes meaning.
 # Must match ruleset_version in signatures.yaml: a label records the version the signatures carried,
 # while reclassify() compares against this one, so a mismatch would reclassify the same rows forever.
-RULESET_VERSION = "2026.10.1"
+RULESET_VERSION = "2026.10.2"
 
 # Current extraction version, recorded on every stored body (articles.extract_version; NULL for bodies
 # stored before it existed). Bump it whenever pipeline/extract.py reads an outlet's template
@@ -241,5 +257,5 @@ REFERENCE_UNPAIRED_BODY_DAYS = 30
 # must not trigger reclassification; it does move the boundary of what is collected, which is why the
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
-GATE_VERSION = "2026.10.1"
-SCHEMA_VERSION = 13   # 13: meta.measures (one gate block per new measure: status off, provisional, checked or withheld, with its hand check) and the side files docs/data/alteration.json, speed.json, doctrine.json, spikes.json, engagement.json and syndication.json, each written only while its measure is not off; 12: each day in the daily files carries underlying_items, the item ids behind its state origin and unchecked state sourcing counts per country, and latest.json uniqA and uniqAB count each item once per window and, in the totals, once across countries; 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+GATE_VERSION = "2026.10.2"
+SCHEMA_VERSION = 14   # 14: issuer types and review markers on labels (meta.issuer_type_totals, inconsistent_labels), placements counted once per shared widget, page and numbered series (meta.shared_widgets, duplicate_placements, outlets.json not_counted), top carrier and route details with ties and shares, new coverage warnings and fields (missed share, frozen feeds, unreadable, excluded languages, too few items, no working outlet), schema_version and generated_at stamped in the data files, meta.stale_after_hours and meta.llm_budget.provider_limit; 13: meta.measures (one gate block per new measure: status off, provisional, checked or withheld, with its hand check) and the side files docs/data/alteration.json, speed.json, doctrine.json, spikes.json, engagement.json and syndication.json, each written only while its measure is not off; 12: each day in the daily files carries underlying_items, the item ids behind its state origin and unchecked state sourcing counts per country, and latest.json uniqA and uniqAB count each item once per window and, in the totals, once across countries; 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

@@ -1,4 +1,4 @@
-version: 2026.10.1
+version: 2026.10.2
 note: >-
   Doctrine term families for the doctrine term tracker (pipeline/doctrine.py). Each family is a set
   phrase of the Chinese state's foreign policy vocabulary. Terms follow the theme counter's syntax
@@ -14,8 +14,14 @@ note: >-
   Daily, CGTN, China Daily) or the Chinese foreign ministry and its embassies in that language, with
   the page it was checked on in a comment; a language is left out of a family when no such rendering
   was found. Hindi and Dutch have no local forms yet, so articles in them are matched on the all and
-  English terms only. Changing any term bumps version (and adds an entry to HISTORY in
-  pipeline/doctrine.py), and every article is tagged again at the next export.
+  English terms only. An acronym printed in brackets right after a full term of its family, or a
+  full term in brackets right after its acronym, is one mention and counts once. A family with
+  china_context (a number of characters) counts a match only when a term of the china_context list
+  below appears within that many characters before or after it: multipolar world and
+  people-to-people exchanges are also the stated policy of India, Russia, Vietnam and the BRICS, and
+  without a China word nearby they say nothing about the Chinese state's vocabulary. Changing any term
+  bumps version (and adds an entry to HISTORY in pipeline/doctrine.py), and every article is tagged
+  again at the next export.
 language_aliases:
   ms: id
 substring_languages:
@@ -27,6 +33,85 @@ substring_languages:
 - hi
 # The languages with local theme lists (pipeline/themes.yaml); the doctrine terms cover the same set.
 languages: [ar, de, en, es, fa, fr, hi, id, it, ja, ko, nl, pl, pt, ro, ru, th, tr, vi]
+# The China words a family with china_context needs nearby, in the same syntax as the terms (every
+# language also uses the all and en lists). Not renderings of a set phrase, so they cite no source.
+china_context:
+  all:
+  - China
+  - Chinese
+  - Beijing
+  - Peking
+  - Xi Jinping
+  - Xi
+  - PRC
+  - CPC
+  - CCP
+  - Wang Yi
+  - Li Qiang
+  - Xinhua
+  - CGTN
+  - China Daily
+  - Global Times
+  ar:
+  - الصين
+  - الصيني*
+  - بكين
+  de:
+  - chinesisch*
+  es:
+  - chin*
+  - Pekín
+  fa:
+  - چین
+  fr:
+  - Chine
+  - chinois*
+  - Pékin
+  hi:
+  - चीन
+  id:
+  - Tiongkok
+  - Cina
+  it:
+  - Cina
+  - cines*
+  - Pechino
+  ja:
+  - 中国
+  - 習近平
+  - 北京
+  ko:
+  - 중국
+  - 시진핑
+  - 베이징
+  nl:
+  - Chinees
+  - Chinese
+  pl:
+  - Chin*
+  - chińsk*
+  - Pekin*
+  pt:
+  - chin*
+  - Pequim
+  ro:
+  - chinez*
+  ru:
+  - Китай*
+  - Китая
+  - Пекин*
+  - Си Цзиньпин*
+  th:
+  - จีน
+  - ปักกิ่ง
+  tr:
+  - Çin
+  - Çinli
+  - Pekin
+  vi:
+  - Trung Quốc
+  - Bắc Kinh
+  - Tập Cận Bình
 families:
 - id: shared_future
   label: Community with a shared future
@@ -221,7 +306,9 @@ families:
     - cooperazione win-win  # https://it.china-embassy.gov.cn/ita/ggwj/202310/t20231005_11154883.htm
 - id: multipolarity
   label: Multipolar world
-  distinctive: true
+  # Also the stated aim of Russia, India and the BRICS: muted, and counted only beside a China word.
+  distinctive: false
+  china_context: 140
   terms:
     en:
     - multipolar world
@@ -251,13 +338,14 @@ families:
   label: Hegemonism and power politics
   distinctive: true
   # Hegemonism, never the generic "hegemony". Where the state's own rendering uses the generic word
-  # (Arabic, German), only the paired phrase with power politics counts.
+  # (Arabic, German), only the paired phrase with power politics counts. The Spanish and Portuguese
+  # renderings of power politics alone (politica de la fuerza, politica do poder) are ordinary
+  # political prose and are left out.
   terms:
     en:
     - hegemonism
     es:
     - hegemonismo  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
-    - política de la fuerza  # https://www.mfa.gov.cn/esp/zxxx/202302/t20230222_11029520.html
     fr:
     - hégémonisme  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
     - politique du plus fort  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
@@ -268,7 +356,6 @@ families:
     - الهيمنة وسياسات القوة  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
     pt:
     - hegemonismo  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
-    - política do poder  # https://portuguese.xinhuanet.com/20250901/5ba04a37df2f4f8f933bc834d2c6240e/c.html
     de:
     - Hegemonie und Machtpolitik  # http://german.xinhuanet.com/20260306/fee0498f23d74e64867c196a4f0b80b8/c.html
     it:
@@ -447,18 +534,17 @@ families:
     - Küresel Güney*  # https://tr.china-embassy.gov.cn/tur/sgxw/202601/t20260112_11811399.htm
 - id: people_to_people
   label: People-to-people exchanges
-  distinctive: true
+  # Also the stock phrase of Indian, Vietnamese and Russian diplomacy: muted, and counted only beside
+  # a China word. The generic Spanish, French and Russian forms (exchanges between peoples, human
+  # exchanges, humanitarian exchanges) are left out.
+  distinctive: false
+  china_context: 140
   terms:
     en:
     - people-to-people exchange*
     - people-to-people and cultural exchange*
-    es:
-    - intercambios entre pueblos  # https://www.mfa.gov.cn/esp/wjdt/wshd/202507/t20250707_11666376.html
     fr:
     - échanges entre les peuples  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
-    - échanges humains  # https://www.mfa.gov.cn/fra/wjb/wjbz/zyjh/202403/t20240307_11255710.html
-    ru:
-    - гуманитарн* обмен*  # https://www.mfa.gov.cn/ce/cerus//rus/dssghd/t1678792.htm
     ar:
     - التبادلات الشعبية  # http://arabic.news.cn/20251222/929289ab8ef649b6af258cdf0d4bc854/c.html
     pt:

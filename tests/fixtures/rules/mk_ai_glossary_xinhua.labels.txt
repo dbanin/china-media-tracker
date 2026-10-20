@@ -1,0 +1,14 @@
+[속보] 시진핑 “미중, 새 무역 합의 도달…세계경제에 희소식”&lt;신화통신&gt; - 매일경제
+신화통신,경제무역팀,세계경제,연합뉴스,국가주석
+article
+world
+신화통신
+경제무역팀
+세계경제
+연합뉴스
+국가주석
+@type: NewsMediaOrganization
+@type: BreadcrumbList
+articleSection: 국제
+keywords: 신화통신, 경제무역팀, 세계경제, 연합뉴스, 국가주석
+@type: NewsArticle

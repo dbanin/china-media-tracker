@@ -1,8 +1,9 @@
 /* Republication speed (measure speed): the second panel of #copies. It registers with
    window.TrackerMeasures and renders data/speed.json (pipeline/speed.py): a bucket bar per route, for
    lags behind the state original (absolute) and, apart, behind the first monitored copy (relative),
-   a ranked table of the fastest outlets, the counts kept outside the bars, and the reference sources
-   whose times look mislabelled. The two kinds of lag are never pooled.
+   a ranked table of the fastest outlets, the counts kept outside the bars, the reference sources
+   whose times look mislabelled and their fetch status. The two kinds of lag are never pooled, and
+   every count of pairs says how many distinct originals stand behind it.
    Loaded in the browser after measures.js, and in Node or jsc with module.exports. */
 (function (root, factory) {
   var M = root && root.TrackerMeasures;
@@ -47,7 +48,8 @@
     var words = SEG.filter(function (k) { return num(b[k]) > 0; }).map(function (k) { return LABELS[k].toLowerCase() + " " + pct(num(b[k]), n); }).join(", ");
     return '<div class="sp-row"><span class="sp-label">' + esc(label) + '</span>' +
       '<span class="sp-bar" role="img" aria-label="' + esc(label + ": " + (words || "no pairs")) + '">' + segs + '</span>' +
-      '<span class="sp-n">' + (s && typeof s.median_hours === "number" ? esc(fmtHours(s.median_hours)) : "") + '<em>' + plural(n, "pair") + '</em></span></div>';
+      '<span class="sp-n">' + (s && typeof s.median_hours === "number" ? esc(fmtHours(s.median_hours)) : "") + '<em>' + plural(n, "pair") +
+      (s && typeof s.originals === "number" ? ", " + plural(s.originals, "original") : "") + '</em></span></div>';
   }
 
   function legend(esc) {
@@ -67,18 +69,19 @@
     var esc = api.esc || M.esc, cn = api.countryName || function (i) { return i; };
     var rows = (kind.by_outlet || []).filter(function (r) { return typeof r.median_hours === "number"; }).slice(0, TOP_OUTLETS);
     var min = num(data.min_outlet_pairs) || 10;
-    if (!rows.length) return '<p class="m-empty">No outlet has ' + min + ' timed pairs yet, so no outlet is ranked.</p>';
+    if (!rows.length) return '<p class="m-empty">No outlet has timed pairs of ' + min + ' distinct originals yet, so no outlet is ranked.</p>';
     return '<h4 class="sp-h">Fastest outlets, behind the state original</h4>' +
       '<div class="m-table-wrap"><table class="m-table sp-table"><thead><tr><th>Outlet</th><th>Country</th>' +
-      '<th class="num">Pairs</th><th class="num">Median</th><th class="num">Middle half</th><th class="num">Within a day</th></tr></thead><tbody>' +
+      '<th class="num">Pairs</th><th class="num">Originals</th><th class="num">Median</th><th class="num">Middle half</th><th class="num">Within a day</th></tr></thead><tbody>' +
       rows.map(function (r) {
         var b = r.buckets || {}, day = num(b.same_hour) + num(b.same_day);
         return '<tr><td>' + esc(r.name || r.key) + '</td><td>' + esc(r.country ? cn(r.country) : "") + '</td>' +
-          '<td class="num">' + num(r.n_timed) + '</td><td class="num">' + esc(fmtHours(r.median_hours)) + '</td>' +
+          '<td class="num">' + num(r.n_timed) + '</td><td class="num">' + (typeof r.originals_timed === "number" ? num(r.originals_timed) : "n/a") + '</td>' +
+          '<td class="num">' + esc(fmtHours(r.median_hours)) + '</td>' +
           '<td class="num">' + esc(fmtHours(r.p25_hours) + " to " + fmtHours(r.p75_hours)) + '</td>' +
           '<td class="num">' + pct(day, num(r.n_timed)) + '</td></tr>';
       }).join("") + '</tbody></table></div>' +
-      '<p class="sp-note">Outlets with at least ' + min + ' timed pairs, fastest median first. Middle half is the 25th to 75th percentile.</p>';
+      '<p class="sp-note">Outlets with timed pairs of at least ' + min + ' distinct originals, fastest median first. Middle half is the 25th to 75th percentile.</p>';
   }
 
   /* The counts kept outside the bars, and coverage. */
@@ -98,21 +101,33 @@
       var why = [];
       if (d.flags.indexOf("published after discovery") !== -1) why.push(share(d.share_negative) + " of its timed items carry a time after the tracker found them, which points to a zone labelled wrongly");
       if (d.flags.indexOf("mostly date only") !== -1) why.push(share(d.share_date_only) + " give only a date");
-      out.push("Times from " + sourceName(d.source) + " need care: " + why.join(", and ") + ".");
+      if (d.flags.indexOf("date only after day one") !== -1) why.push(share(d.share_date_only_after_day_one) + " still give only a date after their first day, when the page's own time should have been read");
+      if (d.flags.indexOf("earlier than expected") !== -1) why.push(share(d.time_check && d.time_check.share_earlier) + " of the items it lists twice read more than an hour earlier on its second listing, which points to a change of time zone");
+      if (d.flags.indexOf("later than expected") !== -1) why.push(share(d.time_check && d.time_check.share_later) + " of the items it lists twice read more than an hour later on its second listing");
+      if (why.length) out.push("Times from " + sourceName(d.source) + " need care: " + why.join(", and ") + ".");
     });
+    var srcs = data.reference_sources || [];
+    if (srcs.length) out.push("State outlets' own pages: " + srcs.map(function (d) {
+      var st = d.statuses || {}, bits = [num(st.fetched) + " of " + num(d.items) + " fetched"];
+      if (st.expired) bits.push(num(st.expired) + " expired unread");
+      if (st.failed) bits.push(num(st.failed) + " failed");
+      if (st.paywalled) bits.push(num(st.paywalled) + " paywalled");
+      return sourceName(d.source) + " " + bits.join(", ");
+    }).join("; ") + ".");
     return out.length ? '<ul class="sp-notes">' + out.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join("") + '</ul>' : "";
   }
 
   function lead(data) {
     var a = (data.absolute || {}).overall || {}, r = (data.relative || {}).overall || {};
+    var of = function (s) { return typeof s.originals_timed === "number" ? " (" + plural(s.originals_timed, "distinct original") + ")" : ""; };
     if (typeof a.median_hours === "number") {
       var b = a.buckets || {}, day = num(b.same_hour) + num(b.same_day);
-      return "Half of the " + plural(num(a.n_timed), "copy", "copies") + " with a timed state original ran within " + fmtHours(a.median_hours) +
+      return "Half of the " + plural(num(a.n_timed), "copy", "copies") + " with a timed state original" + of(a) + " ran within " + fmtHours(a.median_hours) +
         " of it, and " + pct(day, num(a.n_timed)) + " within a day.";
     }
     if (typeof r.median_hours === "number")
-      return "No state original has enough timed pairs yet. Behind the first monitored copy, half of the later copies ran within " + fmtHours(r.median_hours) + ".";
-    return "Too few pairs carry a time of day on both pages for a median yet.";
+      return "No state original has timed pairs of enough distinct originals yet. Behind the first copy at another monitored outlet outside the copy's own media group, half of the later copies" + of(r) + " ran within " + fmtHours(r.median_hours) + ".";
+    return "Too few distinct originals carry a time of day on both pages for a median yet.";
   }
 
   function render(block, data, api) {
@@ -137,7 +152,7 @@
     if (anyA) html += bars(a, "Behind the state original", esc);
     if (anyR) html += bars(r, "Behind the first monitored copy (where no state original was found)", esc);
     html += '<p class="sp-note">The figure beside each bar is the median of its timed pairs, shown from ' + (num(data.min_group_median) || 5) +
-      ' pairs. A copy up to an hour ahead of its original counts as the same hour.</p>';
+      ' distinct originals, since one state text run by many outlets is many pairs but one original. A copy up to an hour ahead of its original counts as the same hour.</p>';
     if (anyA) html += outletTable(a, data, api);
     html += notes(data, esc);
     slot.innerHTML = html;

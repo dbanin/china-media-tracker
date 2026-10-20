@@ -51,6 +51,25 @@
   assert(h.indexOf("<b>moved</b>") === -1 && h.indexOf("&lt;b&gt;") !== -1, "details are escaped");
   assert(h.indexOf("Great Britain") === -1 && h.indexOf("GBR") === -1, "a day older than 30 days is not listed");
   assert(h.indexOf("5,963 country days tested") !== -1, "the number of tests and the chance line");
+  assert(h.indexOf("rough guide") !== -1 && h.indexOf("under 0.1") !== -1, "the chance estimate carries its caveat");
+  assert(h.indexOf("no more than 3 from any one outlet") !== -1, "the sub line says how days are counted");
+  assert(h.indexOf("sp-relabel") === -1, "no relabelling note without a ruleset change");
+
+  /* The tested count beside the placements, and the old file shape still reads. */
+  assert(S.whatText(spike("2026-10-12", "ITA", "clean", {tested: 6})) ===
+         "9 state origin placements (7 underlying items); 6 counted, no outlet adding more than 3, against about 1 expected", "what was tested");
+  assert(S.whatText(spike("2026-10-12", "ITA", "clean")) === "9 state origin placements (7 underlying items) against about 1 expected", "an old file without tested");
+
+  /* Days to check only because relabelling is unfinished are explained plainly. */
+  var relabel = {last_complete_day: "2026-10-13", tests: 100, expected_false_flags: 0.2, spikes: [
+    spike("2026-10-12", "ZAF", "check", {confounders: [{reason: "ruleset_change", detail: "ruleset r9 took effect", affects: "count", ruleset_date: "2026-10-12"}]}),
+    spike("2026-10-11", "WLD", "check", {confounders: [{reason: "ruleset_change", detail: "ruleset r9 took effect", affects: "count", ruleset_date: "2026-10-12"}]})]};
+  M.get("spikes").render(prov, relabel, api);
+  var hr = slot.innerHTML;
+  assert(hr.indexOf("sp-relabel") !== -1 && hr.indexOf("2 of these days are to check because the labelling rules changed on 12 Oct") !== -1, "why the days are to check");
+  assert(hr.indexOf("To check: " + S.REASONS.ruleset_change) !== -1 && S.REASONS.ruleset_change.indexOf("relabelling") !== -1, "the reason names the relabelling");
+  assert(hr.indexOf("about 0.2") !== -1 && !/[\u2013\u2014]/.test(hr), "the estimate, no dashes");
+  assert(S.relabelText([]) === "" && S.relabelText([spike("2026-10-12", "ZAF", "check")]) === "", "no note without the reason");
   assert(h.indexOf("Category") === -1 && !/[\u2013\u2014]/.test(h), "no category letters and no dashes");
 
   /* Checked: no suffix. Off: hidden and cleared. Withheld: says so. No spikes: an empty state. */
@@ -110,6 +129,10 @@
   var dA = fakeDoc(), rA = S.select("WLD", "2026-10-10", dA, {selectCountry: function () {}, setDay: function () {}});
   assert(rA.event === true && dA.sent.length === 1 && dA.sent[0].type === "tracker:select", "the event is sent");
   assert(dA.sent[0].detail.iso === "WLD" && dA.sent[0].detail.day === "2026-10-10", "the event carries the country and the day");
+  var det = dA.sent[0].detail;
+  assert(det.measure === "a" && det.window === "day" && det.distribution === "both" && Object.keys(det).length === 5,
+         "the event asks for state origin, that one day, both distributions");
+  assert(JSON.stringify(S.selectDetail("ITA", "2026-10-12")) === '{"iso":"ITA","day":"2026-10-12","measure":"a","window":"day","distribution":"both"}', "the exact event shape");
   assert(dA.scrubbed.length === 0 && dA.clicked.length === 0 && dA.scrolled === 0, "with the hook the page's controls are left alone");
   var dB = fakeDoc(), rB = S.select("ITA", "2026-10-12", dB, null);
   assert(rB.event === true && dB.sent.length === 1, "without the hook the event is still sent");
@@ -117,6 +140,19 @@
   assert(rB.country === true && dB.clicked[0] === "ITA" && dB.scrolled === 1, "without the hook the row is clicked and the map shown");
   var dC = fakeDoc(), rC = S.select("WLD", "2026-10-10", dC, null);
   assert(rC.day === true && rC.country === false, "without the hook a country missing from the list is not opened");
+  /* Without the hook the measure, window and distribution buttons are pressed unless already active. */
+  var dD = fakeDoc(), pressed = [];
+  function btn(name, active) { return {classList: {contains: function (c) { return c === "active" && active; }}, click: function () { pressed.push(name); }}; }
+  var buttons = {measure: btn("a", false), window: btn("1", false), distribution: btn("both", true)};
+  var baseQS = dD.querySelector;
+  dD.querySelector = function (q) {
+    if (/data-measure="a"/.test(q)) return buttons.measure;
+    if (/data-window="1"/.test(q)) return buttons.window;
+    if (/data-distribution="both"/.test(q)) return buttons.distribution;
+    return baseQS(q);
+  };
+  var rD = S.select("ITA", "2026-10-12", dD, null);
+  assert(rD.controls === true && pressed.join(",") === "a,1", "state origin and that day are pressed, Both already active is left");
   if (hadCE === "undefined") delete G.CustomEvent;
   if (hadEv === "undefined") delete G.Event;
   assert(M.get("spikes").findingsExtra(prov, data, api) === "", "nothing in the findings box itself");

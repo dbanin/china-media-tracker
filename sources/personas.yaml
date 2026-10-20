@@ -3,7 +3,12 @@
 # A match in the tracker means only that a byline or cited organisation matches a name on
 # this list. The tracker cannot prove a byline is fictitious. Nothing here comes from memory.
 # Bump version on every change; the pipeline rescans everything when it changes.
-version: "2026.10.1"
+# common_name: true marks a persona name a working journalist may share. A byline match on it is held
+# for confirmation (python -m pipeline.planted pending) and published only with a second signal: the
+# article's outlet id or host in the persona's or the operation's outlets list, its date inside their
+# active_from .. active_to, or a front of the same operation cited by the article. Add an outlet or a
+# window only when the report itself names it.
+version: "2026.10.2"
 
 operations:
   - id: openai_bogus_bylines_2026
@@ -151,6 +156,7 @@ personas:
     claimed: Journalist based in New Zealand
     note: Named in the Bogus Bylines section; the persona's bio claimed to be in New Zealand.
   - id: sophia_gonzalez
+    common_name: true
     name: Sophia Gonzalez
     operation: openai_bogus_bylines_2026
     kind: journalist
@@ -159,6 +165,7 @@ personas:
       Named in the Bogus Bylines section. Meta's H1 2026 Iran indicator file lists the X handle
       SophiaGnzlz but gives no byline name (https://github.com/facebook/threat-research/blob/main/indicators/meta-h1-2026-iran-based-cib-network-1.md).
   - id: michael_harrison
+    common_name: true
     name: Michael Harrison
     operation: openai_bogus_bylines_2026
     kind: journalist
@@ -173,12 +180,14 @@ personas:
     claimed: Western journalist
     note: Named in the Bogus Bylines section; listed an X handle in published bios, suspended by August 2026.
   - id: jenny_williams
+    common_name: true
     name: Jenny Williams
     operation: openai_bogus_bylines_2026
     kind: journalist
     claimed: Western journalist
     note: Named in the Bogus Bylines section; listed an X handle in published bios, suspended by August 2026.
   - id: alice_johnson
+    common_name: true
     name: Alice Johnson
     operation: openai_bogus_bylines_2026
     kind: journalist
@@ -187,6 +196,7 @@ personas:
       Named in the Bogus Bylines section. Meta's H1 2026 Iran indicator file lists the X handle
       ImAliceJohnson but gives no byline name.
   - id: mia_clark
+    common_name: true
     name: Mia Clark
     operation: openai_dark_clark_2026
     kind: official

@@ -19,7 +19,7 @@ def test_prompt_contains_definitions_verbatim():
         "Category B, unverified relay. The article was written by the local outlet, and its central content is a factual claim attributed to a Chinese official or state source, passed on without independent confirmation.",
         "A stated position, policy, warning, threat, opinion or denial is not a factual claim",
         "Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say, and reporting of a position, policy, warning, threat, opinion or denial",
-        "Not relevant. Does not concern China.",
+        "Not relevant. Does not concern China in any substantive way",
         "verification, not about topic or tone",
         "answer C",
         "That confirmation, contextualization or contest must concern the claim itself",

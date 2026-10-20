@@ -30,6 +30,7 @@ all:
   - Tibet
   - Huawei
   - Belt and Road
+  # BRI counts only beside another China term or Belt and Road (corroborated, below).
   - BRI
   - Xinhua
   - CGTN
@@ -552,6 +553,32 @@ am:
   - ቻይና
   - ቻይናዊ
   - ቤጂንግ
+  # From gate 2026.10.2. The Ge'ez prepositions are written onto the noun (የቻይና, of China; ለቻይና,
+  # to China; ከቻይና, from China; በቻይና, in China), so ቻይና alone missed them, and so are endings
+  # (ቻይናን, ቻይናው). An asterisk is the rest of the word. Read on 2026-10-19 in Fana, ENA, Addis
+  # Media Network, EBS, Sputnik Ethiopia and Ethiopian Reporter headlines and articles: የቻይና, የቻይናን,
+  # የቻይናው, ከቻይናው, ቻይናን, ከቻይና, በቤጂንግ, ሺ ጂንፒንግ, ዢ ጂንፒንግ, በታይዋን. ለቻይና, በቻይና, ሆንግ ኮንግ and
+  # ሺንዋ not seen; they follow the same spelling.
+  - ቻይና*
+  - የቻይና*
+  - ለቻይና*
+  - ከቻይና*
+  - በቻይና*
+  - ቤጂንግ*
+  - የቤጂንግ*
+  - ለቤጂንግ*
+  - ከቤጂንግ*
+  - በቤጂንግ*
+  - ጂንፒንግ*
+  - ታይዋን*
+  - የታይዋን*
+  - ለታይዋን*
+  - ከታይዋን*
+  - በታይዋን*
+  - ሆንግ ኮንግ*
+  - የሆንግ ኮንግ*
+  - በሆንግ ኮንግ*
+  - ሺንዋ*
 id:
   - Tiongkok
   - Cina
@@ -669,6 +696,116 @@ ta:
   - சீன
   - பெய்ஜிங்
   - தைவான்
+# Marathi, Telugu, Kannada, Malayalam, Gujarati, Punjabi (Gurmukhi), Odia and Assamese, from gate
+# 2026.10.2. These languages write case endings and postpositions onto the noun (Marathi चीनमध्ये,
+# in China; Telugu చైనాలో; Kannada ಚೀನಾದಲ್ಲಿ; Gujarati ચીનમાં), so each name carries an asterisk,
+# the rest of the word. A stem ending in a dead consonant is written without its virama (Malayalam
+# ബെയ്ജിങ*), because an ending replaces the virama with a vowel sign (ബെയ്ജിങില്‍, in Beijing).
+# A zero width joiner or non-joiner in a term matches either or none. A term
+# never starts after a vowel sign or a virama, so these stems are not read inside a longer word.
+# Every form was read in headlines or articles of the outlets named, on 2026-10-19, except those
+# marked "not seen", which follow the outlets' spelling of the other names. The Latin names
+# (China, Beijing, Xi Jinping, Xinhua, CGTN) come from the all and en lists.
+mr:
+  # TV9 Marathi, Saamana, Navarashtra, Prahaar: चीन, चीनचे, चीनने, चीनच्या, चीनमध्ये, चायनाच्या,
+  # बीजिंगमध्ये, शी जिनपिंग, तैवानने, तैवानवर. चिनी, हाँगकाँग and शिन्हुआ not seen.
+  - चीन*
+  - चिनी
+  - चायना*
+  - बीजिंग*
+  - जिनपिंग*
+  - तैवान*
+  - हाँगकाँग*
+  - हॉंगकॉंग*
+  - हाँग काँग
+  - शिन्हुआ*
+te:
+  # Eenadu, Sakshi, HMTV: చైనా, చైనాలది, చైనాకు, బీజింగ్, షీ జిన్‌పింగ్, తైవాన్‌కు, హాంకాంగ్‌లో,
+  # హాంగ్ కాంగ్. చైనీస్ and జిన్హువా not seen.
+  - చైనా*
+  - చైనీస*
+  - బీజింగ*
+  - జిన్‌పింగ*
+  - తైవాన*
+  - హాంకాంగ*
+  - హాంగ్ కాంగ*
+  - జిన్హువా*
+kn:
+  # Prajavani, ETV Bharat Kannada, TV9 Kannada, Eesanje, Vartha Bharati: ಚೀನಾ, ಚೀನಾದ, ಚೀನ, ಬೀಜಿಂಗ್‌ನಲ್ಲಿ,
+  # ಕ್ಸಿ, ಷಿ and ಶಿ ಜಿನ್‌ಪಿಂಗ್, ತೈವಾನ್. ಚೀನ* also covers ಚೀನೀ (Chinese). ಹಾಂಗ್ ಕಾಂಗ್ and ಕ್ಸಿನ್‌ಹುವಾ not seen.
+  - ಚೀನ*
+  - ಬೀಜಿಂಗ*
+  - ಜಿನ್‌ಪಿಂಗ*
+  - ತೈವಾನ*
+  - ಹಾಂಗ್ ಕಾಂಗ*
+  - ಹಾಂಕಾಂಗ*
+  - ಕ್ಸಿನ್‌ಹುವಾ*
+ml:
+  # Malayala Manorama, Madhyamam, Janayugom, ETV Bharat Malayalam, Asianet News: ചൈന, ചൈനയിലെ,
+  # ചൈനീസ്, ബെയ്ജിങ്ങിലെ, ഷി ജിൻപിങ്, ഷി ചിൻപിങ്ങിന്, തായ്‌വാൻ, തായ്‌വാന്, ഹോങ്കോങ്ങിൽ. The older
+  # chillu spelling (ന്‍ for ൻ) and the two e signs some sites type for ൈ (ചെെന) are listed as
+  # well; ബെയ്ജിംഗ്, തയ്‌വാൻ and സിൻഹുവ not seen.
+  - ചൈന*
+  - ചെെന*
+  - ബെയ്ജിങ*
+  - ബെയ്ജിംഗ*
+  - ജിൻപിങ*
+  - ചിൻപിങ*
+  - ജിന്‍പിങ*
+  - ചിന്‍പിങ*
+  - തായ്‌വാ*
+  - തയ്‌വാ*
+  - ഹോങ്കോങ*
+  - ഹോങ് കോങ*
+  - സിൻഹുവ*
+gu:
+  # Gujarat Samachar, Gujarat First: ચીન, ચીનમાં, ચીનના, ચીનની, ચીનનું, ચીની, બેઇજિંગમાં, શી જિનપિંગ,
+  # જિનપિંગે, તાઈવાનના, શિન્હુઆના. ચાઇના, તાઇવાન and હોંગકોંગ not seen.
+  - ચીન*
+  - ચાઇના*
+  - ચાઈના*
+  - બેઇજિંગ*
+  - જિનપિંગ*
+  - તાઈવાન*
+  - તાઇવાન*
+  - હોંગકોંગ*
+  - શિન્હુઆ*
+pa:
+  # Gurmukhi. Jagbani, Ajit, Punjabi Jagran: ਚੀਨ, ਚੀਨੀ, ਚਾਈਨਾ, ਸ਼ੀ ਜਿਨਪਿੰਗ, ਚਿਨਫਿੰਗ, ਤਾਈਵਾਨ, ਤਾਇਵਾਨ.
+  # Postpositions stand apart (ਚੀਨ ਦੇ, ਚੀਨ ਨੇ). ਬੀਜਿੰਗ, ਹਾਂਗਕਾਂਗ and ਸ਼ਿਨਹੂਆ not seen.
+  - ਚੀਨ*
+  - ਚਾਈਨਾ*
+  - ਬੀਜਿੰਗ*
+  - ਜਿਨਪਿੰਗ*
+  - ਜਿੰਨਪਿੰਗ*
+  - ਚਿਨਫਿੰਗ*
+  - ਤਾਈਵਾਨ*
+  - ਤਾਇਵਾਨ*
+  - ਹਾਂਗਕਾਂਗ*
+  - ਹਾਂਗ ਕਾਂਗ*
+  - ਸ਼ਿਨਹੂਆ*
+or:
+  # Dharitri, ETV Bharat Odia, Kanak News, Odisha Bhaskar, Odisha Reporter: ଚୀନ, ଚୀନର, ଚୀନରେ, ଚୀନକୁ,
+  # ଚୀନ୍‌କୁ, ଚାଇନା, ବେଜିଂର, ସି ଜିନପିଙ୍ଗ, ଜିନପିଙ୍ଗଙ୍କ, ତାଇୱାନ. ବେଇଜିଂ, ଜିନପିଂ, ହଂକଂ and ସିନହୁଆ not seen.
+  - ଚୀନ*
+  - ଚାଇନା*
+  - ବେଜିଂ*
+  - ବେଇଜିଂ*
+  - ଜିନପିଙ୍ଗ*
+  - ଜିନପିଂ*
+  - ତାଇୱାନ*
+  - ହଂକଂ*
+  - ସିନହୁଆ*
+as:
+  # Bengali script with the Assamese letters. Asomiya Pratidin: চীন, চীনৰ, চীনে, চীনক, চীনেও, চীনা,
+  # ভাৰত-চীন, বেইজিং. জিনপিং, তাইৱান, টাইৱান, হংকং and চিনহুৱা not seen.
+  - চীন*
+  - বেইজিং*
+  - জিনপিং*
+  - তাইৱান*
+  - টাইৱান*
+  - হংকং*
+  - চিনহুৱা*
 my:
   - တရုတ်
   - ပေကျင်း
@@ -941,6 +1078,86 @@ sports_sections:
 # English prefix form: Sino-American, Sino-Russian.
 regex:
   Sino-: 'Sino-[A-Z]'
+
+# Terms that count only beside another China term, from gate 2026.10.2: an occurrence counts when a
+# term that is neither weak nor listed here (Belt and Road among them) matched within `near`
+# characters of it, in the title and summary at the gate and in the body for the residual rule. BRI
+# is Bank Rakyat Indonesia, the BRI Super League (Indonesian football), the French police unit "la BRI"
+# and Latin letters in Thai text as often as it is the Belt and Road Initiative: on the 2026-10-12
+# snapshot 142 Indonesian items were labelled independent journalism by the rules on BRI alone.
+# Unlike a weak term, a corroborated occurrence still counts toward the residual rule's totals.
+corroborated:
+  near: 200
+  terms:
+    - BRI
+
+# Names of Hong Kong, Macao and Taiwan, from ruleset 2026.10.2. They still admit an item at the gate,
+# but the residual rule (classify_rules.body_relevance, gate.count with residual) counts them only when
+# the text also names the mainland (a term that is neither listed here nor corroborated): a story about
+# the territories counts as China coverage only when it concerns the People's Republic (cross-strait
+# relations, the national security law, Beijing's role, DECISIONS 3), which a mainland term shows. Without this, Hong Kong football, a LEGOLAND Hong Kong opening and a Finnish bank tender
+# naming Taiwan were labelled independent journalism by the rules on the territory's name alone.
+# "Taiwan Strait" is not listed: the strait is where the People's Liberation Army operates.
+territory_terms:
+  - Taiwan
+  - Taïwan
+  - Taiwán
+  - Tajwan
+  - Tchaj-wan
+  - Taivanas
+  - Tajvan
+  - Tajvana
+  - Tajvanu
+  - Tajvanom
+  - Tayvan
+  - Тайвань
+  - Тайван
+  - Тајван
+  - Тајвана
+  - Тајвану
+  - Тајваном
+  - Ταϊβάν
+  - تايوان
+  - تایوان
+  - טייוואן
+  - Đài Loan
+  - ไต้หวัน
+  - ताइवान
+  - 台湾
+  - 台灣
+  - 대만
+  - Hong Kong
+  - Hongkong
+  - Гонконг
+  - Χονγκ Κονγκ
+  - هونغ كونغ
+  - هنگ کنگ
+  - הונג קונג
+  - Hồng Kông
+  - ฮ่องกง
+  - हांगकांग
+  - 香港
+  - 홍콩
+  - HKSAR
+  - HKTDC
+  - HKTB
+  - HKUST
+  - CUHK
+  - Macau
+  - Macao
+  - 澳門
+  - 澳门
+  - 마카오
+
+# Names in which a China term does not refer to China, removed before matching for every outlet, from
+# gate 2026.10.2. Each entry is a regular expression applied case sensitively. Porcelain is "bone china"
+# and "fine china" in lower case, so "regulators fine China Evergrande" keeps its China. "China Rose" is
+# an Air Jordan colourway and a flower (a Yahoo Shopping release date story was labelled independent
+# journalism on it), but "exports to China rose 15.5%" is the country, in a headline too ("Exports to
+# China Rose 15%"), so the name is removed only in quotation marks or beside a sneaker word.
+not_china_phrases:
+  - '(?<!\w)(?:[Bb]one|[Ff]ine) china(?!\w)'
+  - '[''"\u2018\u2019\u201c\u201d]China Rose[''"\u2018\u2019\u201c\u201d]|(?<!\w)(?:Low|High|Mid|Retro|OG|Dunk|SB) China Rose(?!\w)|(?<!\w)China Rose (?:colou?rway|sneakers?|shoes?|edition)(?!\w)'
 
 # Terms ignored for outlets based in the territory they name. A Hong Kong
 # newspaper's local news is not coverage of China for this study; without this

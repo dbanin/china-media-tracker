@@ -178,6 +178,12 @@ def _lower_discovery(conn, row) -> None:
                  (day, row["outlet_id"]))
 
 
+# Rows corrected between commits. Each row's correction is whole on its own (a row done is not selected
+# again), so committing in steps keeps the write lock free for the hourly run's other writers; one commit
+# at the end held it for up to 55 s on the 2026-10-12 database (the 2026-10-17 robustness audit).
+COMMIT_EVERY = 500
+
+
 def _rehome(conn, feed: str, owner: tuple, out: Dict, dry_run: bool) -> None:
     """Move the articles the registering outlet stored from `feed` to its owner (section_feed_owners),
     with their outlet-day discovery counts, and the feed's poll records with them. Idempotent: a moved
@@ -185,7 +191,9 @@ def _rehome(conn, feed: str, owner: tuple, out: Dict, dry_run: bool) -> None:
     registered = removed_section_feeds()[feed][0]
     oid, country = owner
     rows = conn.execute("SELECT * FROM articles WHERE feed_url=? AND outlet_id=? ORDER BY id", (feed, registered)).fetchall()
-    for row in rows:
+    for i, row in enumerate(rows):
+        if i and i % COMMIT_EVERY == 0 and not dry_run:
+            conn.commit()
         t = out.setdefault(feed, _empty())
         t["moved"] += 1
         t["moved_to"] = oid
@@ -234,7 +242,9 @@ def run(conn, feeds=None, dry_run: bool = False) -> Dict:
     # One for the run, computed per outlet on first use. A dry run computes it from the articles and
     # leaves the feed_boilerplate cache alone; on a read only connection nothing is written either way.
     boiler = boilerplate.FeedBoilerplate(conn, cache=not dry_run)
-    for row in _rows(conn, feeds):
+    for i, row in enumerate(_rows(conn, feeds)):
+        if i and i % COMMIT_EVERY == 0 and not dry_run:
+            conn.commit()
         t = out.setdefault(row["feed_url"], _empty())
         d = decide(row, boiler)
         if d is None:

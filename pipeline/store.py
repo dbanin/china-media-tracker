@@ -10,6 +10,7 @@ Principles:
 import datetime as dt
 import hashlib
 import json
+import re
 import sqlite3
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -86,6 +87,8 @@ CREATE TABLE IF NOT EXISTS classifications (
     raw_response TEXT,
     route TEXT,                       -- state origin only: how the item arrived (classify_rules.ROUTE_IDS)
     body_refreshed TEXT,              -- model labels only: "<UTC time> <why>" when the body the label was made on, a stub, was since replaced (classify_rules.note_body_refresh)
+    issuer_type TEXT,                 -- model labels only: who issued the text (classify_llm.ISSUER_TYPES); NULL before prompt 2026-10-17
+    needs_review TEXT,                -- model labels only: why the reply was inconsistent (classify_llm.INCONSISTENCIES), else NULL
     FOREIGN KEY(article_id) REFERENCES articles(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_article ON classifications(article_id, is_current);
@@ -183,7 +186,8 @@ CREATE TABLE IF NOT EXISTS feed_health (
     last_entries INTEGER,
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
     total_checks INTEGER NOT NULL DEFAULT 0,
-    total_failures INTEGER NOT NULL DEFAULT 0
+    total_failures INTEGER NOT NULL DEFAULT 0,
+    newest_entry TEXT                 -- the newest entry date the last successful poll listed (frozen feeds)
 );
 
 -- Where the shared AAP release listing read got to (pipeline.section_pages): key 'gap' holds the
@@ -436,7 +440,8 @@ CREATE TABLE IF NOT EXISTS reference_feed_health (
     last_entries INTEGER,
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
     total_checks INTEGER NOT NULL DEFAULT 0,
-    total_failures INTEGER NOT NULL DEFAULT 0
+    total_failures INTEGER NOT NULL DEFAULT 0,
+    newest_entry TEXT
 );
 
 -- One row per state origin copy (copy_id is its articles.id): the original it was paired with, if
@@ -533,7 +538,16 @@ def canonical_url(url: str) -> str:
     path = parts.path or "/"
     if path != "/" and path.endswith("/"):
         path = path[:-1]
+    # Adnkronos serves one Immediapress release at /immediapress/<distributor>/<slug>_<id> and at
+    # /immediapress/<slug>_<id>; the item id that ends both is the same, so the segment between is dropped.
+    if netloc == "adnkronos.com":
+        m = _ADNKRONOS_IMMEDIAPRESS.match(path)
+        if m:
+            path = "/immediapress/" + m.group(1)
     return urlunsplit((parts.scheme.lower() or "https", netloc, path, urlencode(query), ""))
+
+
+_ADNKRONOS_IMMEDIAPRESS = re.compile(r"^/immediapress/[^/]+/([^/]+_[A-Za-z0-9]{16,26})$")
 
 
 def connect(path: Path = config.DB_PATH) -> sqlite3.Connection:
@@ -628,6 +642,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         # Set on a current model label when the stub it was made on is replaced (classify_rules.note_body_refresh),
         # which queues the article for the model again (classify_llm.relabel_candidates). NULL on every older row.
         _add_column(conn, "classifications", "body_refreshed", "TEXT")
+    if "issuer_type" not in cls:
+        # Who issued the text a model label judged (classify_llm.ISSUER_TYPES), from prompt 2026-10-17.
+        _add_column(conn, "classifications", "issuer_type", "TEXT")
+    if "needs_review" not in cls:
+        # Why a model reply was inconsistent (classify_llm.inconsistency_of), from prompt 2026-10-17.
+        _add_column(conn, "classifications", "needs_review", "TEXT")
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
     batches = {r[1] for r in conn.execute("PRAGMA table_info(llm_batches)")}
     if "kind" not in batches:
@@ -675,6 +695,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _add_column(conn, "feed_polls", "estimator", "TEXT NOT NULL DEFAULT 'v1'")
     if "estimator" not in _columns(conn, "feed_poll_log"):
         _add_column(conn, "feed_poll_log", "estimator", "TEXT NOT NULL DEFAULT 'v1'")
+    # The newest entry date a feed's last successful poll listed, added 2026-10-17, so a feed that answers
+    # with old items is told from a working one (export, config.FEED_FROZEN_DAYS). NULL until polled again.
+    if "newest_entry" not in _columns(conn, "feed_health"):
+        _add_column(conn, "feed_health", "newest_entry", "TEXT")
+    if "reference_feed_health" in {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")} \
+            and "newest_entry" not in _columns(conn, "reference_feed_health"):
+        _add_column(conn, "reference_feed_health", "newest_entry", "TEXT")   # mirrors feed_health
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     if "planted_flags" not in tables or "planted_state" not in tables:
         # Databases opened without the schema script. Both statements are CREATE IF NOT EXISTS.
@@ -711,7 +738,37 @@ def _migrate(conn: sqlite3.Connection) -> None:
                SELECT COALESCE(day_of_record, substr(discovered_at, 1, 10)), outlet_id, country, COUNT(*)
                FROM articles GROUP BY 1, 2, 3"""
         )
+    # Since 2026-10-17 an Adnkronos Immediapress address with a distributor segment hashes as the address
+    # without it (canonical_url). A row stored before takes the new hash, so a feed listing the page again
+    # finds it instead of storing it twice. A row whose twin at the other address is stored as well keeps
+    # its hash, which is unique, and the export counts the two once (pipeline/placements.py).
+    if _once(conn, "articles.url_hash.adnkronos_immediapress", lambda c: c.execute(
+            "SELECT 1 FROM articles WHERE url LIKE '%adnkronos.com/immediapress/%/%' LIMIT 1").fetchone()):
+        rehash_moved_addresses(conn, "%adnkronos.com/immediapress/%/%")
     conn.commit()
+
+
+def rehash_moved_addresses(conn: sqlite3.Connection, like: str) -> Dict[str, int]:
+    """Give the stored rows whose url matches `like` the hash canonical_url now gives their address, after
+    a change to canonical_url. The body file is copied to the new hash's name (the old file is left, so a
+    failure before the commit loses nothing). A row whose new hash another row already holds keeps its own
+    and is counted in "kept"."""
+    import shutil
+    moved = kept = 0
+    for r in conn.execute("SELECT id, url, url_hash FROM articles WHERE url LIKE ?", (like,)).fetchall():
+        h = url_hash(r["url"])
+        if h == r["url_hash"]:
+            continue
+        if conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (h,)).fetchall():
+            kept += 1
+            continue
+        conn.execute("UPDATE articles SET url_hash=? WHERE id=?", (h, r["id"]))
+        old, new = body_path(r["url_hash"]), body_path(h)
+        if old.exists() and not new.exists():
+            new.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(old, new)
+        moved += 1
+    return {"moved": moved, "kept": kept}
 
 
 def backfill_day(published_at: Optional[str], now: Optional[dt.datetime] = None) -> Optional[str]:
@@ -872,6 +929,9 @@ def insert_discovered(conn: sqlite3.Connection, item: Dict) -> Optional[int]:
             return None
         seen = seen[0]
         item["day_of_record"] = seen
+    # One stamp: the caller counts the discovery on this day (item["discovered_at"]), not on the clock
+    # read after the insert, which a lock wait can carry past midnight.
+    stamp = utcnow()
     cur = conn.execute(
         """INSERT OR IGNORE INTO articles
            (url, url_hash, outlet_id, country, language, feed_url, title, summary, author,
@@ -879,11 +939,12 @@ def insert_discovered(conn: sqlite3.Connection, item: Dict) -> Optional[int]:
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (item["url"], h, item["outlet_id"], item["country"], item["language"], item.get("feed_url"),
          item.get("title"), item.get("summary"), item.get("author"), item.get("published_at"),
-         utcnow(), item.get("status", "discovered"), item.get("gate_relevant"),
+         stamp, item.get("status", "discovered"), item.get("gate_relevant"),
          json.dumps(item.get("gate_terms") or []), item.get("day_of_record")),
     )
     if cur.rowcount == 0:
         return None
+    item["discovered_at"] = stamp
     if seen is not None:
         forget_seen(conn, h)        # stored again, as relevant, and relevant articles are never pruned
         item["seen_day"] = seen
@@ -927,22 +988,59 @@ def body_path(h: str) -> Path:
     return config.BODIES_DIR / h[:2] / ("%s.txt.gz" % h)
 
 
+def _write_atomic(p: Path, data: bytes) -> None:
+    """Write `data` to `p` through a temporary file in the same directory and os.replace: a reader sees
+    the old file or the whole new one, never a half written one (a killed run, a full disk)."""
+    import os
+    import tempfile
+    p.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix="." + p.name + ".", suffix=".tmp", dir=str(p.parent))
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            os.fchmod(fh.fileno(), 0o644)       # as the plain open it replaces; mkstemp makes 0600
+            fh.write(data)
+        os.replace(tmp, str(p))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def save_body(h: str, text: str) -> str:
     import gzip
-    p = body_path(h)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with gzip.open(p, "wt", encoding="utf-8") as fh:
-        fh.write(text)
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
+    data = text.encode("utf-8")
+    _write_atomic(body_path(h), gzip.compress(data))
+    return hashlib.sha256(data).hexdigest()[:32]
+
+
+# Body files that exist but cannot be read (truncated, not gzip, not UTF-8), by url_hash, this process.
+UNREADABLE_BODIES: Dict[str, str] = {}
+
+
+def unreadable_body_count() -> int:
+    return len(UNREADABLE_BODIES)
 
 
 def load_body(h: str) -> Optional[str]:
+    """The stored body, or None when there is none or its file cannot be read. An unreadable file is
+    logged once and counted in UNREADABLE_BODIES; every caller treats it as a missing body (fetched
+    again where that is allowed), so one damaged file never stops a stage."""
     import gzip
+    import sys
+    import zlib
     p = body_path(h)
     if not p.exists():
         return None
-    with gzip.open(p, "rt", encoding="utf-8") as fh:
-        return fh.read()
+    try:
+        with gzip.open(p, "rt", encoding="utf-8") as fh:
+            return fh.read()
+    except (OSError, EOFError, ValueError, zlib.error) as exc:
+        if h not in UNREADABLE_BODIES:
+            print("unreadable body %s: %s: %s" % (h, type(exc).__name__, str(exc)[:120]), file=sys.stderr)
+        UNREADABLE_BODIES[h] = type(exc).__name__
+        return None
 
 
 def raw_html_path(h: str) -> Path:
@@ -974,20 +1072,21 @@ def insert_classification(conn: sqlite3.Connection, article_id: int, method: str
                           model_version: Optional[str] = None,
                           raw_response: Optional[str] = None,
                           ruleset_version: str = config.RULESET_VERSION,
-                          route: Optional[str] = None) -> int:
+                          route: Optional[str] = None, issuer_type: Optional[str] = None,
+                          needs_review: Optional[str] = None) -> int:
     """Insert a new current classification, marking earlier ones for the article as not current.
-    Earlier rows are never deleted. route is set on state origin labels only."""
+    Earlier rows are never deleted. route is set on state origin labels only, issuer_type on model labels."""
     conn.execute("UPDATE classifications SET is_current=0 WHERE article_id=?", (article_id,))
     cur = conn.execute(
         """INSERT INTO classifications
            (article_id, method, category, confidence, evidence_quote, reasoning, signatures_fired,
             china_sources_cited, independent_confirmation_present, confirmation_evidence,
-            model_version, ruleset_version, classified_at, is_current, raw_response, route)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)""",
+            model_version, ruleset_version, classified_at, is_current, raw_response, route, issuer_type, needs_review)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?)""",
         (article_id, method, category, confidence, evidence_quote, reasoning,
          json.dumps(signatures_fired or []), json.dumps(china_sources_cited or []),
          None if independent_confirmation_present is None else int(independent_confirmation_present),
-         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response, route),
+         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response, route, issuer_type, needs_review),
     )
     conn.execute("UPDATE articles SET status='classified', llm_pending=0 WHERE id=?", (article_id,))
     return cur.lastrowid
@@ -1021,23 +1120,27 @@ def latest_human_review(conn: sqlite3.Connection, article_id: int) -> Optional[s
 # ---------------------------------------------------------------------------
 
 def record_feed_health(conn: sqlite3.Connection, outlet_id: str, feed_url: str, ok: bool,
-                       error: Optional[str], entries: int) -> None:
+                       error: Optional[str], entries: int, newest_entry: Optional[str] = None) -> None:
+    """newest_entry is the newest entry date the poll listed; None (a failed poll, undated entries, or
+    a caller that does not know) keeps the date on record."""
     now = utcnow()
     row = conn.execute("SELECT consecutive_failures, total_checks, total_failures FROM feed_health WHERE feed_url=?",
                        (feed_url,)).fetchone()
     if row is None:
         conn.execute(
             """INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, last_error, last_entries,
-               consecutive_failures, total_checks, total_failures) VALUES (?,?,?,?,?,?,?,?,?)""",
-            (feed_url, outlet_id, now, now if ok else None, error, entries, 0 if ok else 1, 1, 0 if ok else 1),
+               consecutive_failures, total_checks, total_failures, newest_entry) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (feed_url, outlet_id, now, now if ok else None, error, entries, 0 if ok else 1, 1, 0 if ok else 1,
+             newest_entry if ok else None),
         )
     else:
         cf = 0 if ok else row["consecutive_failures"] + 1
         conn.execute(
             """UPDATE feed_health SET outlet_id=?, last_checked=?, last_ok=COALESCE(?, last_ok), last_error=?,
                last_entries=?, consecutive_failures=?, total_checks=total_checks+1,
-               total_failures=total_failures+? WHERE feed_url=?""",
-            (outlet_id, now, now if ok else None, error, entries, cf, 0 if ok else 1, feed_url),
+               total_failures=total_failures+?, newest_entry=COALESCE(?, newest_entry) WHERE feed_url=?""",
+            (outlet_id, now, now if ok else None, error, entries, cf, 0 if ok else 1,
+             newest_entry if ok else None, feed_url),
         )
 
 

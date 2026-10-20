@@ -173,18 +173,23 @@ def _trigger_of(llm_trigger) -> Dict:
 
 
 def model_route(llm_trigger) -> str:
-    """Route of a state origin label the model gave, from the article's llm_trigger: uncredited_copy
-    when the lookalike check sent it (a match recorded under "lookalike"), otherwise the route of the
-    candidate signatures that sent it, unattributed when only an official sourcing trigger did."""
+    """Route for a model state origin label stored without one, from the article's llm_trigger:
+    uncredited_copy when the lookalike check sent it (a match recorded under "lookalike"), otherwise
+    unattributed. Never the route of the candidate signatures that sent it (ruleset 2026.10.2): a weak
+    signature is why the model was asked, not what the model found, and inheriting it put a GAC
+    factory release under the diplomatic byline route. A model label stored now carries the route of
+    the basis the model stated (classify_llm._model_route); older inherited routes are corrected when
+    their labels are judged again."""
     trig = _trigger_of(llm_trigger)
     if isinstance(trig.get("lookalike"), dict):
         return UNCREDITED_COPY
-    return route_of_ids(trig.get("a_candidate") or [])
+    return "unattributed"
 
 
 def ensure_routes(conn) -> int:
     """Fill the route of every current state origin label that lacks one: a rules label from the
-    signatures that fired, a model label from what sent the article to the model (model_route).
+    signatures that fired, a model label unattributed or, when the lookalike check sent it,
+    uncredited_copy (model_route), never from the candidate signatures.
     A model label stored as unattributed on an article the lookalike check sent, from before
     uncredited_copy existed, is moved to uncredited_copy. Returns the number of labels written."""
     rows = conn.execute(
@@ -867,8 +872,95 @@ def _author_title_is_chinese(text: str, m) -> bool:
 
 # Checks a signature can name in pipeline/signatures.yaml (post_check): a regex match counts only when
 # the check accepts it, and the first match that passes is the one reported.
+# Where a paid placement disclosure attached to this item sits (post_check disclosure_marker, ruleset
+# 2026.10.2), read on the disclosure scope: the author field, the page labels, and the body's first
+# HEAD_CHARS and last TAIL_CHARS characters, in that order. The pattern's named group "marker" (the
+# disclosure phrase) must stand
+#   - in a page label line of the item's own (a JSON-LD sponsor, funder, articleSection, genre, keywords
+#     or creator value, the source the page credits, or a meta value, which extract.page_labels writes
+#     before the first JSON-LD line), anywhere: "free";
+#   - at the opening of the headline tag (the first label line) or of a body line of at most
+#     DISCLOSURE_LINE_MAX characters, after brackets or list marks, a short label ("Disclosure:") or
+#     "This content is": "start";
+#   - in the author field, or in any other label line, which is page chrome (kickers, ad slots, menu
+#     items, sidebar links), only with the whole match, the state entity too, inside that one field or
+#     line: "line". A desk byline ("Advertorial Desk", on every Laotian Times advertorial) says only
+#     that someone paid, and the weak sponsored patterns send it to the model.
+# A sponsored phrase in prose ("co-sponsored by the Shaanxi Provincial People's Government"), in a menu
+# ("Contenuto sponsorizzato", "materiał partnera") or in an ad slot ("(Anzeige) Solaranlagen") no longer
+# pairs with a state outlet named elsewhere on the page.
+DISCLOSURE_CHECK = "disclosure_marker"
+DISCLOSURE_LINE_MAX = 160
+_OWN_LABEL_RE = re.compile(r"^(?:sponsor|funder|articleSection|genre|keywords|creator|source):")
+_JSONLD_LINE_RE = re.compile(r"^(?:sponsor|funder|articleSection|genre|keywords|@type|creator|publisher):")
+_LINE_LEAD_RE = re.compile(r"[ \t(\[*\u2022\u00b7|>_\u2013\u2014-]*")
+_LEAD_LABEL_RE = re.compile(r"[^\W\d_][^\n:]{0,24}:[ \t]*")
+_LEAD_THIS_RE = re.compile(r"(?i)(?:this|the following)[ \t]+(?:content|article|story|post|feature|page|piece|supplement|report)"
+                           r"[ \t]+(?:is|was|has been)[ \t]+")
+
+
+def _opening_starts(line: str, off: int) -> List[Tuple[str, int, int]]:
+    """The "start" regions of a line: where a disclosure opening it may begin."""
+    p0 = _LINE_LEAD_RE.match(line).end()
+    starts = {p0}
+    for rx in (_LEAD_LABEL_RE, _LEAD_THIS_RE):
+        m = rx.match(line, p0)
+        if m:
+            starts.add(m.end())
+    return [("start", off + p, off + p + 1) for p in sorted(starts)]
+
+
+def disclosure_scope(author: str, labels: str, head: str, tail: str) -> Tuple[str, List[Tuple[str, int, int]]]:
+    """(text, regions) of the disclosure scope: see DISCLOSURE_CHECK above."""
+    regions: List[Tuple[str, int, int]] = []
+    if author:
+        regions.append(("line", 0, len(author)))
+    off = len(author) + 1
+    lines = (labels or "").split("\n")
+    first_jsonld = next((k for k, ln in enumerate(lines) if _JSONLD_LINE_RE.match(ln)), None)
+    for k, ln in enumerate(lines):
+        if _OWN_LABEL_RE.match(ln) or (first_jsonld is not None and 0 < k < first_jsonld):
+            regions.append(("free", off, off + len(ln)))
+        elif k == 0:
+            regions += _opening_starts(ln, off)
+        else:
+            regions.append(("line", off, off + len(ln)))
+        off += len(ln) + 1
+    for part in (head, tail):
+        for ln in part.split("\n"):
+            if ln.strip() and len(ln.strip()) <= DISCLOSURE_LINE_MAX:
+                regions += _opening_starts(ln, off)
+            off += len(ln) + 1
+    return "\n".join([author, labels or "", head, tail]), regions
+
+
+def _disclosure_ok(m, regions) -> bool:
+    ms = m.start("marker")
+    for kind, a, b in regions:
+        if (kind == "free" and a <= ms < b) or (kind == "start" and ms == a) or \
+                (kind == "line" and a <= m.start() and m.end() <= b):
+            return True
+    return False
+
+
+def _disclosure_search(rx, text: str, regions):
+    """The first match of rx whose marker stands where a disclosure of this item sits. Every start is
+    tried, so a phrase in a menu does not hide a disclosure line that overlaps its match."""
+    pos = 0
+    while pos <= len(text):
+        m = rx.search(text, pos)
+        if not m:
+            return None
+        if _disclosure_ok(m, regions):
+            return m
+        pos = m.start() + 1
+    return None
+
+
 POST_CHECKS = {"title_is_chinese": _byline_title_is_chinese,
-               "author_title_is_chinese": _author_title_is_chinese}
+               "author_title_is_chinese": _author_title_is_chinese,
+               # read on the disclosure scope with its regions, by _disclosure_search in match_signatures
+               DISCLOSURE_CHECK: _disclosure_ok}
 
 
 def apply_exclusions(text: str, sigs: Dict) -> Tuple[str, List[str]]:
@@ -941,6 +1033,7 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
         "any": "\n".join([author, title, body_clean]),
         "any_with_labels": "\n".join([author, title, body_clean, labels or ""]),
     }
+    scopes["disclosure"], disclosure_regions = disclosure_scope(author, labels or "", scopes["head"], scopes["tail"])
     matches = []
     for gname, pats in sigs["groups"].items():
         for p in pats:
@@ -948,8 +1041,11 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             if not text:
                 continue
             check = POST_CHECKS.get(p.get("post_check") or "")
-            m = p["re"].search(text) if not check else \
-                next((x for x in p["re"].finditer(text) if check(text, x)), None)
+            if p.get("post_check") == DISCLOSURE_CHECK:
+                m = _disclosure_search(p["re"], text, disclosure_regions)
+            else:
+                m = p["re"].search(text) if not check else \
+                    next((x for x in p["re"].finditer(text) if check(text, x)), None)
             if m:
                 matches.append({"id": p["id"], "group": gname, "strength": p["strength"],
                                 "scope": p["scope"], "span": evidence_span(text, m.start(), m.end())})
@@ -1004,8 +1100,11 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
 
 
 def body_relevance(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[bool, str]:
-    """The residual C versus not_relevant call. Returns (relevant, explanation)."""
-    distinct, total, in_title = gate.count(title, body, language, country)
+    """The residual C versus not_relevant call. Returns (relevant, explanation). From ruleset
+    2026.10.2 the names of Hong Kong, Macao and Taiwan count only when a mainland term is also present
+    (gate.count residual), and BRI only beside another China term, so the label never rests on one of
+    them alone."""
+    distinct, total, in_title = gate.count(title, body, language, country, residual=True)
     why = "%d distinct China terms, %d occurrences%s" % (distinct, total, ", one in the headline" if in_title else "")
     if distinct >= BODY_RELEVANCE_MIN_HITS or total >= BODY_RELEVANCE_MIN_TOTAL or (in_title and total >= 2):
         return True, why
@@ -1360,7 +1459,18 @@ def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optiona
     Only rows whose current label carries an older ruleset are touched, so the call is
     idempotent and can be spread over several hourly runs under a deadline. Rows whose stored
     body predates their template's current extraction (stale_body) are touched too, whatever
-    the ruleset of their label: ensure_body extracts the body again before they are classified."""
+    the ruleset of their label: ensure_body extracts the body again before they are classified.
+
+    From ruleset 2026.10.2 the rows are taken in order of what an old label can do wrong: current rules
+    state origin labels first (a misfire there is published at confidence 1.0), then the other rules
+    labels and the articles without a label, then the model labels, each by id, an article whose fetch
+    attempts are spent last within its group. A model label is kept unless the rules now say state
+    origin or its body is not the article (as before); once the current rules have read its body and
+    kept it, it carries the current ruleset_version, so it leaves the queue. Until then a kept model
+    label stayed under its old version and was taken again on every run: on the 2026-10-12 snapshot
+    about 9,800 of them came first by id, and with RECLASSIFY_PER_RUN the queue never reached rules
+    labels behind them (the Computer Modelling Group releases of 16 September, labelled state origin
+    under 2026.09.7, were still published)."""
     q = """SELECT a.* FROM articles a
            WHERE a.status IN ('classified','awaiting_llm')
              AND (NOT EXISTS (SELECT 1 FROM classifications c WHERE c.article_id=a.id AND c.is_current=1 AND c.ruleset_version=?)"""
@@ -1374,13 +1484,17 @@ def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optiona
     if since:
         q += " AND a.discovered_at >= ?"
         params.append(since)
-    q += " ORDER BY a.id"
+    q += """ ORDER BY COALESCE((SELECT CASE WHEN c.method='rules' AND c.category='A' THEN 0 WHEN c.method='llm' THEN 2 ELSE 1 END
+                               FROM classifications c WHERE c.article_id=a.id AND c.is_current=1
+                               ORDER BY c.id DESC LIMIT 1), 1),
+                      CASE WHEN a.fetch_attempts >= ? THEN 1 ELSE 0 END, a.id"""
+    params.append(REFETCH_ATTEMPT_LIMIT)
     if limit:
         q += " LIMIT ?"
         params.append(limit)
     rows = conn.execute(q, params).fetchall()
     counts = {"input": len(rows), "A": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0,
-              "unreadable": 0, "skipped_deadline": 0}
+              "unreadable": 0, "skipped_deadline": 0, "kept_llm": 0}
     looks = lookalike.build_index(conn, rows)
     for r in rows:
         if deadline and time.time() > deadline:
@@ -1400,6 +1514,12 @@ def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optiona
             body = (ensure_body(conn, r) if stale else store.load_body(r["url_hash"])) or ""
             res = match_signatures(r["title"], body, r["author"], labels=labels_for(r))
             if res["decision"] != "A" and not (body and unreadable_reason(conn, r, body, saved_html(r))):
+                if body:
+                    # read under the current ruleset and kept: carried forward, so it is not taken again
+                    conn.execute("UPDATE classifications SET ruleset_version=? WHERE id=?",
+                                 (config.RULESET_VERSION, cur["id"]))
+                    conn.commit()
+                    counts["kept_llm"] += 1
                 continue
         out = classify_article(conn, r, looks)
         counts[out["outcome"]] += 1
@@ -1423,11 +1543,14 @@ def sweep_lookalikes(conn, now: Optional[dt.datetime] = None, deadline: Optional
     now = now or dt.datetime.now(dt.timezone.utc)
     since = (now - dt.timedelta(hours=hours)).replace(microsecond=0).isoformat()
     out = {"refs": 0, "checked": 0, "routed": 0, "stopped_deadline": False}
+    # The same references as the stage index: only state origin labels a credit supports.
+    credited, routes = lookalike.credited_reference_sql("c")
     refs = [dict(r) for r in conn.execute(
         """SELECT a.id AS article_id, a.outlet_id, a.language, a.title, a.summary, a.published_at, a.discovered_at,
                   a.day_of_record, o.name AS outlet_name
            FROM classifications c JOIN articles a ON a.id = c.article_id LEFT JOIN outlets o ON o.id = a.outlet_id
-           WHERE c.is_current = 1 AND c.category = 'A' AND c.classified_at >= ? ORDER BY a.id""", (since,))]
+           WHERE c.is_current = 1 AND c.category = 'A' AND c.classified_at >= ? AND %s ORDER BY a.id""" % credited,
+        [since] + list(routes))]
     span = lookalike._span(refs, lookalike.WINDOW_AFTER_DAYS, lookalike.WINDOW_BEFORE_DAYS)
     if span is None:
         return out

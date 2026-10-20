@@ -22,8 +22,10 @@ interval varies and every run's real start and finish are recorded in the run
 log. The gate's terms include every Chinese province and the largest cities,
 because short wire and release items about one province often name no other
 China term. An item whose title or summary already carries a state origin
-signature passes the gate whatever its keywords say, so the gate never
-discards the material the instrument exists to find. Outlets in Hong Kong,
+signature passes the gate whatever its keywords say, so state copy that
+announces itself there is not lost for want of a China keyword; state copy
+whose only signature sits in the body is still judged on its keywords and can
+be rejected. Outlets in Hong Kong,
 Macau and Taiwan do not pass the gate on the name of their own territory, and
 outlets in Singapore and Malaysia do not pass it on phrases that describe their
 own Chinese communities ("Chinese New Year", "Malaysian Chinese Association"),
@@ -101,8 +103,10 @@ for the reliability study like every other label.
 
 The model ({llm_model}) sees the headline and body only. It never sees the
 outlet name or the country, so it cannot learn that outlets in particular
-countries tend to relay official sourcing. Its prompt contains the category
-definitions verbatim and instructs it to answer independent journalism when
+countries tend to relay official sourcing. Its prompt carries the codebook's
+category definitions, set out more fully than the summaries under The
+categories below and with worked examples, and instructs it to answer
+independent journalism when
 genuinely uncertain, because under-counting unchecked state sourcing is the safer error.
 At most {llm_daily_ceiling} model calls are made a day, and the stage also
 keeps to a budget of {llm_budget_usd} dollars a calendar month: what is left of
@@ -173,14 +177,16 @@ keep the column name unverified_relay.
 
 ## How state origin arrived
 
-Every state origin label stores its route: the mechanism named by the
-signature that established it. A wire credit line or dateline, a press release
-distribution stamp, a sponsored or partner disclosure, or a byline by a Chinese
-diplomat. A state origin label the model gave to an article the lookalike
-check sent, a near repeat of a state origin item another outlet ran with its
-credit line, has the route uncredited copy: state text republished without
-that credit, judged by the model. Any other state origin label the model gave
-without a signature is unattributed. Separately, every article records its
+Every state origin label stores its route: the mechanism that shows the text
+is the state's. A rules label takes it from the signature that established it:
+a wire credit line or dateline, a press release distribution stamp, a sponsored
+or partner disclosure, or a byline by a Chinese diplomat. A state origin label
+the model gave takes its route from the evidence the model names in the text (a
+credit line, a distribution stamp, a sponsored disclosure, a diplomat's byline),
+never from the signature that sent the article; one that names none is
+unattributed, or uncredited copy when the lookalike check sent the article, a
+near repeat of a state origin item another outlet ran with its credit line.
+Separately, every article records its
 arrival: an editorial feed,
 or one of the outlet's press release, sponsored or partner sections. The two are
 different variables, and both are exported per day and per country and on each
@@ -188,6 +194,8 @@ article, so penetration can be analysed by the routes available in a country
 rather than by the country alone.
 
 {route_text}
+
+{issuer_text}
 
 ## Current state
 
@@ -225,8 +233,8 @@ rather than by the country alone.
 
 {measures_text}## What the numbers mean
 
-The default measure is state origin only, because it is the one label decided
-without the model. There is no combined state-linked measure: adding the
+The default measure is state origin only. It is not a label decided without
+the model: {state_origin_split_text} There is no combined state-linked measure: adding the
 candidates still waiting for the verification judgement to judged counts would
 mix a measured quantity with an unmeasured pile whose composition varies by
 country. The waiting candidates are shown only as their own figure, in the
@@ -259,20 +267,20 @@ both counts.
 
 Global press release distribution services ({wire_outlets}) are not national
 newsrooms: their releases are written by their issuers and pushed to
-subscribers everywhere at once. They are polled and classified like any
+subscribers in many countries at once. They are polled and classified like any
 outlet, and they are counted as a stratum of their own, "Worldwide
 distribution", under the code WLD in the data files. The stratum appears in
 the ranked list, the country search and the CSV exports beside the countries,
 and nowhere on the map, because it has no territory to draw. It is never
 attributed to the United States, where the services are registered, and never
-added into any individual country's numbers: a release reaches audiences in
-every monitored country, and adding it to each would count it once per
+added into any individual country's numbers: a release is not tied to any one
+country, and adding it to each country it might reach would count it once per
 country. World totals include it. Its share of monitored output divides by
 everything the wires themselves published. {wire_counts_text} A Distribution toggle beside the Measure control shows
 the two apart: Both is the whole dataset, Country outlets leaves the wires out
 of every figure that sums across countries, and Worldwide wires shows the
-stratum alone, with the map left unfilled because a release reaches every
-country at once; the count of outlets monitored and the leaning chart count
+stratum alone, with the map left unfilled because a release is not tied to
+any one country; the count of outlets monitored and the leaning chart count
 newsrooms only and never include the wires in any mode.
 
 The color scale is fixed for a measure and window across every date on the
@@ -338,6 +346,8 @@ are matched on the English terms only. The tags are keyword matches, not a
 reading of the article, and should be checked by hand before a theme count is
 cited.
 
+{limits_text}
+
 ## Reproducibility
 
 Every classification row records the ruleset version and, for model labels,
@@ -354,7 +364,13 @@ machine labels.
 The database itself is not committed to git, because a growing SQLite file
 exceeds GitHub's file size limit within weeks. It travels between runs
 through the GitHub Actions cache, together with the extracted article
-bodies, and is snapshotted daily, compressed, as a release asset. Raw HTML
+bodies. Every day a compressed copy is published as an asset of the public
+db-snapshot release, scrubbed of bylines, feed summaries, raw model output,
+reviewer names and email addresses (pipeline/snapshot_scrub.py). The whole
+database and the article bodies are uploaded beside it only encrypted with
+the owner's key (RELAY_BUNDLE_KEY), as tracker-full.db.gz.enc and
+bodies.tar.gz.enc; without the key no encrypted copy is uploaded, and
+nothing is ever uploaded in clear. Raw HTML
 is kept for the duration of a run and on any machine that runs the fetch
 stage locally; the page chrome labels the sponsored placement patterns need
 are extracted at fetch time and stored with the article, so they survive
@@ -380,7 +396,7 @@ and nearly three quarters in the Cayman Islands. Since collection began at
 least {rediscovery_floor_pct} percent were ({rediscovery_floor} items the stored
 database snapshots show coming back); applying each outlet's share in those
 eleven days to the whole period puts it near {rediscovery_est_pct} percent of
-the running total of items screened, and the site says so under that total.
+{rediscovery_total_text}, and the site says so under that total.
 The counts before {rediscovery_from} are left as they were: the addresses that
 would show which items came back were pruned with the items, so they cannot be
 corrected item by item, and a correction of only the days the snapshots cover
@@ -419,6 +435,199 @@ def body_dup_text() -> str:
         % (bd.SHINGLE_WORDS, bd.SHINGLE_CHARS, bd.SIG_BINS, bd.WINDOW_DAYS, round(bd.JACCARD_THRESHOLD * 100)))
 
 
+# The relabel queue's tiers in words (classify_llm.RELABEL_PRIORITY). A tier not named here is described
+# from its code, so a new tier never leaves an identifier in the text.
+_RELABEL_TIER_NAMES = {
+    "A": "state origin labels",
+    "A_model_weak": ("state origin labels the model gave on no credit line, distribution stamp or byline (routes "
+                     "unattributed, sponsored disclosure and uncredited copy), since the issuer rule of 2026-10-17 "
+                     "changes that figure most"),
+    "B": "unchecked state sourcing labels",
+    "C": "independent journalism labels",
+    "body_refreshed": "labels of any category made on a stub the full article has since replaced, whatever their prompt",
+    "C_official_unconfirmed": "independent journalism labels that cite official Chinese sources with no independent confirmation",
+}
+_CATEGORY_WORDS = {"A": "state origin", "B": "unchecked state sourcing", "C": "independent journalism",
+                   "not_relevant": "not relevant"}
+
+
+def _relabel_tier_name(key: str) -> str:
+    if key in _RELABEL_TIER_NAMES:
+        return _RELABEL_TIER_NAMES[key]
+    code, _, rest = key.partition("_")
+    if code in _CATEGORY_WORDS:
+        return "%s labels (%s)" % (_CATEGORY_WORDS[code], rest.replace("_", " ")) if rest else "%s labels" % _CATEGORY_WORDS[code]
+    return "%s labels" % key.replace("_", " ")
+
+
+def relabel_order_text() -> str:
+    """The order the relabel queue works in, read from classify_llm.RELABEL_PRIORITY so it cannot drift."""
+    from pipeline import classify_llm
+    keys = list(classify_llm.RELABEL_PRIORITY)
+    tiers = [("the other state origin labels" if k == "A" and "A_model_weak" in keys else _relabel_tier_name(k))
+             for k in keys]
+    return "first " + ", then ".join(tiers + ["the rest"])
+
+
+def state_origin_split_text(meta: Dict, tot: Dict) -> str:
+    """How many current state origin labels fixed rules decided from a signature and how many are model
+    judgements (latest.json all_time Ar and Al), with the model labels that carry no signature at all."""
+    a = tot.get("A") or 0
+    if not a:
+        return "no state origin label had been made at export time."
+    rules, model = tot.get("Ar") or 0, tot.get("Al") or 0
+    none = (meta.get("route_totals") or {}).get("unattributed")
+    text = ("at export time fixed rules decided %s of the %s state origin labels (%d percent) from a signature, and "
+            "%s (%d percent) are model judgements" % ("{:,}".format(rules), "{:,}".format(a), round(100.0 * rules / a),
+                                                     "{:,}".format(model), round(100.0 * model / a)))
+    if none:
+        text += (", %s of them with no signature of any kind (no signature; model judgement, in the routes listed "
+                 "under How state origin arrived)" % "{:,}".format(none))
+    return text + (". Model judgements are not perfectly repeatable, and hand coding checks them like every other "
+                   "model label.")
+
+
+def rediscovery_total_text(rd: Dict, discovered) -> str:
+    """What the estimated share of repeats is a share of. The repeats stopped at fixed_from, so once the running
+    total has grown past the measured_of items screened when the share was measured, the share of today's total
+    is smaller, and both are given (the site's note under the total computes the same, compute.js
+    rediscoveryPercent)."""
+    of = rd.get("measured_of")
+    if isinstance(discovered, int) and of and discovered > of:
+        return ("the %s items screened when it was measured, about %d percent of the running total of %s items "
+                "screened at this export" % ("{:,}".format(of), round(100.0 * rd["estimated_share"] * of / discovered),
+                                             "{:,}".format(discovered)))
+    return "the running total of items screened"
+
+
+def _registry_limits(outlets) -> Dict:
+    """From the registry: the Chinese-language outlets excluded per country, and the inactive outlets that refuse
+    the identified crawler or whose every feed failed."""
+    zh = {}
+    for o in outlets:
+        if o.get("language") == "zh" and not o.get("active"):
+            zh[o["country"]] = zh.get(o["country"], 0) + 1
+    inactive = [(o.get("inactive_reason") or "") for o in outlets if not o.get("active")]
+    refuse = [("403" in r or "robots.txt" in r) for r in inactive]
+    blocked = sum(refuse)
+    failing = sum(1 for r, x in zip(inactive, refuse) if not x and "every feed failed" in r)
+    return {"zh": zh, "blocked": blocked, "failing": failing}
+
+
+def known_limits_text(meta: Dict, outlets=None) -> str:
+    """What the instrument cannot see beyond the collection gaps: the Chinese-language exclusion, session labels,
+    translated copy, outlet selection, the model's body limit, and who counts as the Chinese state."""
+    if outlets is None:
+        try:
+            outlets = registry.load_outlets(validate=False)
+        except Exception:
+            outlets = []
+    reg = _registry_limits(outlets)
+    zh = sorted(reg["zh"].items(), key=lambda kv: (-kv[1], registry.country_name(kv[0])))
+    if zh:
+        listed = ["%d in %s" % (n, registry.country_name(c)) for c, n in zh]
+        where = listed[0] if len(listed) == 1 else ", ".join(listed[:-1]) + " and " + listed[-1]
+        zh_text = ("%d outlets are excluded this way: %s. A country's figures describe only its outlets in other "
+                   "languages, so where much of its press publishes in Chinese, as in Taiwan, Hong Kong, Singapore "
+                   "and Malaysia, a low count or a zero is not a finding about that press."
+                   % (sum(reg["zh"].values()), where))
+    else:
+        zh_text = "No outlet is excluded this way at present."
+    sl = meta.get("session_labels") or {}
+    labels = meta.get("llm_labels_total") or 0
+    if sl.get("total") and labels:
+        session_share = ("%s of the %s current model labels (%d percent) were made in an interactive session on the "
+                         "owner's machine rather than through the API." % (
+                             "{:,}".format(sl["total"]), "{:,}".format(labels), round(100.0 * sl["total"] / labels)))
+    else:
+        session_share = "No current model label was made in an interactive session at export time."
+    return (
+        "## Known limits\n\n"
+        "What the instrument cannot see, beyond the collection gaps described above.\n\n"
+        "Chinese-language outlets are excluded. Outlets that publish primarily in Chinese are registered and kept "
+        "inactive, because the owner does not read Chinese and machine translation would miss the distinctions the "
+        "coding turns on. " + zh_text + "\n\n"
+        "Session labels. " + session_share + " The session reads text fetched again on that machine, not the "
+        "runner's copy, so it can read a different version of a page, and some pages it cannot fetch at all. In a "
+        "check against the API on 2026-09-30 (data/labels/README.md) the two agreed on 78 of 98 articles; of the 28 "
+        "the API called unchecked state sourcing the session called 12 independent journalism, and the reverse "
+        "happened twice. Session labels therefore undercount unchecked state sourcing relative to the API, and the "
+        "published figure is lower than an all API run would give.\n\n"
+        "Translated state copy run without a credit is invisible. The lookalike check and the body pass compare "
+        "words, and a translation shares almost none with its original, so a state item translated and run with no "
+        "credit line is matched to nothing. Unless it cites an official Chinese source, which sends it to the model, "
+        "it is labelled by rules, usually as independent journalism.\n\n"
+        "The outlets are not a sample of each country's press. They were found by probing candidate feed "
+        "addresses and kept only where a feed returned items, so outlets without a working feed are missing, and %d "
+        "registered outlets are inactive because they refuse the identified crawler (an HTTP 403 or a robots.txt "
+        "rule) and %d more because every feed failed. Raw counts therefore partly measure which outlets publish feeds "
+        "and admit crawlers, which is one reason the per outlet and share bases exist.\n\n"
+        "Long articles are cut for the model. The model reads at most the first %s characters of a body "
+        "(config.LLM_BODY_CHAR_LIMIT); the rest is cut off and the cut is marked in the text it is given. The "
+        "signature rules look for credit lines at the head and the foot of every body whatever its length, but a "
+        "factual claim, or the check of one, that comes only after the cut is not seen by the model.\n\n"
+        "Who counts as the Chinese state. Commercial releases of Chinese state-owned enterprises (GAC, CRRC, "
+        "Sinopec, State Grid and others) count as state origin, and so do releases and placements of the Hong Kong "
+        "and Macao governments and their statutory bodies (HKSAR government departments, the Hong Kong Trade "
+        "Development Council, the Hong Kong Tourism Board, the Macao government); both carry an issuer type, "
+        "state_owned_enterprise or sar_government, so they can be counted apart by a reader who draws the line "
+        "elsewhere. A release counts as state origin only when a Chinese state entity issued or commissioned it: "
+        "releases from private Chinese companies, Hong Kong or Macao private bodies, universities, charities, trade "
+        "fair organisers and foreign organisations are not state origin however unaltered they run, and are "
+        "independent journalism when they substantively concern China and not relevant otherwise. A Hong Kong, "
+        "Macao or Taiwan domestic story with no mainland angle counts as China coverage only when it substantively "
+        "concerns the Chinese state or its policy."
+        % (reg["blocked"], reg["failing"], "{:,}".format(config.LLM_BODY_CHAR_LIMIT)))
+
+
+def human_study_text(hs: Dict) -> str:
+    """Sentences on the hand coding study beyond the result itself, each with a leading space: which labels the
+    kappa is computed against, a sample set aside before coding, a stale study, and the failure rule, in the
+    words of agreement.provisional_reason. Empty without a study status."""
+    if not hs:
+        return ""
+    out = []
+    if hs.get("labels_compared"):
+        out.append("The study compares the coders with %s." % hs["labels_compared"].rstrip("."))
+    state = hs.get("state")
+    if state == "sample_superseded" and hs.get("superseded_samples"):
+        old = hs["superseded_samples"][-1]
+        out.append("The sample drawn on %s was set aside before coding began: %s. A new sample is drawn from labels "
+                   "made under the current classifier prompt (%s) once the runner has relabelled them." % (
+                       (old.get("created_at") or "an earlier date")[:10],
+                       (old.get("reason") or "it drew labels made under an older classifier prompt").rstrip("."),
+                       hs.get("current_prompt_version") or "not recorded"))
+    if hs.get("stale") or state == "stale":
+        out.append("The last hand coding study, computed %s, compared the coders with labels made under classifier prompt %s; "
+                   "the prompt has changed since (now %s), so a passing result no longer publishes the counts, while a "
+                   "failing one keeps withholding them until a new study reports." % (
+                       (hs.get("computed_at") or "on an unrecorded date")[:10],
+                       hs.get("prompt_version") or "not recorded", hs.get("current_prompt_version") or "not recorded"))
+    out.append("A study in which the model finds unchecked state sourcing at least %d times and the coders fewer, "
+               "overall or in a language, has failed." % (hs.get("min_positive") or 10))
+    return "".join(" " + s for s in out)
+
+
+def issuer_text(meta: Dict) -> str:
+    """Issuer types (classify_llm.ISSUER_TYPES) and the current labels per type (meta.issuer_type_totals)."""
+    it = meta.get("issuer_type_totals") or {}
+    head = ("Every model label made under the prompt of 2026-10-17 also records who issued the text. Releases of "
+            "Chinese state-owned enterprises and of the Hong Kong and Macao governments and their statutory bodies "
+            "count as state origin and are reported separately, as the issuer types state_owned_enterprise and "
+            "sar_government, so a reader can leave them out; releases of private companies and other non-state "
+            "bodies (private_release) are not state origin. Older model labels carry no issuer type until they are "
+            "judged again, so these counts, and the state origin counts with them, will move over the coming weeks.")
+    by = it.get("by_type") or {}
+    if not by:
+        return head
+    parts = []
+    for typ in ("state_owned_enterprise", "sar_government", "private_release"):
+        cats = by.get(typ) or {}
+        parts.append("%s %s (%s state origin)" % (typ, "{:,}".format(sum(cats.values())), "{:,}".format(cats.get("A", 0))))
+    return head + (" At export time the current labels by issuer type were: %s; %s current model labels carried no "
+                   "issuer type yet." % ("; ".join(parts), "{:,}".format(it.get("unrecorded") or 0)))
+
+
 def planted_text(meta: Dict) -> str:
     """The planted bylines section: what a flag is and is not, and the current count."""
     p = meta.get("planted") or {}
@@ -455,8 +664,9 @@ def session_order_text(grace_days: int) -> str:
         return (head.replace("and then the other waiting articles,",
                              "and then articles that have waited longer than %d days," % grace_days)
                 + " Younger articles are held for the session and not offered to the API on that run.")
-    return (head + " Since 8 October no article is held back for the session: the monthly budget is "
-            "sized for the API to judge every article the rules cannot settle, and the session route "
+    return (head + " Since 8 October no article is held back for the session: the API takes every "
+            "waiting article the day's call cap and the monthly budget allow, articles left over wait "
+            "for a later day (the capped days are listed under Current state), and the session route "
             "is used only when the budget runs out.")
 
 
@@ -595,12 +805,18 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
                 sample.get("file"), sample.get("n") or 0,
                 ", ".join("%s %d" % (lang, n or 0) for lang, n in sample["languages"].items()))
         kappa_text += " Until that study reports, nothing here is validated against human judgement."
+    if not meta.get("relay_provisional"):
+        # The provisional paragraph below prints agreement.provisional_reason, which already says this.
+        kappa_text += human_study_text(meta.get("relay_human_study") or {})
     hs = meta.get("relay_human_study") or {}
     min_pos = hs.get("min_positive") or 10
     min_lang = meta.get("kappa_min_language_items", config.KAPPA_MIN_LANGUAGE_ITEMS)
     rule = ("published if kappa on the unchecked state sourcing versus independent journalism distinction is at "
-            "least %.1f, with at least %d articles on each side, overall and in every language with at least %d "
-            "items in that comparison, and withheld if it is not" % (threshold, min_pos, min_lang))
+            "least %.1f, with the coders and the model each placing at least %d articles in unchecked state "
+            "sourcing, overall and in every language with at least %d "
+            "items in that comparison, and withheld if it is not; a study in which the model finds unchecked state "
+            "sourcing at least %d times and the coders fewer, overall or in a language, has failed and withholds them"
+            % (threshold, min_pos, min_lang, min_pos))
     rr = meta.get("relay_reliability") or {}
     history = stability_history_text(meta)
     if rr or history:
@@ -619,7 +835,11 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
                       "are withheld there. %s" % (meta.get("relay_provisional_reason") or "", threshold, min_lang,
                                                   stability_clause))
     elif not meta.get("relay_publishable"):
-        if hs.get("state") == "failed":
+        if hs.get("state") == "failed" and hs.get("kappa_bc") is None and hs.get("failed_reason"):
+            relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely "
+                          "annotated: the hand coding study failed, because %s. That boundary is where classification "
+                          "error concentrates." % hs["failed_reason"].rstrip("."))
+        elif hs.get("state") == "failed":
             relay_text = ("Unchecked state sourcing counts are withheld from the interface and the CSV export, not merely "
                           "annotated: the hand coding study put kappa on the unchecked state sourcing versus independent "
                           "journalism distinction at %s, below the %.1f threshold. That boundary is where classification "
@@ -638,7 +858,8 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     elif meta.get("relay_basis") == "human_coding":
         relay_text = ("Unchecked state sourcing counts are published, because kappa on the unchecked state sourcing versus "
                       "independent journalism distinction, from hand coding of the fixed sample described above, is at "
-                      "least %.1f, with at least %d articles on each side." % (threshold, min_pos))
+                      "least %.1f, with the coders and the model each placing at least %d articles in unchecked state "
+                      "sourcing." % (threshold, min_pos))
     else:
         relay_text = ("Unchecked state sourcing counts are published, but not on the strength of hand coding, which is "
                       "the only basis this version accepts. Treat them as provisional until a hand coding study reports.")
@@ -724,16 +945,16 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         session_labels_text = "At export time no label had come in this way."
     prompt_text = (
         "The model prompt is dated %s, and every model label records in its model version the date of the "
-        "prompt it was made under. The prompt of 2026-10-12 added the factual-claim rule given under the categories below. When the prompt "
-        "changes, current model labels made under an older one are judged again through the API: unchecked state "
-        "sourcing labels first, since the factual-claim rule changes that figure most, then independent journalism "
-        "labels that cite official Chinese sources with no independent confirmation, then state origin labels, then "
-        "the rest, oldest first within each, "
+        "prompt it was made under. The prompt of 2026-10-12 added the factual-claim rule given under the categories below, and "
+        "the prompt of 2026-10-17 added the issuer rule: a release is state origin only when a Chinese state entity "
+        "issued or commissioned it, and every model label records who issued the text. When the prompt "
+        "changes, current model labels made under an older one are judged again through the API, in priority "
+        "tiers: %s, oldest first within each tier, "
         "with what the new articles leave of each run's calls and never more than %d percent of the day's call "
         "cap, paced over the day. Each keeps its old label until the new one is stored, so no article is left "
         "without a label in between, and the timeline marks the days whose labels still carry an older prompt. "
         "At export time %s current model labels did."
-        % (meta.get("llm_prompt_version") or "not recorded", int(round(config.LLM_RELABEL_DAY_SHARE * 100)),
+        % (meta.get("llm_prompt_version") or "not recorded", relabel_order_text(), int(round(config.LLM_RELABEL_DAY_SHARE * 100)),
            "{:,}".format(meta["labels_on_older_prompt"]) if meta.get("labels_on_older_prompt") is not None else "an unrecorded number of"))
 
     # The same figures the site's note under the running total reads (export.rediscovery); the config
@@ -777,6 +998,10 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         rediscovery_floor="{:,}".format(rd["measured_floor"]),
         rediscovery_floor_pct=("%.1f" % (100.0 * rd["measured_floor"] / rd["measured_of"])),
         rediscovery_est_pct=("%g" % round(100 * rd["estimated_share"])),
+        rediscovery_total_text=rediscovery_total_text(rd, meta.get("articles_discovered")),
+        state_origin_split_text=state_origin_split_text(meta, tot),
+        limits_text=known_limits_text(meta),
+        issuer_text=issuer_text(meta),
         gate_version=meta.get("gate_version", config.GATE_VERSION),
         gate_changes_text=(("The gate last changed on %s, to version %s." % (gc[-1]["date"], gc[-1]["version"]))
                            if (gc := meta.get("gate_changes")) else "No gate change has been recorded yet."),

@@ -1,0 +1,8 @@
+Université Gamal Abdel Nasser : les équipes du navire-hôpital chinois Auspicious Ark prennent part à des activités culturelles  - Mosaiqueguinee.com
+article
+@type: Organization
+@type: WebSite
+articleSection: Actualités, Dernières Nouvelles, Publi-Reportage
+@type: NewsArticle
+publisher: Mosaiqueguinee.com
+@type: hentry
