@@ -702,7 +702,13 @@ def reconcile_poll(conn, ev: Dict) -> Optional[Dict]:
 # SQLite will not bind or a constraint refuses). A locked or full database is not among them: that stops
 # the ingest as before.
 _MALFORMED_RECORD = (KeyError, TypeError, ValueError, AttributeError, IndexError,
-                     sqlite3.IntegrityError, sqlite3.InterfaceError)
+                     sqlite3.IntegrityError, sqlite3.InterfaceError, sqlite3.ProgrammingError)
+
+
+def _record_fault(exc) -> bool:
+    """Python 3.11 raises ProgrammingError, not InterfaceError, for a value SQLite will not bind. Only that
+    case is the record's fault; any other ProgrammingError is a fault in this code and stops the ingest."""
+    return not isinstance(exc, sqlite3.ProgrammingError) or str(exc).startswith("Error binding parameter")
 
 
 def ingest(conn, data: bytes, outlets=None) -> Dict:
@@ -872,6 +878,8 @@ def ingest(conn, data: bytes, outlets=None) -> Dict:
             if counts["inserted"] % 200 == 0:
                 commit_due = True
         except _MALFORMED_RECORD as exc:
+            if not _record_fault(exc):
+                raise
             conn.execute("ROLLBACK TO relay_record")
             counts.clear()
             counts.update(counted)
