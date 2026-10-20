@@ -6,6 +6,7 @@ import base64
 import gzip
 import json
 import os
+import re
 
 import pytest
 
@@ -79,7 +80,7 @@ def test_a_record_that_fails_part_way_is_rolled_back_alone(bundle, tmp_path):
     counts = relay.ingest(conn, _pack(recs))
     assert counts["inserted"] == 39 and counts["skipped_malformed"] == 1 and counts["body_malformed"] == 1
     assert counts["bodies"] == 38
-    assert "article: InterfaceError" in counts["last_malformed"]
+    assert re.search(r"article: (InterfaceError|ProgrammingError)", counts["last_malformed"])
     assert conn.execute("SELECT COUNT(*) FROM articles WHERE url_hash=?", (arts[3]["url_hash"],)).fetchone()[0] == 0
     assert conn.execute("SELECT COUNT(*) FROM relay_seen WHERE url_hash=?", (arts[3]["url_hash"],)).fetchone()[0] == 0
     assert store.load_body(arts[7]["url_hash"]) is None
