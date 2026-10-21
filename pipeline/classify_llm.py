@@ -365,6 +365,10 @@ class NoApiKey(RuntimeError):
 # froze. It is now treated like a spent budget: no further call this run, every article left waiting,
 # the stage finished normally, and the date access returns is kept (llm_provider_limit, one row) so later
 # runs make no request at all before it. The export shows it as meta.llm_budget.provider_limit.
+# The owner can raise the limit before that date, so once PROVIDER_LIMIT_RECHECK has passed since the
+# limit was recorded a run tries again: a refused request costs nothing and records the limit afresh,
+# and a request that goes through clears it.
+PROVIDER_LIMIT_RECHECK = dt.timedelta(hours=6)
 _LIMIT_ERRORS = ("BadRequestError", "PermissionDeniedError", "RateLimitError")
 _LIMIT_PHRASES = ("usage limit", "spend limit", "spending limit", "credit balance")
 _REGAIN = re.compile(r"regain access on (\d{4}-\d{2}-\d{2})(?:\s+at\s+(\d{1,2}:\d{2}))?", re.I)
@@ -407,9 +411,11 @@ def record_provider_limit(conn, limit: Dict) -> None:
     conn.commit()
 
 
-def active_provider_limit(conn, now: Optional[dt.datetime] = None) -> Optional[Dict]:
+def active_provider_limit(conn, now: Optional[dt.datetime] = None, recheck: bool = False) -> Optional[Dict]:
     """The recorded account limit while it still holds ({"until", "message", "recorded_at"}), or None:
-    none recorded, or its time has passed. Reads only; a database without the table has none."""
+    none recorded, or its time has passed. With recheck (the stages that would call), also None once
+    PROVIDER_LIMIT_RECHECK has passed since it was recorded, so one run tries again. Reads only; a
+    database without the table has none."""
     import sqlite3
     try:
         row = conn.execute("SELECT until, message, recorded_at FROM llm_provider_limit WHERE id=1").fetchone()
@@ -422,9 +428,28 @@ def active_provider_limit(conn, now: Optional[dt.datetime] = None) -> Optional[D
     except (TypeError, ValueError):
         return None
     until = until if until.tzinfo else until.replace(tzinfo=dt.timezone.utc)
-    if until <= (now or dt.datetime.now(dt.timezone.utc)):
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if until <= now:
         return None
+    if recheck:
+        try:
+            recorded = dt.datetime.fromisoformat(row[2])
+            recorded = recorded if recorded.tzinfo else recorded.replace(tzinfo=dt.timezone.utc)
+            if now - recorded >= PROVIDER_LIMIT_RECHECK:
+                return None
+        except (TypeError, ValueError):
+            return None
     return {"until": row[0], "message": row[1], "recorded_at": row[2]}
+
+
+def clear_provider_limit(conn) -> None:
+    """A request went through, so the account limit no longer holds (the owner raised it)."""
+    import sqlite3
+    try:
+        if conn.execute("DELETE FROM llm_provider_limit").rowcount:
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass
 
 
 def _paused(conn, log_id, counts: Dict, limit: Dict) -> Dict:
@@ -840,7 +865,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
     remaining = max(0, ceiling - used)
     # The account's usage limit, recorded by an earlier run, holds until a known time: no request at all
     # before it, not even one that would fail.
-    limit = None if dry_run else active_provider_limit(conn)
+    limit = None if dry_run else active_provider_limit(conn, recheck=True)
     if limit:
         return _paused(conn, log_id, counts, limit)
     if client is None:
@@ -956,6 +981,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             record_provider_limit(conn, limit)
             return _paused(conn, log_id, counts, limit)
         counts["batch_submitted"] = n
+        if n:
+            clear_provider_limit(conn)
         counts["relabel_sent"] = sum(1 for aid in submitted if aid in relabel_ids)
         counts["api_first_sent"] = sum(1 for aid in submitted if aid in first_ids)
         counts["grace_sent"] = n - counts["api_first_sent"] - counts["relabel_sent"]
@@ -1017,6 +1044,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             sent[r["country"]] += 1
         # Booked before the reply is inspected: the call is billed whether or not it parsed.
         book_usage(conn, message, calls=1)
+        if counts["calls"] == 1 and not dry_run:
+            clear_provider_limit(conn)
         data = parse_response(message)
         if not data or data.get("_error"):
             kind = (data or {}).get("_error") or "no_response"
