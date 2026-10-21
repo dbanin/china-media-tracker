@@ -174,6 +174,37 @@ function keyNumbers(label) { return (label.match(/[0-9][0-9,]*(\.[0-9]+)?/g) || 
 });
 assert(C.keyTiers(1, C.WHOLE_UNIT).tiers.length === 1 && C.keyTiers(1, C.WHOLE_UNIT).tiers[0].label === "1 or more", "a cap of one gives one tier, not seven copies of it");
 assert(C.keyTiers(2, C.WHOLE_UNIT).tiers.map(function (t) { return t.label; }).join("|") === "1|2 or more", "a cap of two gives two tiers");
+/* Equal share cut points (all China coverage): each shade holds about a seventh of the pooled values,
+   pooled over the dates whose window is complete, and every value still takes exactly one tier. */
+var spreadMonths = {"2026-09": {days: {}}};
+for (var sd = 1; sd <= 9; sd++) {
+  var dkey = "2026-09-0" + sd, dc = {};
+  ["ITA", "FRA", "DEU", "ESP"].forEach(function (iso, j) { dc[iso] = Object.assign(C.emptyCounts(), {C: Math.pow(3, j) * sd}); });
+  spreadMonths["2026-09"].days[dkey] = {countries: dc};
+}
+var spreadLatest = {countries: {ITA: {coverage: "monitored", outlets_active: 5}, FRA: {coverage: "monitored", outlets_active: 5},
+                                DEU: {coverage: "monitored", outlets_active: 5}, ESP: {coverage: "monitored", outlets_active: 5}}};
+var spreadDays = ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09"];
+var sp = C.scaleCap(spreadMonths, spreadDays, spreadLatest, "count_china", 3, "all");
+assert(sp.breaks && sp.breaks.length === 6, "six equal share cut points for seven shades");
+assert(sp.breaks.every(function (b, i) { return i === 0 || b >= sp.breaks[i - 1]; }), "cut points rise");
+/* The two short windows (ending on the 1st and 2nd) are left out of the pool: its smallest value is a full window's. */
+var fullOnly = [];
+spreadDays.slice(2).forEach(function (d) {
+  var agg = C.aggregateWindow(spreadMonths, d, 3);
+  Object.keys(agg.countries).forEach(function (iso) { fullOnly.push(C.metricValue(agg.countries[iso], "count_china", 5, "all").value); });
+});
+assert(Math.abs(sp.breaks[0] - C.percentile(fullOnly, 1 / 7)) < 1e-9, "cut points pooled over complete windows only");
+var spk = C.keyTiers(sp.cap, C.keyUnit("count_china"), 7, sp.breaks);
+var spCounts = {};
+fullOnly.forEach(function (v) {
+  var hit = spk.tiers.filter(function (t) { return v >= t.lo && (t.hi === null || v <= t.hi); });
+  assert(hit.length === 1 && hit[0].index === C.keyIndex(v, spk.edges), "value " + v + " is colored as its equal share tier says");
+  spCounts[hit[0].index] = (spCounts[hit[0].index] || 0) + 1;
+});
+assert(Object.keys(spCounts).length >= 5 && Math.max.apply(null, Object.keys(spCounts).map(function (k) { return spCounts[k]; })) <= Math.ceil(fullOnly.length / 3),
+       "no shade holds most of the values under equal share cut points");
+assert(C.keyTiers(sp.cap, C.keyUnit("count_china"), 7).edges.join() !== spk.edges.join(), "without cut points the key keeps its steps up to the cap");
 /* Everything that is not an amount: distinct, increasing bounds at any scale, and never an "under 0". */
 ["per_outlet_a", "share_a", "share_of_output_a", "share_of_output_b", "per_outlet_china"].forEach(function (metric) {
   [0.00003, 0.0004, 0.0021, 0.008, 0.05, 0.32, 1, 2.94, 17.8, 250, 12345].forEach(function (cap) {
@@ -665,4 +696,42 @@ assert(C.rediscoveryPercent(rdGrown) === 7 && C.rediscoveryNote(rdGrown).indexOf
 assert(C.rediscoveryPercent({articles_discovered: 100, rediscovery: rdMeta.rediscovery}) === 8 && C.rediscoveryPercent(rdMeta) === 8 && C.rediscoveryPercent({}) === null, "rediscovery share falls back to the measured share");
 assert(/^Before 2026-10-13, .*estimated 8 percent overall and unevenly by country/.test(C.rediscoveryShareNote(rdMeta, "2026-09-14")) && C.rediscoveryShareNote(rdMeta, "") !== "", "share note for a window reaching back before the fix");
 assert(C.rediscoveryShareNote(rdMeta, "2026-10-13") === "" && C.rediscoveryShareNote({}, "2026-09-14") === "", "no share note after the fix or without the field");
+/* Top 10 countries over the 30 complete days ending the map's last day (topCountriesInWindow): ordered by
+   state origin placements as the map counts them, the worldwide stratum never ranked but counted beside,
+   equal counts sharing a rank, a cut through a tie stated, and only the window's days summed. */
+var tk = function (a, b, c) { return Object.assign(C.emptyCounts(), {A: a, B: b || 0, C: c || 0, uniqA: a}); };
+var tDays = {
+  "2026-08-31": {countries: {ESP: tk(50)}},
+  "2026-09-01": {countries: {ITA: tk(4, 1, 10), FRA: tk(3, 0, 2), WLD: tk(9), DEU: tk(3, 0, 0), BRA: tk(0, 0, 4)}},
+  "2026-09-30": {countries: {ITA: tk(2), GBR: tk(5, 0, 5), WLD: tk(2), POL: tk(1)}},
+  "2026-10-01": {countries: {POL: tk(40)}}
+};
+var tMonths = {"2026-08": {days: {"2026-08-31": tDays["2026-08-31"]}}, "2026-09": {days: {"2026-09-01": tDays["2026-09-01"], "2026-09-30": tDays["2026-09-30"]}}, "2026-10": {days: {"2026-10-01": tDays["2026-10-01"]}}};
+var tAgg = C.aggregateWindow(tMonths, "2026-09-30", 30, "both");
+var tNames = {ITA: "Italy", FRA: "France", DEU: "Germany", GBR: "United Kingdom", POL: "Poland", ESP: "Spain", BRA: "Brazil", WLD: "Worldwide distribution"};
+var t10 = C.topCountriesInWindow(tAgg, 10, tNames, "2026-09-30", 30);
+assert(t10.window.start === "2026-09-01" && t10.window.end === "2026-09-30", "top 10 window is the 30 days ending the last day: " + JSON.stringify(t10.window));
+assert(t10.rows.map(function (r) { return r.iso; }).join() === "ITA,GBR,FRA,DEU,POL", "top 10 order, ties by name, nothing outside the window, no zero rows: " + t10.rows.map(function (r) { return r.iso; }).join());
+assert(t10.rows.every(function (r) { return r.iso !== C.WORLDWIDE_ISO; }) && t10.worldwide.count === 11, "the worldwide stratum is counted beside the list, never ranked");
+assert(t10.rows.map(function (r) { return r.rank; }).join() === "1,2,3,3,5", "competition ranks: " + t10.rows.map(function (r) { return r.rank; }).join());
+assert(!t10.rows[0].tied && t10.rows[2].tied && t10.rows[3].tied && !t10.rows[4].tied && t10.tiedBeyond.length === 0, "ties are marked");
+assert(t10.max === 6 && t10.rows[0].count === 6 && t10.rows[0].underlying === 6, "the bar scale is the top count");
+/* Each count is the map's count_a and each share its share_a for the same aggregate, the minimum denominator kept. */
+t10.rows.forEach(function (r) {
+  assert(r.count === C.metricValue(tAgg.countries[r.iso], "count_a", 5, "all").value, "count matches the map: " + r.iso);
+  assert(r.share === C.metricValue(tAgg.countries[r.iso], "share_a", 5, "all").value, "share matches the map: " + r.iso);
+});
+assert(Math.abs(t10.rows[0].share - 6 / 17) < 1e-9 && t10.rows[1].share === 0.5, "shares of China coverage");
+assert(t10.rows[2].share === 0.6 && t10.rows[3].share === null && t10.rows[3].shareSparse && t10.rows[4].share === null, "a share below the minimum denominator is n/a");
+var tRank = C.rankCountries(tAgg, {countries: {ITA: {}, GBR: {}, FRA: {}, DEU: {}, POL: {}, BRA: {}, WLD: {}}}, "count_a", "all", tNames, null, "country");
+assert(tRank.filter(function (r) { return r.value; }).slice(0, 5).map(function (r) { return r.iso + r.value; }).join() === t10.rows.map(function (r) { return r.iso + r.count; }).join(), "the same order and counts as the ranked list under country outlets");
+/* A cut through a tie: the rows stop at n and the countries tied with the last row are returned. */
+var t2 = C.topCountriesInWindow(tAgg, 3, tNames, "2026-09-30", 30);
+assert(t2.rows.length === 3 && t2.rows[2].iso === "FRA" && t2.tiedBeyond.length === 1 && t2.tiedBeyond[0].iso === "DEU" && t2.tiedBeyond[0].rank === 3, "a tie past the last row is stated");
+assert(C.topCountriesInWindow(tAgg, 4, tNames, "2026-09-30", 30).tiedBeyond.length === 0, "no tie past the last row");
+/* Empty and absent data. */
+var tEmpty = C.topCountriesInWindow(C.aggregateWindow({}, "2026-09-30", 30, "both"), 10, {}, "2026-09-30", 30);
+assert(tEmpty.rows.length === 0 && tEmpty.worldwide === null && tEmpty.max === 0, "nothing to rank");
+assert(C.topCountriesInWindow(null, 10).rows.length === 0 && C.topCountriesInWindow(null, 10).window === null, "no aggregate");
+assert(C.topCountriesInWindow(tAgg, 10, null, "2026-09-30", 30).rows[0].name === "ITA", "codes stand in for missing names");
 console.log("frontend smoke ok");

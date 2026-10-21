@@ -165,5 +165,21 @@
     "Among outlets with a known owner, {ownership_rate_comparison}, counted in placements per outlet.",
     "In absolute numbers, {largest_group_comparison}."
   ],
-  "cta": "Download the full daily counts as a CSV from the Methodology section to check any of this yourself, cite the tracker using the citation line at the bottom of that section, or, if you spot an article that looks mislabelled, open an issue on the project's GitHub page (https://github.com/dbanin/china-media-tracker/issues) with the article's link and the category you think is right."
+  "cta": "Download the full daily counts as a CSV from the Methodology section to check any of this yourself, cite the tracker using the citation line at the bottom of that section, or, if you spot an article that looks mislabelled, open an issue on the project's GitHub page (https://github.com/dbanin/china-media-tracker/issues) with the article's link and the category you think is right.",
+  "top10": {
+    "title": "Top 10 countries",
+    "title_window": "{days} days ending {end}",
+    "lede": "Where the most state origin placements appeared from {start} through {end}: text written or commissioned by the Chinese state and run without substantive change. A placement is one appearance in one country, and one story delivered by a shared widget to several outlets of a network counts once. These are the 30 day counts the map shows when it opens on {end}; they do not follow the controls above it. Open a row to see that country.",
+    "head_country": "Country",
+    "head_count": "Placements",
+    "head_share": "Share of its China coverage",
+    "share_note": "Share is the country's state origin as a share of all its China coverage in the same days; it reads n/a where fewer than {min} China articles leave too small a base.",
+    "tie_note": "Equal counts share a rank and are marked tied.",
+    "tied_beyond": "Also tied at rank {rank} with {count}: {names}.",
+    "tied_beyond_many": "{k} more countries also tie at rank {rank} with {count}.",
+    "worldwide": "Not a country, so not ranked: worldwide distribution via press release wires, {n} in the same window.",
+    "loading": "Loading the daily files for these {days} days.",
+    "empty": "No state origin placements were counted in these {days} days.",
+    "missing_month": "The daily file for {months} did not load, so its days are missing from these counts."
+  }
 }

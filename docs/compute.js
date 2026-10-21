@@ -330,21 +330,35 @@
     var dates = endDates || [], n = maxSamples || 60, pick = [];
     if (dates.length <= n) pick = dates.slice();
     else for (var i = 0; i < n; i++) pick.push(dates[Math.round(i * (dates.length - 1) / (n - 1))]);
-    var vals = [];
+    var vals = [], fullVals = [];
     var countries = (latest && latest.countries) || {};
+    var firstDay = listDays(months)[0];
     pick.forEach(function (d) {
       var agg = aggregateWindow(months, d, windowDays);
+      /* A window that reaches back before the first collected day holds only part of its days. */
+      var full = !windowDays || !firstDay || shiftDate(d, -(windowDays - 1)) >= firstDay;
       Object.keys(countries).forEach(function (iso) {
         if (iso === WORLDWIDE_ISO) return;   /* the scale colors the map, and the stratum is drawn nowhere on it */
         var entry = countries[iso];
         var ctx = ctxFor ? ctxFor(iso, entry, agg) : {};
         var mv = metricValue(agg.countries[iso], metric, entry.outlets_active, mode, agg.reviewed[iso], ctx);
-        if (fillClass(entry, mv) === "value") vals.push(mv.value);
+        if (fillClass(entry, mv) === "value") {
+          vals.push(mv.value);
+          if (full) fullVals.push(mv.value);
+        }
       });
     });
     var max = null;
     vals.forEach(function (v) { if (max === null || v > max) max = v; });
-    return {cap: percentile(vals, 0.95), max: max, values: vals.length, dates: pick.length};
+    /* breaks: the cut points that give each of the KEY_STEPS shades about an equal share of the pooled
+       values, for a measure such as all China coverage that runs from a handful of articles to thousands,
+       where steps up to the cap leave most of the map in the darkest two shades. */
+    /* They are pooled over the dates whose window is complete, when there are any: the short windows of the
+       first weeks would otherwise fill the lower shades and push every full window to the dark end. */
+    var pool = fullVals.length ? fullVals : vals, breaks = [];
+    for (var b = 1; b < KEY_STEPS; b++) breaks.push(percentile(pool, b / KEY_STEPS));
+    return {cap: percentile(vals, 0.95), max: max, values: vals.length, dates: pick.length,
+            breaks: pool.length ? breaks : null};
   }
 
   /* The theme counter's version of scaleCap: the 95th percentile of every positive theme count in one
@@ -445,11 +459,13 @@
   }
   /* The key for one cap: the snapped edges the map colors with, and one tier per step that can hold a
      value, each carrying the step index of its shade. */
-  function keyTiers(cap, unit, steps) {
+  function keyTiers(cap, unit, steps, breaks) {
     unit = unit || WHOLE_UNIT;
     var n = steps || KEY_STEPS;
     var c = cap > 0 && isFinite(cap) ? cap : 1;
-    var edges = stepEdges(c, n).map(function (e) {
+    /* With breaks (scaleCap's equal share cut points, n - 1 of them) the edges are those, not steps up to the cap. */
+    var raw = breaks && breaks.length === n - 1 ? breaks : stepEdges(c, n);
+    var edges = raw.map(function (e) {
       return unit.whole ? Math.max(1, Math.ceil(e - 1e-9)) : roundSig(e * unit.factor, 2) / unit.factor;
     });
     var tiers = [];
@@ -696,7 +712,47 @@
             top_route_detail: same ? top.top_route_detail || null : null};
   }
 
+  /* The countries with the most state origin over a window, for the Top 10 block under What we found.
+     agg is aggregateWindow over the 30 complete days ending the map's last complete day, under both
+     distributions: the same aggregate the map and the ranked list read for that window, so each count is
+     the country's count_a there (metricValue, every label, as the map opens) and each share its share_a,
+     null below MIN_SHARE_DENOMINATOR as everywhere else on the site. The worldwide distribution stratum
+     is not a country and is never ranked; its own count comes back beside the rows. Countries with no
+     state origin in the window are left out. Ranks are competition ranks (1, 2, 2, 4): equal counts share
+     a rank and are marked tied, ordered by name. The list stops at n rows; countries past the last row
+     that tie with it come back as tiedBeyond, so a cut through a tie is stated, not hidden. endDate and
+     windowDays only name the window (start, end), which the caller has already summed. */
+  function topCountriesInWindow(agg, n, names, endDate, windowDays) {
+    n = n || 10;
+    var out = {rows: [], tiedBeyond: [], worldwide: null, max: 0, underlyingSummed: !!(agg && agg.underlyingSummed),
+               window: endDate ? {start: windowDays ? shiftDate(endDate, -(windowDays - 1)) : null, end: endDate} : null};
+    if (!agg || !agg.countries) return out;
+    var all = [];
+    Object.keys(agg.countries).forEach(function (iso) {
+      var k = agg.countries[iso];
+      var count = metricValue(k, "count_a", null, "all", null, {worldwide: iso === WORLDWIDE_ISO});
+      if (iso === WORLDWIDE_ISO) { out.worldwide = {count: count.value || 0, underlying: count.underlying}; return; }
+      if (!count.value) return;
+      var share = metricValue(k, "share_a", null, "all", null, {});
+      all.push({iso: iso, name: (names && names[iso]) || iso, count: count.value, underlying: count.underlying,
+                share: share.value, shareSparse: share.sparse, chinaTotal: share.chinaTotal});
+    });
+    all.sort(function (x, y) { return y.count - x.count || x.name.localeCompare(y.name); });
+    var perCount = {};
+    all.forEach(function (r, i) {
+      r.rank = i && r.count === all[i - 1].count ? all[i - 1].rank : i + 1;
+      perCount[r.count] = (perCount[r.count] || 0) + 1;
+    });
+    all.forEach(function (r) { r.tied = perCount[r.count] > 1; });
+    out.rows = all.slice(0, n);
+    var last = out.rows[out.rows.length - 1];
+    out.tiedBeyond = last ? all.slice(n).filter(function (r) { return r.count === last.count; }) : [];
+    out.max = out.rows.length ? out.rows[0].count : 0;
+    return out;
+  }
+
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
+
   var NAMES = {A: "State origin", B: "Unchecked state sourcing", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
                pending: "Official Chinese sourcing, verification pending"};
   function nameOf(code) { return NAMES[code] || code; }
@@ -1146,7 +1202,7 @@
 
   return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
-          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL, UNDERLYING_SUMMED: UNDERLYING_SUMMED,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
