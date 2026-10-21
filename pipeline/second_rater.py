@@ -482,8 +482,9 @@ def auto(conn, submit: bool = False, force: bool = False, today: Optional[dt.dat
     out = {"collected": None, "submitted": 0, "skipped": None}
     from pipeline import classify_llm as _cl
     try:
-        # The account's usage limit, recorded by classify_llm or an earlier study: no request before it ends.
-        limit = _cl.active_provider_limit(conn)
+        # The account's usage limit, recorded by classify_llm or an earlier study: no request before it
+        # ends, unless it was recorded long enough ago to try again (classify_llm.PROVIDER_LIMIT_RECHECK).
+        limit = _cl.active_provider_limit(conn, recheck=True)
         if limit:
             out["skipped"] = "provider_limit"
             out["provider_limit"] = {"until": limit["until"], "message": limit["message"]}

@@ -190,3 +190,31 @@ def test_meta_carries_the_flag():
     cl.record_provider_limit(conn, {"until": UNTIL, "message": MESSAGE})
     got = cl.active_provider_limit(conn, now=NOW)
     assert got["until"] == UNTIL and got["message"] == MESSAGE and got["recorded_at"]
+
+
+def test_a_raised_limit_is_noticed_within_the_recheck_window(monkeypatch, tmp_path):
+    """The owner can raise the limit before the date in the message, so a limit recorded more than
+    PROVIDER_LIMIT_RECHECK ago lets one run try again: refused, it is recorded afresh; served, cleared."""
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path)
+    monkeypatch.setattr(cl.time, "sleep", lambda s: None)
+    conn = _db()
+    _waiting(conn, 3)
+    cl.record_provider_limit(conn, {"until": UNTIL, "message": MESSAGE})
+    old = (NOW - cl.PROVIDER_LIMIT_RECHECK - dt.timedelta(hours=1)).isoformat()
+    conn.execute("UPDATE llm_provider_limit SET recorded_at=?", (old,))
+    assert cl.active_provider_limit(conn)["until"] == UNTIL, "the site still shows the pause"
+    assert cl.active_provider_limit(conn, recheck=True) is None, "but a stage that would call tries again"
+    # Still refused: one request, the limit recorded afresh, and the next run makes none.
+    refused = _Client()
+    counts = cl.run(conn, "p1", client=refused)
+    assert refused.calls == 1 and counts["provider_limit"]["until"] == UNTIL
+    assert cl.active_provider_limit(conn, recheck=True)["until"] == UNTIL
+    again = _Client()
+    assert cl.run(conn, "p2", client=again)["skipped"] == "provider_limit" and again.calls == 0
+    # Raised meanwhile: the request goes through and the limit is cleared.
+    conn.execute("UPDATE llm_provider_limit SET recorded_at=?", (old,))
+    served = cl.DryRunClient()
+    counts = cl.run(conn, "p3", client=served)
+    assert counts["classified"] == 3 and "provider_limit" not in counts
+    assert cl.active_provider_limit(conn) is None
+    assert conn.execute("SELECT COUNT(*) FROM llm_provider_limit").fetchone()[0] == 0

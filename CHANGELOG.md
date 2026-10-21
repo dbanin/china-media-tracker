@@ -4,6 +4,10 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Model stage: a raised usage limit is noticed within six hours (2026-10-21)
+
+The account limit recorded on 2026-10-19 named 2026-11-01 as the day access returns, and the model stage made no request before that date, so raising the limit on the account would have changed nothing until then. A limit recorded more than six hours ago (classify_llm.PROVIDER_LIMIT_RECHECK) now lets the next run that would call try again: a refused request costs nothing and records the limit afresh, so later runs wait another six hours, and a request that goes through clears it, which also removes the pause from the site. The reliability study follows the same rule. The export still reports the limit until it is cleared. No count or label changes.
+
 ## Pipeline: a timing test on a slow runner no longer holds back the export (2026-10-21)
 
 The 20:11 UTC run of 2026-10-21 skipped its export because tests/test_measures.py::test_each_measure_gets_its_budget_and_all_of_them_the_total failed: it shared a 0.35 second total between a measure that slept 0.3 seconds and the next, and on a slow runner the whole total was spent before the second began. The test now uses a 3 second total, a 1.5 second first measure and a second that sleeps past its own 0.5 second budget, which leaves a second and a half for setup. In both workflows each failing test is now written as an annotation, which the public API shows without signing in, and in the pipeline up to three failing tests get one second try: a test that passes it is reported as flaky and the export goes ahead, while a test that fails twice still turns the run into a collect run. The relay ingest also treats the ProgrammingError that Python 3.11 raises for a value SQLite will not bind as a malformed record, as Python 3.9 did with InterfaceError (15ea178). No count or label changes.
