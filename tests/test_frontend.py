@@ -106,3 +106,36 @@ def test_asset_versions_match():
     app_js = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
     m = re.search(r'ASSET_VERSION\s*=\s*"(\d+)"', app_js)
     assert m and m.group(1) == next(iter(versions)), "content.json's fetched version should match the asset version"
+
+
+def test_top10_block_present():
+    """The Top 10 countries block sits under What we found, after the findings sentences, with a heading, a
+    real ordered list and a notes slot; its text lives in content.json (top10), dash free and without the
+    internal category letters; app.js fills it from C.topCountriesInWindow over the map's own 30 day
+    aggregate under both distributions, and each row is a button that opens the country."""
+    import json
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    overview = re.search(r'<section id="overview".*?</section>', html, re.S).group(0)
+    for anchor in ('id="top10"', 'id="top10-title"', 'id="top10-sub"', 'id="top10-head"', '<ol id="top10-list"', 'id="top10-notes"'):
+        assert anchor in overview, anchor
+    assert overview.index('id="findings-box"') < overview.index('id="top10"') < overview.index('id="findings-measures"')
+    assert re.search(r'<h3 id="top10-title"', overview)
+    assert re.search(r'<div id="top10"[^>]*\shidden', overview), "the block starts hidden"
+    t = json.loads((ROOT / "docs" / "content.json").read_text(encoding="utf-8"))["top10"]
+    for key in ("title", "title_window", "lede", "head_country", "head_count", "head_share", "share_note", "tie_note",
+                "tied_beyond", "tied_beyond_many", "worldwide", "loading", "empty", "missing_month"):
+        assert t.get(key), key
+    text = json.dumps(t, ensure_ascii=False)
+    assert "\u2014" not in text and "\u2013" not in text and not re.search(r"Category [ABC]", text)
+    assert t["worldwide"].startswith("Not a country, so not ranked: worldwide distribution") and "{n}" in t["worldwide"]
+    assert "{end}" in t["title_window"]
+    app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+    body = app[app.index("function renderTop10()"):]
+    body = body[:body.index("\n  }\n")]
+    assert 'C.topCountriesInWindow(C.aggregateWindow(state.months, lastDay, TOP10_DAYS, "both")' in body
+    assert "lastCompleteDay()" in body and "demandMonths(lastDay, TOP10_DAYS)" in body
+    assert '<button type="button" class="t10-row"' in body and "openCountryFromFindings" in body
+    assert "var TOP10_DAYS = 30, TOP10_ROWS = 10" in app
+    assert "try { renderTop10(); }" in app[app.index("function renderFindings()"):]
+    css = (ROOT / "docs" / "style.css").read_text(encoding="utf-8")
+    assert ".t10-row" in css and "min-height: 44px" in css[css.index(".t10-row {"):] and ".t10-row:focus-visible" in css

@@ -662,3 +662,41 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
 .issuer-line { color: var(--ash); font-size: 0.82rem; line-height: 1.5; max-width: 70ch; margin: calc(-1 * var(--s1)) 0 var(--s3); }
 .badge.issuer-state_owned_enterprise, .badge.issuer-sar_government { border-color: var(--gold-soft); color: var(--gold); }
 .badge.issuer-private_release { color: var(--ash); }
+/* Top 10 countries under What we found (app.js renderTop10): an ordered list of rows, each a button that
+   opens the country. Hairline rows on the card ground, the bar in the ranked list's state origin red, every
+   number in the text tokens. One line per row on a wide screen; on a phone the bar and the share go under
+   the name, so nothing widens the page at 375px. */
+.top10 { margin: var(--s3) 0 0; padding: var(--s3) var(--s4); background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); box-shadow: var(--shadow); }
+.top10 h3 { font-size: clamp(1.4rem, 2vw, 1.75rem); color: var(--bone); margin: 0 0 var(--s1); }
+.top10 h3 em { font-style: italic; font-weight: 300; color: var(--gold); }
+.top10-sub { color: var(--bone-soft); font-size: 0.95rem; line-height: 1.6; max-width: 80ch; margin: 0 0 var(--s2); }
+.top10-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+.top10-list li { margin: 0; padding: 0; border-bottom: 1px solid var(--rule); }
+.t10-head, .t10-row { display: grid; grid-template-columns: 2.4rem minmax(8rem, 15rem) minmax(4rem, 1fr) 10rem 7.5rem; grid-template-areas: "rank name bar count share"; gap: 0 var(--s2); align-items: center; }
+.t10-head { padding: 0 var(--s1) 6px; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ash); }
+.t10-head[hidden] { display: none; }
+.t10-head > span:nth-child(4), .t10-head > span:nth-child(5) { text-align: right; }
+.t10-row { width: 100%; min-height: 44px; margin: 0; padding: 8px var(--s1); border: none; border-radius: 0; background: transparent; color: var(--bone); font: inherit; font-size: 0.92rem; letter-spacing: normal; text-align: left; cursor: pointer; transition: background 180ms ease; }
+.t10-row:hover { background: rgba(255, 255, 255, 0.03); color: var(--bone); }
+.t10-row:hover .t10-name { color: var(--gold); }
+.t10-row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.t10-rank { grid-area: rank; font-family: var(--display); font-size: 1.35rem; font-style: italic; color: var(--gold); font-variant-numeric: tabular-nums; }
+.t10-name { grid-area: name; min-width: 0; overflow-wrap: anywhere; transition: color 180ms ease; }
+.t10-tied { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ash); margin-left: 0.3rem; }
+.t10-bar { grid-area: bar; display: block; height: 4px; background: var(--rule); }
+.t10-bar > span { display: block; height: 100%; background: #b3121a; }
+.t10-count { grid-area: count; text-align: right; font-variant-numeric: tabular-nums; }
+.t10-n { color: var(--bone); }
+.t10-items { display: block; font-size: 0.74rem; color: var(--ash); }
+.t10-share { grid-area: share; text-align: right; color: var(--bone-soft); font-variant-numeric: tabular-nums; }
+.t10-share-pre, .t10-share-post { display: none; }
+.top10-notes { margin-top: var(--s2); }
+.top10-notes p { color: var(--ash); font-size: 0.84rem; line-height: 1.55; max-width: 80ch; margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .top10 { padding: var(--s2); }
+  .t10-head { display: none; }
+  .t10-row { grid-template-columns: 2rem minmax(0, 1fr) auto; grid-template-areas: "rank name count" "rank bar bar" "rank share share"; gap: 4px var(--s1); padding: 10px 4px; }
+  .t10-rank { align-self: start; }
+  .t10-share { text-align: left; font-size: 0.8rem; color: var(--ash); }
+  .t10-share-pre, .t10-share-post { display: inline; }
+}

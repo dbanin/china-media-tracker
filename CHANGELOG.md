@@ -4,6 +4,16 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Top 10 countries under What we found (2026-10-21)
+
+What we found now ranks the ten countries where the most state origin placements appeared in the 30 complete days ending on the day the map's timeline ends, with the dates in the heading. The counts come from the same daily aggregate the map and the ranked list open on, so every number matches theirs, and they stay fixed whatever the map's controls show. Each row gives the rank, the country, its placements with the underlying items beside them, a thin bar against the top count, and its state origin share of its China coverage, which reads n/a below the usual minimum of five China articles. Equal counts share a rank and are marked tied, and a cut through a tie at the tenth row is stated. Worldwide distribution through the press release wires is not a country, so it is not ranked; one line gives its count over the same days. Unchecked state sourcing is not part of the ranking. A row opens that country's view, by click or keyboard.
+
+## Site: all China coverage shades split the values into equal shares (2026-10-21)
+
+Under all China coverage the map's seven shades were steps up to the 95th percentile of every date, the same rule as the other measures, but China coverage runs from a handful of articles to thousands per country, so in the 30 days ending 2026-10-20 73 of the 175 shaded countries fell in the darkest two shades. The shades of all China coverage, under every basis and window, now split the pooled values into seven about equal shares (compute.scaleCap returns the cut points, keyTiers takes them), pooled over the dates whose window is complete, since the short windows of the first weeks would otherwise fill the lower shades; in the same window the shades now hold 10, 21, 25, 28, 29, 29 and 28 countries. A shade still means the same number on every date until the next data update, and the key says how the shades are cut and gives the highest value on any date. State origin and unchecked state sourcing keep steps up to the cap. No count changes.
+
+Site assets are now version 86.
+
 ## Model stage: a raised usage limit is noticed within six hours (2026-10-21)
 
 The account limit recorded on 2026-10-19 named 2026-11-01 as the day access returns, and the model stage made no request before that date, so raising the limit on the account would have changed nothing until then. A limit recorded more than six hours ago (classify_llm.PROVIDER_LIMIT_RECHECK) now lets the next run that would call try again: a refused request costs nothing and records the limit afresh, so later runs wait another six hours, and a request that goes through clears it, which also removes the pause from the site. The reliability study follows the same rule. The export still reports the limit until it is cleared. No count or label changes.

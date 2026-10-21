@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "85";
+  var ASSET_VERSION = "86";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -573,6 +573,7 @@
     return out;
   }
   function renderFindings() {
+    try { renderTop10(); } catch (e) { console.error("top 10 countries failed", e); }
     var box = el("findings-box");
     if (!box) return;
     var content = state.content, f = state.meta && state.meta.findings;
@@ -613,7 +614,87 @@
     }
   }
 
-  /* Twelve headline numbers above the findings sentences, read as a funnel in three rows of four: the
+  /* The ten countries with the most state origin placements in the 30 complete days ending lastCompleteDay,
+     under What we found (C.topCountriesInWindow). It is fixed: no control of the map moves it, neither the
+     window, the day, the measure, the route, the label mode nor the Distribution toggle. It sums the same
+     days the map and the ranked list open on, under both distributions, so its counts are theirs. Those
+     days are the latest months, which load before the first render; if they have not arrived it says so,
+     asks for them and shows no number. The worldwide wires are not a country and get one line of their
+     own. A row opens the country as the See link of the findings does. Unchecked state sourcing is not in it. */
+  var TOP10_DAYS = 30, TOP10_ROWS = 10, top10Cache = null;
+  function top10Text(t, key, vars) {
+    return String((t && t[key]) || "").replace(/\{(\w+)\}/g, function (m, k) { return vars && vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m; });
+  }
+  function top10Names(names) {
+    return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  }
+  function openCountryFromFindings(iso) {
+    selectCountry(iso);
+    if (window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
+    var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+  }
+  function renderTop10() {
+    var box = el("top10");
+    if (!box) return;
+    var t = state.content && state.content.top10, lastDay = lastCompleteDay();
+    var title = el("top10-title"), sub = el("top10-sub"), head = el("top10-head"), list = el("top10-list"), notes = el("top10-notes");
+    if (!t || !lastDay || !title || !sub || !list || !notes) { box.hidden = true; return; }
+    var start = windowStart(lastDay, TOP10_DAYS);
+    var vars = {days: TOP10_DAYS, start: start, end: lastDay, min: C.MIN_SHARE_DENOMINATOR};
+    title.innerHTML = esc(top10Text(t, "title", vars)) + (t.title_window ? ', <em>' + esc(top10Text(t, "title_window", vars)) + '</em>' : '');
+    box.hidden = false;
+    if (!covered(start)) {
+      sub.textContent = top10Text(t, "loading", vars);
+      list.innerHTML = ""; notes.innerHTML = ""; if (head) head.hidden = true;
+      demandMonths(lastDay, TOP10_DAYS);
+      return;
+    }
+    var key = lastDay + "|" + (loadedFrom() || "") + "|" + ((state.meta && state.meta.generated_at) || "");
+    if (!top10Cache || top10Cache.key !== key) {
+      top10Cache = {key: key, value: C.topCountriesInWindow(C.aggregateWindow(state.months, lastDay, TOP10_DAYS, "both"), TOP10_ROWS, state.names, lastDay, TOP10_DAYS)};
+    }
+    var top = top10Cache.value, rows = top.rows;
+    sub.textContent = top10Text(t, "lede", vars);
+    if (head) {
+      head.innerHTML = '<span></span><span>' + esc(t.head_country || "") + '</span><span></span><span>' + esc(t.head_count || "") + '</span><span>' + esc(t.head_share || "") + '</span>';
+      head.hidden = !rows.length;
+    }
+    list.innerHTML = rows.map(function (r) {
+      var w = top.max ? Math.max(2, 100 * r.count / top.max) : 0;
+      var items = intComma(r.underlying) + (r.underlying === 1 ? " underlying item" : " underlying items");
+      var why = "fewer than " + C.MIN_SHARE_DENOMINATOR + " China articles in these days";
+      var label = "Rank " + r.rank + (r.tied ? ", tied" : "") + ", " + r.name + ": " + intComma(r.count) + " state origin placements, " + items + ", " +
+        (r.share === null ? "share of its China coverage n/a, " + why : pct(r.share) + " of its China coverage") + ". Opens the country view.";
+      return '<li><button type="button" class="t10-row" data-iso="' + esc(r.iso) + '" aria-label="' + esc(label) + '">' +
+        '<span class="t10-rank">' + r.rank + '</span>' +
+        '<span class="t10-name">' + esc(r.name) + (r.tied ? ' <span class="t10-tied">tied</span>' : '') + '</span>' +
+        '<span class="t10-bar"><span style="width:' + w.toFixed(1) + '%"></span></span>' +
+        '<span class="t10-count"><span class="t10-n">' + intComma(r.count) + '</span><span class="t10-items">' + esc(items) + '</span></span>' +
+        '<span class="t10-share"' + (r.share === null ? ' title="' + esc("Not shown: " + why) + '"' : '') + '>' +
+          (r.share === null ? '<span class="t10-share-pre">share </span>n/a' : esc(pct(r.share)) + '<span class="t10-share-post"> of its China coverage</span>') + '</span>' +
+        '</button></li>';
+    }).join("");
+    var lines = [];
+    if (!rows.length) lines.push(top10Text(t, "empty", vars));
+    if (rows.some(function (r) { return r.tied; })) lines.push(top10Text(t, "tie_note", vars));
+    if (top.tiedBeyond.length) {
+      var lastRow = rows[rows.length - 1], tv = {rank: lastRow.rank, count: intComma(lastRow.count) + (lastRow.count === 1 ? " placement" : " placements"), k: top.tiedBeyond.length};
+      tv.names = top10Names(top.tiedBeyond.map(function (r) { return r.name; }));
+      lines.push(top10Text(t, top.tiedBeyond.length <= 5 ? "tied_beyond" : "tied_beyond_many", tv));
+    }
+    if (rows.length) lines.push(top10Text(t, "share_note", vars));
+    if (top.worldwide) lines.push(top10Text(t, "worldwide", {n: intComma(top.worldwide.count)}));
+    if (top.underlyingSummed) lines.push(C.UNDERLYING_SUMMED);
+    var missing = state.monthsAll.filter(function (m) { return state.monthsFailed[m] && m >= start.slice(0, 7) && m <= lastDay.slice(0, 7); });
+    if (missing.length) lines.push(top10Text(t, "missing_month", {months: top10Names(missing)}));
+    notes.innerHTML = lines.filter(Boolean).map(function (s) { return '<p>' + esc(s) + '</p>'; }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".t10-row"), function (b) {
+      b.addEventListener("click", function () { openCountryFromFindings(b.getAttribute("data-iso")); });
+    });
+  }
+
+  /* Twelve headline numbers above the findings sentences
+, read as a funnel in three rows of four: the
      screening (how much was read and how much of it concerned China), the judgements, and the reach.
      Built from meta, meta.findings, the daily files and the outlet registry; hidden when findings are missing. */
   /* findings.all_time through the map's last complete day, summed from the daily files (C.allTimeInWindow),
@@ -1134,7 +1215,11 @@
   var RAMP = d3.piecewise(d3.interpolateLab, [LOW_COLOR, "#ef8a73", "#d23a2e", "#9e0f17", HIGH_COLOR]);
   var STEP_COLORS = d3.range(STEPS).map(function (i) { return RAMP(STEPS === 1 ? 1 : i / (STEPS - 1)); });
   /* The key for a cap: edges snapped to what the key prints, so the map and its key never disagree. */
-  function keyFor(cap, unit) { return C.keyTiers(cap, unit, STEPS); }
+  function keyFor(cap, unit, breaks) { return C.keyTiers(cap, unit, STEPS, breaks); }
+  /* All China coverage runs from a handful of articles to thousands per country, so steps up to the cap
+     left most of the map in the darkest two shades. Its shades split the pooled values of every date into
+     equal shares instead; the other measures keep steps up to the cap. */
+  function spreadScale(sc) { return metricDef().measure === "china" && !!(sc && sc.cap && sc.breaks); }
   function shadeFor(key) { return function (v) { return v > 0 ? STEP_COLORS[C.keyIndex(v, key.edges)] : ZERO_COLOR; }; }
   function setupMap() {
     svg = d3.select("#map");
@@ -1247,9 +1332,11 @@
     var trueMax = sc.max !== null && sc.max !== undefined ? sc.max : (vals.length ? d3.max(vals) : max);
     var capped = trueMax > max || vals.some(function (v) { return v > max; });
     /* White for exactly zero; any positive value takes one of STEPS tinted steps up to deep red at the cap. */
-    var key = keyFor(max, C.keyUnit(state.metric));
+    var spread = spreadScale(sc);
+    var key = keyFor(max, C.keyUnit(state.metric), spread ? sc.breaks : null);
     colorScale = shadeFor(key);
     state._perIso = perIso; state._agg = agg; state._max = max; state._capped = capped; state._trueMax = trueMax;
+    state._spread = spread;
     // Fills are set directly. A D3 transition would interpolate strings between pattern
     // URLs and colors and leave an invalid fill behind if a re-render interrupted it;
     // the CSS transition on path.country smooths color to color changes instead.
@@ -1396,8 +1483,9 @@
           steps.join("") +
         '</ul>' +
         '<p class="lg-note">Until the next data update, the scale is fixed for this measure, basis and window across every date on the timeline, so a shade means the same number on every day. ' + esc(C.CAP_UPDATE_NOTE) + esc(partialScaleNote()) +
-          (state._capped ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatKeyNumber(state._trueMax, key.unit, 3)) + (key.unit.per1000 ? ' per 1,000 items' : '') + '.' : '') +
-          (key.tiers.length < STEPS ? ' The cap is small enough that ' + plural(STEPS - key.tiers.length, "shade holds", "shades hold") + ' no whole number, so ' + (STEPS - key.tiers.length === 1 ? 'it is' : 'they are') + ' left out.' : '') +
+          (state._spread ? ' This measure runs from a handful of China articles to thousands, so each shade holds about a seventh of the values on every date whose window is complete, rather than a step up to a cap; the highest value on any date is ' + esc(C.formatKeyNumber(state._trueMax, key.unit, 3)) + (key.unit.per1000 ? ' per 1,000 items' : '') + '.' : '') +
+          (state._capped && !state._spread ? ' The darkest shade is an overflow step for values above the 95th percentile of all dates; the highest value on any date is ' + esc(C.formatKeyNumber(state._trueMax, key.unit, 3)) + (key.unit.per1000 ? ' per 1,000 items' : '') + '.' : '') +
+          (key.tiers.length < STEPS && !state._spread ? ' The cap is small enough that ' + plural(STEPS - key.tiers.length, "shade holds", "shades hold") + ' no whole number, so ' + (STEPS - key.tiers.length === 1 ? 'it is' : 'they are') + ' left out.' : '') +
           esc(sameWindowNote()) + '</p>' +
         (m.allItems && rediscoveryLegendNote() ? '<p class="lg-note" id="legend-rediscovery">' + esc(rediscoveryLegendNote()) + '</p>' : '') +
         (state.zoomIso ? '<p class="lg-note">Zoomed to ' + esc(countryName(state.zoomIso)) + '. Shades keep the world scale, so they compare directly with every other country.</p>' : '') +
