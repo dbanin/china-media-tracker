@@ -438,16 +438,17 @@ def test_each_measure_gets_its_budget_and_all_of_them_the_total(tmp_path, monkey
             return inner(conn, ctx, deadline) if deadline > time.monotonic() else {"stopped": True}
         m.compute = compute
         return m
-    first, second, third = measure("first", sleep=0.3), measure("second", sleep=0.1), measure("third")
+    # Wide margins: a slow runner once spent the whole of a 0.35 second total before the second measure began.
+    first, second, third = measure("first", sleep=1.5), measure("second", sleep=2.0), measure("third")
     cfg = _install(monkeypatch, tmp_path, {"m_first": first, "m_second": second, "m_third": third}, entries=[
         {"id": "first", "label": "First", "module": "m_first", "enabled": True, "min_inputs": 1, "budget_seconds": 50},
-        {"id": "second", "label": "Second", "module": "m_second", "enabled": True, "min_inputs": 1, "budget_seconds": 0.1},
+        {"id": "second", "label": "Second", "module": "m_second", "enabled": True, "min_inputs": 1, "budget_seconds": 0.5},
         {"id": "third", "label": "Third", "module": "m_third", "enabled": True, "min_inputs": 1}])
     out = tmp_path / "o"
     blocks = measures.run_all_quietly(store.connect(tmp_path / "g.db"), out, {}, config_path=cfg, reviews_dir=tmp_path,
-                                      total_budget_seconds=0.35)
-    assert 0.3 < seen["first"] <= 0.35, "the total ends before the measure's own budget"
-    assert seen["second"] <= 0.1
+                                      total_budget_seconds=3.0)
+    assert 2.0 < seen["first"] <= 3.0, "the total ends before the measure's own budget"
+    assert seen["second"] <= 0.5
     assert blocks["first"]["status"] == "provisional" and blocks["first"]["budget_seconds"] == 50
     # the total was used up before the third began: not run, off, with the reason
     assert "third" not in seen and blocks["third"]["status"] == "off"
