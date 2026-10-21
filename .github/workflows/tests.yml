@@ -37,4 +37,11 @@ jobs:
           node-version: "20"
       - run: pip install -r requirements.txt
       - name: Tests
-        run: python -m pytest -q -p no:cacheprovider
+        run: |
+          status=0
+          log="$RUNNER_TEMP/pytest.log"
+          python -m pytest -q -p no:cacheprovider > "$log" 2>&1 || status=$?
+          cat "$log"
+          # Each failing test as an annotation, which the public API shows without signing in.
+          grep -E '^(FAILED|ERROR) ' "$log" | sed -E 's/^(FAILED|ERROR) ([^ ]+).*/::error::test failed: \2/' | sort -u || true
+          exit $status

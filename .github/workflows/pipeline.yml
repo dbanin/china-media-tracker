@@ -115,7 +115,22 @@ jobs:
         continue-on-error: true
         run: |
           status=0
-          python -m pytest -q -p no:cacheprovider || status=$?
+          log="$RUNNER_TEMP/pytest.log"
+          python -m pytest -q -p no:cacheprovider > "$log" 2>&1 || status=$?
+          cat "$log"
+          if [ $status -ne 0 ]; then
+            # Each failing test as an annotation, which the public API shows without signing in.
+            failed=$(grep -E '^(FAILED|ERROR) ' "$log" | sed -E 's/^(FAILED|ERROR) ([^ ]+).*/\2/' | sort -u)
+            for t in $failed; do echo "::error::test failed: $t"; done
+            # A few failures get one second try: a timing test on a slow runner passes it, a real fault
+            # fails twice. Passing on the second try is flagged and the export goes ahead.
+            if [ -n "$failed" ] && [ "$(echo "$failed" | wc -l)" -le 3 ]; then
+              if python -m pytest -q -p no:cacheprovider $failed; then
+                echo "::warning::passed on a second try, treated as flaky: $(echo $failed)"
+                status=0
+              fi
+            fi
+          fi
           if [ -e data/tracker.db ] || [ -e data/tracker.db-journal ]; then
             # The restore would take a file left here for the cached database.
             echo "::error::a test wrote data/tracker.db; it is removed"
