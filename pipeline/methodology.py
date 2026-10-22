@@ -93,8 +93,8 @@ days after it goes to the model as a possible copy of state text run without its
 credit line (pipeline/lookalike.py), and the model is shown that item's headline and
 outlet. Articles with no
 signature, no trigger and no such match are labelled independent journalism by rules when
-the body substantively concerns China (at least three distinct China terms,
-or five occurrences, or a term in the headline with two occurrences),
+the body substantively concerns China by the tracker's own rule, which is not in the
+original study's codebook (Known limits): {relevance_rule},
 otherwise not relevant. That threshold applies only to articles no signature
 has claimed. Those residual labels carry confidence below 1.0 and are eligible
 for the reliability study like every other label.
@@ -185,7 +185,11 @@ the model gave takes its route from the evidence the model names in the text (a
 credit line, a distribution stamp, a sponsored disclosure, a diplomat's byline),
 never from the signature that sent the article; one that names none is
 unattributed, or uncredited copy when the lookalike check sent the article, a
-near repeat of a state origin item another outlet ran with its credit line.
+near repeat of a state origin item another outlet ran with its credit line. A
+model label that is unattributed, or that names a sponsored disclosure the rules
+did not find, is undetermined and in no count (see Undetermined items below), and
+so is an uncredited copy of an undetermined item, which repeats no known state
+original.
 Separately, every article records its
 arrival: an editorial feed,
 or one of the outlet's press release, sponsored or partner sections. The two are
@@ -195,7 +199,7 @@ rather than by the country alone.
 
 {route_text}
 
-{model_only_text}
+{undetermined_text}
 
 {issuer_text}
 
@@ -272,9 +276,9 @@ network of mastheads once per country, like a release on a distribution wire.
 Counting each release that one shared AAP widget showed across ten ACM
 mastheads once per country, instead of once per masthead, cut Australia's
 state origin from 1,350 placements to 135 over 2026-09-03 to 2026-10-15, a
-tenfold fall. Both figures include placements resting on the model's judgement
-alone, held apart from state origin since 22 October 2026; without them the
-fall is also tenfold. The tracker counts every placement of a release across a
+tenfold fall. Both figures include placements now undetermined, excluded from
+every count since 22 October 2026 (all of them, in Australia, model calls with
+no checkable marker); without them the fall is also tenfold. The tracker counts every placement of a release across a
 country's monitored outlets over its window, while the original study sampled
 newspaper pages, so the tracker's figure for Australia and the study's are not
 comparable.
@@ -490,13 +494,13 @@ def relabel_order_text() -> str:
     return "first " + ", then ".join(tiers + ["the rest"])
 
 
-def model_only_text(meta: Dict) -> str:
-    """The paragraph on state origin by the model's judgement alone (pipeline/model_only.py), from
-    meta.model_only_state_origin; an export from before it was a block gives only the count."""
+def undetermined_text(meta: Dict) -> str:
+    """The paragraph on undetermined items (pipeline/model_only.py), from meta.undetermined; with no such
+    block it gives only the count meta.route_totals tallies under unattributed."""
     from pipeline import model_only
-    b = meta.get("model_only_state_origin")
+    b = meta.get("undetermined")
     if not isinstance(b, dict):
-        b = {"count": b or (meta.get("route_totals") or {}).get("unattributed") or 0, "status": "provisional"}
+        b = {"count": b or (meta.get("route_totals") or {}).get("unattributed") or 0}
     return model_only.methodology_text(b)
 
 
@@ -507,21 +511,17 @@ def state_origin_split_text(meta: Dict, tot: Dict) -> str:
     if not a:
         return "no state origin label had been made at export time."
     rules, model = tot.get("Ar") or 0, tot.get("Al") or 0
-    none = (meta.get("route_totals") or {}).get("unattributed")
-    mo = meta.get("model_only_state_origin")
-    held = not (isinstance(mo, dict) and mo.get("held_apart") is False)
+    ud = meta.get("undetermined")
+    none = ud.get("count") if isinstance(ud, dict) else (meta.get("route_totals") or {}).get("unattributed")
     text = ("at export time fixed rules decided %s of the %s state origin labels (%d percent) from a signature, and "
             "%s (%d percent) are model judgements" % ("{:,}".format(rules), "{:,}".format(a), round(100.0 * rules / a),
                                                      "{:,}".format(model), round(100.0 * model / a)))
-    if none and held:
-        # Decision D1 (2026-10-22): a model label with no signature of any kind is not in these figures.
-        text += (" that name a credit line, stamp, disclosure or byline, or match a credited item. A further %s "
-                 "model judgements of state origin name no evidence at all; they are held apart as their own "
-                 "figure, model judgement, provisional, and are in none of these numbers (see How state origin "
-                 "arrived)" % "{:,}".format(none))
-    elif none:
-        text += (", %s of them with no signature of any kind (no signature; model judgement, in the routes listed "
-                 "under How state origin arrived)" % "{:,}".format(none))
+    if none:
+        # Decision D1 as revised (2026-10-22): undetermined items are in no count.
+        text += (" that name a credit line, distribution stamp or diplomat's byline, or match a credited item. A further "
+                 "%s model judgements of state origin name no evidence a reader can check, name a sponsored disclosure "
+                 "the rules did not find, or repeat an undetermined item; they are undetermined, excluded from every count, and in none of these "
+                 "numbers (see Undetermined items)" % "{:,}".format(none))
     return text + (". Model judgements are not perfectly repeatable, and hand coding checks them like every other "
                    "model label.")
 
@@ -640,7 +640,9 @@ def uncredited_copy_limit_text() -> str:
         "only when it nearly repeats a state origin item that another monitored outlet ran, from %d days before it "
         "to %d days after it, under evidence a credit supports: a wire credit or dateline, a distribution stamp, a "
         "sponsored disclosure, a diplomat's byline, or a rules label from before routes were stored. A state origin "
-        "label that rests on the model's judgement alone is never such a reference. Headlines are compared only "
+        "label that rests on the model's judgement alone is never such a reference, and neither is an undetermined one, such as a "
+        "sponsored disclosure the model named that the rules did not find: an uncredited copy counts only when the item it "
+        "repeats is settled state origin, and a copy of an undetermined item is undetermined itself. Headlines are compared only "
         "within one language, and feed summaries and bodies by the words they share, so the original has to be in "
         "the article's language. The English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily "
         "and ECNS that the tracker reads as reference originals are used only to set credited copies beside the "
@@ -651,6 +653,74 @@ def uncredited_copy_limit_text() -> str:
         "services' editions in other languages, which the tracker does not read. The model then decides whether "
         "each match is that state text without substantive alteration."
         % (lookalike.WINDOW_BEFORE_DAYS, lookalike.WINDOW_AFTER_DAYS))
+
+
+_NUM_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine",
+              10: "ten"}
+
+
+def _num_word(n: int) -> str:
+    return _NUM_WORDS.get(n, str(n))
+
+
+def relevance_rule_text() -> str:
+    """The tracker's own not relevant threshold, from the constants classify_rules.body_relevance runs with."""
+    from pipeline import classify_rules
+    return ("at least %s distinct China terms in the body, or %s occurrences of them, or a term in the headline with "
+            "at least two occurrences" % (_num_word(classify_rules.BODY_RELEVANCE_MIN_HITS),
+                                          _num_word(classify_rules.BODY_RELEVANCE_MIN_TOTAL)))
+
+
+def study_differences_text() -> str:
+    """Where the tracker differs from the original study (the 596 article study across Italy, Canada, Australia and
+    Singapore): the unit counted (pipeline/placements.py), the not relevant threshold (classify_rules.body_relevance),
+    the looser test for unchecked state sourcing (the model's instructions in classify_llm.py, unchanged until after
+    2026-10-23), and section headers (classify_rules disclosure scope and arrival_of)."""
+    return (
+        "How the tracker differs from the original study. The original study coded 596 articles across four "
+        "countries: Italy, Canada, Australia and Singapore. The tracker applies its categories continuously but "
+        "differs from it in four ways, and none of its figures should be set beside the study's without them.\n\n"
+        "The unit counted. The original study counted identical wire copy once per publication. The tracker counts "
+        "every placement in each monitored outlet, so an outlet that runs the same wire copy again, on another day or "
+        "as a separate article, has two placements where the study counted one. The only exceptions are those of "
+        "pipeline/placements.py: a story shown by one shared widget across a network's mastheads counts once per "
+        "country, and one page at two addresses, or the parts of one numbered series at one outlet on one day, "
+        "count once. Language editions of one wire release stay separate placements and are one underlying item. "
+        "Underlying items join near copies across all of a country's outlets, so neither the tracker's placements "
+        "nor its underlying items are the study's unit, and the tracker's counts and shares cannot be set beside "
+        "the study's. The Australian example under What the numbers mean shows how far the unit alone moves a "
+        "figure.\n\n"
+        "Not relevant, by the tracker's rule. The study's codebook says that a passing mention does not make an "
+        "article relevant and leaves the line to the coder. Where no signature, official sourcing trigger or "
+        "lookalike match sends an article on, the tracker draws that line by its own rule, which is not in the "
+        "study's codebook: the article concerns China when it has " + relevance_rule_text() + " (pipeline/"
+        "classify_rules.py, body_relevance). The same rule decides whether an item from a press release, sponsored "
+        "or partner section with one weak signature goes to the model. An article below it is labelled not relevant "
+        "by rules, without a reading.\n\n"
+        "Unchecked state sourcing is looser than the study's. The study scored verification on five levels: "
+        "corroborated, contested and contextualized count as independent journalism, and merely attributed and "
+        "unassessed count as unchecked state sourcing, under two fixed rules: a second official or another outlet "
+        "repeating the claim is not corroboration, and tone does not count. The model is not given the five levels. "
+        "It is asked whether a central factual claim was \"passed on without independent confirmation\", and context "
+        "counts against that only when it concerns the claim itself: background that takes the claim as given, such "
+        "as details of a vessel or a company or analysts discussing what a figure means, does not. An article that "
+        "sets the claim in independent context without confirming it can therefore land in unchecked state sourcing "
+        "where the study would code it independent journalism; in the study's Australian sample such contextualized "
+        "items were 27 of 58. The model's instructions share the rule on tone, but they do not say that a second "
+        "official or another outlet repeating the claim is not confirmation, which can move an article the other "
+        "way. On balance the tracker's unchecked state sourcing probably overcounts relative to the study, and it "
+        "stays provisional. The five level scale goes into the model's instructions after 23 October 2026, and "
+        "every unchecked state sourcing label is then judged again.\n\n"
+        "Section headers are not evidence here. Much of the study's state origin evidence was a section header, "
+        "such as a \"partnership content from GlobeNewswire\" header at a Canadian daily. The tracker's rules find a "
+        "sponsored or partner disclosure only on the article itself: its own page labels, its author field, its "
+        "headline, or a line that opens or closes the body; a line of the page around it, such as a section header, "
+        "counts only when that line names a Chinese state entity. The model sees the headline and body only, never "
+        "the outlet, the address or the section. Items collected from an outlet's press release, sponsored or "
+        "partner section are recorded with that arrival, on each article and per day and country, but the arrival "
+        "alone never makes an item state origin. Paid sections the study would catch can therefore be missed, or "
+        "end up undetermined: judged state origin by the model alone, with no evidence it could name, which keeps "
+        "them out of every count. Giving the model the address and the section is planned after 23 October 2026.")
 
 
 def known_limits_text(meta: Dict, outlets=None) -> str:
@@ -721,7 +791,8 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
         "independent journalism when they substantively concern China and not relevant otherwise. A Hong Kong, "
         "Macao or Taiwan domestic story with no mainland angle counts as China coverage only when it substantively "
         "concerns the Chinese state or its policy."
-        % (reg["blocked"], reg["failing"], "{:,}".format(config.LLM_BODY_CHAR_LIMIT)))
+        % (reg["blocked"], reg["failing"], "{:,}".format(config.LLM_BODY_CHAR_LIMIT))
+        + "\n\n" + study_differences_text())
 
 
 def human_study_text(hs: Dict) -> str:
@@ -1089,9 +1160,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         wire_counts_text = ("At export time the stratum held %d gated articles: %d state origin, %d unchecked state "
                             "sourcing, %d independent journalism, %d not relevant and %d awaiting the verification judgement."
                             % (wc["articles"], wc.get("A", 0), wc.get("B", 0), wc.get("C", 0), wc.get("not_relevant", 0), wc.get("pending", 0)))
-        if wc.get("M"):
-            wire_counts_text += (" A further %d are state origin by the model's judgement alone, held apart from state "
-                                 "origin until their hand check passes." % wc["M"])
+        if wc.get("U"):
+            wire_counts_text += (" A further %d are undetermined, model calls of state origin whose authorship the "
+                                 "evidence does not settle, excluded from every count." % wc["U"])
     else:
         wire_counts_text = "At export time the stratum held no gated article."
 
@@ -1126,6 +1197,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         session_labels_text=session_labels_text,
         prompt_text=prompt_text,
         candidate_recall_text=candidate_recall_text(meta),
+        relevance_rule=relevance_rule_text(),
         session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
         planted_text=planted_text(meta),
         measures_text=measures_mod.methodology_text(meta),
@@ -1177,7 +1249,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the measure is labelled a share of monitored output rather than of the largest publications.",
         relay_min_hours=config.RELAY_DAY_MIN_HOURS, relay_retired_on=config.RELAY_RETIRED_ON or "the present",
         wire_outlets=wire_outlets, wire_counts_text=wire_counts_text,
-        kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, model_only_text=model_only_text(meta), release_text=release_text,
+        kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, undetermined_text=undetermined_text(meta), release_text=release_text,
         saturation_text=saturation_text, relay_collector_text=relay_collector_text, ruleset_mix_text=ruleset_mix_text,
     )
     with open(path, "w", encoding="utf-8") as fh:

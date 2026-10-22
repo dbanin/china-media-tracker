@@ -6,8 +6,8 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  /* M: state origin by the model's judgement alone, held apart from A until its hand check passes (export.py). */
-  var EMPTY = {A: 0, B: 0, C: 0, N: 0, M: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
+  /* U: undetermined, who wrote or commissioned it could not be settled; in no category count or denominator (export.py). */
+  var EMPTY = {A: 0, B: 0, C: 0, N: 0, U: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
                fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
                tdisc: 0, ttarget: 0, tchina: 0, ta: 0, tb: 0, polls: 0, sat: 0, miss: 0, mpolls: 0};
 
@@ -172,15 +172,10 @@
   var RELAY_PROVISIONAL = "Provisional: unchecked state sourcing is one model's judgement and has not been checked against hand coding yet.";
   /* Said wherever underlying items are shown from data that predates the per day item ids (schema 12). */
   var UNDERLYING_SUMMED = "Underlying items here are summed day by day, because this data predates the item ids that count each item once per window, so an item placed on several days counts once for each.";
-  /* State origin by the model's judgement alone (meta.model_only_state_origin): the route filter's model
-     judgement option draws it as a layer of its own, marked provisional, or withheld after a failed check. */
-  var MODEL_ONLY_PROVISIONAL = "Provisional: state origin by the model's judgement alone, with no credit line, stamp, disclosure, byline or copy match behind it. These placements are not counted in state origin until a hand check of them passes.";
-  var MODEL_ONLY_WITHHELD = "Withheld: a hand check of state origin by the model's judgement alone confirmed too few of these labels, so they are not shown.";
-  function modelOnlyStatus(meta) {
-    var mo = meta && meta.model_only_state_origin;
-    if (mo && typeof mo === "object" && (mo.status === "passed" || mo.status === "withheld")) return mo.status;
-    return "provisional";
-  }
+  /* Undetermined items (meta.undetermined, code U): the route filter's undetermined option draws them as a
+     layer of their own, marked undetermined and not counted. They never rejoin state origin. */
+  var UNDETERMINED_LAYER = "Undetermined, not counted: who wrote or commissioned these could not be settled, because the model named no credit line, stamp, byline or copy match, or a sponsored disclosure the rules did not find on the article. As in the original study, they are excluded from every count.";
+  var UNDETERMINED_NO_SHARE = "Undetermined items are in no share: they are excluded from every count and denominator.";
   var RELAY_WITHHELD = "Unchecked state sourcing counts are withheld until hand coding of a fixed sample puts agreement with the model on unchecked sourcing versus independent journalism at kappa 0.7 or above.";
 
   /* Returns {value, chinaTotal, ab, a, b, pending, sparse, withheld, note} for one country under a metric and mode.
@@ -194,13 +189,13 @@
                      feeds standing for a country, does not apply */
   function metricValue(counts, metric, outletsActive, mode, reviewedCounts, ctx) {
     ctx = ctx || {};
-    var a, b, c, p, m = 0;
+    var a, b, c, p, u = 0;
     var k = counts || emptyCounts();
     if (mode === "reviewed") {
       var r = reviewedCounts || {A: 0, B: 0, C: 0, N: 0};
       a = r.A; b = r.B; c = r.C; p = 0;
     } else {
-      a = k.A; b = k.B; c = k.C; p = k.pending || 0; m = k.M || 0;
+      a = k.A; b = k.B; c = k.C; p = k.pending || 0; u = k.U || 0;
     }
     var def = METRICS[metric] || {};
     var byRoute = ctx.routeCount !== undefined && ctx.routeCount !== null;
@@ -209,20 +204,19 @@
     var relay = ctx.relay || {measured: true, publishable: true};
     /* Articles carrying official Chinese sourcing whose verification judgement is pending count as China
        coverage and in no other measure. Once judged they become unchecked state sourcing or independent journalism. */
-    /* State origin by the model's judgement alone (M) is China coverage in no other measure while it is held apart. */
-    var china = a + b + c + p + m;
+    /* Undetermined items (U) are in no measure and no denominator, China coverage included. */
+    var china = a + b + c + p;
     var value = null, sparse = false, note = null, withheld = false;
-    /* ctx.routeModelOnly: the route filter shows the model judgement layer, with its status (modelOnlyStatus). */
-    var modelOnlyLayer = byRoute && def.measure === "a" && (ctx.routeModelOnly === "provisional" || ctx.routeModelOnly === "withheld");
+    /* ctx.routeUndetermined: the route filter shows the undetermined layer, which is in no count. */
+    var undeterminedLayer = !!(byRoute && def.measure === "a" && ctx.routeUndetermined);
     var num = def.measure === "a" ? aSel : def.measure === "b" ? b : def.measure === "china" ? china : null;
     var provisional = !!((def.relay || def.relayInside) && relay.provisional && !relay.publishable);
-    if (modelOnlyLayer && ctx.routeModelOnly === "provisional") provisional = true;
     if (def.relay && !(relay.publishable || relay.provisional)) {
       withheld = true;
       note = relay.measured ? RELAY_WITHHELD : RELAY_NOT_MEASURED;
-    } else if (modelOnlyLayer && ctx.routeModelOnly === "withheld") {
-      withheld = true;
-      note = MODEL_ONLY_WITHHELD;
+    } else if (undeterminedLayer && metric === "share_a") {
+      sparse = true;
+      note = UNDETERMINED_NO_SHARE;
     } else if (byRoute && def.measure !== "a") {
       sparse = true;
       note = "The route filter applies to state origin only.";
@@ -248,9 +242,10 @@
       }
     }
     if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
-    if (provisional && !note) note = modelOnlyLayer ? MODEL_ONLY_PROVISIONAL : RELAY_PROVISIONAL;
+    if (undeterminedLayer && !note) note = UNDETERMINED_LAYER;
+    if (provisional && !note) note = RELAY_PROVISIONAL;
     /* Underlying items are counted per label, so unchecked sourcing alone is the combined figure less state origin. */
-    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, modelOnly: m, modelOnlyLayer: modelOnlyLayer, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
+    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, undetermined: u, undeterminedLayer: undeterminedLayer, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
             underlyingB: Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
             allItems: allItems, allItemsA: k.ta || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0};
   }
@@ -566,7 +561,7 @@
       var note = mv.note || (byRoute ? "Only state_origin is filtered by the route. The counts that are not split by route are left blank." : "");
       if (agg.underlyingSummed && !byRoute && (mv.underlying || mv.underlyingB)) note = (note ? note + " " : "") + UNDERLYING_SUMMED;
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: part(mv.a), state_origin_underlying_items: whole(part(mv.underlying)),
-                 model_only_state_origin: whole(mv.modelOnly),
+                 undetermined: whole(mv.undetermined),
                  unverified_relay: whole(hasB(mv.b)), unverified_relay_underlying_items: whole(hasB(mv.underlyingB)), relay_status: status, official_sourcing_pending: whole(part(mv.pending)), independent: whole(mv.c),
                  china_total: whole(hasB(mv.chinaTotal)), outlets_active: entry.outlets_active, population: entry.population || "",
                  items_published_monitored_outlets: whole(mv.allItems), china_in_published_items: whole(hasB(mv.allItemsChina)),
@@ -639,7 +634,7 @@
       if (distribution === "wires") return w;
       return total;
     };
-    var stateOrigin = part("state_origin"), unchecked = part("unchecked"), independent = part("independent"), china = part("china_total"), modelOnly = part("model_only");
+    var stateOrigin = part("state_origin"), unchecked = part("unchecked"), independent = part("independent"), china = part("china_total"), undetermined = part("undetermined");
     var share = stateOrigin === null || !china ? null : stateOrigin / china;
     var world30 = last30.state_origin, wires30 = typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : 0;
     var topShare = null;
@@ -647,7 +642,7 @@
       if (distribution === "country" && typeof world30 === "number") topShare = world30 - wires30 > 0 ? top.state_origin / (world30 - wires30) : null;
       else topShare = top.share_of_world === undefined ? null : top.share_of_world;
     }
-    return {state_origin: stateOrigin, unchecked: unchecked, independent: independent, china_total: china, model_only: modelOnly,
+    return {state_origin: stateOrigin, unchecked: unchecked, independent: independent, china_total: china, undetermined: undetermined,
             state_share_of_china: share, top_share_of_world: topShare,
             wires_last_30d: typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : null,
             wires_all_time: typeof at.state_origin_wires === "number" ? at.state_origin_wires : null};
@@ -666,19 +661,19 @@
   function allTimeInWindow(agg, at) {
     at = at || {};
     if (!agg || !agg.countries) return at;
-    var sum = {A: 0, B: 0, C: 0, M: 0, pending: 0}, w = agg.countries[WORLDWIDE_ISO] || {};
+    var sum = {A: 0, B: 0, C: 0, U: 0, pending: 0}, w = agg.countries[WORLDWIDE_ISO] || {};
     Object.keys(agg.countries).forEach(function (iso) {
       var k = agg.countries[iso] || {};
-      sum.A += k.A || 0; sum.B += k.B || 0; sum.C += k.C || 0; sum.M += k.M || 0; sum.pending += k.pending || 0;
+      sum.A += k.A || 0; sum.B += k.B || 0; sum.C += k.C || 0; sum.U += k.U || 0; sum.pending += k.pending || 0;
     });
     var withheld = at.unchecked === null;
-    /* The model-only placements (M) are China-related articles, held out of state origin only. */
-    var china = sum.A + sum.B + sum.C + sum.M;
+    /* Undetermined items (U) are not China-related articles in any count: they are excluded from every one. */
+    var china = sum.A + sum.B + sum.C;
     return {state_origin: sum.A, unchecked: withheld ? null : sum.B, independent: sum.C, china_total: china,
             state_share_of_china: china ? sum.A / china : null,
             state_origin_wires: w.A || 0, unchecked_wires: withheld ? null : (w.B || 0), independent_wires: w.C || 0,
-            china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0) + (w.M || 0), pending: sum.pending, pending_wires: w.pending || 0,
-            model_only: sum.M, model_only_wires: w.M || 0};
+            china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0), pending: sum.pending, pending_wires: w.pending || 0,
+            undetermined: sum.U, undetermined_wires: w.U || 0};
   }
 
   /* State-origin articles over a window under the Distribution toggle: the sum of A over the countries
@@ -774,7 +769,7 @@
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
 
   var NAMES = {A: "State origin", B: "Unchecked state sourcing", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
-               pending: "Official Chinese sourcing, verification pending", M: "State origin by the model's judgement alone (provisional)"};
+               pending: "Official Chinese sourcing, verification pending", U: "Undetermined: who wrote or commissioned it could not be settled"};
   function nameOf(code) { return NAMES[code] || code; }
 
   function citation(accessDate, author) {
@@ -982,38 +977,28 @@
     var r = routes && routes[id];
     return (r && r.plain_name) || id;
   }
-  /* The preliminary figures banner under the title (content.preliminary_banner). Its sentences are
-     chosen from meta, so the banner never says a figure is unchecked once its hand check has passed,
-     nor provisional once it is withheld. Unchecked state sourcing reads meta.relay_human_study (passed,
-     or a failed state, or the export's own provisional and publishable flags). State origin judged by
-     the model alone reads meta.model_only_state_origin.status when the export gives it as an object;
-     a bare count, or no key at all, is read as provisional. Returns null without the content block. */
-  function hasStudyStatus(s, list) { return list.indexOf(String(s || "").toLowerCase()) !== -1; }
+  /* The preliminary figures banner under the title (content.preliminary_banner). It always says what state
+     origin counts and that undetermined items are excluded from every count, as in the original study; they
+     never rejoin, so nothing about them is read from meta. Only the unchecked state sourcing sentences are
+     chosen from meta, so the banner never says that figure is unchecked once its hand check has passed, nor
+     provisional once it is withheld: meta.relay_human_study (passed, or a failed state) or the export's own
+     provisional and publishable flags. Returns null without the content block. */
   function preliminaryStatuses(meta) {
-    var m = meta || {}, hs = m.relay_human_study || {}, relay = "provisional", modelOnly = "provisional";
+    var m = meta || {}, hs = m.relay_human_study || {}, relay = "provisional";
     if (hs.passed === true || hs.state === "passed") relay = "passed";
     else if (hs.state === "failed" || (m.relay_measured === true && m.relay_publishable === false && m.relay_provisional === false)) relay = "withheld";
-    var mo = m.model_only_state_origin;
-    if (mo && typeof mo === "object") {
-      if (mo.passed === true || hasStudyStatus(mo.status, ["passed", "published", "checked"])) modelOnly = "passed";
-      else if (hasStudyStatus(mo.status, ["failed", "withheld"])) modelOnly = "withheld";
-    }
-    return {relay: relay, modelOnly: modelOnly};
+    return {relay: relay};
   }
   function preliminaryBanner(banner, meta) {
     if (!banner || !banner.lead || !banner.evidence) return null;
     var st = preliminaryStatuses(meta), out = [];
-    function pairKey(a, b) { return a && b ? "both" : a ? "model_only" : b ? "relay" : null; }
     var apart = banner.apart || {}, withheld = banner.withheld || {}, checked = banner.checked || {};
-    var anyProvisional = st.modelOnly === "provisional" || st.relay === "provisional";
-    out.push(anyProvisional || !banner.lead_settled ? banner.lead : banner.lead_settled);
-    out.push(st.modelOnly === "passed" && banner.evidence_model_only_checked ? banner.evidence_model_only_checked : banner.evidence);
-    var a = pairKey(st.modelOnly === "provisional", st.relay === "provisional");
-    if (a && apart[a]) out.push(apart[a]);
-    if (st.modelOnly === "withheld" && withheld.model_only) out.push(withheld.model_only);
+    out.push(st.relay === "provisional" || !banner.lead_settled ? banner.lead : banner.lead_settled);
+    out.push(banner.evidence);
+    if (banner.undetermined) out.push(banner.undetermined);
+    if (st.relay === "provisional" && apart.relay) out.push(apart.relay);
     if (st.relay === "withheld" && withheld.relay) out.push(withheld.relay);
-    var c = pairKey(st.modelOnly === "passed", st.relay === "passed");
-    if (!c) c = (st.modelOnly === "withheld" || st.relay === "withheld") && checked.none_published ? "none_published" : "none";
+    var c = st.relay === "passed" ? "relay" : st.relay === "withheld" && checked.none_published ? "none_published" : "none";
     if (checked[c]) out.push(checked[c]);
     return {heading: banner.heading || "", headingEm: banner.heading_em || "", sentences: out, text: out.join(" "),
             linkText: banner.link_text || "", linkHref: banner.link_href || "#method", status: st};
@@ -1290,7 +1275,7 @@
 
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
-  return {EMPTY: EMPTY, MODEL_ONLY_PROVISIONAL: MODEL_ONLY_PROVISIONAL, MODEL_ONLY_WITHHELD: MODEL_ONLY_WITHHELD, modelOnlyStatus: modelOnlyStatus, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
+  return {EMPTY: EMPTY, UNDETERMINED_LAYER: UNDETERMINED_LAYER, UNDETERMINED_NO_SHARE: UNDETERMINED_NO_SHARE, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
           distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL, UNDERLYING_SUMMED: UNDERLYING_SUMMED,

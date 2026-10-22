@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "87";
+  var ASSET_VERSION = "88";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -469,12 +469,12 @@
     return hit ? hit.label : (f ? (f.kind === "route" && C.ROUTE_FALLBACK_LABELS[f.id]) || f.id : "");
   }
   function routeActive() { return !!(state.route && metricDef().measure === "a"); }
-  /* State origin by the model's judgement alone (meta.model_only_state_origin, code M in the data files):
-     held out of state origin until its hand check passes, shown as its own row and line, and drawn by the
-     route filter's model judgement option as a layer of its own, marked provisional (decision D1). */
-  function modelOnlyRouteActive() { return routeActive() && state.route.kind === "route" && state.route.id === "unattributed" && C.modelOnlyStatus(state.meta) !== "passed"; }
-  function modelOnlyLabel() { return "State origin by the model\u2019s judgement alone" + (C.modelOnlyStatus(state.meta) === "withheld" ? " (withheld)" : " (provisional)"); }
-  function modelOnlyShown(n) { return C.modelOnlyStatus(state.meta) !== "passed" || !!n; }
+  /* Undetermined items (meta.undetermined, code U in the data files): who wrote or commissioned them could
+     not be settled, so, as in the original study, they are excluded from every count and denominator and
+     never rejoin state origin. They are shown only as their own row and line, and drawn by the route
+     filter's undetermined option as a layer of its own, marked not counted (decision D1 as revised). */
+  function undeterminedRouteActive() { return routeActive() && state.route.kind === "route" && state.route.id === "unattributed"; }
+  var UNDETERMINED_ROW = "Undetermined: who wrote or commissioned it could not be settled, excluded from the counts";
   /* A label placed mid-sentence: lower case first letter, never on China, Chinese or a country name. */
   function lowerLabel(text) { return C.lowerFirst(text, Object.keys(state.names || {}).map(function (k) { return state.names[k]; })); }
 
@@ -483,7 +483,7 @@
     return {topOutlets: entry.top_outlets, relay: relayFor(entry),
             noRelayOutput: ((state.meta && state.meta.schema_version) || 0) < 6,
             routeCount: routeActive() ? C.routeCount(agg, iso, state.route) : null,
-            routeModelOnly: modelOnlyRouteActive() ? C.modelOnlyStatus(state.meta) : null,
+            routeUndetermined: undeterminedRouteActive(),
             worldwide: iso === C.WORLDWIDE_ISO};
   }
 
@@ -599,8 +599,8 @@
       (at.unchecked !== null && at.unchecked !== undefined ? ', ' + intComma(at.unchecked) + ' unchecked state sourcing' + (relayFor(null).provisional ? ' (provisional)' : '') : '') +
       ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far' +
       (wiresOnly() ? ', on the worldwide wires alone' : countryOnly() ? ', in the country outlets alone' : '') + '.</p>';
-    var moLine = modelOnlyFindingsLine(f, at);
-    if (moLine) html += '<p class="fb-meta" id="fb-model-only">' + esc(moLine) + '</p>';
+    var udLine = undeterminedFindingsLine(f, at);
+    if (udLine) html += '<p class="fb-meta" id="fb-undetermined">' + esc(udLine) + '</p>';
     if (MS) html += MS.findingsHtml(measureBlocks(), state.measureData, measureApi);
     box.innerHTML = html;
     box.hidden = false;
@@ -623,21 +623,19 @@
     }
   }
 
-  /* The one line of What we found on state origin by the model's judgement alone: its own figure, never in
-     the sentences, totals and shares above it. at is findingsForMode(f), under the Distribution toggle;
-     the 30 day figure counts the same complete days as the cards. */
-  function modelOnlyFindingsLine(f, at) {
-    var st = C.modelOnlyStatus(state.meta), mo = (state.meta && state.meta.model_only_state_origin) || {};
-    var n = at && typeof at.model_only === "number" ? at.model_only : (f && f.model_only ? f.model_only.all_time : null);
-    if (st === "passed" || n === null || n === undefined) return "";
+  /* The one line of What we found on undetermined items: their own figure, never in the sentences, totals
+     and shares above it. at is findingsForMode(f), under the Distribution toggle; the 30 day figure counts
+     the same complete days as the cards. */
+  function undeterminedFindingsLine(f, at) {
+    var n = at && typeof at.undetermined === "number" ? at.undetermined : (f && f.undetermined ? f.undetermined.all_time : null);
+    if (n === null || n === undefined) return "";
     var lastDay = lastCompleteDay(), n30 = null;
     if (lastDay) {
       var agg = C.aggregateWindow(state.months, lastDay, 30, state.distribution);
-      n30 = Object.keys(agg.countries).reduce(function (t, iso) { return t + ((agg.countries[iso] && agg.countries[iso].M) || 0); }, 0);
+      n30 = Object.keys(agg.countries).reduce(function (t, iso) { return t + ((agg.countries[iso] && agg.countries[iso].U) || 0); }, 0);
     }
     var tail = n30 !== null ? " (" + intComma(n30) + " in the 30 complete days ending " + lastDay + ")" : "";
-    if (st === "withheld") return "A further " + intComma(n) + " placements" + tail + " were judged state origin by the model alone, with no credit line, stamp, disclosure, byline or copy match behind them. A hand check confirmed too few of them" + (mo.check && typeof mo.check.precision === "number" ? " (" + Math.round(mo.check.precision * 100) + "%)" : "") + ", so they are withheld and counted in no state origin figure.";
-    return "A further " + intComma(n) + " placements" + tail + " are state origin by the model\u2019s judgement alone, provisional: no credit line, stamp, disclosure, byline or copy match stands behind them, so they are counted in no state origin figure here until a hand check of them passes.";
+    return "A further " + intComma(n) + " placements" + tail + " are undetermined: the model called them state origin, but who wrote or commissioned them could not be settled, with no credit line, stamp, byline or copy match behind them, or a sponsored disclosure the rules did not find on the article. As in the original study, they are excluded from every count here, China coverage included.";
   }
 
   /* The ten countries with the most state origin placements in the 30 complete days ending lastCompleteDay,
@@ -1505,7 +1503,7 @@
       '<div class="lg-group">' +
         '<div class="lg-kicker">Color scale</div>' +
         '<div class="lg-head" title="' + esc(metricLabel()) + '">' + keyHeading().map(esc).join('<span class="lg-sep"> \u00b7 </span>') + '</div>' +
-        (modelOnlyRouteActive() ? '<div class="lg-prov">' + esc(C.modelOnlyStatus(state.meta) === "withheld" ? C.MODEL_ONLY_WITHHELD : C.MODEL_ONLY_PROVISIONAL) + '</div>' : '') +
+        (undeterminedRouteActive() ? '<div class="lg-prov">' + esc(C.UNDETERMINED_LAYER) + '</div>' : '') +
         ((m.relay || m.relayInside) && relay.provisional ? '<div class="lg-prov">Provisional: ' + (m.relayInside ? 'contains unchecked state sourcing, which is one model\u2019s judgement, not yet checked against hand coding' : 'one model\u2019s judgement, not yet checked against hand coding') + '</div>' : '') +
         '<div class="lg-unit">Each tier: ' + esc(lowerLabel(keyUnitText(state.metric))) + '</div>' +
         '<ul class="lg-steps">' +
@@ -1556,7 +1554,7 @@
       else {
         html += '<div>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(lowerLabel(routeLabel(state.route))) : '') + ': <strong>' + (p.cls === "withheld" ? esc(relayText(relayFor(e), 0)) : C.formatValue(mv.value, metricDef().format) + (mv.provisional ? " (provisional)" : "")) + '</strong></div>';
         if (mv.note && mv.value === null) html += '<div class="muted">' + esc(mv.note) + '</div>';
-        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + (agg.underlyingSummed ? ' (summed day by day)' : '') + '; unchecked state sourcing ' + esc(relayText(relayFor(e), mv.b)) + '; flagged for the model, not yet judged ' + mv.pending + '; independent ' + mv.c + (modelOnlyShown(mv.modelOnly) && mv.modelOnly ? '; ' + lowerLabel(modelOnlyLabel()) + ' ' + mv.modelOnly : '') + '; ' + esc(windowLabel()) + '</div>';
+        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + (agg.underlyingSummed ? ' (summed day by day)' : '') + '; unchecked state sourcing ' + esc(relayText(relayFor(e), mv.b)) + '; flagged for the model, not yet judged ' + mv.pending + '; independent ' + mv.c + (mv.undetermined ? '; undetermined, excluded from the counts, ' + mv.undetermined : '') + '; ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' unread: missing from every count, still counted in the monitored output denominator.</div>';
         if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; ' + esc(missedPhrase(k.miss, k.mpolls, k.polls)) + '.</div>';
@@ -1672,7 +1670,7 @@
     var c = o.counts || {}, m = state.measure;
     if (m === "a") return c.A || 0;
     if (m === "b") return c.B || 0;
-    return (c.A || 0) + (c.B || 0) + (c.C || 0) + (c.M || 0) + (c.pending || 0);
+    return (c.A || 0) + (c.B || 0) + (c.C || 0) + (c.pending || 0);
   }
   function leanModel() {
     var axis = state.leanAxis, key = (LEAN_AXIS[axis] || LEAN_AXIS.leaning).key;
@@ -1813,7 +1811,7 @@
   function measureIndex() { var i = C.MEASURE_INDEX[state.measure]; return i === undefined ? 2 : i; }
   function denominator(k, mi) {
     k = k || C.emptyCounts();
-    if (mi === 0) return k.A + k.B + k.C + (k.M || 0) + (k.pending || 0);
+    if (mi === 0) return k.A + k.B + k.C + (k.pending || 0);
     if (mi === 3) return k.B;
     return k.A;
   }
@@ -1823,7 +1821,7 @@
   function seriesTotal(d, mi, distribution) {
     var s = state.seriesByDate[d];
     if (!s) return null;
-    var pick = function (k) { k = k || {}; return mi === 0 ? (k.A || 0) + (k.B || 0) + (k.C || 0) + (k.M || 0) + (k.pending || 0) : mi === 3 ? (k.B || 0) : (k.A || 0); };
+    var pick = function (k) { k = k || {}; return mi === 0 ? (k.A || 0) + (k.B || 0) + (k.C || 0) + (k.pending || 0) : mi === 3 ? (k.B || 0) : (k.A || 0); };
     var all = pick(s), wld = pick(s.wld);
     return distribution === "wires" ? wld : distribution === "country" ? all - wld : all;
   }
@@ -2280,7 +2278,7 @@
         (top3.length ? '<div class="panel-shortcuts" id="panel-shortcuts"><span class="ps-label">Jump to the top ' + top3.length + ':</span>' +
           top3.map(function (r) { return '<button type="button" class="ps-btn" data-iso="' + esc(r.iso) + '">' + esc(r.name) + '</button>'; }).join("") + '</div>' : '') +
         (t ? '<h3>' + esc(totalsHead) + '</h3><table><tr><th>' + esc(clearerLabel("A", "State origin")) + '</th><td class="num">' + t.A + '</td></tr>' +
-          (modelOnlyShown(t.M) ? '<tr class="model-only-row"><th>' + esc(modelOnlyLabel()) + '</th><td class="num">' + (t.M || 0) + '</td></tr>' : '') +
+          '<tr class="undetermined-row"><th>' + esc(UNDETERMINED_ROW) + '</th><td class="num">' + (t.U || 0) + '</td></tr>' +
           '<tr><th>' + esc(clearerLabel("B", "Unchecked state sourcing")) + '</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</th><td class="num">' + t.pending + '</td></tr><tr><th>' + esc(clearerLabel("C", "Independent journalism")) + '</th><td class="num">' + t.C + '</td></tr><tr><th>' + esc(clearerLabel("N", "Not relevant")) + '</th><td class="num">' + t.N + '</td></tr><tr><th>' + esc(clearerLabel("paywalled", "Paywalled, unread and uncounted")) + '</th><td class="num">' + t.paywalled + '</td></tr>' +
           gateRows(t).map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + r[1] + '</td></tr>'; }).join("") +
           (relayAll.visible ? '<tr><th>Passed the relevance gate</th><td class="num"><strong>' + (t.rel || 0) + '</strong></td></tr>' : '') + '</table>' +
@@ -2323,7 +2321,7 @@
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
       '<tr><td>' + esc(clearerLabel("A", "State origin")) + '</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
       '<tr><td class="muted"' + (agg.underlyingSummed ? ' title="' + esc(C.UNDERLYING_SUMMED) + '"' : '') + '>Underlying items among them' + (agg.underlyingSummed ? ' (summed day by day)' : '') + '</td><td class="num">' + k.uniqA + '</td><td></td><td></td><td></td></tr>' +
-      (modelOnlyShown(k.M) ? '<tr class="model-only-row"><td>' + esc(modelOnlyLabel()) + '</td><td class="num">' + (k.M || 0) + '</td><td class="num"></td><td class="num">' + (k.M || 0) + '</td><td class="num"></td></tr>' : '') +
+      '<tr class="undetermined-row"><td>' + esc(UNDETERMINED_ROW) + '</td><td class="num">' + (k.U || 0) + '</td><td class="num"></td><td class="num">' + (k.U || 0) + '</td><td class="num"></td></tr>' +
       '<tr><td>' + esc(clearerLabel("B", "Unchecked state sourcing")) + relayNote + '</td>' + relayCells + '</tr>' +
       '<tr><td>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
       '<tr><td>' + esc(clearerLabel("C", "Independent journalism")) + '</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
@@ -2408,7 +2406,7 @@
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
         var srcs = (a.sources && a.sources.length) ? '<div class="a-meta">Chinese sources carried: ' + escText(a.sources.join(", ")) + '</div>' : '';
-        var catLabel = cat === "B" && relay.provisional ? "Unchecked state sourcing (provisional)" : cat === "B" && !relay.publishable ? "Sourcing judgement, " + (relay.measured ? "withheld" : "not settled") : cat === "M" ? modelOnlyLabel() : C.nameOf(cat);
+        var catLabel = cat === "B" && relay.provisional ? "Unchecked state sourcing (provisional)" : cat === "B" && !relay.publishable ? "Sourcing judgement, " + (relay.measured ? "withheld" : "not settled") : cat === "U" ? "Undetermined, not counted" : C.nameOf(cat);
         var route = cat === "A" && a.route ? '<div class="a-meta">Route: ' + esc(routeLabel({kind: "route", id: a.route})) + (a.arrival && a.arrival !== "editorial_feed" ? '; collected from ' + esc(lowerLabel(routeLabel({kind: "arrival", id: a.arrival}))) : '') + '</div>' : '';
         var href = safeUrl(a.url);
         var title = escText(a.title || a.url);
@@ -2531,7 +2529,7 @@
         } else C.distributionIsos(e.countries || {}, state.distribution).forEach(function (c) {
           var k = e.countries[c];
           k = k || {};
-          tot += state.measure === "a" ? (k.A || 0) : state.measure === "b" ? (relayFor(null).visible ? (k.B || 0) : 0) : (k.A || 0) + (k.B || 0) + (k.C || 0) + (k.M || 0) + (k.pending || 0);
+          tot += state.measure === "a" ? (k.A || 0) : state.measure === "b" ? (relayFor(null).visible ? (k.B || 0) : 0) : (k.A || 0) + (k.B || 0) + (k.C || 0) + (k.pending || 0);
         });
       }
       return {i: i, d: d, v: tot, ceiling: !!(e && e.llm_ceiling_hit), relayGap: !!(e && e.relay_incomplete), older: !!(e && (e.labels_on_older_ruleset || e.labels_on_older_prompt))};
@@ -2683,7 +2681,7 @@
       ["Hand coding", humanStudyShort() + "; publication needs kappa " + (m.kappa_warning_threshold || 0.7) + " or above on a fixed sample of about " + ((m.relay_human_study && m.relay_human_study.per_language) || 200) + " articles per language, stratified by language and by the model\u2019s category"],
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unchecked state sourcing versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return lowerLabel(r.label) + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
-      ["State origin by the model\u2019s judgement alone", modelOnlyMethodText(m)],
+      ["Undetermined, excluded from the counts", undeterminedMethodText(m)],
       ["Release sections searched", rs && rs.outlets_active ? (rs.outlets_active - (rs.not_searched || 0)) + " of " + rs.outlets_active + " active outlets; " + (rs.found || 0) + " found, " + (rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
       ["Feed polls with nothing seen before", fs && fs.polls ? fs.saturated + " of " + fs.polls + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) : "not yet measured"],
       ["Relay on the owner's machine", rc ? C.relayOutletsSummary(rc) + "; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
@@ -2699,15 +2697,15 @@
     el("footer-run").textContent = "Generated " + m.generated_at + ". Ruleset " + m.ruleset_version + ". Schema " + m.schema_version + ".";
   }
 
-  /* The methodology line for state origin by the model's judgement alone, from meta.model_only_state_origin. */
-  function modelOnlyMethodText(m) {
-    var mo = m && m.model_only_state_origin;
-    var n = mo && typeof mo === "object" ? mo.count : (typeof mo === "number" ? mo : (m.route_totals || {}).unattributed);
-    var st = C.modelOnlyStatus(m), chk = (mo && mo.check) || {}, rule = (mo && mo.rule) || {};
-    var counted = st === "passed" ? "confirmed by a hand check and counted in state origin" : st === "withheld" ? "withheld: a hand check confirmed too few, so they are counted in no figure" : "held out of every state origin figure, shown as their own row, provisional";
-    var check = chk.coded ? "; hand check " + chk.coded + " coded, " + (typeof chk.precision === "number" ? Math.round(chk.precision * 100) + "% confirmed" : "no precision yet") : "; no hand check coded yet";
-    return intComma(n || 0) + " placements with no credit line, stamp, disclosure, byline or copy match behind them, " + counted + check +
-      ". They rejoin state origin when at least " + Math.round((rule.pass_precision || 0.9) * 100) + "% of at least " + (rule.min_coded || 100) + " coded labels are confirmed, and are withheld below " + Math.round((rule.withhold_below || 0.8) * 100) + "%. The model never sees outlet, country or address, so these calls carry no marker a reader can check.";
+  /* The methodology line for undetermined items, from meta.undetermined. */
+  function undeterminedMethodText(m) {
+    var ud = m && m.undetermined;
+    var n = ud && typeof ud === "object" ? ud.count : (m.route_totals || {}).unattributed;
+    var br = (ud && ud.by_route) || {}, chk = (ud && ud.check) || {};
+    var split = typeof br.unattributed === "number" ? " (" + intComma(br.unattributed) + " with no checkable marker, " + intComma(br.sponsored_disclosure || 0) + " sponsored disclosures only the model found" + (br.uncredited_copy ? ", " + intComma(br.uncredited_copy) + " uncredited copies of an item that is not settled state origin" : "") + ")" : "";
+    var check = chk.coded ? "; hand check, for information: " + intComma(chk.coded) + " coded, " + intComma(chk.confirmed || 0) + " settled as state origin" + (typeof chk.confirmed_share === "number" ? " (" + Math.round(chk.confirmed_share * 100) + "%)" : "") + ", " + intComma(chk.undetermined || 0) + " undetermined for the coders too" : "; no hand check coded yet";
+    return intComma(n || 0) + " placements" + split + " the model called state origin whose authorship or commissioning the evidence does not settle. As in the original study, they are excluded from every count and denominator, China coverage included, and never rejoin state origin" + check +
+      ". The model never sees outlet, country or address, so these calls carry no marker a reader can check.";
   }
 
   /* The operational detail a reader does not need to interpret today's map, moved out of the notes
@@ -2747,7 +2745,7 @@
       r.citation = cite;
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "distribution", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "model_only_state_origin", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "relay_basis", "official_sourcing_pending", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "china_in_published_items", "language_support", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "distribution", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "relay_basis", "official_sourcing_pending", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "china_in_published_items", "language_support", "warnings", "citation"]));
   }
   function exportDaily() {
     /* The daily table is every day, so it waits for the months not loaded yet. */
@@ -2764,7 +2762,7 @@
         var relay = relayFor((state.latest.countries || {})[iso]);
         var blank = function (v) { return relay.visible ? v : ""; };
         var row = {date: d, iso: iso, name: state.names[iso] || iso, distribution: state.distribution, state_origin: c.A, state_origin_underlying_items: c.uniqA, unverified_relay: blank(c.B), unverified_relay_underlying_items: blank(Math.max(0, (c.uniqAB || 0) - (c.uniqA || 0))), relay_status: C.relayStatus(relay), independent: c.C, not_relevant: c.N,
-                   model_only_state_origin: c.M || 0, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: blank(c.Br), unverified_relay_model: blank(c.Bl),
+                   undetermined: c.U || 0, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: blank(c.Br), unverified_relay_model: blank(c.Bl),
                    reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: blank(r.B || 0), human_independent: r.C || 0, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
                    paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending,
                    items_published_monitored_outlets: c.tdisc, china_in_published_items: c.tchina,
@@ -2777,7 +2775,7 @@
         rows.push(row);
       });
     });
-    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "distribution", "state_origin", "state_origin_underlying_items", "model_only_state_origin", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "items_published_monitored_outlets", "china_in_published_items", "feed_polls", "feed_polls_saturated", "items_missed_estimate", "feed_polls_estimated", "model_draw_eligible", "model_draw_sent"].concat(routeCols).concat(["llm_ceiling_hit", "relay_collector_incomplete", "labels_on_older_ruleset", "citation"])));
+    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "distribution", "state_origin", "state_origin_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "items_published_monitored_outlets", "china_in_published_items", "feed_polls", "feed_polls_saturated", "items_missed_estimate", "feed_polls_estimated", "model_draw_eligible", "model_draw_sent"].concat(routeCols).concat(["llm_ceiling_hit", "relay_collector_incomplete", "labels_on_older_ruleset", "citation"])));
   }
 
   /* -------------------------------------------------------------- controls */

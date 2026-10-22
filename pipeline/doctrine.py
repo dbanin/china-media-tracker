@@ -307,22 +307,21 @@ def build_export(conn: sqlite3.Connection, ctx: Dict) -> Dict:
     days: Dict[str, Dict[str, Dict[str, List[int]]]] = defaultdict(lambda: defaultdict(dict))
     totals: Dict[str, Dict[str, List[int]]] = defaultdict(dict)
     slot = {"A": 1, "B": 2, "C": 3}
+    from pipeline import model_only, placements
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.discovered_at, a.day_of_record, a.status, a.doctrine,
-                  c.category AS m_cat, c.route, c.method
+                  c.category AS m_cat, %s AS route, c.method
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
-           WHERE a.gate_relevant=1""")
-    from pipeline import model_only, placements
+           WHERE a.gate_relevant=1""" % model_only.route_sql("c"))
     shadow = placements.shadowed(conn)   # copies counted through another row, as in the daily files
-    held = model_only.held_apart()
     for r in rows:
         if r["id"] in shadow:
             continue
         pending = r["status"] in PENDING
-        # State origin by the model's judgement alone (M) is China coverage and in no state origin slot while
-        # it is held apart (pipeline/model_only.py), as in the daily files.
-        cat = model_only.headline_category(r["m_cat"], r["route"], held, r["method"])
-        if not (pending or cat in slot or cat == model_only.CODE):
+        # An undetermined label (U, pipeline/model_only.py) is in no slot and not China coverage, as in the
+        # daily files: it is in neither numerator nor denominator of any doctrine rate.
+        cat = model_only.headline_category(r["m_cat"], r["route"], r["method"])
+        if not (pending or cat in slot):
             continue   # only China coverage counts, as for the theme counts
         st = parse(r["doctrine"])
         if st is None or str(st.get("v")) != v:

@@ -9,7 +9,7 @@ import pytest
 
 from pipeline import config, export, store
 
-COUNTS_KEYS = ["A", "B", "C", "N", "M", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
+COUNTS_KEYS = ["A", "B", "C", "N", "U", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
                "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina", "ta", "tb"]
 COUNTS_SCHEMA = {"type": "object", "required": COUNTS_KEYS, "properties": {k: {"type": "integer"} for k in COUNTS_KEYS}}
 DERIVED_SCHEMA = {"type": "object", "required": COUNTS_KEYS + ["china_total", "share_ab", "share_a", "per_outlet_ab", "paywall_share", "reviewed_share", "share_of_all_target", "share_of_all_china"]}
@@ -51,7 +51,7 @@ META_SCHEMA = {
                  "countries_monitored", "countries_in_gaps", "gaps", "articles_classified", "articles_reviewed",
                  "review_coverage", "paywall_share", "paywall_flagged_countries", "kappa", "b_counts_settled",
                  "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study", "findings", "planted", "measures",
-                 "model_only_state_origin"],
+                 "undetermined"],
     "properties": {"b_counts_settled": {"type": "boolean"}, "relay_provisional": {"type": "boolean"},
                    "planted": {"type": "object", "required": ["flags_total", "flags_30d", "list_version", "personas", "fronts", "operations"]},
                    "relay_study": {"type": "object", "required": ["auto", "state", "sample"]}, "review_coverage": {"type": "number"},
@@ -67,7 +67,7 @@ OUTLETS_SCHEMA = {
                                                           "properties": {"counts": COUNTS_SCHEMA, "feeds": {"type": "array", "items": {"type": "object", "required": ["url", "ok"]}}}}}},
 }
 ARTICLES_SCHEMA = {"type": "array", "items": {"type": "object", "required": ["id", "outlet_id", "title", "url", "date", "category", "provenance", "sources"],
-                                              "properties": {"category": {"enum": ["A", "B", "C", "M", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
+                                              "properties": {"category": {"enum": ["A", "B", "C", "U", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
 EXAMPLE_ITEM_SCHEMA = {"type": "object", "required": ["id", "headline", "outlet_id", "outlet_name", "country", "url", "date", "tell"],
                        "properties": {"tell": {"type": "object", "required": ["snippet", "start", "end"]}}}
 EXAMPLES_SCHEMA = {"type": "object", "required": ["generated_at", "A"],

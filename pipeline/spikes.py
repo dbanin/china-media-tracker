@@ -325,7 +325,7 @@ def load_rows(conn, outlets: List[Dict]) -> Dict[Tuple[str, str], List[Dict]]:
                       a.dup_group_id, c.route, c.method
                FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
                WHERE a.gate_relevant=1 AND c.category='A'%s ORDER BY a.id""" % model_only.evidence_sql()):
-        # State origin by the model's judgement alone is held apart (pipeline/model_only.py), as in the daily files.
+        # Undetermined labels (pipeline/model_only.py) are in no count, as in the daily files.
         if r["id"] in shadow:
             continue
         country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]

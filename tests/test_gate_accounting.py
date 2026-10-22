@@ -71,8 +71,8 @@ def test_the_site_rows_add_up_to_the_gate_total_of_the_daily_files(tmp_path, mon
     t = latest["totals"]["all_time"]
     waiting = t["fetched"] - t["cls"] - t["pending"]
     unfetched = t["rel"] - t["fetched"] - t["paywalled"] - t["failed"] - t["blocked"]
-    # M, model judgement held apart from state origin (pipeline/model_only.py), is a labelled row too.
-    assert t["A"] + t["B"] + t["C"] + t["N"] + t.get("M", 0) == t["cls"]
+    # U, undetermined and excluded from every count (pipeline/model_only.py), is a labelled row too.
+    assert t["A"] + t["B"] + t["C"] + t["N"] + t.get("U", 0) == t["cls"]
     assert waiting == 3 and unfetched == 2                        # the queued row and the junk feed row
     assert (t["cls"] + t["pending"] + waiting + t["paywalled"] + t["failed"] + t["blocked"] + unfetched == t["rel"]
             == meta["gate_accounting"]["total"] - meta["gate_accounting"]["copies_counted_once"])
