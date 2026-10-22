@@ -1,4 +1,11 @@
 #!/bin/bash
+# RETIRED on 2026-10-22. The relay collected outlets that refuse the crawler from GitHub's runner
+# addresses by fetching them from the owner's home connection instead, which works around the sites'
+# access control. It was dropped: its outlets (collector: self_hosted) are inactive in
+# sources/outlets.yaml, the pipeline no longer ingests or acknowledges relay bundles, and the
+# RELAY_BUNDLE_KEY secret is never to be added. The launchd job that ran this script is to be unloaded;
+# the script is kept, unchanged below, for the record of how the historic relay data were collected.
+#
 # Hourly relay for the outlets that refuse GitHub's runner addresses. Runs on the owner's machine
 # from launchd. It runs from its own git worktree pinned to origin/main, so uncommitted edits in
 # the main checkout can never change what the relay publishes (on 2026-09-14 an uncommitted

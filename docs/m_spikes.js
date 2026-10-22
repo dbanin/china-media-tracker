@@ -29,7 +29,7 @@
     new_outlet: "a newly added outlet",
     backfill: "a backfill read",
     outage_recovery: "a collector catching up after a gap",
-    relay_incomplete: "an incomplete day for the collector on the owner's machine",
+    relay_incomplete: "an incomplete day for the relay on the owner's machine, stopped on 22 October 2026",
     ruleset_change: "relabelling after a ruleset change is not finished",
     gate_change: "a relevance gate change",
     saturation: "saturated feeds on the days before",

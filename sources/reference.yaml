@@ -8,7 +8,8 @@
 # helpers (task T1a: scratchpad measures/reference_feeds.md and reference_feeds.yaml). Every URL is allowed
 # by robots.txt (Xinhua and China Daily have none: 404, allow all); no paywall, bot challenge, 403 or 429
 # was seen. Runner access is untested, so every source starts on the runner (collector: hosted); a source
-# moves to the relay only after 3 days of refusals (python -m pipeline.reference validate reports them).
+# that refuses the runner is reported by python -m pipeline.reference validate; the relay that once took such
+# sources was retired on 2026-10-22, so it is checked by hand or made inactive.
 #
 # time_rule says how a listing's entry times are read. Stored times are UTC ISO with a time of day, or a
 # bare YYYY-MM-DD when only the date is known (lookalike.published_ts and tie_rank read that as day

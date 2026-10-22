@@ -309,17 +309,20 @@ def build_export(conn: sqlite3.Connection, ctx: Dict) -> Dict:
     slot = {"A": 1, "B": 2, "C": 3}
     rows = conn.execute(
         """SELECT a.id, a.country, a.outlet_id, a.discovered_at, a.day_of_record, a.status, a.doctrine,
-                  c.category AS m_cat
+                  c.category AS m_cat, c.route, c.method
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1""")
-    from pipeline import placements
+    from pipeline import model_only, placements
     shadow = placements.shadowed(conn)   # copies counted through another row, as in the daily files
+    held = model_only.held_apart()
     for r in rows:
         if r["id"] in shadow:
             continue
         pending = r["status"] in PENDING
-        cat = r["m_cat"]
-        if not (pending or cat in slot):
+        # State origin by the model's judgement alone (M) is China coverage and in no state origin slot while
+        # it is held apart (pipeline/model_only.py), as in the daily files.
+        cat = model_only.headline_category(r["m_cat"], r["route"], held, r["method"])
+        if not (pending or cat in slot or cat == model_only.CODE):
             continue   # only China coverage counts, as for the theme counts
         st = parse(r["doctrine"])
         if st is None or str(st.get("v")) != v:

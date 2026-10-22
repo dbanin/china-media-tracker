@@ -310,7 +310,7 @@ def load_pairs(conn, ctx: Optional[Dict] = None) -> List[Dict]:
         """SELECT s.copy_id, s.original_kind, s.ref_id, s.original_article_id, s.original_source,
                   s.copy_published_at, s.original_published_at, s.copy_ts_res, s.orig_ts_res,
                   a.outlet_id, a.country, a.published_at AS a_pub, a.discovered_at AS a_disc, a.day_of_record AS a_dor,
-                  c.route,
+                  c.route, c.category AS c_category, c.method AS c_method,
                   o.published_at AS o_pub, o.discovered_at AS o_disc, o.day_of_record AS o_dor
            FROM state_copies s
            JOIN articles a ON a.id = s.copy_id
@@ -326,7 +326,13 @@ def load_pairs(conn, ctx: Optional[Dict] = None) -> List[Dict]:
                                   % ",".join("?" * len(chunk)), chunk):
                 refs[r["id"]] = r
     out = []
+    from pipeline import model_only
+    held = model_only.held_apart()
     for r in rows:
+        # A copy whose state origin label rests on the model's judgement alone is held apart from state
+        # origin (pipeline/model_only.py) until its hand check passes.
+        if held and model_only.is_model_only(r["c_category"], r["route"], r["c_method"]):
+            continue
         kind = KINDS[r["original_kind"]]
         copy = {"published_at": _pick(r["copy_published_at"], r["a_pub"]), "discovered_at": r["a_disc"],
                 "day_of_record": r["a_dor"], "res": r["copy_ts_res"], "raw": r["a_pub"]}

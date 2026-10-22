@@ -63,6 +63,7 @@ def test_reactivated_and_moved_outlets_carry_the_day_they_came_onto_their_collec
     by_id = {o["id"]: o for o in registry.load_outlets()}
     for oid in ("th_thairath", "it_agi", "np_ratopati", "mw_times", "ro_stiripesurse", "om_alroya", "ke_nation"):
         o = by_id[oid]
-        assert o["active"] and o["collector"] == "self_hosted" and o["collector_since"] >= "2026-10-17", oid
-        assert "inactive_reason" not in o and "inactive_since" not in o, oid
+        # Moved to the relay on 2026-10-17, then made inactive when the relay was retired on 2026-10-22.
+        assert o["collector"] == "self_hosted" and o["collector_since"] >= "2026-10-17", oid
+        assert o["active"] is False and o["inactive_since"] == "2026-10-22" and "relay retired" in o["inactive_reason"], oid
     assert by_id["ca_torontostar"]["active"] is False and "robots.txt" in by_id["ca_torontostar"]["inactive_reason"]

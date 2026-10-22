@@ -129,10 +129,10 @@ publishes anything. Nothing is recorded from a superseded sample, or while a `co
 anything but a pseudonymous id.
 
 The next export reads the newest `agreement_studies` row. Unchecked state sourcing is published
-when kappa on unchecked state sourcing versus independent journalism is at least 0.6
+when kappa on unchecked state sourcing versus independent journalism is at least 0.7
 (`config.KAPPA_WARNING_THRESHOLD`), with the coders and the model each placing at least 10
 articles in unchecked state sourcing. A language with at least 20 articles in that comparison and
-a kappa below 0.6 is withheld on its own. Below 0.6 overall, the counts are withheld everywhere.
+a kappa below 0.7 is withheld on its own. Below 0.7 overall, the counts are withheld everywhere.
 
 A kappa needs the coders and the model each to place at least 10 articles in unchecked state
 sourcing. When the model placed at least 10 there and the coders fewer than 10, the study has

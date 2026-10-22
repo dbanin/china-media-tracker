@@ -6,7 +6,8 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  var EMPTY = {A: 0, B: 0, C: 0, N: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
+  /* M: state origin by the model's judgement alone, held apart from A until its hand check passes (export.py). */
+  var EMPTY = {A: 0, B: 0, C: 0, N: 0, M: 0, Ar: 0, Al: 0, Ah: 0, Br: 0, Bl: 0, Bh: 0, rev: 0, cls: 0, disc: 0, rel: 0,
                fetched: 0, paywalled: 0, failed: 0, blocked: 0, pending: 0, uniqA: 0, uniqAB: 0,
                tdisc: 0, ttarget: 0, tchina: 0, ta: 0, tb: 0, polls: 0, sat: 0, miss: 0, mpolls: 0};
 
@@ -171,7 +172,16 @@
   var RELAY_PROVISIONAL = "Provisional: unchecked state sourcing is one model's judgement and has not been checked against hand coding yet.";
   /* Said wherever underlying items are shown from data that predates the per day item ids (schema 12). */
   var UNDERLYING_SUMMED = "Underlying items here are summed day by day, because this data predates the item ids that count each item once per window, so an item placed on several days counts once for each.";
-  var RELAY_WITHHELD = "Unchecked state sourcing counts are withheld until hand coding of a fixed sample puts agreement with the model on unchecked sourcing versus independent journalism at kappa 0.6 or above.";
+  /* State origin by the model's judgement alone (meta.model_only_state_origin): the route filter's model
+     judgement option draws it as a layer of its own, marked provisional, or withheld after a failed check. */
+  var MODEL_ONLY_PROVISIONAL = "Provisional: state origin by the model's judgement alone, with no credit line, stamp, disclosure, byline or copy match behind it. These placements are not counted in state origin until a hand check of them passes.";
+  var MODEL_ONLY_WITHHELD = "Withheld: a hand check of state origin by the model's judgement alone confirmed too few of these labels, so they are not shown.";
+  function modelOnlyStatus(meta) {
+    var mo = meta && meta.model_only_state_origin;
+    if (mo && typeof mo === "object" && (mo.status === "passed" || mo.status === "withheld")) return mo.status;
+    return "provisional";
+  }
+  var RELAY_WITHHELD = "Unchecked state sourcing counts are withheld until hand coding of a fixed sample puts agreement with the model on unchecked sourcing versus independent journalism at kappa 0.7 or above.";
 
   /* Returns {value, chinaTotal, ab, a, b, pending, sparse, withheld, note} for one country under a metric and mode.
      ctx carries what the counts do not:
@@ -184,13 +194,13 @@
                      feeds standing for a country, does not apply */
   function metricValue(counts, metric, outletsActive, mode, reviewedCounts, ctx) {
     ctx = ctx || {};
-    var a, b, c, p;
+    var a, b, c, p, m = 0;
     var k = counts || emptyCounts();
     if (mode === "reviewed") {
       var r = reviewedCounts || {A: 0, B: 0, C: 0, N: 0};
       a = r.A; b = r.B; c = r.C; p = 0;
     } else {
-      a = k.A; b = k.B; c = k.C; p = k.pending || 0;
+      a = k.A; b = k.B; c = k.C; p = k.pending || 0; m = k.M || 0;
     }
     var def = METRICS[metric] || {};
     var byRoute = ctx.routeCount !== undefined && ctx.routeCount !== null;
@@ -199,13 +209,20 @@
     var relay = ctx.relay || {measured: true, publishable: true};
     /* Articles carrying official Chinese sourcing whose verification judgement is pending count as China
        coverage and in no other measure. Once judged they become unchecked state sourcing or independent journalism. */
-    var china = a + b + c + p;
+    /* State origin by the model's judgement alone (M) is China coverage in no other measure while it is held apart. */
+    var china = a + b + c + p + m;
     var value = null, sparse = false, note = null, withheld = false;
+    /* ctx.routeModelOnly: the route filter shows the model judgement layer, with its status (modelOnlyStatus). */
+    var modelOnlyLayer = byRoute && def.measure === "a" && (ctx.routeModelOnly === "provisional" || ctx.routeModelOnly === "withheld");
     var num = def.measure === "a" ? aSel : def.measure === "b" ? b : def.measure === "china" ? china : null;
     var provisional = !!((def.relay || def.relayInside) && relay.provisional && !relay.publishable);
+    if (modelOnlyLayer && ctx.routeModelOnly === "provisional") provisional = true;
     if (def.relay && !(relay.publishable || relay.provisional)) {
       withheld = true;
       note = relay.measured ? RELAY_WITHHELD : RELAY_NOT_MEASURED;
+    } else if (modelOnlyLayer && ctx.routeModelOnly === "withheld") {
+      withheld = true;
+      note = MODEL_ONLY_WITHHELD;
     } else if (byRoute && def.measure !== "a") {
       sparse = true;
       note = "The route filter applies to state origin only.";
@@ -231,9 +248,9 @@
       }
     }
     if (sparse && !note) note = "Fewer than " + MIN_SHARE_DENOMINATOR + " China items in this window, so a share is not shown. Switch to a count metric to see them.";
-    if (provisional && !note) note = RELAY_PROVISIONAL;
+    if (provisional && !note) note = modelOnlyLayer ? MODEL_ONLY_PROVISIONAL : RELAY_PROVISIONAL;
     /* Underlying items are counted per label, so unchecked sourcing alone is the combined figure less state origin. */
-    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
+    return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, modelOnly: m, modelOnlyLayer: modelOnlyLayer, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
             underlyingB: Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
             allItems: allItems, allItemsA: k.ta || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0};
   }
@@ -549,6 +566,7 @@
       var note = mv.note || (byRoute ? "Only state_origin is filtered by the route. The counts that are not split by route are left blank." : "");
       if (agg.underlyingSummed && !byRoute && (mv.underlying || mv.underlyingB)) note = (note ? note + " " : "") + UNDERLYING_SUMMED;
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: part(mv.a), state_origin_underlying_items: whole(part(mv.underlying)),
+                 model_only_state_origin: whole(mv.modelOnly),
                  unverified_relay: whole(hasB(mv.b)), unverified_relay_underlying_items: whole(hasB(mv.underlyingB)), relay_status: status, official_sourcing_pending: whole(part(mv.pending)), independent: whole(mv.c),
                  china_total: whole(hasB(mv.chinaTotal)), outlets_active: entry.outlets_active, population: entry.population || "",
                  items_published_monitored_outlets: whole(mv.allItems), china_in_published_items: whole(hasB(mv.allItemsChina)),
@@ -621,7 +639,7 @@
       if (distribution === "wires") return w;
       return total;
     };
-    var stateOrigin = part("state_origin"), unchecked = part("unchecked"), independent = part("independent"), china = part("china_total");
+    var stateOrigin = part("state_origin"), unchecked = part("unchecked"), independent = part("independent"), china = part("china_total"), modelOnly = part("model_only");
     var share = stateOrigin === null || !china ? null : stateOrigin / china;
     var world30 = last30.state_origin, wires30 = typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : 0;
     var topShare = null;
@@ -629,7 +647,7 @@
       if (distribution === "country" && typeof world30 === "number") topShare = world30 - wires30 > 0 ? top.state_origin / (world30 - wires30) : null;
       else topShare = top.share_of_world === undefined ? null : top.share_of_world;
     }
-    return {state_origin: stateOrigin, unchecked: unchecked, independent: independent, china_total: china,
+    return {state_origin: stateOrigin, unchecked: unchecked, independent: independent, china_total: china, model_only: modelOnly,
             state_share_of_china: share, top_share_of_world: topShare,
             wires_last_30d: typeof last30.state_origin_wires === "number" ? last30.state_origin_wires : null,
             wires_all_time: typeof at.state_origin_wires === "number" ? at.state_origin_wires : null};
@@ -648,17 +666,19 @@
   function allTimeInWindow(agg, at) {
     at = at || {};
     if (!agg || !agg.countries) return at;
-    var sum = {A: 0, B: 0, C: 0, pending: 0}, w = agg.countries[WORLDWIDE_ISO] || {};
+    var sum = {A: 0, B: 0, C: 0, M: 0, pending: 0}, w = agg.countries[WORLDWIDE_ISO] || {};
     Object.keys(agg.countries).forEach(function (iso) {
       var k = agg.countries[iso] || {};
-      sum.A += k.A || 0; sum.B += k.B || 0; sum.C += k.C || 0; sum.pending += k.pending || 0;
+      sum.A += k.A || 0; sum.B += k.B || 0; sum.C += k.C || 0; sum.M += k.M || 0; sum.pending += k.pending || 0;
     });
     var withheld = at.unchecked === null;
-    var china = sum.A + sum.B + sum.C;
+    /* The model-only placements (M) are China-related articles, held out of state origin only. */
+    var china = sum.A + sum.B + sum.C + sum.M;
     return {state_origin: sum.A, unchecked: withheld ? null : sum.B, independent: sum.C, china_total: china,
             state_share_of_china: china ? sum.A / china : null,
             state_origin_wires: w.A || 0, unchecked_wires: withheld ? null : (w.B || 0), independent_wires: w.C || 0,
-            china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0), pending: sum.pending, pending_wires: w.pending || 0};
+            china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0) + (w.M || 0), pending: sum.pending, pending_wires: w.pending || 0,
+            model_only: sum.M, model_only_wires: w.M || 0};
   }
 
   /* State-origin articles over a window under the Distribution toggle: the sum of A over the countries
@@ -706,7 +726,7 @@
     var total = stateOriginInWindow(agg, null, distribution);
     var same = !!(top && top.iso === best.iso);
     var uniq = agg.countries[best.iso].uniqA;
-    return {iso: best.iso, state_origin: best.n, share_of_world: total ? best.n / total : null,
+    return {iso: best.iso, state_origin: best.n, share_of_world: total ? best.n / total : null, world_total: total,
             underlying: typeof uniq === "number" ? uniq : null, underlying_summed: !!agg.underlyingSummed,
             top_outlet: same ? top.top_outlet || null : null, top_route: same ? top.top_route || null : null,
             top_route_detail: same ? top.top_route_detail || null : null};
@@ -754,7 +774,7 @@
   /* Display names for the internal codes. The codes stay in the data files; readers never see them. */
 
   var NAMES = {A: "State origin", B: "Unchecked state sourcing", C: "Independent journalism", N: "Not relevant", not_relevant: "Not relevant",
-               pending: "Official Chinese sourcing, verification pending"};
+               pending: "Official Chinese sourcing, verification pending", M: "State origin by the model's judgement alone (provisional)"};
   function nameOf(code) { return NAMES[code] || code; }
 
   function citation(accessDate, author) {
@@ -886,10 +906,15 @@
     var items = tc && typeof tc.underlying === "number" ? " (" + findingsPlural(tc.underlying, "underlying item") + (tc.underlying_summed ? ", summed day by day" : "") + ")" : "";
     var vals = {
       state_share_of_china: findingsPct1(f.state_share_of_china),
+      /* The share's numerator and denominator, so the sentence states what it divides. */
+      state_origin_count: typeof f.state_origin === "number" ? findingsInt(f.state_origin) : "n/a",
+      china_total_count: typeof f.china_total === "number" ? findingsInt(f.china_total) : "n/a",
       since: findings.since || "the start of data collection",
       top_country: tc ? ((names && names[tc.iso]) || tc.iso) : "no country yet",
       top_country_count: tc && tc.state_origin !== undefined ? Number(tc.state_origin).toLocaleString("en-US") : "n/a",
       top_country_share: tc && tc.share_of_world !== undefined && tc.share_of_world !== null ? Math.round(tc.share_of_world * 100) + "%" : "n/a",
+      /* What the top country's share is of: the window's state origin, wires included, when it is known. */
+      top_country_world: tc && typeof tc.world_total === "number" && tc.world_total > 0 ? "the world's " + findingsPlural(tc.world_total, "placement") + " in those days" : "the world's total",
       top_country_items: tc ? items : null,
       top_carrier: tc && tc.top_outlet ? tc.top_outlet.name : "no single outlet",
       top_carrier_clause: tc ? findingsCarrierClause(tc.top_outlet, typeof tc.state_origin === "number" ? tc.state_origin : undefined) : null,
@@ -956,6 +981,42 @@
   function contentRouteName(routes, id) {
     var r = routes && routes[id];
     return (r && r.plain_name) || id;
+  }
+  /* The preliminary figures banner under the title (content.preliminary_banner). Its sentences are
+     chosen from meta, so the banner never says a figure is unchecked once its hand check has passed,
+     nor provisional once it is withheld. Unchecked state sourcing reads meta.relay_human_study (passed,
+     or a failed state, or the export's own provisional and publishable flags). State origin judged by
+     the model alone reads meta.model_only_state_origin.status when the export gives it as an object;
+     a bare count, or no key at all, is read as provisional. Returns null without the content block. */
+  function hasStudyStatus(s, list) { return list.indexOf(String(s || "").toLowerCase()) !== -1; }
+  function preliminaryStatuses(meta) {
+    var m = meta || {}, hs = m.relay_human_study || {}, relay = "provisional", modelOnly = "provisional";
+    if (hs.passed === true || hs.state === "passed") relay = "passed";
+    else if (hs.state === "failed" || (m.relay_measured === true && m.relay_publishable === false && m.relay_provisional === false)) relay = "withheld";
+    var mo = m.model_only_state_origin;
+    if (mo && typeof mo === "object") {
+      if (mo.passed === true || hasStudyStatus(mo.status, ["passed", "published", "checked"])) modelOnly = "passed";
+      else if (hasStudyStatus(mo.status, ["failed", "withheld"])) modelOnly = "withheld";
+    }
+    return {relay: relay, modelOnly: modelOnly};
+  }
+  function preliminaryBanner(banner, meta) {
+    if (!banner || !banner.lead || !banner.evidence) return null;
+    var st = preliminaryStatuses(meta), out = [];
+    function pairKey(a, b) { return a && b ? "both" : a ? "model_only" : b ? "relay" : null; }
+    var apart = banner.apart || {}, withheld = banner.withheld || {}, checked = banner.checked || {};
+    var anyProvisional = st.modelOnly === "provisional" || st.relay === "provisional";
+    out.push(anyProvisional || !banner.lead_settled ? banner.lead : banner.lead_settled);
+    out.push(st.modelOnly === "passed" && banner.evidence_model_only_checked ? banner.evidence_model_only_checked : banner.evidence);
+    var a = pairKey(st.modelOnly === "provisional", st.relay === "provisional");
+    if (a && apart[a]) out.push(apart[a]);
+    if (st.modelOnly === "withheld" && withheld.model_only) out.push(withheld.model_only);
+    if (st.relay === "withheld" && withheld.relay) out.push(withheld.relay);
+    var c = pairKey(st.modelOnly === "passed", st.relay === "passed");
+    if (!c) c = (st.modelOnly === "withheld" || st.relay === "withheld") && checked.none_published ? "none_published" : "none";
+    if (checked[c]) out.push(checked[c]);
+    return {heading: banner.heading || "", headingEm: banner.heading_em || "", sentences: out, text: out.join(" "),
+            linkText: banner.link_text || "", linkHref: banner.link_href || "#method", status: st};
   }
   /* Routes the interface names even when the exported meta.routes predates them: uncredited_copy, a
      model state origin label on an article the lookalike check sent (a near repeat of a credited
@@ -1104,7 +1165,13 @@
   /* The owner's machine collects some outlets alone (collector self_hosted, "relayed") and polls others
      beside the hosted runner, which still polls them and fetches their pages (collector both). A silent
      relay leaves only the first kind uncollected, so the two are never counted or badged as one. */
-  function collectorBadge(collector) {
+  /* retiredOn (meta.relay_collector.retired_on): the relay was stopped that day, so a self_hosted outlet is
+     badged as stopped and a collector: both outlet, polled by the hosted runner alone since, carries no badge. */
+  function collectorBadge(collector, retiredOn) {
+    if (retiredOn) {
+      if (collector === "self_hosted") return {label: "relay stopped", title: "Refuses the crawler from its server addresses. It was collected from the owner's network until that collection stopped on " + retiredOn + ", and is inactive since"};
+      return null;
+    }
     if (collector === "self_hosted") return {label: "relayed", title: "Collected only from the owner's machine, because the hosted runner cannot reach it"};
     if (collector === "both") return {label: "also relayed", title: "Also polled from the owner's machine; the hosted runner polls it too and fetches its pages"};
     return null;
@@ -1112,13 +1179,16 @@
   function nOf(k, one, many) { return k + " " + (k === 1 ? one : many); }
   function relayOutletsSummary(rc) {
     rc = rc || {};
+    if (rc.retired_on) return "stopped on " + rc.retired_on + "; " + nOf(rc.dropped_outlets || 0, "outlet", "outlets") + " it alone collected inactive since, in " +
+      nOf(Object.keys(rc.dropped_by_country || {}).length, "country", "countries");
     return nOf(rc.outlets || 0, "outlet", "outlets") + " collected only there, " + (rc.shared_outlets || 0) + " also polled by the hosted runner";
   }
   /* The relay heartbeat as a short clause list and full sentences for the status block. Empty when the
      owner's machine has no outlets of either kind. */
-  function relayCollectorNotes(rc) {
+  function relayCollectorNotes(rc, nameOf) {
     var out = {short: [], parts: []};
     if (!rc) return out;
+    if (rc.retired_on) return retiredRelayNotes(rc, nameOf || function (c) { return c; });
     var only = rc.outlets || 0, shared = rc.shared_outlets || 0;
     if (!only && !shared) return out;
     var hours = Math.round(rc.hours_since_last_run || 0);
@@ -1139,6 +1209,26 @@
     if (gaps) out.parts.push("It ran in too few hours on " + nOf(gaps, "day", "days") + ", marked in red along the timeline" +
       (only ? "; counts for the outlets only it collects are incomplete on those days" : "") +
       (shared ? (only ? ", while" : ";") + " the hosted runner still polled the outlets it shares" : "") + ".");
+    return out;
+  }
+
+  /* The relay was stopped on rc.retired_on: what it left inactive, said once, and the red days before then,
+     which still explain the historic counts. Matches the Known limits paragraph of pipeline/methodology.py. */
+  function retiredRelayNotes(rc, nameOf) {
+    var out = {short: [], parts: []};
+    var dropped = rc.dropped_outlets || 0, day = rc.retired_on;
+    var lost = (rc.countries_all_inactive || []).map(nameOf), part = (rc.countries_partial || []).length;
+    var list = function (xs) { return xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]; };
+    if (dropped) {
+      out.short.push(nOf(dropped, "outlet", "outlets") + " that refuse the crawler inactive since " + day);
+      out.parts.push("Until " + day + " a relay on the owner's machine collected the outlets that refuse the crawler from its server addresses. " +
+        "Collecting from another network works around a site's choice to refuse the crawler, so it was stopped that day, and its " +
+        nOf(dropped, "outlet", "outlets") + " are inactive since" +
+        (lost.length ? ": every monitored outlet in " + list(lost) + ", which " + (lost.length === 1 ? "is" : "are") + " no longer monitored" + (part ? ", and some outlets in " + nOf(part, "country", "countries") + " more" : "") : (part ? ", in " + nOf(part, "country", "countries") : "")) +
+        ". Counts from that day leave them out; what they published before stays in every figure.");
+    }
+    var gaps = (rc.incomplete_days || []).length;
+    if (gaps) out.parts.push("Before then the relay ran in too few hours on " + nOf(gaps, "day", "days") + ", still marked in red along the timeline, because counts for the outlets only it collected are incomplete on those days.");
     return out;
   }
 
@@ -1200,7 +1290,7 @@
 
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
-  return {EMPTY: EMPTY, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
+  return {EMPTY: EMPTY, MODEL_ONLY_PROVISIONAL: MODEL_ONLY_PROVISIONAL, MODEL_ONLY_WITHHELD: MODEL_ONLY_WITHHELD, modelOnlyStatus: modelOnlyStatus, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
           distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL, UNDERLYING_SUMMED: UNDERLYING_SUMMED,

@@ -1235,7 +1235,7 @@ def validate(conn=None, sources: Optional[List[Dict]] = None, days: int = 7) -> 
                 report["problems"].append("%s: %d of %d items dated after their discovery; check the time_rule"
                                           % (s["id"], future, len(rows)))
         if all_failing and entry["listings"] and s.get("collector") == "hosted":
-            report["problems"].append("%s: every listing has failed %d times in a row; consider collector: self_hosted"
+            report["problems"].append("%s: every listing has failed %d times in a row; the relay was retired on 2026-10-22, so check the listing or mark the source inactive"
                                       % (s["id"], RELAY_SUGGEST_FAILURES))
         report["sources"][s["id"]] = entry
     return report

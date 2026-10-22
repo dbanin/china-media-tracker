@@ -1,4 +1,9 @@
-"""Relay for outlets whose feeds refuse GitHub's runner addresses.
+"""Relay for outlets whose feeds refuse GitHub's runner addresses. RETIRED on 2026-10-22.
+
+The relay worked around the sites' choice to refuse the crawler from its server addresses, so it was
+dropped: its outlets (collector: self_hosted) are inactive in sources/outlets.yaml, and the pipeline
+workflow no longer runs ingest or ack. This module is kept for its tests and for the record of how the
+historic relay data were collected; nothing on the runner calls it.
 
 Two halves, one data flow, one database writer.
 

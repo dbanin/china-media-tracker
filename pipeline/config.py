@@ -33,8 +33,9 @@ EXPORT_DIR = ROOT / "docs" / "data"
 PROJECT_NAME = "ChinaStateMediaTracker"
 
 CONTACT = _env("TRACKER_CONTACT", "see repository issues")
-# Which collector this process is. Outlets whose feeds refuse GitHub's runner addresses carry
-# collector: self_hosted in the registry and are polled only by the self-hosted runner.
+# Which collector this process is. Outlets whose feeds refuse GitHub's runner addresses carried
+# collector: self_hosted in the registry and were polled only by the relay on the owner's machine,
+# until it was retired (RELAY_RETIRED_ON); they are now inactive.
 COLLECTOR = _env("TRACKER_COLLECTOR", "hosted")
 USER_AGENT = (
     "{name}/1.0 (+{repo}; "
@@ -98,7 +99,7 @@ LLM_SESSION_GRACE_DAYS = int(_env("TRACKER_SESSION_GRACE_DAYS", "0"))
 # day's binding cap (the lower of the call ceiling and the budget cap), paced over the day.
 LLM_RELABEL_DAY_SHARE = float(_env("TRACKER_LLM_RELABEL_SHARE", "0.5"))
 REVIEW_CONFIDENCE_THRESHOLD = 0.85
-KAPPA_WARNING_THRESHOLD = 0.6
+KAPPA_WARNING_THRESHOLD = 0.7
 
 # Items the relevance gate rejected are kept this many days for gate audits, then pruned.
 # This is the one deliberate exception to the never-delete rule: rejected items carry no
@@ -204,6 +205,10 @@ KAPPA_MIN_LANGUAGE_ITEMS = 20
 # for RELAY_STALE_HOURS puts a warning on those countries.
 RELAY_DAY_MIN_HOURS = 12
 RELAY_STALE_HOURS = 6
+# The day the relay was retired. Collecting outlets that refuse the crawler from another network works
+# around their access control, so it stopped: its outlets (collector: self_hosted) were made inactive
+# that day, days after it are never marked incomplete, and nothing warns that it is silent.
+RELAY_RETIRED_ON = "2026-10-22"
 
 # Share of a country's feed polls that came back as a full window with no overlap with the previous
 # poll, above which the country is warned that items were probably lost between polls.
@@ -258,4 +263,4 @@ REFERENCE_UNPAIRED_BODY_DAYS = 30
 # version and its date are published and marked on the timeline. Bump it in CHANGELOG.md under a
 # "## Gate <version> (<date>)" heading whenever keywords.yaml or the gate's rules change meaning.
 GATE_VERSION = "2026.10.2"
-SCHEMA_VERSION = 14   # 14: issuer types and review markers on labels (meta.issuer_type_totals, inconsistent_labels), placements counted once per shared widget, page and numbered series (meta.shared_widgets, duplicate_placements, outlets.json not_counted), top carrier and route details with ties and shares, new coverage warnings and fields (missed share, frozen feeds, unreadable, excluded languages, too few items, no working outlet), schema_version and generated_at stamped in the data files, meta.stale_after_hours and meta.llm_budget.provider_limit; 13: meta.measures (one gate block per new measure: status off, provisional, checked or withheld, with its hand check) and the side files docs/data/alteration.json, speed.json, doctrine.json, spikes.json, engagement.json and syndication.json, each written only while its measure is not off; 12: each day in the daily files carries underlying_items, the item ids behind its state origin and unchecked state sourcing counts per country, and latest.json uniqA and uniqAB count each item once per window and, in the totals, once across countries; 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate
+SCHEMA_VERSION = 15   # 15: model-only state origin as its own category M in every count (held apart from state origin, counted in China coverage) with meta.model_only_state_origin and findings.model_only, meta.gate_accounting (every gate-passed item by status, adding up), meta.relay_collector describing the retired relay (retired_on, dropped_outlets, dropped_by_country, countries_all_inactive, countries_partial); 14: issuer types and review markers on labels (meta.issuer_type_totals, inconsistent_labels), placements counted once per shared widget, page and numbered series (meta.shared_widgets, duplicate_placements, outlets.json not_counted), top carrier and route details with ties and shares, new coverage warnings and fields (missed share, frozen feeds, unreadable, excluded languages, too few items, no working outlet), schema_version and generated_at stamped in the data files, meta.stale_after_hours and meta.llm_budget.provider_limit; 13: meta.measures (one gate block per new measure: status off, provisional, checked or withheld, with its hand check) and the side files docs/data/alteration.json, speed.json, doctrine.json, spikes.json, engagement.json and syndication.json, each written only while its measure is not off; 12: each day in the daily files carries underlying_items, the item ids behind its state origin and unchecked state sourcing counts per country, and latest.json uniqA and uniqAB count each item once per window and, in the totals, once across countries; 11: global_series.json carries the worldwide distribution stratum per day under wld, and meta.findings carries the wires' part of every all time total (state_origin_wires and so on) and a last_30d block, so the site's Distribution toggle can show the country outlets and the wires apart; 10: worldwide distribution stratum WLD in latest.json, the daily files, outlets.json (wires carry country WLD) and articles/WLD.json, included in world totals and never in a country; 9: docs/data/planted.json (planted byline flags and the recurring bylines diagnostic) and meta.planted; 8: meta.findings summary box, docs/data/examples.json worked examples with matched span offsets, per country top_carrier and top_route in latest.json; 7: discovery day attribution, distribution wire stratum, model only state origin, per day audit files; 6: tb (relay among top outlet items), fourth theme slot for unverified relay, relay_provisional, relay_study; 2: population and top outlet denominators; 3: ta; 4: per day theme counts, theme catalog in meta, themes on articles; 5: routes, model draw fractions, feed saturation, relay hours, language support, relay publication gate

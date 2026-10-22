@@ -19,7 +19,8 @@ Outputs in docs/data/:
 
 A day with an LLM ceiling event is marked in the daily file so a truncated day
 is never mistaken for a quiet day, and a day on which the relay collector ran for
-too few hours is marked so a sleeping laptop is never mistaken for a quiet country.
+too few hours is marked so a sleeping laptop is never mistaken for a quiet country,
+up to the day the relay was retired (config.RELAY_RETIRED_ON).
 """
 import datetime as dt
 import json
@@ -37,6 +38,7 @@ from pipeline import labels as labels_mod
 from pipeline import themes as themes_mod
 from pipeline import recall_audit
 from pipeline import placements
+from pipeline import model_only
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
@@ -53,7 +55,7 @@ ROUTE_LABELS = {
     "press_release_section": "Outlet's press release section",
     "sponsored_section": "Outlet's sponsored content section",
     "partner_section": "Outlet's partner content section",
-    "unattributed": "No signature; model judgement",
+    "unattributed": "No signature; model judgement alone (provisional)",
 }
 ARRIVAL_LABELS = {
     "editorial_feed": "Editorial feed",
@@ -122,7 +124,17 @@ def article_rows(conn) -> List[Dict]:
            WHERE a.gate_relevant=1"""
     ).fetchall()
     shadow = placements.shadowed(conn)
-    return [dict(r) for r in rows if r["id"] not in shadow]
+    # A state origin label that rests on the model's judgement alone is counted under its own code, M, while
+    # the hand check holds it apart (pipeline/model_only.py, decision D1); the stored label is unchanged.
+    held = model_only.held_apart()
+    out = []
+    for r in rows:
+        if r["id"] in shadow:
+            continue
+        d = dict(r)
+        d["m_cat"] = model_only.headline_category(d["m_cat"], d["route"], held, d["m_method"])
+        out.append(d)
+    return out
 
 
 def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
@@ -132,7 +144,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     outlets = outlets if outlets is not None else registry.load_outlets()
     top_ids, _ = registry.top_outlets(outlets)
     wire_ids = registry.distribution_wire_ids(outlets)
-    wires = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0}
+    wires = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0}
     # Underlying items: title groups joined through body text links (pipeline.body_dups).
     from pipeline import body_dups
     items = body_dups.item_groups(conn)
@@ -160,7 +172,7 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
             pending = st in ("awaiting_llm", "llm_submitted")
             if pending or r["m_cat"] in ("A", "B"):
                 cov["top_target"] += 1
-            if pending or r["m_cat"] in ("A", "B", "C"):
+            if pending or r["m_cat"] in ("A", "B", "C", model_only.CODE):
                 cov["top_china"] += 1
             if r["m_cat"] == "A":
                 cov["top_a"] += 1
@@ -271,7 +283,8 @@ def _set_unique(target: Dict, ab: Dict[str, set]) -> None:
 
 
 def _empty_country() -> Dict:
-    return {"A": 0, "B": 0, "C": 0, "N": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
+    # M: state origin by the model's judgement alone, held apart from A (pipeline/model_only.py).
+    return {"A": 0, "B": 0, "C": 0, "N": 0, "M": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
             "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0, "tb": 0,
             "polls": 0, "sat": 0, "miss": 0, "mpolls": 0, "mnew": 0}
@@ -280,7 +293,7 @@ def _empty_country() -> Dict:
 def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
     if scope != "all":
         return
-    short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N"}[cat]
+    short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "M"}[cat]
     target[short] += row["n"]
     target["cls"] += row["n"]
     target["rev"] += row["n_reviewed"]
@@ -356,13 +369,14 @@ def _reviewed_block(conn, country: Optional[str], since: Optional[str]) -> Dict:
 
 def _wire_counts(conn, outlets: List[Dict]) -> Dict:
     ids = registry.distribution_wire_ids(outlets)
-    out = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0}
+    out = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0}
     if not ids:
         return out
     marks = ",".join("?" * len(ids))
     shadow = placements.shadowed(conn)
+    held = model_only.held_apart()
     for r in conn.execute(
-            """SELECT a.id, a.status, c.category cat, 1 AS n FROM articles a
+            """SELECT a.id, a.status, c.category cat, c.route, c.method, 1 AS n FROM articles a
                LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
                WHERE a.gate_relevant=1 AND a.outlet_id IN (%s)""" % marks,
             tuple(sorted(ids))):
@@ -372,7 +386,7 @@ def _wire_counts(conn, outlets: List[Dict]) -> Dict:
         if r["status"] in ("awaiting_llm", "llm_submitted"):
             out["pending"] += r["n"]
         elif r["cat"]:
-            out[r["cat"]] += r["n"]
+            out[model_only.headline_category(r["cat"], r["route"], held, r["method"])] += r["n"]
     return out
 
 
@@ -403,7 +417,9 @@ def _derive(c: Dict, outlets_active: int, relay_visible: bool = True) -> Dict:
     """Per country derived figures. Anything containing unchecked state sourcing is omitted when that
     label may not be shown, because a share published beside the state origin count and the China
     total gives the withheld number back by subtraction."""
-    china = c["A"] + c["B"] + c["C"]
+    # The model-only placements (M) are China coverage the model judged state origin with no evidence
+    # behind it: out of the state origin numerator while held apart, still in the China denominator.
+    china = c["A"] + c["B"] + c["C"] + c.get("M", 0)
     c["china_total"] = china
     c["share_a"] = round(c["A"] / china, 4) if china else None
     c["per_outlet_a"] = round(c["A"] / outlets_active, 3) if outlets_active else None
@@ -438,11 +454,14 @@ def relay_hours_by_day(conn) -> Dict[str, int]:
 def relay_incomplete_days(conn, today: Optional[str] = None) -> List[str]:
     """Complete UTC days, from the first full day with a heartbeat, on which the relay collector
     ran in fewer than RELAY_DAY_MIN_HOURS hours. The first day is skipped because the bundle's
-    seven-day window usually cuts it."""
+    seven-day window usually cuts it. The relay was retired on config.RELAY_RETIRED_ON, so no day
+    after that one is marked: its outlets are inactive, not missing."""
     by_day = relay_hours_by_day(conn)
     if not by_day:
         return []
     today = dt.date.fromisoformat(today or _today())
+    if config.RELAY_RETIRED_ON:
+        today = min(today, dt.date.fromisoformat(config.RELAY_RETIRED_ON) + dt.timedelta(days=1))
     d = dt.date.fromisoformat(min(by_day)) + dt.timedelta(days=1)
     out = []
     while d < today:
@@ -455,20 +474,39 @@ def relay_incomplete_days(conn, today: Optional[str] = None) -> List[str]:
 def relay_status(conn, outlets: List[Dict]) -> Dict:
     """outlets and countries are the relay only outlets, which no other collector polls; a silent relay
     leaves them uncollected. shared_outlets and shared_countries are the collector: both outlets, which
-    the hosted runner still polls on its own hourly schedule when the relay is silent."""
+    the hosted runner still polls on its own hourly schedule when the relay is silent.
+
+    The relay was retired on config.RELAY_RETIRED_ON: from then on no outlet is relay only or shared,
+    the relay is never stale, and dropped_outlets, dropped_by_country, countries_all_inactive and
+    countries_partial say what it left behind: the outlets made inactive that day (registry.relay_dropped)
+    and the countries where they were every active outlet, or only some."""
+    retired = config.RELAY_RETIRED_ON
     relayed = [o for o in outlets if o.get("active") and registry.collector_of(o) == "self_hosted"]
-    shared = [o for o in outlets if o.get("active") and registry.is_shared(o)]
+    shared = [] if retired else [o for o in outlets if o.get("active") and registry.is_shared(o)]
     last = conn.execute("SELECT MAX(COALESCE(finished_at, started_at)) FROM relay_runs WHERE ok=1").fetchone()[0]
     hours = stale = None
-    if last:
+    if last and not retired:
         t = dt.datetime.fromisoformat(last)
         t = t if t.tzinfo else t.replace(tzinfo=dt.timezone.utc)
         hours = round((dt.datetime.now(dt.timezone.utc) - t).total_seconds() / 3600.0, 1)
         stale = hours >= config.RELAY_STALE_HOURS
+    elif retired:
+        stale = False
+    dropped = [o for o in outlets if registry.relay_dropped(o)]
+    by_country = defaultdict(int)
+    for o in dropped:
+        by_country[registry.export_country(o)] += 1
+    active_by_country = defaultdict(int)
+    for o in outlets:
+        if o.get("active"):
+            active_by_country[registry.export_country(o)] += 1
     return {"outlets": len(relayed), "countries": sorted({o["country"] for o in relayed}), "last_run": last,
             "shared_outlets": len(shared), "shared_countries": sorted({registry.export_country(o) for o in shared}),
             "hours_since_last_run": hours, "stale": stale, "incomplete_days": relay_incomplete_days(conn),
-            "min_hours_per_day": config.RELAY_DAY_MIN_HOURS, "stale_after_hours": config.RELAY_STALE_HOURS}
+            "min_hours_per_day": config.RELAY_DAY_MIN_HOURS, "stale_after_hours": config.RELAY_STALE_HOURS,
+            "retired_on": retired, "dropped_outlets": len(dropped), "dropped_by_country": dict(sorted(by_country.items())),
+            "countries_all_inactive": sorted(c for c in by_country if not active_by_country.get(c)),
+            "countries_partial": sorted(c for c in by_country if active_by_country.get(c))}
 
 
 def language_support(languages, supported) -> str:
@@ -538,7 +576,7 @@ def _arrival_totals(conn) -> Dict[str, int]:
     out = defaultdict(int)
     for r in conn.execute(
         """SELECT a.gate_terms FROM classifications c JOIN articles a ON a.id=c.article_id
-           WHERE c.is_current=1 AND c.category='A'"""
+           WHERE c.is_current=1 AND c.category='A'%s""" % model_only.evidence_sql()
     ):
         out[classify_rules.arrival_of(r["gate_terms"])] += 1
     return dict(out)
@@ -628,8 +666,9 @@ def _country_top_carriers(conn, outlets: List[Dict], since30: str, until: Option
     for r in conn.execute(
             """SELECT a.id, a.url, a.country, a.outlet_id, c.route FROM articles a JOIN classifications c
                ON c.article_id=a.id AND c.is_current=1
-               WHERE c.category='A' AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))>=?
-               AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))<?""", (since30, until or "9999-12-31")):
+               WHERE c.category='A'%s AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))>=?
+               AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))<?""" % model_only.evidence_sql(),
+            (since30, until or "9999-12-31")):
         if r["id"] in shadow:
             continue
         country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
@@ -720,7 +759,9 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         languages = sorted({o["language"] for o in active})
         excluded = {} if worldwide else excluded_languages(os_, languages)
         relayed = sum(1 for o in active if registry.collector_of(o) == "self_hosted")
-        shared = sum(1 for o in active if registry.is_shared(o))
+        # Since the relay was retired no outlet is polled from the owner's machine, collector: both included.
+        shared = 0 if config.RELAY_RETIRED_ON else sum(1 for o in active if registry.is_shared(o))
+        dropped = sum(1 for o in os_ if registry.relay_dropped(o))
         entry = {
             "coverage": "monitored" if active else "no_active_outlets",
             "outlets_total": len(os_), "outlets_active": len(active),
@@ -765,7 +806,7 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         if attempted >= 10 and unread / float(attempted) >= config.UNREADABLE_WARNING_SHARE:
             entry["warnings"].append({"type": "unreadable", "text": "%d percent of this country's China relevant articles could not be read (%d paywalled, %d failed, %d blocked by robots.txt, of %d attempted); they are missing from every count, so counts understate this country and are not comparable to other countries" % (round(100.0 * unread / attempted), at["paywalled"], at["failed"], at["blocked"], attempted)})
         pending = at["pending"]
-        judged_china = at["A"] + at["B"] + at["C"]
+        judged_china = at["A"] + at["B"] + at["C"] + at.get("M", 0)
         if pending >= 5 and pending >= 0.25 * max(at["rel"], 1):
             entry["warnings"].append({"type": "llm_backlog", "text": "%d articles carrying official Chinese sourcing are awaiting the verification judgement, so the unchecked state sourcing count is a floor" % pending})
         # A country whose unjudged pile rivals what has been judged cannot be compared with one whose
@@ -791,6 +832,11 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                 entry["warnings"].append({"type": "relay_incomplete", "text": "%d of this country's outlets are collected only from the owner's machine, which ran in fewer than %d hours on %d of the last 30 days; counts on those days are incomplete" % (relayed, config.RELAY_DAY_MIN_HOURS, len(relay_inc30))})
         if shared and relay["stale"]:
             entry["warnings"].append({"type": "relay_stale_shared", "text": "%d of this country's outlets are also polled from the owner's machine, which has not collected for %.0f hours; they fall back to the hosted runner's hourly polls alone, which GitHub often runs late, so their short feeds may lose items between polls" % (shared, relay["hours_since_last_run"])})
+        # The relay's outlets, made inactive the day it was retired: a gap from that day on, never a decline.
+        if dropped and active:
+            entry["warnings"].append({"type": "relay_stopped", "text": "%d of this country's outlets refuse the crawler from its server addresses and were collected from the owner's network until %s, when that collection stopped; they are inactive since, so counts from that day cover its other %d active outlets only" % (dropped, config.RELAY_RETIRED_ON, len(active))})
+        elif dropped:
+            entry["warnings"].append({"type": "relay_stopped", "text": "every outlet monitored here refuses the crawler from its server addresses and was collected from the owner's network until %s, when that collection stopped; %s inactive since, so nothing here is monitored from that day" % (config.RELAY_RETIRED_ON, "it is" if dropped == 1 else "they are")})
         if active and entry["language_support"] == "none":
             entry["warnings"].append({"type": "unsupported_language", "text": "no keyword list exists for %s, so only international and English terms are matched; an empty map here says little" % ", ".join(languages)})
         if not active:
@@ -895,7 +941,11 @@ def build_daily(conn, outlets: Optional[List[Dict]] = None) -> Dict[str, Dict]:
         if cat == "A":
             routes[d][country][r["route"] or "unattributed"] += 1
             arrivals[d][country][classify_rules.arrival_of(r["gate_terms"])] += 1
-        if not (pending or cat in ("A", "B", "C")):
+        elif cat == model_only.CODE:
+            # Held apart from state origin: the route filter's model judgement option draws them as a
+            # provisional layer of their own, and they are in no arrival count.
+            routes[d][country][model_only.ROUTE] += 1
+        if not (pending or cat in ("A", "B", "C", model_only.CODE)):
             continue
         for t in themes_mod.themes_of(r["themes"]):
             v = theme_counts[d][country][t]
@@ -929,14 +979,14 @@ def build_daily(conn, outlets: Optional[List[Dict]] = None) -> Dict[str, Dict]:
     return out
 
 
-SERIES_KEYS = ("A", "B", "C", "N", "rel", "paywalled", "pending")
+SERIES_KEYS = ("A", "B", "C", "N", "M", "rel", "paywalled", "pending")
 
 
 def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
     series = []
     for month in sorted(daily):
         for d, day in sorted(daily[month]["days"].items()):
-            tot = {"date": d, "A": 0, "B": 0, "C": 0, "N": 0, "rel": 0, "paywalled": 0, "pending": 0,
+            tot = {"date": d, "A": 0, "B": 0, "C": 0, "N": 0, "M": 0, "rel": 0, "paywalled": 0, "pending": 0,
                    "countries_with_A": 0, "llm_ceiling_hit": day["llm_ceiling_hit"],
                    "relay_incomplete": day.get("relay_incomplete", False),
                    "labels_on_older_ruleset": day.get("labels_on_older_ruleset", 0),
@@ -961,33 +1011,37 @@ def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
 def build_outlets(conn, outlets: List[Dict]) -> Dict:
     feed_health = {r["feed_url"]: dict(r) for r in conn.execute("SELECT * FROM feed_health")}
     per_outlet = defaultdict(_empty_country)
+    held = model_only.held_apart()
     for r in conn.execute(
-        """SELECT a.outlet_id, c.category, c.method, COUNT(*) n,
+        """SELECT a.outlet_id, c.category, c.method, c.route, COUNT(*) n,
                   SUM(CASE WHEN EXISTS(SELECT 1 FROM human_reviews h WHERE h.article_id=a.id) THEN 1 ELSE 0 END) rev
            FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
-           WHERE a.gate_relevant=1 GROUP BY a.outlet_id, c.category, c.method"""
+           WHERE a.gate_relevant=1 GROUP BY a.outlet_id, c.category, c.method, c.route"""
     ):
         t = per_outlet[r["outlet_id"]]
-        short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N"}[r["category"]]
+        # A model-only state origin label is counted as M while held apart (pipeline/model_only.py).
+        cat = model_only.headline_category(r["category"], r["route"], held, r["method"])
+        short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "M"}[cat]
         t[short] += r["n"]; t["cls"] += r["n"]; t["rev"] += r["rev"]
-        if r["category"] in ("A", "B"):
-            t[r["category"] + ("r" if r["method"] == "rules" else "l")] += r["n"]
+        if cat in ("A", "B"):
+            t[cat + ("r" if r["method"] == "rules" else "l")] += r["n"]
     # A copy another row stands for (pipeline/placements.py) is not this outlet's placement: it leaves the
     # counts, so that the outlets' counts add up to their country's, and is listed under not_counted.
-    not_counted = defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0})
+    not_counted = defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0, "M": 0})
     shadow = sorted(placements.shadowed(conn))
     for i in range(0, len(shadow), 900):
         part = shadow[i:i + 900]
         for r in conn.execute(
-                """SELECT a.outlet_id, c.category, c.method,
+                """SELECT a.outlet_id, c.category, c.method, c.route,
                           EXISTS(SELECT 1 FROM human_reviews h WHERE h.article_id=a.id) rev
                    FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
                    WHERE a.id IN (%s)""" % ",".join("?" * len(part)), part):
             t = per_outlet[r["outlet_id"]]
-            short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N"}[r["category"]]
+            cat = model_only.headline_category(r["category"], r["route"], held, r["method"])
+            short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "M"}[cat]
             t[short] -= 1; t["cls"] -= 1; t["rev"] -= 1 if r["rev"] else 0
-            if r["category"] in ("A", "B"):
-                t[r["category"] + ("r" if r["method"] == "rules" else "l")] -= 1
+            if cat in ("A", "B"):
+                t[cat + ("r" if r["method"] == "rules" else "l")] -= 1
             not_counted[r["outlet_id"]][short] += 1
     for r in conn.execute(
         """SELECT outlet_id, COUNT(*) disc, SUM(gate_relevant) rel,
@@ -1065,7 +1119,7 @@ def _trigger_sources(trigger_ids):
     return out
 
 
-ORDER = {"A": 0, "B": 1, "pending": 2, "C": 3}
+ORDER = {"A": 0, "B": 1, model_only.CODE: 2, "pending": 3, "C": 4}
 
 
 def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = None) -> Dict[str, List[Dict]]:
@@ -1089,13 +1143,15 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
     # copies says how many stored rows it counts for (copies) and, on a shared widget, which one.
     shadow = placements.shadowed(conn)
     copies = placements.copies_of(conn)
+    held = model_only.held_apart()
     for r in rows:
         if r["id"] in shadow:
             continue
         # A release wire's items are not a country's articles: they are listed under WLD.
         country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
         pending = r["category"] is None
-        cat = "pending" if pending else r["category"]
+        # A model-only state origin label is listed as M while held apart (pipeline/model_only.py).
+        cat = "pending" if pending else model_only.headline_category(r["category"], r["route"], held, r["method"])
         entry = {
             "id": r["id"], "outlet_id": r["outlet_id"], "title": r["title"], "url": r["url"],
             "date": _day(r), "category": cat, "human_category": r["human_category"],
@@ -1444,8 +1500,8 @@ def build_examples(conn, outlets: Optional[List[Dict]] = None, limit: int = 6) -
             """SELECT a.id, a.title, a.url, a.outlet_id, a.country, a.discovered_at, a.day_of_record, a.llm_trigger,
                       c.evidence_quote, c.signatures_fired, c.route
                FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
-               WHERE c.category=? AND c.ruleset_version=? AND a.status<>'paywalled'
-               ORDER BY COALESCE(a.day_of_record, a.discovered_at) DESC""",
+               WHERE c.category=?%s AND c.ruleset_version=? AND a.status<>'paywalled'
+               ORDER BY COALESCE(a.day_of_record, a.discovered_at) DESC""" % (model_only.evidence_sql() if cat == "A" else ""),
             (cat, config.RULESET_VERSION),
         ).fetchall()
         picked = []
@@ -1558,8 +1614,8 @@ def _top_country_last30(conn, outlets: List[Dict], latest: Dict) -> Optional[Dic
     for r in conn.execute(
             """SELECT a.id, a.url, a.outlet_id, c.route FROM articles a JOIN classifications c
                ON c.article_id=a.id AND c.is_current=1
-               WHERE a.country=? AND c.category='A' AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))>=?
-               AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))<?%s""" % where, params):
+               WHERE a.country=? AND c.category='A'%s AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))>=?
+               AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10))<?%s""" % (model_only.evidence_sql(), where), params):
         if r["id"] in shadow:
             continue
         outlet_counts[placements.carrier_id(r)] += 1
@@ -1596,6 +1652,17 @@ def _underlying_in_window(conn, outlets: List[Dict], iso: str, start: str, end: 
         if start <= d < end:
             items |= (per_country.get(iso) or {}).get("A", set())
     return len(items)
+
+
+def _model_only_findings(conn, tot: Dict, wld_all: Dict, start30: str, until30: str) -> Dict:
+    """findings.model_only: the model-only placements all time and in the 30 complete days of last_30d, each
+    with its worldwide wires part, from the same daily_counts rows (code M) the daily files carry."""
+    mo30 = {r[0]: r[1] or 0 for r in conn.execute(
+        "SELECT country, SUM(n) FROM daily_counts WHERE scope='all' AND category=? AND date>=? AND date<? GROUP BY country",
+        (model_only.CODE, start30, until30))}
+    return {"all_time": tot.get("M", 0), "all_time_wires": wld_all.get("M", 0),
+            "last_30d": sum(mo30.values()), "last_30d_wires": mo30.get(registry.WORLDWIDE, 0),
+            "status": model_only.status(), "label": model_only.LABEL}
 
 
 def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, first_discovered: Optional[str]) -> Dict:
@@ -1638,6 +1705,9 @@ def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, 
             "window_end": (dt.date.fromisoformat(until30) - dt.timedelta(days=1)).isoformat(),
         },
         "top_country": _top_country_last30(conn, outlets, latest),
+        # State origin by the model's judgement alone (pipeline/model_only.py): its own figure, never in the
+        # totals, shares and top country above; zeros once the hand check has passed and it has rejoined them.
+        "model_only": _model_only_findings(conn, tot, wld_all, start30, until30),
         "by_ownership": by_ownership_findings(outlets_json),
         "generated_at": store.utcnow(),
     }
@@ -1666,6 +1736,54 @@ def rediscovery(conn) -> Optional[Dict]:
     return {"fixed_from": fixed_from, "estimated_share": config.REDISCOVERY_ESTIMATED_SHARE,
             "measured_floor": config.REDISCOVERY_MEASURED_FLOOR, "measured_of": config.REDISCOVERY_MEASURED_OF,
             "window_share": config.REDISCOVERY_WINDOW_SHARE}
+
+
+# What became of every article that passed the relevance gate, one part per article status, on the
+# same basis as articles_gate_relevant (every stored row with gate_relevant=1), so the parts add up to
+# it exactly. A row in status fetched has a body and waits for the rules stage, unless its pages are
+# fetched by another collector (the owner's machine) and its text never reached this one: the relay
+# bundle carries no body unless it is sealed, and the runner may not fetch that outlet itself
+# (classify_rules.ensure_body), so such a row stays unread.
+GATE_ACCOUNTING_PARTS = ("classified", "paywalled", "failed", "blocked_robots", "fetched_waiting_rules",
+                         "fetched_text_not_delivered", "waiting_for_model", "not_yet_fetched", "other")
+_GATE_STATUS_PART = {"classified": "classified", "paywalled": "paywalled", "failed": "failed",
+                     "blocked_robots": "blocked_robots", "awaiting_llm": "waiting_for_model",
+                     "llm_submitted": "waiting_for_model", "queued": "not_yet_fetched",
+                     "discovered": "not_yet_fetched"}
+
+
+def gate_accounting(conn, outlets: Optional[List[Dict]] = None) -> Dict:
+    """meta.gate_accounting: {"total", "parts": {part: n}, "other_statuses": {status: n},
+    "copies_counted_once"}. sum(parts) == total == articles_gate_relevant. copies_counted_once is the
+    stored rows the site's tables count as one placement with another row (pipeline/placements.py), so
+    the site's own gate total, summed from the daily files, is total less that number."""
+    outlets = outlets if outlets is not None else registry.load_outlets()
+    parts = dict.fromkeys(GATE_ACCOUNTING_PARTS, 0)
+    other: Dict[str, int] = {}
+    for r in conn.execute("SELECT status, COUNT(*) n FROM articles WHERE gate_relevant=1 AND status<>'fetched' GROUP BY status"):
+        part = _GATE_STATUS_PART.get(r["status"])
+        if part:
+            parts[part] += r["n"]
+        else:
+            parts["other"] += r["n"]
+            other[r["status"] or "none"] = r["n"]
+    for r in conn.execute("SELECT outlet_id, url_hash FROM articles WHERE gate_relevant=1 AND status='fetched'"):
+        stranded = not registry.is_mine(r["outlet_id"], outlets) and not (r["url_hash"] and store.body_path(r["url_hash"]).exists())
+        parts["fetched_text_not_delivered" if stranded else "fetched_waiting_rules"] += 1
+    # Relay articles settled as failed once the relay was retired (classify_rules.settle_relay_dropped): their
+    # text never reached the runner, so they stay in that part rather than in the failed fetches.
+    dropped = conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1 AND status='failed' AND fail_reason=?",
+                           (classify_rules.RELAY_DROPPED_FAIL,)).fetchone()[0]
+    parts["failed"] -= dropped
+    parts["fetched_text_not_delivered"] += dropped
+    shadow = placements.shadowed(conn)
+    copies = 0
+    ids = sorted(shadow)
+    for i in range(0, len(ids), 900):
+        part_ids = ids[i:i + 900]
+        copies += conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1 AND id IN (%s)"
+                               % ",".join("?" * len(part_ids)), part_ids).fetchone()[0]
+    return {"total": sum(parts.values()), "parts": parts, "other_statuses": other, "copies_counted_once": copies}
 
 
 def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlets_json: Optional[Dict] = None) -> Dict:
@@ -1816,6 +1934,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "rediscovery": rediscovery(conn),
         "articles_gate_relevant": conn.execute("SELECT COUNT(*) FROM articles WHERE gate_relevant=1").fetchone()[0],
         "articles_classified": cls_total,
+        # Every gate passed article by what became of it; the parts add up to articles_gate_relevant.
+        "gate_accounting": gate_accounting(conn, outlets),
         "official_sourcing_pending": conn.execute("SELECT COUNT(*) FROM articles WHERE status IN ('awaiting_llm','llm_submitted')").fetchone()[0],
         "official_sourcing_pending_countries": conn.execute("SELECT COUNT(DISTINCT country) FROM articles WHERE status IN ('awaiting_llm','llm_submitted')").fetchone()[0],
         "articles_reviewed": reviewed_total,
@@ -1893,7 +2013,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "labels_unreclassifiable": unreclassifiable,
         "reclassification_complete": set(mix) <= {config.RULESET_VERSION} or (
             sum(n for v, n in mix.items() if v != config.RULESET_VERSION) <= unreclassifiable),
-        "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r)} for r in classify_rules.ROUTE_IDS],
+        "routes": [{"id": r, "label": ROUTE_LABELS.get(r, r) if r != model_only.ROUTE or model_only.held_apart()
+                    else "No signature; model judgement, confirmed by a hand check"} for r in classify_rules.ROUTE_IDS],
         "route_totals": route_totals,
         # Current labels per issuer type (classify_llm.ISSUER_TYPES) and category, every type listed, so the
         # site can show state-owned enterprise and Hong Kong and Macao government releases as their own
@@ -1909,7 +2030,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         # reported as its own stratum rather than as one more row in the route table. uncredited_copy
         # is a route: the lookalike check matched the article to a credited state origin item.
         "route_signature_totals": {k: v for k, v in route_totals.items() if k != "unattributed"},
-        "model_only_state_origin": route_totals.get("unattributed", 0),
+        # {count, count_last_30d, status, held_apart, check, reason, rule}: the same set as
+        # route_totals["unattributed"], held out of state origin until its hand check passes (decision D1).
+        "model_only_state_origin": model_only.meta_block(conn, *complete_window_30d(latest)),
         "arrivals": [{"id": r, "label": ARRIVAL_LABELS.get(r, r)} for r in classify_rules.ARRIVAL_IDS],
         "arrival_totals": _arrival_totals(conn),
         "relay_collector": relay_status(conn, outlets),
@@ -1942,10 +2065,12 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
                   "attributed to a Chinese official or state source (an assertion of fact about events, numbers or actions), "
                   "passed on without independent confirmation. A stated position, policy, warning, threat, opinion or denial "
                   "is not a factual claim, and reporting one is independent journalism even without outside comment."),
-            "C": ("Independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but "
-                  "confirms, contextualizes or contests what they say, and reporting of a position, policy, warning, threat, "
-                  "opinion or denial attributed to a Chinese official or state source, with or without outside comment. "
-                  "A press release that is not state origin is counted here when it substantively concerns China."),
+            "C": ("Independent journalism. Not state origin and not unchecked state sourcing. It includes the outlet's own "
+                  "reporting; copy from news agencies that are not Chinese state entities, such as Reuters or AP; reporting "
+                  "of a position, policy, warning, threat, opinion or denial attributed to a Chinese official or state "
+                  "source, with or without outside comment; reporting that quotes Chinese officials and confirms, "
+                  "contextualizes or contests what they say; and a press release from an issuer that is not a Chinese "
+                  "state entity, when it substantively concerns China."),
             "not_relevant": ("Does not concern China in any substantive way. A Hong Kong, Macao or Taiwan domestic story counts "
                              "as China coverage only when it substantively concerns the PRC state or its policy."),
         },
@@ -1988,10 +2113,13 @@ def issuer_type_totals(conn) -> Dict:
     that carry no issuer type (made under a prompt before 2026-10-17)."""
     by_type = {t: {} for t in classify_llm.ISSUER_TYPES}
     unrecorded = 0
-    for r in conn.execute("""SELECT issuer_type, category, method, COUNT(*) FROM classifications WHERE is_current=1
-                             GROUP BY issuer_type, category, method"""):
+    held = model_only.held_apart()
+    for r in conn.execute("""SELECT issuer_type, category, method, COUNT(*), route FROM classifications WHERE is_current=1
+                             GROUP BY issuer_type, category, method, route"""):
         if r[0] in by_type:
-            by_type[r[0]][r[1]] = by_type[r[0]].get(r[1], 0) + r[3]
+            # A model-only state origin label is counted under M while held apart (pipeline/model_only.py).
+            cat = model_only.headline_category(r[1], r[4], held, r[2])
+            by_type[r[0]][cat] = by_type[r[0]].get(cat, 0) + r[3]
         elif r[2] == "llm":
             unrecorded += r[3]
     return {"by_type": by_type, "unrecorded": unrecorded}

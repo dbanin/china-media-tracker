@@ -191,7 +191,7 @@ def test_a_model_study_is_a_stability_check_and_never_opens_the_gate(tmp_path, m
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_publishable"] is False and meta["relay_basis"] is None, "a passing stability check publishes nothing"
     assert meta["relay_provisional"] is True and "hand coded" in meta["relay_provisional_reason"]
-    assert "0.6" in meta["relay_provisional_reason"] and "stratified by language" in meta["relay_provisional_reason"]
+    assert "0.7" in meta["relay_provisional_reason"] and "stratified by language" in meta["relay_provisional_reason"]
     assert meta["relay_human_study"]["state"] == "not_started"
     assert export.relay_visible(conn) is True
     assert meta["relay_human_coded"] is False and meta["b_counts_settled"] is False

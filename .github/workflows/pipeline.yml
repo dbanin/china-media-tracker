@@ -4,7 +4,7 @@ name: pipeline
 # never wait behind each other: GitHub keeps at most one queued run per concurrency group and
 # cancels the older one, which is how separate collect and export workflows cancelled each other.
 #
-#   hourly at :17     collect: ingest the relay bundle, discover, fetch, classify
+#   hourly at :17     collect: discover, fetch, classify
 #   daily at 02:00    the same, then export: rollups, site data, snapshot, Pages deploy
 #   any scheduled run exports if the published site data is more than 12 hours old, because
 #   GitHub drops many scheduled runs (the 02:00 slot often never fires) and the site must still
@@ -159,16 +159,8 @@ jobs:
       - name: Fall back to the snapshot or seed if no cache
         # Checks the cached file with PRAGMA quick_check, and fails rather than fall back to the seed
         # when a snapshot exists but cannot be read (scripts/db_restore.sh).
-        env:
-          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
+        # The relay on the owner's machine was retired on 2026-10-22: no relay bundle is ingested.
         run: scripts/db_restore.sh
-      - name: Ingest the relay bundle from the owner's machine, if there is one
-        # A bad bundle must never stop the daily update; the outlets it carries wait for the next run.
-        # A sealed bundle is opened with RELAY_BUNDLE_KEY (pipeline/bundle_crypto.py).
-        continue-on-error: true
-        env:
-          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
-        run: python -m pipeline.relay ingest
       - name: Ingest session labels, if any
         # Labels the same model produced outside the API (data/labels/*.jsonl). Applied once to
         # articles still waiting for the model; a bad file must never stop the daily update.
@@ -242,21 +234,15 @@ jobs:
         if: env.STAGE == 'export'
         run: python -m pipeline.export housekeeping
       - name: Publish the compressed database snapshot
-        # The public copy is scrubbed (pipeline/snapshot_scrub.py); the whole database and the article
-        # bodies go up only encrypted with RELAY_BUNDLE_KEY, and are left out without it.
+        # Only the scrubbed public copy (pipeline/snapshot_scrub.py) goes up; the whole database and the
+        # article bodies are never uploaded, encrypted or not.
         if: env.STAGE == 'export'
-        env:
-          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: scripts/db_snapshot.sh
       - name: Validate every feed and deactivate dead outlets
         # Capped, so the job's own timeout never lands on it; a stopped check leaves the registry as it
         # was, and a write it was making is rolled back from the journal on the next open.
-        # It reads the relay's feed health from the sealed bundle, opened with RELAY_BUNDLE_KEY; without
-        # the key the relay outlets are only reported.
         if: env.STAGE == 'validate'
         timeout-minutes: 15
-        env:
-          RELAY_BUNDLE_KEY: ${{ secrets.RELAY_BUNDLE_KEY }}
         run: python -m pipeline.validate_sources --apply --json validation.json
       - name: Commit registry changes
         if: env.STAGE == 'validate'
@@ -277,28 +263,6 @@ jobs:
             data/tracker.db-journal
             data/bodies
           key: tracker-db-${{ github.run_id }}-${{ github.run_attempt }}
-      - name: Confirm the database is in the cache
-        # actions/cache/save can end in success without saving (a key already taken, as a re-run once
-        # did under a key without the attempt), so the cache itself is asked before the relay is told.
-        id: saved
-        if: always() && steps.save_db.outcome == 'success'
-        continue-on-error: true
-        run: |
-          key="tracker-db-${{ github.run_id }}-${{ github.run_attempt }}"
-          for i in 1 2 3 4 5 6; do
-            if gh cache list --key "$key" --json key -q '.[].key' | grep -qx "$key"; then
-              echo "found=true" >> "$GITHUB_OUTPUT"; echo "cache $key saved"; exit 0
-            fi
-            sleep 10
-          done
-          echo "::warning::cache $key not found; the relay is not acknowledged this run"
-      - name: Acknowledge the relay bundles the saved database holds
-        # Only once the database is in the cache: the relay's next bundle then carries only what changed
-        # since (pipeline.relay.push_ack, the relay-ack branch). A failed acknowledgement only makes the
-        # next bundle whole again; it never fails the run.
-        if: always() && steps.saved.outputs.found == 'true'
-        continue-on-error: true
-        run: python -m pipeline.relay ack
       - name: Fail the run, since the tests failed
         if: always() && env.TESTS_FAILED == '1'
         run: |

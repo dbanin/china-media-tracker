@@ -700,3 +700,16 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
   .t10-share { text-align: left; font-size: 0.8rem; color: var(--ash); }
   .t10-share-pre, .t10-share-post { display: inline; }
 }
+
+/* The preliminary figures banner under the title: always shown, not dismissible. A card on the page frame with a gold
+   hairline on its left edge, the heading in the display serif with its first word in gold italic. */
+.prelim-wrap { max-width: var(--page); margin: 0 auto var(--s2); padding: 0 var(--gutter); box-sizing: border-box; }
+.prelim { background: var(--card); border: 1px solid var(--rule-strong); border-left: 2px solid var(--gold); border-radius: 10px;
+  padding: var(--s2) var(--s3); max-width: 100%; box-sizing: border-box; }
+.prelim .prelim-title { font-family: var(--display); font-size: 1.35rem; font-weight: 400; color: var(--bone); margin: 0 0 6px; }
+.prelim .prelim-title em { font-style: italic; font-weight: 400; color: var(--gold); }
+.prelim .prelim-text { color: var(--bone-soft); font-size: 0.95rem; line-height: 1.6; margin: 0; max-width: 92ch; overflow-wrap: anywhere; }
+.prelim .prelim-text a { white-space: nowrap; }
+@media (max-width: 640px) { .prelim { padding: var(--s2); } .prelim .prelim-text { font-size: 0.92rem; } }
+/* Phone width: the pairs and originals line under each speed bar sits in a 4.5rem column; let it wrap there instead of pushing the page sideways. */
+@media (max-width: 700px) { #copies-speed .sp-n em { white-space: normal; overflow-wrap: anywhere; } }

@@ -9,7 +9,7 @@ import pytest
 
 from pipeline import config, export, store
 
-COUNTS_KEYS = ["A", "B", "C", "N", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
+COUNTS_KEYS = ["A", "B", "C", "N", "M", "Ar", "Al", "Ah", "Br", "Bl", "Bh", "rev", "cls", "disc", "rel", "fetched",
                "paywalled", "failed", "blocked", "pending", "uniqA", "uniqAB", "tdisc", "ttarget", "tchina", "ta", "tb"]
 COUNTS_SCHEMA = {"type": "object", "required": COUNTS_KEYS, "properties": {k: {"type": "integer"} for k in COUNTS_KEYS}}
 DERIVED_SCHEMA = {"type": "object", "required": COUNTS_KEYS + ["china_total", "share_ab", "share_a", "per_outlet_ab", "paywall_share", "reviewed_share", "share_of_all_target", "share_of_all_china"]}
@@ -50,11 +50,13 @@ META_SCHEMA = {
     "required": ["schema_version", "ruleset_version", "llm_model", "generated_at", "outlets_total", "outlets_active",
                  "countries_monitored", "countries_in_gaps", "gaps", "articles_classified", "articles_reviewed",
                  "review_coverage", "paywall_share", "paywall_flagged_countries", "kappa", "b_counts_settled",
-                 "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study", "findings", "planted", "measures"],
+                 "llm_ceiling_days", "categories", "first_discovered", "relay_provisional", "relay_study", "findings", "planted", "measures",
+                 "model_only_state_origin"],
     "properties": {"b_counts_settled": {"type": "boolean"}, "relay_provisional": {"type": "boolean"},
                    "planted": {"type": "object", "required": ["flags_total", "flags_30d", "list_version", "personas", "fronts", "operations"]},
                    "relay_study": {"type": "object", "required": ["auto", "state", "sample"]}, "review_coverage": {"type": "number"},
                    "categories": {"type": "object", "required": ["A", "B", "C", "not_relevant"]},
+                   "gate_accounting": {"type": "object", "required": ["total", "parts", "other_statuses", "copies_counted_once"]},
                    "findings": FINDINGS_SCHEMA,
                    "measures": {"type": "object", "additionalProperties": {"type": "object", "required": ["status", "label", "file", "enabled", "check"],
                                 "properties": {"status": {"enum": ["off", "provisional", "checked", "withheld"]}}}}},
@@ -65,7 +67,7 @@ OUTLETS_SCHEMA = {
                                                           "properties": {"counts": COUNTS_SCHEMA, "feeds": {"type": "array", "items": {"type": "object", "required": ["url", "ok"]}}}}}},
 }
 ARTICLES_SCHEMA = {"type": "array", "items": {"type": "object", "required": ["id", "outlet_id", "title", "url", "date", "category", "provenance", "sources"],
-                                              "properties": {"category": {"enum": ["A", "B", "C", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
+                                              "properties": {"category": {"enum": ["A", "B", "C", "M", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
 EXAMPLE_ITEM_SCHEMA = {"type": "object", "required": ["id", "headline", "outlet_id", "outlet_name", "country", "url", "date", "tell"],
                        "properties": {"tell": {"type": "object", "required": ["snippet", "start", "end"]}}}
 EXAMPLES_SCHEMA = {"type": "object", "required": ["generated_at", "A"],
@@ -893,14 +895,16 @@ def _relay_split_db(tmp_path, hours_ago):
     return conn
 
 
-def test_relay_status_states_relay_only_and_shared_outlets_apart(tmp_path):
+def test_relay_status_states_relay_only_and_shared_outlets_apart(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "RELAY_RETIRED_ON", None)    # as it was before the relay was retired
     rc = export.relay_status(_relay_split_db(tmp_path, 1), RELAY_SPLIT_OUTLETS)
     assert (rc["outlets"], rc["countries"]) == (1, ["ITA"])
     assert (rc["shared_outlets"], rc["shared_countries"]) == (3, ["DEU", "ITA"])
     assert rc["stale"] is False
 
 
-def test_stale_relay_calls_only_relay_only_outlets_incomplete(tmp_path):
+def test_stale_relay_calls_only_relay_only_outlets_incomplete(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "RELAY_RETIRED_ON", None)    # as it was before the relay was retired
     latest = export.build_latest(_relay_split_db(tmp_path, 9), RELAY_SPLIT_OUTLETS, [], population={})
     ita, deu, fra = (latest["countries"][c] for c in ("ITA", "DEU", "FRA"))
     assert (ita["relay_outlets"], ita["shared_outlets"], deu["relay_outlets"], deu["shared_outlets"]) == (1, 1, 0, 2)
@@ -922,7 +926,8 @@ def test_methodology_states_relay_only_and_shared_outlets_apart(tmp_path, monkey
     text = _rendered_methodology(tmp_path, monkeypatch, relay_collector=rc)
     assert ("88 outlets collected only there, in 2 countries; 148 more polled there and by the hosted runner, in 3 countries; "
             "last pass 2026-10-12T08:06:06+00:00 (1.2 hours before export); 1 incomplete days") in text
-    assert "whose outlets only it collects" in text and "The outlets it shares with the hosted runner are not marked" in text
+    flat = " ".join(text.split())
+    assert "whose outlets only it collected" in flat and "The outlets it shared with the hosted runner are not marked" in flat
 
 
 def test_rediscovery_dates_the_fix_from_the_first_run_that_remembered_pruned_addresses(tmp_path):

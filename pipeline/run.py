@@ -163,6 +163,23 @@ def cmd_status(conn, run_id, args, deadline):
     return tc
 
 
+# In a full run, discovery and the fetch stop this long before the run's deadline, so the rules stage always
+# gets a slice. It is what turns a fetched article into a counted one, and without a slice of its own it
+# was skipped whenever discovery and the fetch used the budget. From 2026-10-20, when discovery took up to
+# 28 of the 35 minutes and the reference fetch ran to the deadline, it went 13 hours without a run (to the
+# export of 2026-10-20 21:16), and 3,328 fetched articles of 2026-10-20 and 21 waited for it at the
+# 2026-10-22 export.
+CLASSIFY_RESERVE_SECONDS = 240
+
+
+def _stage_deadline(name: str, order, deadline: float) -> float:
+    """The deadline a stage of this run works to: the run's own for the classify stage and for a stage run
+    by itself, CLASSIFY_RESERVE_SECONDS earlier for discovery and the fetch when classify follows them."""
+    if name != "classify" and "classify" in order:
+        return deadline - CLASSIFY_RESERVE_SECONDS
+    return deadline
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=["discover", "fetch", "classify", "all", "status"])
@@ -182,10 +199,11 @@ def main(argv=None):
     order = ["discover", "fetch", "classify"] if args.stage == "all" else [args.stage]
     summary = {}
     for name in order:
-        if time.time() > deadline:
+        stage_deadline = _stage_deadline(name, order, deadline)
+        if time.time() > stage_deadline:
             print("budget exhausted before %s" % name)
-            break
-        summary[name] = stages[name](conn, run_id, args, deadline)
+            continue
+        summary[name] = stages[name](conn, run_id, args, stage_deadline)
     conn.commit()
     conn.close()
     print("done in %.0fs" % (time.time() - started))

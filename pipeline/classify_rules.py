@@ -1415,6 +1415,37 @@ def classify_article(conn, row, looks: Optional["lookalike.RouteIndex"] = None) 
     return {"outcome": "not_relevant"}
 
 
+# The relay on the owner's machine was retired on 2026-10-22 (config.RELAY_RETIRED_ON). Its bundles were
+# unsealed, so they carried no bodies, and the runner may not fetch an outlet that refuses it: an article
+# of such an outlet stored as fetched with no body on disk can never be read. It is settled as failed with
+# this reason, so no stage retries it (fetch_articles.TRANSIENT_FAIL_PREFIXES does not cover it), and the
+# gate accounting (export.gate_accounting) counts it as fetched text never delivered: unread and uncounted.
+RELAY_DROPPED_FAIL = "relay_dropped_text_not_delivered"
+
+
+def settle_relay_dropped(conn, outlets=None) -> int:
+    """On the hosted runner, mark failed every gate relevant article still waiting as fetched whose outlet is
+    a relay outlet (collector: self_hosted, now inactive) and whose body is not on disk. Returns how many."""
+    from pipeline import registry
+    if config.COLLECTOR != registry.HOSTED:
+        return 0
+    outlets = outlets if outlets is not None else registry.load_outlets()
+    ids = sorted(o["id"] for o in outlets if registry.collector_of(o) == registry.SELF_HOSTED and not o.get("active"))
+    settled = 0
+    for i in range(0, len(ids), 500):
+        part = ids[i:i + 500]
+        rows = conn.execute("SELECT id, url_hash FROM articles WHERE status='fetched' AND gate_relevant=1 AND outlet_id IN (%s)"
+                            % ",".join("?" * len(part)), part).fetchall()
+        for r in rows:
+            if r["url_hash"] and store.body_path(r["url_hash"]).exists():
+                continue
+            store.update_article(conn, r["id"], status="failed", fail_reason=RELAY_DROPPED_FAIL)
+            settled += 1
+    if settled:
+        conn.commit()
+    return settled
+
+
 def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetched") -> Dict:
     log_id = store.start_stage(conn, run_id, "classify_rules")
     # A ruleset that does not compile must stop the stage loudly, never mark articles failed one by one.
@@ -1430,9 +1461,11 @@ def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetc
     ).rowcount
     if repaired or relabelled:
         conn.commit()
+    relay_dropped = settle_relay_dropped(conn)
     rows = store.articles_by_status(conn, status, limit=100000)
     counts = {"input": len(rows), "A": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0,
-              "repaired": repaired, "relabelled": relabelled, "body_unavailable": 0, "unreadable": 0}
+              "repaired": repaired, "relabelled": relabelled, "body_unavailable": 0, "unreadable": 0,
+              "relay_dropped": relay_dropped}
     looks = lookalike.build_index(conn, rows)
     for r in rows:
         if deadline and time.time() > deadline:

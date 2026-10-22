@@ -5,8 +5,8 @@ PATH that serves a release from a directory and can be told to fail, so nothing 
 What these pin (CI audit, 2026-10-17): a cached database with a hot journal is rolled back and kept;
 a torn one is set aside for the snapshot; a snapshot that exists but cannot be read fails the step
 after three tries instead of falling back to the seed; the public snapshot goes through the scrubber;
-the whole database and the bodies are published only encrypted, and come back on a cache miss; the
-relay stops by the wall clock, runs under caffeinate, and falls back from SSH to HTTPS.
+the whole database and the bodies are never published (the relay's key that once sealed them was
+retired on 2026-10-22), so a cache miss restores the scrubbed copy; the relay stops by the wall clock, runs under caffeinate, and falls back from SSH to HTTPS.
 """
 import os
 import shutil
@@ -223,75 +223,50 @@ def test_a_damaged_snapshot_fails_the_step(tmp_path, gh):
 # db_snapshot.sh, and the round trip
 # ---------------------------------------------------------------------------
 
-def test_snapshot_with_the_key_publishes_scrubbed_and_encrypted_copies(tmp_path, gh):
+def test_snapshot_publishes_only_the_scrubbed_copy_even_with_a_key_in_the_environment(tmp_path, gh):
+    """The relay was retired on 2026-10-22 and its key is never to be set; even if it were, the whole
+    database and the bodies are not uploaded, encrypted or not, and nothing asks for the key."""
     src = _repo(tmp_path, "src", scrubber=True)
     _make_db(src / "data" / "tracker.db")
     _bodies(src)
     r = _run(src, "db_snapshot.sh", _env(tmp_path, gh, key=KEY))
     assert r.returncode == 0, r.stdout + r.stderr
-    assets = sorted(p.name for p in (gh / "assets").iterdir())
-    assert assets == ["bodies.tar.gz.enc", "tracker-full.db.gz.enc", "tracker.db.gz"]
-    # nothing readable in the encrypted assets, and the key never in the output
-    for name in ("bodies.tar.gz.enc", "tracker-full.db.gz.enc"):
-        blob = (gh / "assets" / name).read_bytes()
-        assert blob.startswith(b"Salted__") and b"A. Writer" not in blob and b"body 0" not in blob
-    assert KEY not in r.stdout + r.stderr
+    assert sorted(p.name for p in (gh / "assets").iterdir()) == ["tracker.db.gz"]
+    assert "RELAY_BUNDLE_KEY" not in r.stdout + r.stderr and KEY not in r.stdout + r.stderr
     subprocess.run("gunzip -c %s > %s" % (gh / "assets" / "tracker.db.gz", tmp_path / "pub.db"), shell=True, check=True)
     assert _authors(tmp_path / "pub.db") == {None}         # the public copy went through the scrubber
     assert _authors(src / "data" / "tracker.db") == {"A. Writer"}   # never the working database
+    r = _run(src, "db_snapshot.sh", _env(tmp_path, gh))
+    assert r.returncode == 0 and "RELAY_BUNDLE_KEY" not in r.stdout + r.stderr and "warning" not in r.stdout
 
-    # A cache miss with the key: the whole database and the bodies come back.
+    # A cache miss: the public scrubbed copy, and no bodies.
     dst = _repo(tmp_path, "dst")
     r = _run(dst, "db_restore.sh", _env(tmp_path, gh, key=KEY))
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "restored from the encrypted whole snapshot" in r.stdout
-    assert _authors(dst / "data" / "tracker.db") == {"A. Writer"}
-    assert (dst / "data" / "bodies" / "02" / "02.txt.gz").read_bytes() == b"body 2"
-    assert "3 files added" in r.stdout
+    assert "restored from the public snapshot" in r.stdout and "no article bodies" in r.stdout
+    assert "RELAY_BUNDLE_KEY" not in r.stdout + r.stderr
+    assert _authors(dst / "data" / "tracker.db") == {None}
 
-    # A cache hit with a whole database but bodies already there keeps both and asks for nothing more.
+    # A cache hit with a whole database but no bodies asks the release for nothing.
     calls = (gh / "calls").read_text()
-    r = _run(dst, "db_restore.sh", _env(tmp_path, gh, key=KEY))
+    r = _run(dst, "db_restore.sh", _env(tmp_path, gh))
     assert r.returncode == 0 and "from cache" in r.stdout and (gh / "calls").read_text() == calls
 
-    # Without the key: the public scrubbed copy, with a warning, and no bodies.
-    bare = _repo(tmp_path, "bare")
-    r = _run(bare, "db_restore.sh", _env(tmp_path, gh))
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert "public scrubbed snapshot is used" in r.stdout and "are not restored" in r.stdout
-    assert _authors(bare / "data" / "tracker.db") == {None}
 
-    # A wrong key is a failure, not a quiet fall back.
-    wrong = _repo(tmp_path, "wrong")
-    r = _run(wrong, "db_restore.sh", _env(tmp_path, gh, key="w" * 43))
-    assert r.returncode != 0 and "could not be decrypted" in r.stdout
-    assert not (wrong / "data" / "tracker.db").exists()
-
-
-def test_bodies_restored_on_a_cache_miss_never_replace_a_file_already_there(tmp_path, gh):
-    src = _repo(tmp_path, "src", scrubber=True)
-    _make_db(src / "data" / "tracker.db")
-    _bodies(src)
-    assert _run(src, "db_snapshot.sh", _env(tmp_path, gh, key=KEY)).returncode == 0
+def test_restore_ignores_encrypted_copies_left_in_the_release(tmp_path, gh):
+    (gh / "assets").mkdir()
+    _make_db(tmp_path / "snap.db", author="from snapshot")
+    subprocess.run("gzip -c %s > %s" % (tmp_path / "snap.db", gh / "assets" / "tracker.db.gz"), shell=True, check=True)
+    for name in ("tracker-full.db.gz.enc", "bodies.tar.gz.enc"):
+        (gh / "assets" / name).write_bytes(b"Salted__" + b"\x01" * 64)
     dst = _repo(tmp_path, "dst")
-    (dst / "data" / "tracker.db").write_bytes(b"torn" * 100)
-    (dst / "data" / "bodies" / "00").mkdir(parents=True)
-    (dst / "data" / "bodies" / "00" / "00.txt.gz").write_bytes(b"newer")
     r = _run(dst, "db_restore.sh", _env(tmp_path, gh, key=KEY))
     assert r.returncode == 0, r.stdout + r.stderr
-    assert (dst / "data" / "bodies" / "00" / "00.txt.gz").read_bytes() == b"newer"
-    assert (dst / "data" / "bodies" / "01" / "01.txt.gz").read_bytes() == b"body 1"
-    assert "2 files added, 3 in all" in r.stdout
-
-
-def test_snapshot_without_the_key_never_publishes_the_whole_database_or_bodies(tmp_path, gh):
-    src = _repo(tmp_path, "src", scrubber=True)
-    _make_db(src / "data" / "tracker.db")
-    _bodies(src)
-    r = _run(src, "db_snapshot.sh", _env(tmp_path, gh, key="short"))     # a short key counts as none
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert sorted(p.name for p in (gh / "assets").iterdir()) == ["tracker.db.gz"]
-    assert "RELAY_BUNDLE_KEY is not set" in r.stdout
+    assert "restored from the public snapshot" in r.stdout
+    assert _authors(dst / "data" / "tracker.db") == {"from snapshot"}
+    assert ".enc" not in (gh / "calls").read_text()       # never downloaded
+    for script in ("db_restore.sh", "db_snapshot.sh"):
+        assert "RELAY_BUNDLE_KEY" not in (ROOT / "scripts" / script).read_text(encoding="utf-8")
 
 
 def test_snapshot_without_the_scrubber_warns(tmp_path, gh):
@@ -421,27 +396,13 @@ def _pull(tmp_path, gh, name, key=None, keyfile=None):
     return repo, r.stdout
 
 
-def test_pull_prefers_the_whole_database_with_the_key_from_the_relay_file_or_the_environment(tmp_path, gh):
+def test_pull_takes_the_scrubbed_copy_and_never_asks_for_a_key(tmp_path, gh):
+    """The whole database is never published since the relay was retired on 2026-10-22, so the pull
+    takes the public scrubbed copy, says what it lacks, and reads no key from the environment or a file."""
     _published(tmp_path, gh)
-    repo, out = _pull(tmp_path, gh, "file", keyfile=KEY)
-    assert "from the whole database (decrypted)" in out
-    assert _authors(repo / "data" / "tracker.db") == {"A. Writer"}
-    repo, out = _pull(tmp_path, gh, "env", key=KEY)
-    assert "from the whole database (decrypted)" in out and _authors(repo / "data" / "tracker.db") == {"A. Writer"}
-
-
-def test_pull_falls_back_to_the_scrubbed_copy_and_says_why(tmp_path, gh):
-    _published(tmp_path, gh)
-    repo, out = _pull(tmp_path, gh, "nokey")
-    assert "no relay key" in out and "public scrubbed copy" in out and "no authors or summaries" in out
-    assert _authors(repo / "data" / "tracker.db") == {None}
-    repo, out = _pull(tmp_path, gh, "short", keyfile="short")
-    assert "no relay key" in out and _authors(repo / "data" / "tracker.db") == {None}
-    repo, out = _pull(tmp_path, gh, "wrong", key="w" * 43)
-    assert "could not be decrypted" in out and _authors(repo / "data" / "tracker.db") == {None}
-
-
-def test_pull_says_when_the_release_has_no_whole_copy(tmp_path, gh):
-    _published(tmp_path, gh, key=None)               # published before the secret existed
-    repo, out = _pull(tmp_path, gh, "early", key=KEY)
-    assert "has no whole copy" in out and _authors(repo / "data" / "tracker.db") == {None}
+    for name, kw in (("nokey", {}), ("env", {"key": KEY}), ("file", {"keyfile": KEY})):
+        repo, out = _pull(tmp_path, gh, name, **kw)
+        assert "public scrubbed copy" in out and "no authors or summaries" in out, name
+        assert "key" not in out.lower(), name
+        assert _authors(repo / "data" / "tracker.db") == {None}, name
+    assert "RELAY_BUNDLE_KEY" not in (ROOT / "scripts" / "db_pull.sh").read_text(encoding="utf-8")

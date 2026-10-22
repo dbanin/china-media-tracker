@@ -119,7 +119,7 @@
           "self_hosted",
           "both"
         ],
-        "description": "Which collector polls this outlet. hosted (default) is the GitHub-hosted runner; self_hosted is the runner on the owner's own network, for feeds that refuse GitHub's addresses; both puts a short feed the hosted runner reaches too rarely on both schedules, and its article pages are fetched by the hosted runner only."
+        "description": "Which collector polls this outlet. hosted (default) is the GitHub-hosted runner; self_hosted was the relay on the owner's own network, for feeds that refuse GitHub's addresses, retired on 2026-10-22, so every self_hosted outlet is inactive; both puts a short feed the hosted runner reaches too rarely on both schedules, and its article pages are fetched by the hosted runner only."
       },
       "collector_since": {
         "type": "string",

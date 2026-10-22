@@ -37,7 +37,11 @@ def test_state_origin_split_is_generated_from_the_rules_and_model_counts():
     tot = {"A": 3278, "Ar": 1256, "Al": 2022}
     text = methodology.state_origin_split_text({"route_totals": {"unattributed": 1737}}, tot)
     assert text.startswith("at export time fixed rules decided 1,256 of the 3,278 state origin labels (38 percent)")
-    assert "2,022 (62 percent) are model judgements, 1,737 of them with no signature of any kind" in text
+    # Decision D1 (2026-10-22): the model's labels with no signature at all are held apart, outside these numbers.
+    assert "A further 1,737 model judgements of state origin name no evidence at all; they are held apart" in text
+    joined = methodology.state_origin_split_text({"route_totals": {"unattributed": 1737},
+                                                  "model_only_state_origin": {"held_apart": False}}, tot)
+    assert "2,022 (62 percent) are model judgements, 1,737 of them with no signature of any kind" in joined
     assert methodology.state_origin_split_text({}, {"A": 0}) == "no state origin label had been made at export time."
     assert "no signature of any kind" not in methodology.state_origin_split_text({}, tot)
 
@@ -55,7 +59,8 @@ def test_six_route_cards_including_the_model_judgement_without_a_signature():
     assert ids[-1] == "unattributed" and len(ids) == 6
     assert all(i in CONTENT["routes"] for i in ids)
     card = CONTENT["routes"]["unattributed"]
-    assert card["plain_name"] == "Model judgement, no signature"
+    assert card["plain_name"] == "Model judgement alone, provisional"
+    assert "held out of state origin" in card["how_it_arrives"]
     assert card["illustrative_line"].startswith("Illustrative only, not a quote from a real article:")
     assert "How state text arrives, in six ways" in INDEX and "in five ways" not in INDEX
 
@@ -211,17 +216,22 @@ def test_failed_study_without_kappa_prints_its_reason(tmp_path, monkeypatch):
     assert "n/a, below the" not in text
 
 
-def test_snapshot_sentences_name_the_scrubbed_copy_and_the_encrypted_backups():
+def test_snapshot_sentences_name_the_scrubbed_copy_and_no_whole_copy():
+    """Since the relay was retired on 2026-10-22 the whole database and the bodies are never uploaded,
+    encrypted or not, and nothing names the relay's key as a way to back them up."""
     flat = " ".join(METH_PY.split())
     assert "is snapshotted daily, compressed, as a release asset" not in flat
-    assert "only encrypted with the owner's key (RELAY_BUNDLE_KEY), as tracker-full.db.gz.enc and bodies.tar.gz.enc" in flat
+    assert "The whole database and the article bodies are never uploaded, in clear or encrypted" in flat
+    assert "RELAY_BUNDLE_KEY" not in flat and "tracker-full.db.gz.enc" not in flat
     readme = " ".join(README.split())
     assert "as the single asset of the `db-snapshot` release" not in readme
-    assert "`tracker-full.db.gz.enc` and `bodies.tar.gz.enc`" in readme and "never uploaded in clear" not in readme.replace("neither is ever uploaded in clear", "")
+    assert "The whole database and the bodies are never uploaded, in clear or encrypted" in readme
+    assert "`tracker-full.db.gz.enc`" not in readme
 
 
-def test_readme_relay_bundle_is_sealed_or_carries_no_bodies():
+def test_readme_says_the_relay_was_stopped_and_its_key_is_never_added():
     readme = " ".join(README.split())
     assert "articles, bodies included, to the `relay` branch" not in readme
-    assert "sealed with it (pipeline/bundle_crypto.py) and carries the article bodies" in readme
-    assert "every body left out, paywalled ones included" in readme and "`push_bundle` refuses" in readme
+    assert "So the relay was stopped on 2026-10-22: its 123 outlets are inactive" in readme
+    assert "the `RELAY_BUNDLE_KEY` secret is never to be added" in readme
+    assert "the Cook Islands and Kiribati with no active outlet" in readme

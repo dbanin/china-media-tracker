@@ -668,6 +668,19 @@ assert(rnShared.parts.length === 1 && rnShared.parts[0].indexOf("are incomplete"
 assert(C.relayCollectorNotes({outlets: 2, last_run: "x", stale: false, incomplete_days: []}).parts.length === 0 && C.relayCollectorNotes({outlets: 0, shared_outlets: 0, stale: true}).parts.length === 0, "nothing to say when fresh or empty");
 assert(C.relayCollectorNotes({outlets: 4, stale: null}).parts[0].indexOf("gaps in the 4 outlets only it collects") >= 0, "no heartbeat yet");
 assert(C.relayOutletsSummary(rcStale) === "2 outlets collected only there, 3 also polled by the hosted runner" && C.relayOutletsSummary({outlets: 1}) === "1 outlet collected only there, 0 also polled by the hosted runner", "technical notes summary, older data without shared counts");
+/* The relay was stopped on 2026-10-22 (meta.relay_collector.retired_on): its outlets are badged as stopped,
+   shared outlets lose their badge, and the notes say what it left inactive and keep the red days before then. */
+assert(C.collectorBadge("self_hosted", "2026-10-22").label === "relay stopped" && C.collectorBadge("self_hosted", "2026-10-22").title.indexOf("until that collection stopped on 2026-10-22") >= 0, "a retired relay outlet is badged as stopped");
+assert(C.collectorBadge("both", "2026-10-22") === null && C.collectorBadge("hosted", "2026-10-22") === null, "no shared badge once the relay is retired");
+var rcRetired = {outlets: 0, countries: [], shared_outlets: 0, shared_countries: [], last_run: "2026-10-22T07:00:00+00:00", hours_since_last_run: null, stale: false,
+                 incomplete_days: ["2026-10-10", "2026-10-11"], retired_on: "2026-10-22", dropped_outlets: 123, dropped_by_country: {COK: 1, KIR: 1, ITA: 2},
+                 countries_all_inactive: ["COK", "KIR"], countries_partial: ["ITA"]};
+var rr = C.relayCollectorNotes(rcRetired, function (c) { return {COK: "Cook Islands", KIR: "Kiribati", ITA: "Italy"}[c]; });
+assert(rr.short.length === 1 && rr.short[0] === "123 outlets that refuse the crawler inactive since 2026-10-22", "retired short clause");
+assert(rr.parts[0].indexOf("every monitored outlet in Cook Islands and Kiribati, which are no longer monitored, and some outlets in 1 country more") >= 0, "retired names the countries left unmonitored");
+assert(rr.parts[0].indexOf("silent") < 0 && rr.parts[0].indexOf("has not collected") < 0, "a retired relay is never called silent");
+assert(rr.parts[1].indexOf("2 days, still marked in red") >= 0, "the red days before the stop are kept");
+assert(C.relayOutletsSummary(rcRetired) === "stopped on 2026-10-22; 123 outlets it alone collected inactive since, in 3 countries", "retired technical notes summary");
 /* The stability check state, matching pipeline/methodology.py: a current check is described on its own,
    an older-prompt check is named as history, and no check says when one runs. */
 var stHist = {method: "same_model_rerun", n: 225, kappa_bc: 0.6229, computed_at: "2026-10-09T02:29:14+00:00", prompt_version: null, stale: true};
@@ -734,4 +747,15 @@ var tEmpty = C.topCountriesInWindow(C.aggregateWindow({}, "2026-09-30", 30, "bot
 assert(tEmpty.rows.length === 0 && tEmpty.worldwide === null && tEmpty.max === 0, "nothing to rank");
 assert(C.topCountriesInWindow(null, 10).rows.length === 0 && C.topCountriesInWindow(null, 10).window === null, "no aggregate");
 assert(C.topCountriesInWindow(tAgg, 10, null, "2026-09-30", 30).rows[0].name === "ITA", "codes stand in for missing names");
+/* Every share states what it divides (2026-10-22): the state share sentence names its numerator and
+   denominator, and the top country's share names the window's total it is a share of. */
+var fBasis = C.fillFindingsTemplate(["{state_share_of_china} ({state_origin_count} of {china_total_count})", "{top_country_share} of {top_country_world}."],
+  {all_time: {state_origin: 2279, china_total: 47799, state_share_of_china: 2279 / 47799},
+   top_country: {iso: "ITA", state_origin: 304, share_of_world: 304 / 1420, world_total: 1420}}, {ITA: "Italy"}, {});
+assert(fBasis[0] === "4.8% (2,279 of 47,799)", "state share with its basis: " + fBasis[0]);
+assert(fBasis[1] === "21% of the world's 1,420 placements in those days.", "top country share with its total: " + fBasis[1]);
+var fNoTotal = C.fillFindingsTemplate(["{top_country_share} of {top_country_world}."], {all_time: {}, top_country: {iso: "ITA", state_origin: 304, share_of_world: 0.2141}}, {}, {});
+assert(fNoTotal[0] === "21% of the world's total.", "an older export without the total keeps the old words");
+var tcWin = C.topCountryInWindow({countries: {ITA: {A: 304, uniqA: 292}, AUS: {A: 200}, WLD: {A: 916}}}, "both", null, null);
+assert(tcWin.world_total === 1420 && Math.abs(tcWin.share_of_world - 304 / 1420) < 1e-9, "the top country's share is of the window's total, wires included");
 console.log("frontend smoke ok");
