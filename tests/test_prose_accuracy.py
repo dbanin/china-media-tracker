@@ -37,11 +37,11 @@ def test_state_origin_split_is_generated_from_the_rules_and_model_counts():
     tot = {"A": 3278, "Ar": 1256, "Al": 2022}
     text = methodology.state_origin_split_text({"route_totals": {"unattributed": 1737}}, tot)
     assert text.startswith("at export time fixed rules decided 1,256 of the 3,278 state origin labels (38 percent)")
-    # Decision D1 (2026-10-22): the model's labels with no signature at all are held apart, outside these numbers.
-    assert "A further 1,737 model judgements of state origin name no evidence at all; they are held apart" in text
-    joined = methodology.state_origin_split_text({"route_totals": {"unattributed": 1737},
-                                                  "model_only_state_origin": {"held_apart": False}}, tot)
-    assert "2,022 (62 percent) are model judgements, 1,737 of them with no signature of any kind" in joined
+    # Decision D1 as revised (2026-10-22): undetermined labels are in no count, outside these numbers.
+    assert "A further 1,737 model judgements of state origin name no evidence a reader can check" in text
+    assert "they are undetermined, excluded from every count" in text
+    block = methodology.state_origin_split_text({"route_totals": {"unattributed": 9}, "undetermined": {"count": 1737}}, tot)
+    assert "A further 1,737 model judgements" in block, "meta.undetermined.count is read first"
     assert methodology.state_origin_split_text({}, {"A": 0}) == "no state origin label had been made at export time."
     assert "no signature of any kind" not in methodology.state_origin_split_text({}, tot)
 
@@ -53,16 +53,16 @@ def test_technical_notes_are_gone_and_the_page_no_longer_says_they_come_from_the
     assert "not written from the data" in INDEX
 
 
-def test_six_route_cards_including_the_model_judgement_without_a_signature():
+def test_six_route_cards_including_the_undetermined_calls():
     order = re.search(r"ROUTE_CARD_ORDER = \[([^\]]*)\]", APP).group(1)
     ids = re.findall(r'"([a-z_]+)"', order)
     assert ids[-1] == "unattributed" and len(ids) == 6
     assert all(i in CONTENT["routes"] for i in ids)
     card = CONTENT["routes"]["unattributed"]
-    assert card["plain_name"] == "Model judgement alone, provisional"
-    assert "held out of state origin" in card["how_it_arrives"]
+    assert card["plain_name"] == "Undetermined, not counted"
+    assert "undetermined and excluded from every count" in card["how_it_arrives"] and "never rejoin" in card["how_it_arrives"]
     assert card["illustrative_line"].startswith("Illustrative only, not a quote from a real article:")
-    assert "How state text arrives, in six ways" in INDEX and "in five ways" not in INDEX
+    assert "How state text arrives, in five ways, and the calls left undetermined" in INDEX and "in six ways" not in INDEX
 
 
 def test_relabel_order_is_described_as_tiers_read_from_the_code():

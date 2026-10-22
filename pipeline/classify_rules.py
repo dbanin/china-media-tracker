@@ -1576,7 +1576,8 @@ def sweep_lookalikes(conn, now: Optional[dt.datetime] = None, deadline: Optional
     now = now or dt.datetime.now(dt.timezone.utc)
     since = (now - dt.timedelta(hours=hours)).replace(microsecond=0).isoformat()
     out = {"refs": 0, "checked": 0, "routed": 0, "stopped_deadline": False}
-    # The same references as the stage index: only state origin labels a credit supports.
+    # The same references as the stage index: only state origin labels a credit supports that are not
+    # undetermined (model_only.reference_sql), so a copy is routed only toward settled state origin.
     credited, routes = lookalike.credited_reference_sql("c")
     refs = [dict(r) for r in conn.execute(
         """SELECT a.id AS article_id, a.outlet_id, a.language, a.title, a.summary, a.published_at, a.discovered_at,

@@ -19,6 +19,18 @@ how the original study's codebook numbered them.
 Read METHODOLOGY.md for what the system does and what its numbers mean. That
 file is generated from live values and is the authoritative description.
 
+The tracker's figures cannot be set beside the original study's, for four
+reasons that METHODOLOGY.md gives in full under Known limits. It counts every placement in each
+monitored outlet, where the study counted identical wire copy once per
+publication. Its not relevant threshold is its own rule, not the study's
+codebook. Its unchecked state sourcing asks only whether a claim was passed on
+without independent confirmation, not the study's five levels of verification,
+so it probably overcounts relative to the study and stays provisional until the
+five level scale enters the model's instructions after 23 October 2026. And it
+does not read section headers as evidence, so paid sections the study would
+catch can be missed or end up undetermined until the model is given the address
+and the section, also planned after that date.
+
 ## Increments landed
 
 1. Outlet registry, schema, feed validator, and dense coverage of Italy,
@@ -369,11 +381,20 @@ and reminds the reader that raw counts display the sampling; on 12 October
 median of 6, and 16 countries had a single outlet. The site has three
 measures: state origin, the default, decided by fixed rules where a signature
 shows it and by the model otherwise (METHODOLOGY.md gives the current split),
-unchecked state sourcing, and all China coverage. A model state origin call
-that names no credit line, stamp, disclosure or byline and matches no credited
-item (route `unattributed`) is held out of state origin as its own provisional
-figure, code `M` in the data files, until its hand check passes
-(`pipeline/model_only.py`; `python -m pipeline.model_only sample` draws it). It has four bases:
+unchecked state sourcing, and all China coverage. As in the original study, an
+item whose authorship or commissioning cannot be settled, and could be state, is
+undetermined (code `U` in the data files) and excluded from every category count:
+the tracker's undetermined items are the model's state origin calls that name no
+credit line, stamp, disclosure or byline and match no credited item (route
+`unattributed`), and its calls naming a sponsored disclosure the rules did not
+find on the article itself (the rules ignore sidebar and menu advertisements),
+and its uncredited copy calls whose recorded item is undetermined itself.
+They are in no count, share or denominator, China coverage included, and never
+rejoin state origin; they are shown only as their own figure (meta.undetermined,
+findings.undetermined, the `undetermined` CSV column), because the model is kept
+blind to outlet, country and address until after 23 October 2026, so such a call
+carries no marker a reader can check. A blind hand check of them, information
+only, is drawn by `python -m pipeline.model_only sample` (`pipeline/model_only.py`). It has four bases:
 number of articles, per outlet we monitor, percent of the country's China
 coverage and percent of all its news; per outlet and the share of all its
 news are the corrected views. A Distribution toggle, described below,
@@ -443,7 +464,11 @@ moves older such labels across at export. The uncredited copy count is a
 lower bound. The check compares an article only with state origin items that
 another monitored outlet ran under a credit, stamp, sponsored disclosure or
 diplomat's byline, within eleven days either side and in the same language;
-a label resting on the model alone is never a reference, and the six English
+a label resting on the model alone is never a reference, and neither is an
+undetermined one, such as a sponsored disclosure the model named that the rules
+did not find: an uncredited copy counts only when the item it repeats is settled
+state origin, and a copy of an undetermined item is undetermined itself
+(`model_only.reference_sql` and `unsettled_copy_sql`). The six English
 reference editions are never one either (they serve only the report only
 measures that set copies beside their originals, alteration and speed). State text that no monitored outlet ever ran with a credit, such as
 Xinhua copy in Italian, Spanish or Portuguese run uncredited everywhere, and

@@ -758,4 +758,23 @@ var fNoTotal = C.fillFindingsTemplate(["{top_country_share} of {top_country_worl
 assert(fNoTotal[0] === "21% of the world's total.", "an older export without the total keeps the old words");
 var tcWin = C.topCountryInWindow({countries: {ITA: {A: 304, uniqA: 292}, AUS: {A: 200}, WLD: {A: 916}}}, "both", null, null);
 assert(tcWin.world_total === 1420 && Math.abs(tcWin.share_of_world - 304 / 1420) < 1e-9, "the top country's share is of the window's total, wires included");
+/* Undetermined items (U, decision D1 as revised): in no count, share or denominator, China coverage included. */
+var uk = C.emptyCounts(); uk.A = 10; uk.B = 5; uk.C = 85; uk.U = 400; uk.tdisc = 1000;
+var umv = C.metricValue(uk, "share_a", 20, "all", null, {});
+assert(umv.chinaTotal === 100 && Math.abs(umv.value - 0.1) < 1e-9 && umv.undetermined === 400, "U is in no China denominator: " + umv.chinaTotal);
+assert(C.metricValue(uk, "count_china", 20, "all", null, {}).value === 100, "all China coverage leaves U out");
+assert(C.metricValue(uk, "count_a", 20, "all", null, {}).value === 10, "state origin leaves U out");
+var ulayer = C.metricValue(uk, "count_a", 20, "all", null, {routeCount: 400, routeUndetermined: true});
+assert(ulayer.value === 400 && ulayer.undeterminedLayer && ulayer.note === C.UNDETERMINED_LAYER && !ulayer.provisional && !ulayer.withheld, "the route filter's undetermined layer is marked not counted");
+var ushare = C.metricValue(uk, "share_a", 20, "all", null, {routeCount: 400, routeUndetermined: true});
+assert(ushare.value === null && ushare.note === C.UNDETERMINED_NO_SHARE, "undetermined items are in no share");
+var uat = C.allTimeInWindow({countries: {ITA: {A: 7, B: 1, C: 2, U: 5, pending: 3}, WLD: {A: 1, B: 0, C: 1, U: 2}}}, {unchecked: 1});
+assert(uat.china_total === 12 && uat.undetermined === 7 && uat.undetermined_wires === 2 && uat.china_total_wires === 2, "all time China total is A + B + C");
+assert(Math.abs(uat.state_share_of_china - 8 / 12) < 1e-9, "the share of China coverage is on the A + B + C basis");
+var udf = C.distributionFindings({state_origin: 8, china_total: 12, undetermined: 7, undetermined_wires: 2}, {}, null, "country");
+assert(udf.undetermined === 5, "undetermined follows the Distribution toggle");
+var urows = C.rankCountries({countries: {ITA: uk}, reviewed: {}}, {countries: {ITA: {outlets_active: 20}}}, "count_a", "all", {ITA: "Italy"}, null, "both");
+assert(urows[0].undetermined === 400 && urows[0].china_total === 100 && !("model_only_state_origin" in urows[0]), "the CSV carries an undetermined column beside A + B + C");
+assert(C.nameOf("U") === "Undetermined: who wrote or commissioned it could not be settled" && !C.NAMES.M, "U is named, M is gone");
+assert(!C.modelOnlyStatus && !C.MODEL_ONLY_PROVISIONAL, "nothing reads a rejoin status");
 console.log("frontend smoke ok");

@@ -367,21 +367,22 @@ def fingerprint_of(conn, article_id: int, body: Optional[str] = None) -> Optiona
 
 def credited_reference_sql(alias: str = "c") -> Tuple[str, List[str]]:
     """(SQL condition, params) on a current state origin label `alias`, true when it may stand as a
-    lookalike reference: its route is one a credit supports (copies.CREDITED_ROUTES: a wire credit, a
-    distribution stamp, a sponsored disclosure, a diplomatic byline), or it is a rules label from before
-    routes were stored, which a signature supports by construction. A model label that rests on the
-    model alone (unattributed, uncredited_copy) is not a reference: one wrong judgement (a vivo or iQIYI
-    release, a CityUHK notice) otherwise spread to the uncredited copies of the same text."""
-    from pipeline.copies import CREDITED_ROUTES  # copies imports this module
-    routes = sorted(CREDITED_ROUTES)
-    cond = "(%s.route IN (%s) OR (%s.method = 'rules' AND %s.route IS NULL))" % (
-        alias, ", ".join("?" * len(routes)), alias, alias)
-    return cond, routes
+    lookalike reference (pipeline/model_only.py, reference_sql): its route is one a credit supports
+    (copies.CREDITED_ROUTES: a wire credit, a distribution stamp, a sponsored disclosure, a diplomatic
+    byline), or it is a rules label from before routes were stored, which a signature supports by
+    construction, and it is not undetermined. A model label that rests on the model alone (unattributed,
+    uncredited_copy, or a sponsored disclosure the rules did not find) is not a reference: one wrong
+    judgement (a vivo or iQIYI release, a CityUHK notice) otherwise spread to the uncredited copies of
+    the same text, and a copy counts only when the item it repeats is settled state origin. The condition
+    carries its values inline, so params is empty; model_only.unsettled_copy_sql applies the same test to
+    the reference an existing copy recorded."""
+    from pipeline import model_only
+    return model_only.reference_sql(alias), []
 
 
 def build_index(conn, rows: Iterable) -> RouteIndex:
-    """The index for a stage that will judge `rows`: every current state origin item with a credited
-    route (credited_reference_sql) discovered or credibly published in the window around any of them,
+    """The index for a stage that will judge `rows`: every current state origin item that may stand as a
+    reference (credited_reference_sql) discovered or credibly published in the window around any of them,
     with its body fingerprint where one is stored."""
     span = _span(rows, WINDOW_BEFORE_DAYS, WINDOW_AFTER_DAYS)
     if span is None:

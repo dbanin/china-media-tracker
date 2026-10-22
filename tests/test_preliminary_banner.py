@@ -1,8 +1,9 @@
 """The preliminary figures banner under the title (review of 2026-10-22): the site says, near the top and on
-every visit, that its counts are preliminary, which state origin evidence the headline rests on, that the
-model only state origin and unchecked state sourcing are shown apart and provisional, and that no figure has
-yet been checked against human coding. The text lives in content.json; the default is in index.html so it
-shows without JavaScript; app.js rebuilds it from meta so a passed hand check is never called unchecked."""
+every visit, that its counts are preliminary, which state origin evidence the headline rests on, that items
+whose authorship cannot be settled are undetermined and excluded from every count, as in the original study
+(decision D1 as revised), that unchecked state sourcing is provisional, and that no figure has yet been
+checked against human coding. The text lives in content.json; the default is in index.html so it shows
+without JavaScript; app.js rebuilds it from meta so a passed hand check is never called unchecked."""
 import json
 import re
 import shutil
@@ -46,20 +47,25 @@ def test_banner_sits_under_the_title_and_above_the_map_controls():
 
 
 def test_static_text_is_the_default_composed_from_content_json():
-    """The no JavaScript text is exactly what app.js shows on today's meta (nothing checked, both provisional)."""
-    text = " ".join([BANNER["lead"], BANNER["evidence"], BANNER["apart"]["both"], BANNER["checked"]["none"]])
+    """The no JavaScript text is exactly what app.js shows on today's meta (nothing checked, relay provisional)."""
+    text = " ".join([BANNER["lead"], BANNER["evidence"], BANNER["undetermined"], BANNER["apart"]["relay"], BANNER["checked"]["none"]])
     block = _banner_block()
     assert ">" + text + ' <a href="' + BANNER["link_href"] + '" id="prelim-link">' + BANNER["link_text"] + "</a></p>" in block
     assert '<em>' + BANNER["heading_em"] + '</em>' + BANNER["heading"].replace(BANNER["heading_em"], "", 1) in block
 
 
 def test_banner_keeps_every_fact_of_the_accepted_wording():
-    text = " ".join([BANNER["lead"], BANNER["evidence"], BANNER["apart"]["both"], BANNER["checked"]["none"]])
-    for fact in ("preliminary", "hand checks", "wire credit or dateline", "press release distribution stamp",
-                 "sponsored or partner disclosure", "Chinese diplomat's byline", "close match with credited state text",
-                 "judged by the model alone", "unchecked state sourcing", "shown apart", "marked provisional",
-                 "No figure has yet been checked against human coding."):
+    text = " ".join([BANNER["lead"], BANNER["evidence"], BANNER["undetermined"], BANNER["apart"]["relay"], BANNER["checked"]["none"]])
+    for fact in ("preliminary", "hand checks", "whose state authorship the evidence settles", "wire credit or dateline",
+                 "press release distribution stamp", "sponsored or partner disclosure the rules find on the article itself",
+                 "Chinese diplomat's byline", "close match with credited state text",
+                 "Items whose authorship cannot be settled are undetermined and excluded from every count, as in the original study.",
+                 "Unchecked state sourcing is provisional", "No figure has yet been checked against human coding."):
         assert fact.lower() in text.lower(), fact
+    for gone in ("judged by the model alone", "shown apart", "hand check passed", "rejoin"):
+        assert gone not in text, gone
+    assert set(BANNER["checked"]) == {"none", "none_published", "relay"} and set(BANNER["apart"]) == {"relay"}
+    assert "evidence_model_only_checked" not in BANNER
     assert BANNER["link_href"] == "#method" and 'id="method"' in INDEX
     assert BANNER["link_text"] == "How the figures are checked"
 
@@ -68,7 +74,7 @@ def test_banner_prose_follows_the_house_rules():
     for s in _strings(BANNER):
         assert "—" not in s and "–" not in s, s
         assert not re.search(r"Category [ABC]\b|Universit|Stanford|\bmost\b", s), s
-    for key in ("none", "none_published", "model_only", "relay", "both"):
+    for key in ("none", "none_published", "relay"):
         assert BANNER["checked"][key].endswith(".")
     assert "checked against human coding" not in BANNER["checked"]["relay"].split(";")[0]
 

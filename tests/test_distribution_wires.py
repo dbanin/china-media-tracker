@@ -160,7 +160,7 @@ def test_global_series_carries_the_stratum_per_day(tmp_path):
     series = export.build_global_series(export.build_daily(conn, OUTLETS))
     day = [s for s in series if s["date"] == "2026-09-10"][0]
     assert day["A"] == 6, "the world total keeps the stratum"
-    assert day["wld"] == {"A": 5, "B": 0, "C": 0, "N": 0, "M": 0, "rel": 5, "paywalled": 0, "pending": 0}
+    assert day["wld"] == {"A": 5, "B": 0, "C": 0, "N": 0, "U": 0, "rel": 5, "paywalled": 0, "pending": 0}
     assert day["A"] - day["wld"]["A"] == 1, "the country outlets alone are the difference"
     assert set(day["wld"]) == set(export.SERIES_KEYS)
 

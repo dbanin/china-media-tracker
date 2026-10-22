@@ -306,17 +306,18 @@ def load_pairs(conn, ctx: Optional[Dict] = None) -> List[Dict]:
     country_of, _ = _outlet_maps(ctx)
     has_ref = _table_exists(conn, "reference_items")
     zones = _date_zones()
+    from pipeline import model_only
     rows = conn.execute(
         """SELECT s.copy_id, s.original_kind, s.ref_id, s.original_article_id, s.original_source,
                   s.copy_published_at, s.original_published_at, s.copy_ts_res, s.orig_ts_res,
                   a.outlet_id, a.country, a.published_at AS a_pub, a.discovered_at AS a_disc, a.day_of_record AS a_dor,
-                  c.route, c.category AS c_category, c.method AS c_method,
+                  %s AS route, c.category AS c_category, c.method AS c_method,
                   o.published_at AS o_pub, o.discovered_at AS o_disc, o.day_of_record AS o_dor
            FROM state_copies s
            JOIN articles a ON a.id = s.copy_id
            LEFT JOIN classifications c ON c.article_id = s.copy_id AND c.is_current = 1
            LEFT JOIN articles o ON o.id = s.original_article_id AND s.original_kind = 'monitored'
-           WHERE s.current = 1 AND s.original_kind IN ('reference', 'monitored')""").fetchall()
+           WHERE s.current = 1 AND s.original_kind IN ('reference', 'monitored')""" % model_only.route_sql("c")).fetchall()
     refs = {}
     if has_ref:
         ids = [r["ref_id"] for r in rows if r["original_kind"] == "reference" and r["ref_id"] is not None]
@@ -327,11 +328,9 @@ def load_pairs(conn, ctx: Optional[Dict] = None) -> List[Dict]:
                 refs[r["id"]] = r
     out = []
     from pipeline import model_only
-    held = model_only.held_apart()
     for r in rows:
-        # A copy whose state origin label rests on the model's judgement alone is held apart from state
-        # origin (pipeline/model_only.py) until its hand check passes.
-        if held and model_only.is_model_only(r["c_category"], r["route"], r["c_method"]):
+        # A copy whose state origin label is undetermined (pipeline/model_only.py) is in no count.
+        if model_only.is_undetermined(r["c_category"], r["route"], r["c_method"]):
             continue
         kind = KINDS[r["original_kind"]]
         copy = {"published_at": _pick(r["copy_published_at"], r["a_pub"]), "discovered_at": r["a_disc"],
