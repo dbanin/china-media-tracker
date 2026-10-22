@@ -3,9 +3,9 @@
 What these pin, from the CI audit of 2026-10-17: the tests run on every push and before collection,
 not after a 35 minute collection; both workflows run on a pinned image; the cache key carries the run
 attempt and the cache keeps the database's journal; the model key reaches only the steps that call
-the model; the relay key reaches the steps that open a bundle or handle the encrypted snapshot; the
-stage reads the site data at the branch tip; the relay is acknowledged only for a database the cache
-holds; and an export is refused when the database is behind the site.
+the model; the stage reads the site data at the branch tip; and an export is refused when the
+database is behind the site. Since the relay was retired on 2026-10-22 no step ingests or acknowledges
+a relay bundle and no step is given RELAY_BUNDLE_KEY.
 """
 import importlib.util
 import json
@@ -98,14 +98,10 @@ def test_model_key_reaches_only_the_steps_that_call_the_model():
     assert text.count("secrets.ANTHROPIC_API_KEY") == 2
 
 
-def test_relay_key_reaches_the_bundle_snapshot_and_validate_steps():
-    holders = {s["name"] for s in _steps() if "RELAY_BUNDLE_KEY" in (s.get("env") or {})}
-    assert holders == {"Ingest the relay bundle from the owner's machine, if there is one",
-                       "Fall back to the snapshot or seed if no cache", "Publish the compressed database snapshot",
-                       "Validate every feed and deactivate dead outlets"}     # relay feed health in the bundle
-    for s in _steps():
-        if s.get("name") in holders:
-            assert s["env"]["RELAY_BUNDLE_KEY"] == "${{ secrets.RELAY_BUNDLE_KEY }}"
+def test_no_step_is_given_the_relay_key():
+    """The relay was retired on 2026-10-22 and RELAY_BUNDLE_KEY is never to be added."""
+    assert not [s.get("name") for s in _steps() if "RELAY_BUNDLE_KEY" in (s.get("env") or {})]
+    assert "RELAY_BUNDLE_KEY" not in (WORKFLOWS / "pipeline.yml").read_text(encoding="utf-8")
 
 
 def test_stage_reads_the_site_data_at_the_branch_tip():
@@ -115,15 +111,11 @@ def test_stage_reads_the_site_data_at_the_branch_tip():
     assert 'open("docs/data/meta.json")' not in run
 
 
-def test_relay_is_acknowledged_only_for_a_database_the_cache_holds():
-    confirm = _step("Confirm the database is in the cache")
-    assert confirm["id"] == "saved" and "steps.save_db.outcome == 'success'" in confirm["if"]
-    assert "gh cache list --key" in confirm["run"] and "found=true" in confirm["run"]
-    assert "${{ github.run_attempt }}" in confirm["run"]
-    ack = _step("Acknowledge the relay bundles")
-    assert ack["if"] == "always() && steps.saved.outputs.found == 'true'"
-    assert _index("Save database") < _index("Confirm the database") < _index("Acknowledge the relay")
-    assert _load("pipeline.yml")["permissions"]["actions"] == "read"     # gh cache list
+def test_the_workflow_no_longer_ingests_or_acknowledges_the_relay():
+    text = (WORKFLOWS / "pipeline.yml").read_text(encoding="utf-8")
+    assert "pipeline.relay" not in text
+    assert not [s.get("name") for s in _steps() if "relay" in (s.get("name") or "").lower()]
+    assert not [s.get("name") for s in _steps() if "pipeline.relay" in (s.get("run") or "")]
 
 
 def test_export_guard_runs_before_the_export():

@@ -281,7 +281,9 @@ def test_meta_and_exports_carry_issuer_type(tmp_path, monkeypatch):
     conn.commit()
     totals = export.issuer_type_totals(conn)
     assert list(totals["by_type"]) == list(cl.ISSUER_TYPES)
-    assert totals["by_type"]["state_owned_enterprise"] == {"A": 1}
+    # A release that only names its issuer has no credit, stamp, disclosure or byline: route unattributed, so
+    # it is counted under M, state origin by the model's judgement alone, while that is held apart (D1).
+    assert totals["by_type"]["state_owned_enterprise"] == {"M": 1}
     assert totals["by_type"]["private_release"] == {"C": 1}
     assert totals["by_type"]["sar_government"] == {} and totals["unrecorded"] == 1
     audit = tmp_path / "audit"

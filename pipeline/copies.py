@@ -1139,7 +1139,7 @@ def _source_templates(run: _Run, source_id: str) -> Set[str]:
 # Export
 # ---------------------------------------------------------------------------
 
-_ROWS_SQL = """SELECT s.*, a.outlet_id, a.country, a.language, a.title, a.url, a.dup_group_id, c.route
+_ROWS_SQL = """SELECT s.*, a.outlet_id, a.country, a.language, a.title, a.url, a.dup_group_id, c.route, c.category AS c_category, c.method AS c_method
                FROM state_copies s JOIN articles a ON a.id = s.copy_id
                LEFT JOIN classifications c ON c.article_id = s.copy_id AND c.is_current = 1 AND c.category = 'A'
                WHERE s.current = 1"""
@@ -1264,10 +1264,17 @@ def _group(rows: List[Dict], key) -> List[Dict]:
 
 
 def _rows(conn, ctx) -> List[Dict]:
+    from pipeline import model_only
     om = _outlet_map(ctx)
     out = []
+    held = model_only.held_apart()
     for r in conn.execute(_ROWS_SQL):
         d = dict(r)
+        # A copy whose state origin label rests on the model's judgement alone is held apart from state
+        # origin (pipeline/model_only.py), so it is not measured as a state copy until its hand check passes.
+        cat, method = d.pop("c_category", None), d.pop("c_method", None)
+        if held and model_only.is_model_only(cat, d.get("route"), method):
+            continue
         o = om.get(d["outlet_id"])
         d["export_country"] = o["country"] if o else d["country"]
         d["outlet_name"] = o["name"] if o else d["outlet_id"]

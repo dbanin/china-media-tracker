@@ -162,14 +162,14 @@ def test_passing_same_model_rerun_leaves_counts_provisional(tmp_path, monkeypatc
     """The review's case: a rerun at the same prompt agreeing with itself used to publish."""
     conn = _db(tmp_path, monkeypatch, {"en": 10})
     rerun = {"method": "same_model_rerun", "model_a": "claude-sonnet-5", "model_b": "claude-sonnet-5",
-             "sample_size": 225, "kappa_all": 0.81, "kappa_bc": 0.62, "n_bc": 116, "details": {}}
+             "sample_size": 225, "kappa_all": 0.81, "kappa_bc": 0.74, "n_bc": 116, "details": {}}
     store.record_model_agreement(conn, rerun, [])
     meta = _meta(conn)
     assert meta["relay_publishable"] is False and meta["relay_basis"] is None
     assert meta["relay_provisional"] is True and meta["relay_human_study"]["state"] == "not_started"
-    assert meta["relay_reliability"]["method"] == "same_model_rerun" and meta["relay_reliability"]["kappa_bc"] == 0.62
+    assert meta["relay_reliability"]["method"] == "same_model_rerun" and meta["relay_reliability"]["kappa_bc"] == 0.74
     reason = meta["relay_provisional_reason"]
-    assert "0.6" in reason and "about 200 articles in each language" in reason and "model's current category" in reason
+    assert "0.7" in reason and "about 200 articles in each language" in reason and "model's current category" in reason
 
 
 def test_inconclusive_human_study_stays_provisional(tmp_path, monkeypatch):

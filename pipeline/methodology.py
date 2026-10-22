@@ -195,6 +195,8 @@ rather than by the country alone.
 
 {route_text}
 
+{model_only_text}
+
 {issuer_text}
 
 ## Current state
@@ -208,6 +210,7 @@ rather than by the country alone.
 | Articles discovered | {articles_discovered} |
 | Articles passing the relevance gate | {articles_gate_relevant} |
 | Articles classified | {articles_classified} |
+| What became of every article that passed the gate | {gate_accounting_text} |
 | Articles with a human review | {articles_reviewed} ({review_coverage_pct} percent of classified) |
 | Share of gated articles that were paywalled | {paywall_share_pct} |
 | Countries flagged as not comparable because of paywalls | {paywall_flagged} |
@@ -217,7 +220,7 @@ rather than by the country alone.
 | Language model calls, all time | {llm_calls_total} |
 | Days on which more articles waited than that day's cap allowed | {capped_days_text} |
 | Feed polls that returned a full window with nothing seen before | {saturation_text} |
-| Relay collector on the owner's machine | {relay_collector_text} |
+| Relay collector on the owner's machine, retired | {relay_collector_text} |
 | Current labels by ruleset version | {ruleset_mix_text} |
 | Last successful run | {last_successful_run} |
 
@@ -263,6 +266,19 @@ many countries carried it. It counts under each label it carries, so an item
 with a state origin placement and an unchecked state sourcing placement is in
 both counts.
 
+Counts are sensitive to how duplicates are defined. The rule used here
+(pipeline/placements.py) counts a release shown by one shared widget across a
+network of mastheads once per country, like a release on a distribution wire.
+Counting each release that one shared AAP widget showed across ten ACM
+mastheads once per country, instead of once per masthead, cut Australia's
+state origin from 1,350 placements to 135 over 2026-09-03 to 2026-10-15, a
+tenfold fall. Both figures include placements resting on the model's judgement
+alone, held apart from state origin since 22 October 2026; without them the
+fall is also tenfold. The tracker counts every placement of a release across a
+country's monitored outlets over its window, while the original study sampled
+newspaper pages, so the tracker's figure for Australia and the study's are not
+comparable.
+
 {body_dup_text}
 
 Global press release distribution services ({wire_outlets}) are not national
@@ -290,7 +306,10 @@ the countries above the cap sit in an overflow step. The cap holds only until
 the next data update. Each update, about once a day, adds the newest days and
 recomputes the cap over the timeline as it then stands, so a color can stand
 for a different number from one week to the next. The theme counter's cap
-works the same way.
+works the same way. All China coverage is the exception: it runs from a handful
+of articles to thousands per country, so its seven steps split the values of
+every date whose window is complete into about equal shares instead of rising to
+a cap, and still mean the same number on every date until the next update.
 
 Absence of data and absence of content are different things. A country with no
 monitored outlets is drawn with a hatch pattern. A country whose outlets all
@@ -321,15 +340,17 @@ and five such batch feeds were booked about 15,000 phantom misses. Each day's
 poll record names the estimator that made it, and the older estimates cannot be
 made again because single poll times were not kept, so the published estimate
 counts only the polls made by the current estimator, from the day it was first
-used, while polls and full windows count every poll on record. The relay
-collector on the owner's machine records every hourly pass; a day on which it
-ran in fewer than {relay_min_hours} hours is marked incomplete for the countries
-whose outlets only it collects, so a sleeping laptop never reads as a decline.
-The outlets it shares with the hosted runner are not marked and carry no
-incomplete warning when it falls silent: the runner still polls their feeds on
-its hourly schedule and fetches their pages, so they lose only what a skipped
-or late runner poll loses, which the full window count above records. Their
-countries carry a milder warning while the relay is silent.
+used, while polls and full windows count every poll on record. Until
+{relay_retired_on} a relay collector on the owner's machine also collected the
+outlets that refuse the runner, and polled many short feeds beside it. It
+recorded every hourly pass; a day on which it ran in fewer than
+{relay_min_hours} hours is marked incomplete for the countries whose outlets
+only it collected, so a sleeping laptop never reads as a decline. The outlets
+it shared with the hosted runner are not marked: the runner polled their feeds
+on its own schedule and fetched their pages throughout. The relay was stopped
+on {relay_retired_on}, and its outlets are inactive since (Known limits); no
+day after it is marked, and the shared outlets are polled by the hosted runner
+alone.
 
 Themes. Every article that concerns China is tagged with each theme whose
 terms appear in its headline, its feed summary or anywhere in its body
@@ -367,10 +388,9 @@ through the GitHub Actions cache, together with the extracted article
 bodies. Every day a compressed copy is published as an asset of the public
 db-snapshot release, scrubbed of bylines, feed summaries, raw model output,
 reviewer names and email addresses (pipeline/snapshot_scrub.py). The whole
-database and the article bodies are uploaded beside it only encrypted with
-the owner's key (RELAY_BUNDLE_KEY), as tracker-full.db.gz.enc and
-bodies.tar.gz.enc; without the key no encrypted copy is uploaded, and
-nothing is ever uploaded in clear. Raw HTML
+database and the article bodies are never uploaded, in clear or encrypted,
+because article text in a public release is redistribution whether or not it
+is sealed. Raw HTML
 is kept for the duration of a run and on any machine that runs the fetch
 stage locally; the page chrome labels the sponsored placement patterns need
 are extracted at fetch time and stored with the article, so they survive
@@ -403,8 +423,9 @@ corrected item by item, and a correction of only the days the snapshots cover
 would put a step into every series. Each country's share of its own output (%
 of all its news) divides by these counts, so over days before
 {rediscovery_from} it reads low by that country's share of repeats, which is
-uneven: about 16 percent in Britain, 18 in Vietnam, 28 in Uruguay, 47 in
-Kuwait, 50 in Sweden and 72 in the Cayman Islands. The map's key says so for
+uneven: of the items each country screened from 2026-10-01 to 2026-10-11,
+about 16 percent in Britain, 18 in Vietnam, 28 in Uruguay, 47 in Kuwait, 50
+in Sweden and 72 in the Cayman Islands were repeats. The map's key says so for
 any window that reaches back before {rediscovery_from}.
 """
 
@@ -469,6 +490,16 @@ def relabel_order_text() -> str:
     return "first " + ", then ".join(tiers + ["the rest"])
 
 
+def model_only_text(meta: Dict) -> str:
+    """The paragraph on state origin by the model's judgement alone (pipeline/model_only.py), from
+    meta.model_only_state_origin; an export from before it was a block gives only the count."""
+    from pipeline import model_only
+    b = meta.get("model_only_state_origin")
+    if not isinstance(b, dict):
+        b = {"count": b or (meta.get("route_totals") or {}).get("unattributed") or 0, "status": "provisional"}
+    return model_only.methodology_text(b)
+
+
 def state_origin_split_text(meta: Dict, tot: Dict) -> str:
     """How many current state origin labels fixed rules decided from a signature and how many are model
     judgements (latest.json all_time Ar and Al), with the model labels that carry no signature at all."""
@@ -477,14 +508,50 @@ def state_origin_split_text(meta: Dict, tot: Dict) -> str:
         return "no state origin label had been made at export time."
     rules, model = tot.get("Ar") or 0, tot.get("Al") or 0
     none = (meta.get("route_totals") or {}).get("unattributed")
+    mo = meta.get("model_only_state_origin")
+    held = not (isinstance(mo, dict) and mo.get("held_apart") is False)
     text = ("at export time fixed rules decided %s of the %s state origin labels (%d percent) from a signature, and "
             "%s (%d percent) are model judgements" % ("{:,}".format(rules), "{:,}".format(a), round(100.0 * rules / a),
                                                      "{:,}".format(model), round(100.0 * model / a)))
-    if none:
+    if none and held:
+        # Decision D1 (2026-10-22): a model label with no signature of any kind is not in these figures.
+        text += (" that name a credit line, stamp, disclosure or byline, or match a credited item. A further %s "
+                 "model judgements of state origin name no evidence at all; they are held apart as their own "
+                 "figure, model judgement, provisional, and are in none of these numbers (see How state origin "
+                 "arrived)" % "{:,}".format(none))
+    elif none:
         text += (", %s of them with no signature of any kind (no signature; model judgement, in the routes listed "
                  "under How state origin arrived)" % "{:,}".format(none))
     return text + (". Model judgements are not perfectly repeatable, and hand coding checks them like every other "
                    "model label.")
+
+
+def gate_accounting_text(meta: Dict) -> str:
+    """meta.gate_accounting in words: every article that passed the relevance gate by what became of it,
+    parts that add up to articles_gate_relevant, and the site's gate total, which counts copies of one
+    placement once."""
+    ga = meta.get("gate_accounting")
+    if not ga or not ga.get("parts"):
+        return "not recorded in this export"
+    p, n = ga["parts"], "{:,}".format
+    items = ["%s classified" % n(p["classified"]),
+             "%s paywalled, unread and uncounted" % n(p["paywalled"]),
+             "%s whose fetch failed after retries or whose page held no readable article, unread and uncounted" % n(p["failed"]),
+             "%s blocked by the site's robots.txt, unread and uncounted" % n(p["blocked_robots"]),
+             "%s fetched and waiting for the rules stage" % n(p["fetched_waiting_rules"]),
+             "%s fetched on the owner's machine whose text never reached the runner, unread and uncounted"
+             % n(p["fetched_text_not_delivered"]),
+             "%s waiting for the model" % n(p["waiting_for_model"]),
+             "%s not yet fetched" % n(p["not_yet_fetched"])]
+    if p.get("other"):
+        items.append("%s in another status (%s)" % (n(p["other"]), ", ".join(sorted(ga.get("other_statuses") or {})) or "unrecorded"))
+    text = "%s articles passed the relevance gate: %s; and %s. These parts add up to %s." % (
+        n(ga["total"]), "; ".join(items[:-1]), items[-1], n(ga["total"]))
+    if ga.get("copies_counted_once"):
+        text += (" The site's tables count %s of these stored rows as one placement with another row (shared widget "
+                 "pages, the same page stored twice, numbered series), so their gate total is %s."
+                 % (n(ga["copies_counted_once"]), n(ga["total"] - ga["copies_counted_once"])))
+    return text
 
 
 def rediscovery_total_text(rd: Dict, discovered) -> str:
@@ -512,6 +579,78 @@ def _registry_limits(outlets) -> Dict:
     blocked = sum(refuse)
     failing = sum(1 for r, x in zip(inactive, refuse) if not x and "every feed failed" in r)
     return {"zh": zh, "blocked": blocked, "failing": failing}
+
+
+def _country_list(items) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def relay_gap_text(outlets) -> str:
+    """The known gap the retired relay left (config.RELAY_RETIRED_ON): the outlets made inactive that day
+    (registry.relay_dropped), the countries where they were every active outlet, and the countries that keep
+    other outlets, each with its count, all read from the registry."""
+    dropped = [o for o in outlets if registry.relay_dropped(o)]
+    day = config.RELAY_RETIRED_ON
+    if not day:
+        return ""
+    head = ("Outlets that refuse the crawler from its server addresses are not collected. Some sites answer the "
+            "GitHub Actions runner's addresses with an HTTP 403 or a time out while their feeds work from an "
+            "ordinary network. From September 2026 until %s such outlets were collected from the owner's home "
+            "connection and passed to the runner (the relay). Collecting from another network works around a "
+            "site's choice to refuse the crawler, which sits badly with a crawler whose identity never changes "
+            "and with never bypassing a paywall or an access control, so the relay was stopped on %s and the "
+            "outlets it collected are inactive since. Their articles collected before then stay in every figure "
+            "and in the audit files; days on which the relay ran too few hours stay marked up to that day."
+            % (day, day))
+    if not dropped:
+        return head
+    by_country, registered_active = {}, {}
+    for o in dropped:
+        c = registry.export_country(o)
+        by_country[c] = by_country.get(c, 0) + 1
+    for o in outlets:
+        if o.get("active"):
+            c = registry.export_country(o)
+            registered_active[c] = registered_active.get(c, 0) + 1
+    name = lambda c: registry.country_name(c)
+    lost = sorted((c for c in by_country if not registered_active.get(c)), key=name)
+    part = sorted((c for c in by_country if registered_active.get(c)), key=name)
+    text = head + (" That left %d outlets inactive in %d countries." % (len(dropped), len(by_country)))
+    if lost:
+        text += (" Every monitored outlet was one of them in %s, so %s no longer monitored from %s."
+                 % (_country_list(["%s (%d)" % (name(c), by_country[c]) for c in lost]),
+                    "it is" if len(lost) == 1 else "they are", day))
+    if part:
+        text += (" %d %s keep other outlets but lose some, given as outlets dropped of those that were active: %s. "
+                 "Their counts from %s cover the remaining outlets only, so a fall at that date is the gap, not a "
+                 "change in coverage of China."
+                 % (len(part), "country" if len(part) == 1 else "countries",
+                    _country_list(["%s %d of %d" % (name(c), by_country[c], by_country[c] + registered_active[c]) for c in part]),
+                    day))
+    return text
+
+
+def uncredited_copy_limit_text() -> str:
+    """What the uncredited copy route can and cannot match, from the constants pipeline.lookalike runs with.
+    Its references are credited state origin labels in other monitored outlets (lookalike.build_index,
+    credited_reference_sql); the reference originals of pipeline/reference.py are never among them."""
+    from pipeline import lookalike
+    return (
+        "The uncredited copy count is a lower bound. An article is sent to the model as a possible uncredited copy "
+        "only when it nearly repeats a state origin item that another monitored outlet ran, from %d days before it "
+        "to %d days after it, under evidence a credit supports: a wire credit or dateline, a distribution stamp, a "
+        "sponsored disclosure, a diplomat's byline, or a rules label from before routes were stored. A state origin "
+        "label that rests on the model's judgement alone is never such a reference. Headlines are compared only "
+        "within one language, and feed summaries and bodies by the words they share, so the original has to be in "
+        "the article's language. The English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily "
+        "and ECNS that the tracker reads as reference originals are used only to set credited copies beside the "
+        "text they came from; they are never a reference for this match. The check can therefore find state text "
+        "only where some monitored outlet also ran it with a credit, in the same language, in that window. It "
+        "cannot find state text that no monitored outlet ever ran with a credit, such as Xinhua copy in Italian, "
+        "Spanish or Portuguese that every outlet carrying it ran uncredited, and it cannot find copy from the state "
+        "services' editions in other languages, which the tracker does not read. The model then decides whether "
+        "each match is that state text without substantive alteration."
+        % (lookalike.WINDOW_BEFORE_DAYS, lookalike.WINDOW_AFTER_DAYS))
 
 
 def known_limits_text(meta: Dict, outlets=None) -> str:
@@ -546,7 +685,11 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
         "What the instrument cannot see, beyond the collection gaps described above.\n\n"
         "Chinese-language outlets are excluded. Outlets that publish primarily in Chinese are registered and kept "
         "inactive, because the owner does not read Chinese and machine translation would miss the distinctions the "
-        "coding turns on. " + zh_text + "\n\n"
+        "coding turns on. " + zh_text + " The exclusion is a blind spot as well as a choice. Chinese-language "
+        "outlets outside China are registered but not monitored, and the original study found state-linked content "
+        "through exactly this layer, for example in the lifestyle section of a Chinese-language diaspora paper in "
+        "Canada. State origin carried in Chinese-language diaspora media is therefore not counted in any figure "
+        "here.\n\n"
         "Session labels. " + session_share + " The session reads text fetched again on that machine, not the "
         "runner's copy, so it can read a different version of a page, and some pages it cannot fetch at all. In a "
         "check against the API on 2026-09-30 (data/labels/README.md) the two agreed on 78 of 98 articles; of the 28 "
@@ -557,6 +700,7 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
         "words, and a translation shares almost none with its original, so a state item translated and run with no "
         "credit line is matched to nothing. Unless it cites an official Chinese source, which sends it to the model, "
         "it is labelled by rules, usually as independent journalism.\n\n"
+        + uncredited_copy_limit_text() + "\n\n" + relay_gap_text(outlets) + "\n\n"
         "The outlets are not a sample of each country's press. They were found by probing candidate feed "
         "addresses and kept only where a feed returned items, so outlets without a working feed are missing, and %d "
         "registered outlets are inactive because they refuse the identified crawler (an HTTP 403 or a robots.txt "
@@ -863,6 +1007,10 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     else:
         relay_text = ("Unchecked state sourcing counts are published, but not on the strength of hand coding, which is "
                       "the only basis this version accepts. Treat them as provisional until a hand coding study reports.")
+    if meta.get("relay_measured"):
+        relay_text += (" The threshold is kappa %.1f, raised from 0.6 on 22 October 2026: 0.6 is only moderate "
+                       "agreement on the usual reading of kappa, %.1f is substantial agreement, and the coders in the "
+                       "original study reached 0.91." % (threshold, threshold))
     if rr:
         same = rr.get("method") == "same_model_rerun"
         relay_text += (
@@ -917,7 +1065,14 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
     # uncollected.
     relay_outlets_text = "%d outlets collected only there, in %d countries; %d more polled there and by the hosted runner, in %d countries" % (
         rc.get("outlets", 0), len(rc.get("countries") or []), rc.get("shared_outlets", 0), len(rc.get("shared_countries") or []))
-    if rc.get("last_run"):
+    if rc.get("retired_on"):
+        # Retired (config.RELAY_RETIRED_ON): what it left inactive, and its last pass, for the history.
+        relay_collector_text = "stopped on %s; %d outlets it alone collected made inactive, in %d countries, every monitored outlet in %d of them; %s; %d incomplete days up to then" % (
+            rc["retired_on"], rc.get("dropped_outlets", 0), len(rc.get("dropped_by_country") or {}),
+            len(rc.get("countries_all_inactive") or []),
+            ("last pass %s" % rc["last_run"]) if rc.get("last_run") else "no pass on record",
+            len(rc.get("incomplete_days") or []))
+    elif rc.get("last_run"):
         relay_collector_text = "%s; last pass %s (%s hours before export); %d incomplete days" % (
             relay_outlets_text, rc["last_run"], rc.get("hours_since_last_run"), len(rc.get("incomplete_days") or []))
     else:
@@ -934,6 +1089,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         wire_counts_text = ("At export time the stratum held %d gated articles: %d state origin, %d unchecked state "
                             "sourcing, %d independent journalism, %d not relevant and %d awaiting the verification judgement."
                             % (wc["articles"], wc.get("A", 0), wc.get("B", 0), wc.get("C", 0), wc.get("not_relevant", 0), wc.get("pending", 0)))
+        if wc.get("M"):
+            wire_counts_text += (" A further %d are state origin by the model's judgement alone, held apart from state "
+                                 "origin until their hand check passes." % wc["M"])
     else:
         wire_counts_text = "At export time the stratum held no gated article."
 
@@ -979,7 +1137,10 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         articles_discovered=meta["articles_discovered"], articles_gate_relevant=meta["articles_gate_relevant"],
         articles_classified=meta["articles_classified"], articles_reviewed=meta["articles_reviewed"],
         review_coverage_pct=round(meta["review_coverage"] * 100, 1),
-        paywall_share_pct=("%.1f percent" % (meta["paywall_share"] * 100)) if meta["paywall_share"] is not None else "not yet measured",
+        paywall_share_pct=("%.1f percent (%s paywalled of the %s whose fetch was attempted, to the export)" % (
+            meta["paywall_share"] * 100, "{:,}".format(tot.get("paywalled") or 0),
+            "{:,}".format(sum(tot.get(k) or 0 for k in ("fetched", "paywalled", "failed", "blocked")))))
+        if meta["paywall_share"] is not None else "not yet measured",
         paywall_flagged=", ".join(registry.country_name(c) for c in meta["paywall_flagged_countries"]) or "none",
         a_total=tot["A"], b_total=(tot["B"] if meta.get("relay_publishable") else ("%d (provisional)" % tot["B"]) if meta.get("relay_provisional") else "withheld"), c_total=tot["C"],
         llm_calls_total=meta["llm_calls_total"], llm_daily_ceiling=meta["llm_daily_ceiling"],
@@ -1000,6 +1161,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         rediscovery_est_pct=("%g" % round(100 * rd["estimated_share"])),
         rediscovery_total_text=rediscovery_total_text(rd, meta.get("articles_discovered")),
         state_origin_split_text=state_origin_split_text(meta, tot),
+        gate_accounting_text=gate_accounting_text(meta),
         limits_text=known_limits_text(meta),
         issuer_text=issuer_text(meta),
         gate_version=meta.get("gate_version", config.GATE_VERSION),
@@ -1013,9 +1175,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         min_outlets=meta.get("min_outlets_for_output_share", config.MIN_OUTLETS_FOR_OUTPUT_SHARE),
         ranked_text=("%d countries carry ranks so far and every other country uses all of its active outlets." % len(meta["countries_with_audience_ranks"]))
         if meta.get("countries_with_audience_ranks") else "no outlet carries a rank yet, so every active outlet in a country counts, and the measure is labelled a share of monitored output rather than of the largest publications.",
-        relay_min_hours=config.RELAY_DAY_MIN_HOURS,
+        relay_min_hours=config.RELAY_DAY_MIN_HOURS, relay_retired_on=config.RELAY_RETIRED_ON or "the present",
         wire_outlets=wire_outlets, wire_counts_text=wire_counts_text,
-        kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, release_text=release_text,
+        kappa_text=kappa_text, relay_text=relay_text, route_text=route_text, model_only_text=model_only_text(meta), release_text=release_text,
         saturation_text=saturation_text, relay_collector_text=relay_collector_text, ruleset_mix_text=ruleset_mix_text,
     )
     with open(path, "w", encoding="utf-8") as fh:

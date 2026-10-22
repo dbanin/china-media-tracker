@@ -1,5 +1,8 @@
 """Authenticated encryption of the relay bundle (scratchpad DECISIONS 7), standard library only.
 
+Retired with the relay on 2026-10-22: nothing on the runner seals or opens a bundle, and the
+RELAY_BUNDLE_KEY secret is never to be added. Kept for the tests and the record.
+
 The relay branch is public, so a bundle that carries article bodies must not be readable there.
 The bundle is sealed with a secret that only the relay machine and the runner hold: RELAY_BUNDLE_KEY
 in the environment (an Actions secret on the runner), or on the relay machine a file named by

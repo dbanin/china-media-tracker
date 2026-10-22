@@ -315,7 +315,7 @@ def day_entries(daily: Dict) -> Dict[str, Dict]:
 def load_rows(conn, outlets: List[Dict]) -> Dict[Tuple[str, str], List[Dict]]:
     """The current state origin placements, by (day of record, export country), wires under WLD, with
     the underlying item each counts under, exactly as the daily files count them."""
-    from pipeline import body_dups, placements, registry
+    from pipeline import body_dups, model_only, placements, registry
     wire_ids = registry.distribution_wire_ids(outlets)
     items = body_dups.item_groups(conn)
     shadow = placements.shadowed(conn)   # copies counted through another row, as in the daily files
@@ -324,7 +324,8 @@ def load_rows(conn, outlets: List[Dict]) -> Dict[Tuple[str, str], List[Dict]]:
             """SELECT a.id, a.country, a.outlet_id, a.title, a.url, a.published_at, a.discovered_at, a.day_of_record,
                       a.dup_group_id, c.route, c.method
                FROM articles a JOIN classifications c ON c.article_id=a.id AND c.is_current=1
-               WHERE a.gate_relevant=1 AND c.category='A' ORDER BY a.id"""):
+               WHERE a.gate_relevant=1 AND c.category='A'%s ORDER BY a.id""" % model_only.evidence_sql()):
+        # State origin by the model's judgement alone is held apart (pipeline/model_only.py), as in the daily files.
         if r["id"] in shadow:
             continue
         country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
@@ -450,7 +451,9 @@ def find_confounders(s: Dict) -> List[Dict]:
     # Only the countries that collector alone collects; the hosted runner still polls the shared ones. A day
     # that is itself incomplete is if anything understated, so only a complete day can be an artefact: one
     # that follows an incomplete day (the collector catching up) or one set against an incomplete baseline.
-    relay_only = set(rc.get("countries") or [])
+    # Since the relay was retired its outlets are inactive, so the countries it left (dropped_by_country) still
+    # explain the days before then.
+    relay_only = set(rc.get("countries") or []) | set(rc.get("dropped_by_country") or {})
     if inc and (not rc or c in relay_only) and day not in inc:
         prev = _shift(day, -1)
         in_base = [d for d in bdays if d in inc]
@@ -772,7 +775,7 @@ def methodology_text(block) -> str:
         + "\n\n"
         "Each flagged day lists the outlets and underlying items behind it, and the checks that could make it an "
         "artefact of the instrument rather than a surge of state text: a newly added outlet, a backfill read, a "
-        "collector recovering from an outage, an incomplete day for the collector on the owner's machine, a ruleset "
+        "collector recovering from an outage, an incomplete day for the relay on the owner's machine (stopped on 22 October 2026), a ruleset "
         "or relevance gate change, saturated feeds on the baseline days, the daily model cap, and a surge in "
         "everything discovered rather than in state text alone. A day with any of these is shown muted with its "
         "reason, as one to check, and a day with none is shown as clean. A ruleset change counts only when it took "

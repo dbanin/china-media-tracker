@@ -116,82 +116,47 @@ OLD = {"u": {"last_ok": "2026-09-01T00:00:00+00:00", "total_failures": 100}}
 HOSTED = {"id": "it_h", "feeds": ["u"], "active": True}
 
 
-def test_a_runner_only_failure_moves_the_outlet_to_the_relay_and_never_deactivates_it():
-    """78 outlets the runner alone could not reach were deactivated, Thairath and Obozrevatel among
-    them; now they go to the relay, which judges them in its turn."""
-    action, why = v.decide(HOSTED, [_fail("u")], OLD, "2026-10-17", "2026-09-01", "hosted")
-    assert action == "move" and "relay" in why
-    shared = dict(HOSTED, collector="both")
-    assert v.decide(shared, [_fail("u")], OLD, "2026-10-17", "2026-09-01", "hosted")[0] == "move", "no relay health"
-    relay_ok = {"u": {"last_checked": "2026-10-17T10:00:00+00:00", "last_ok": "2026-10-17T10:00:00+00:00",
-                      "consecutive_failures": 0, "total_failures": 0, "last_error": None}}
-    assert v.decide(shared, [_fail("u")], OLD, "2026-10-17", "2026-09-01", "hosted", relay_ok)[0] == "move"
+def test_a_runner_only_failure_deactivates_the_outlet_and_never_moves_it():
+    """Until 2026-10-22 an outlet only the runner could not reach went to the relay on the owner's
+    network. The relay was retired that day, so the outlet is deactivated with the runner's reason."""
+    action, why = v.decide(HOSTED, [_fail("u")], OLD, "2026-10-17", "2026-09-01")
+    assert action == "deactivate" and why == ("every feed failed on every check from the GitHub Actions runner "
+                                              "for more than 7 days; last success 2026-09-01 (auto)")
+    assert "relay" not in why and "owner" not in why
+    never = {"u": {"last_ok": None, "total_failures": 100}}
+    action, why = v.decide(dict(HOSTED, collector="both"), [_fail("u")], never, "2026-10-17", "2026-09-01")
+    assert action == "deactivate" and "no feed has succeeded since 2026-09-01" in why
+    assert v.decide(HOSTED, [_fail("u")], OLD, "2026-10-17", "2026-10-12") is None, "added five days ago"
 
 
-def test_robots_blocked_outlets_and_outlets_the_relay_cannot_reach_are_deactivated():
-    action, why = v.decide(HOSTED, [_fail("u", "robots_disallowed")], OLD, "2026-10-17", "2026-09-01", "hosted")
-    assert action == "deactivate" and "robots.txt" in why
-    action, why = v.decide(dict(HOSTED, collector="self_hosted"), [_fail("u")], OLD, "2026-10-17", "2026-09-01",
-                           "hosted", judged_by="relay")
-    assert action == "deactivate" and "relay" in why and "(auto)" in why
-    # the relay running the validation on its own outlets
-    assert v.decide(dict(HOSTED, collector="self_hosted"), [_fail("u")], OLD, "2026-10-17", "2026-09-01",
-                    "self_hosted")[0] == "deactivate"
-    # a shared outlet both networks fail on, with fresh relay health
-    relay_dead = {"u": {"last_checked": "2026-10-17T10:00:00+00:00", "last_ok": "2026-09-01T00:00:00+00:00",
-                        "consecutive_failures": 90, "total_failures": 90, "last_error": "http_403"}}
-    action, why = v.decide(dict(HOSTED, collector="both"), [_fail("u")], OLD, "2026-10-17", "2026-09-01", "hosted", relay_dead)
-    assert action == "deactivate" and "both" in why
-    assert v.decide(HOSTED, [_fail("u")], OLD, "2026-10-17", "2026-10-12", "hosted") is None, "moved five days ago"
+def test_robots_blocked_outlets_are_deactivated():
+    action, why = v.decide(HOSTED, [_fail("u", "robots_disallowed")], OLD, "2026-10-17", "2026-09-01")
+    assert action == "deactivate" and "robots.txt" in why and "(auto)" in why
 
 
-def test_relay_health_counts_only_while_it_is_fresh():
-    o = {"id": "it_r", "feeds": ["u", "w"], "collector": "self_hosted"}
-    fresh = {"last_checked": "2026-10-17T01:00:00+00:00", "consecutive_failures": 4, "last_error": "http_404"}
-    ok = {"last_checked": "2026-10-16T22:00:00+00:00", "consecutive_failures": 0, "last_error": None}
-    stale = dict(fresh, last_checked="2026-10-10T01:00:00+00:00")
-    rr = v.relay_results(o, {"u": fresh, "w": ok}, "2026-10-17")
-    assert [r["ok"] for r in rr] == [False, True]
-    assert v.relay_results(o, {"u": fresh}, "2026-10-17") is None, "a feed the relay has not polled"
-    assert v.relay_results(o, {"u": fresh, "w": stale}, "2026-10-17") is None, "a relay that stopped polling"
+def test_the_validator_no_longer_reads_the_relay():
+    import inspect
+    src = inspect.getsource(v)
+    assert "relay.fetch_bundle" not in src and "iter_bundle" not in src and "RELAY_BUNDLE_KEY" not in src
+    for gone in ("load_relay_health", "relay_results", "relay_reaches", "RELAY_FRESH_DAYS"):
+        assert not hasattr(v, gone), gone
 
 
-def _bundle(records):
-    buf = io.BytesIO()
-    with gzip.open(buf, "wt", encoding="utf-8") as fh:
-        for r in records:
-            fh.write(json.dumps(r) + "\n")
-    return buf.getvalue()
+def test_apply_only_deactivates_and_never_moves_or_reactivates():
+    outlets = [dict(HOSTED, notes="Verified 2026-09-02."), {"id": "it_d", "feeds": ["d"], "active": True},
+               {"id": "it_off", "feeds": ["o"], "active": False, "collector": "self_hosted",
+                "inactive_reason": "relay retired", "inactive_since": "2026-10-22"}]
+    off = v.apply_decisions(outlets, {"it_d": ("deactivate", "dead (auto)"), "it_off": ("deactivate", "x (auto)")},
+                            "2026-10-29")
+    assert off == ["it_d"]
+    assert outlets[0]["active"] is True and "collector" not in outlets[0]
+    assert outlets[1]["active"] is False and outlets[1]["inactive_since"] == "2026-10-29"
+    assert outlets[2]["inactive_reason"] == "relay retired" and outlets[2]["inactive_since"] == "2026-10-22"
+    with pytest.raises(ValueError):
+        v.apply_decisions([dict(HOSTED)], {"it_h": ("move", "to the relay")}, "2026-10-29")
 
 
-def test_relay_health_is_read_from_the_bundle_and_from_the_relay_database(tmp_path):
-    row = {"feed_url": "u", "outlet_id": "it_r", "last_checked": "2026-10-17T01:00:00+00:00", "last_ok": None,
-           "last_error": "http_404", "last_entries": 0, "consecutive_failures": 5, "total_checks": 5, "total_failures": 5}
-    data = _bundle([{"_type": "bundle_meta", "built_at": "x"}, dict(row, _type="feed_health"),
-                    {"_type": "outlet_discovery", "outlet_id": "it_r"}])
-    assert v.relay_health_from_bundle(data) == {"u": row}
-    db = tmp_path / "relay.db"
-    conn = sqlite3.connect(str(db))
-    conn.execute("CREATE TABLE feed_health (feed_url TEXT PRIMARY KEY, outlet_id TEXT, last_checked TEXT, last_ok TEXT, "
-                 "last_error TEXT, last_entries INTEGER, consecutive_failures INTEGER, total_checks INTEGER, total_failures INTEGER)")
-    conn.execute("INSERT INTO feed_health VALUES (?,?,?,?,?,?,?,?,?)", tuple(row.values()))
-    conn.commit()
-    conn.close()
-    rows, source = v.load_relay_health(str(db))
-    assert rows == {"u": row} and "relay database" in source
-
-
-def test_apply_moves_keep_the_outlet_active_and_date_the_move():
-    outlets = [dict(HOSTED, notes="Verified 2026-09-02."), {"id": "it_d", "feeds": ["d"], "active": True}]
-    moved, off = v.apply_decisions(outlets, {"it_h": ("move", "why"), "it_d": ("deactivate", "dead (auto)")}, "2026-10-17")
-    assert moved == ["it_h"] and off == ["it_d"]
-    assert outlets[0]["active"] is True and outlets[0]["collector"] == "self_hosted"
-    assert outlets[0]["collector_since"] == "2026-10-17"
-    assert outlets[0]["notes"].startswith("Verified 2026-09-02. Moved to the relay")
-    assert outlets[1]["active"] is False and outlets[1]["inactive_since"] == "2026-10-17"
-
-
-def test_run_moves_runner_failures_and_judges_relay_outlets(tmp_path, monkeypatch):
+def test_run_deactivates_runner_failures_and_leaves_retired_relay_outlets_alone(tmp_path, monkeypatch):
     from pipeline import store
     outlets = [
         {"id": "it_runner", "name": "R", "country": "ITA", "language": "it", "feeds": ["https://r.test/rss"],
@@ -199,16 +164,19 @@ def test_run_moves_runner_failures_and_judges_relay_outlets(tmp_path, monkeypatc
         {"id": "it_robots", "name": "B", "country": "ITA", "language": "it", "feeds": ["https://b.test/rss"],
          "tier": "national_daily", "active": True},
         {"id": "it_relay", "name": "S", "country": "ITA", "language": "it", "feeds": ["https://s.test/rss"],
-         "tier": "national_daily", "collector": "self_hosted", "active": True},
-        {"id": "it_asleep", "name": "Z", "country": "ITA", "language": "it", "feeds": ["https://z.test/rss"],
-         "tier": "national_daily", "collector": "self_hosted", "active": True},
+         "tier": "national_daily", "collector": "self_hosted", "active": False,
+         "inactive_reason": "relay retired", "inactive_since": "2026-10-22"},
     ]
     saved = {}
     monkeypatch.setattr(config, "COLLECTOR", "hosted")
     monkeypatch.setattr(registry, "load_outlets", lambda *a, **k: outlets)
     monkeypatch.setattr(registry, "save_outlets", lambda os_, *a, **k: saved.setdefault("o", os_))
     errors = {"https://r.test/rss": "http_403", "https://b.test/rss": "robots_disallowed"}
-    monkeypatch.setattr(v, "fetch_feed", lambda url: {"ok": False, "entries": [], "status": None, "error": errors[url], "elapsed": 0.1})
+    checked = []
+    def fake_fetch(url):
+        checked.append(url)
+        return {"ok": False, "entries": [], "status": None, "error": errors[url], "elapsed": 0.1}
+    monkeypatch.setattr(v, "fetch_feed", fake_fetch)
     conn = store.connect(tmp_path / "t.db")
     for url, oid in (("https://r.test/rss", "it_runner"), ("https://b.test/rss", "it_robots")):
         conn.execute("INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, total_checks, total_failures) "
@@ -216,27 +184,18 @@ def test_run_moves_runner_failures_and_judges_relay_outlets(tmp_path, monkeypatc
     conn.commit()
     monkeypatch.setattr(store, "connect", lambda *a, **k: conn)
     monkeypatch.setattr(v, "registry_dates", lambda *a, **k: {})
-    today = dt.datetime.now(dt.timezone.utc).date()
-    fresh = (today - dt.timedelta(hours=1)).isoformat() + "T00:00:00+00:00"
-    relay = {"https://s.test/rss": {"last_checked": fresh, "last_ok": "2026-08-01T00:00:00+00:00", "last_error": "http_404",
-                                    "last_entries": 0, "consecutive_failures": 200, "total_checks": 300, "total_failures": 250},
-             "https://z.test/rss": {"last_checked": "2026-08-02T00:00:00+00:00", "last_ok": "2026-08-01T00:00:00+00:00",
-                                    "last_error": "http_404", "consecutive_failures": 3, "total_failures": 3}}
-    monkeypatch.setattr(v, "load_relay_health", lambda *a, **k: (relay, "relay bundle"))
-    # Days since added, read from history: entered the registry long ago.
     monkeypatch.setattr(v, "measured_from", lambda o, dates, t: o.get("collector_since") or "2026-08-01")
     out = tmp_path / "v.json"
     v.run(apply=True, json_out=str(out))
     by_id = {o["id"]: o for o in saved["o"]}
-    assert by_id["it_runner"]["active"] is True and by_id["it_runner"]["collector"] == "self_hosted"
-    assert by_id["it_runner"]["collector_since"] == today.isoformat()
+    assert by_id["it_runner"]["active"] is False and "collector" not in by_id["it_runner"]
+    assert "GitHub Actions runner" in by_id["it_runner"]["inactive_reason"]
     assert by_id["it_robots"]["active"] is False and "robots.txt" in by_id["it_robots"]["inactive_reason"]
-    assert by_id["it_relay"]["active"] is False and "relay" in by_id["it_relay"]["inactive_reason"]
-    assert by_id["it_asleep"]["active"] is True, "stale relay health deactivates nothing"
+    assert by_id["it_relay"]["active"] is False and by_id["it_relay"]["inactive_reason"] == "relay retired"
+    assert "https://s.test/rss" not in checked, "a retired relay outlet is not polled"
     report = json.loads(out.read_text())
-    assert report["moved_to_relay"] == ["it_runner"]
-    assert sorted(report["newly_inactive"]) == ["it_relay", "it_robots"]
-    assert report["relay_judged"] == ["it_relay"] and report["relay_unjudged"] == ["it_asleep"]
+    assert sorted(report["newly_inactive"]) == ["it_robots", "it_runner"]
+    assert not any(k.startswith(("relay", "moved")) for k in report)
 
 
 def test_the_validation_date_is_utc():

@@ -5,8 +5,8 @@ name: tests
 # it, and twice froze the site for a day or more. The tests build their own databases in temporary
 # directories and never touch the network, so they need no secrets and no collected data.
 #
-# The relay and relay-ack branches each hold one data file, force-pushed every hour by the owner's
-# machine and the pipeline; they carry no code to test.
+# The relay and relay-ack branches each hold one data file, force-pushed by the owner's machine and the
+# pipeline until the relay was retired on 2026-10-22; they carry no code to test.
 
 on:
   push:

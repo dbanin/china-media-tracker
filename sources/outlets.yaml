@@ -176,7 +176,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Agenzia_Giornalistica_Italia
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: it_rainews
   name: Rai News
   country: ITA
@@ -368,7 +370,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Linkiesta
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: it_askanews
   name: askanews
   country: ITA
@@ -974,7 +978,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/the-walrus/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ca_theprovince
   name: The Province
   country: CAN
@@ -1128,7 +1134,9 @@
   tier: national_daily
   notes: 'Feed returns 403 to the project user agent. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ca_montrealgazette
   name: Montreal Gazette
   country: CAN
@@ -1381,7 +1389,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/John_Menadue
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: au_aspistrategist
   name: The Strategist (ASPI)
   country: AUS
@@ -2290,7 +2300,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Reporter.al
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: al_rtsh
   name: RTSH
   country: ALB
@@ -2934,7 +2946,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: at_orf
   name: ORF
   country: AUT
@@ -3051,7 +3065,9 @@
   rank_source: https://www.similarweb.com/website/oxu.az/
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: az_report_en
   name: Report.az English
   country: AZE
@@ -3062,7 +3078,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://report.az/en/rss/ answered HTTP 200 with 30 entries, newest 2026-10-17.'
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: az_trend
   name: Trend
   country: AZE
@@ -3357,7 +3375,9 @@
   ownership: private
   ownership_source: https://www.24haubenin.info/?k=297897
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: bj_beninwebtv
   name: Bénin Web TV
   country: BEN
@@ -4021,7 +4041,9 @@
   ownership: private
   ownership_source: https://sofiaglobe.com/about-us/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: bg_standart
   name: Standart
   country: BGR
@@ -4340,7 +4362,9 @@
   tier: regional
   notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: by_reform
   name: Reform.news
   country: BLR
@@ -4396,7 +4420,9 @@
   ownership: private
   ownership_source: https://larazon.bo/economia-y-empresa/2025/04/24/se-reporta-el-cambio-de-propietarios-del-diario-el-deber/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: bo_lapatria
   name: La Patria
   country: BOL
@@ -5357,7 +5383,9 @@
   ownership: private
   ownership_source: https://ndjonisango.com/2021/01/05/rca-oubangui-medias-un-nouveau-media-est-cree/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: cf_radiondekaluka
   name: Radio Ndeke Luka
   country: CAF
@@ -5664,7 +5692,9 @@
   ownership: private
   ownership_source: https://afriksoir.net/a-propos/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ci_ivoirmatin
   name: Ivoire Matin
   country: CIV
@@ -5973,7 +6003,9 @@
   ownership: private
   ownership_source: https://fr.wikipedia.org/wiki/Le_Potentiel
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: cd_politico
   name: Politico.cd
   country: COD
@@ -6191,7 +6223,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/colombiacheck-bias-and-credibility/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: co_elcolombiano
   name: El Colombiano
   country: COL
@@ -6608,7 +6642,9 @@
   ownership: public_service
   ownership_source: https://es.wikipedia.org/wiki/Semanario_Universidad
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: cr_ticotimes
   name: The Tico Times
   country: CRI
@@ -6768,7 +6804,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://eltoque.com/feed answered HTTP 200 with 10 entries, newest 2026-10-17.'
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: cu_escambray
   name: Escambray
   country: CUB
@@ -8641,7 +8679,9 @@
   ownership: private
   ownership_source: http://www.elconfidencialdigital.com/medios/Jesus-Cacho-Elconfidencialcom-compania-millones_0_2127987208.html
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: es_elcorreo
   name: El Correo
   country: ESP
@@ -10016,7 +10056,9 @@
   ownership: private
   ownership_source: https://lalibreville.com/mentions-legales/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: gb_bbc
   name: BBC News
   country: GBR
@@ -10240,7 +10282,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: gb_scotsman
   name: The Scotsman
   country: GBR
@@ -10488,7 +10532,9 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Daily_Graphic_(Ghana)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: gh_modernghana
   name: Modern Ghana
   country: GHA
@@ -11615,7 +11661,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: hn_hch
   name: HCH
   country: HND
@@ -12448,7 +12496,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/CNN_Indonesia
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: id_detik
   name: detikcom
   country: IDN
@@ -12527,7 +12577,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Kontan
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: id_liputan6
   name: Liputan6
   country: IDN
@@ -12638,7 +12690,9 @@
   audience_rank: 9
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/indonesia
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: id_tempo_en
   name: Tempo English
   country: IDN
@@ -12909,7 +12963,9 @@
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: in_indiatoday
   name: India Today
   country: IND
@@ -13666,7 +13722,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: iq_alrafidain
   name: Al Rafidain
   country: IRQ
@@ -13875,7 +13933,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-17 on the relay (collector: self_hosted): re-tested from the owner''s network, https://www.icelandreview.com/feed/ answered HTTP 200 with 9 entries, newest 2026-10-17.'
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: is_mbl
   name: Morgunblaðið
   country: ISL
@@ -13951,7 +14011,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/%2B972_Magazine
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: il_arutz7
   name: Arutz Sheva
   country: ISR
@@ -13985,7 +14047,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Gershon_Edelstein
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: il_davar
   name: Davar
   country: ISR
@@ -14003,7 +14067,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Davar
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: il_globes
   name: Globes
   country: ISR
@@ -14214,7 +14280,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: il_n12
   name: N12
   country: ISR
@@ -14363,7 +14431,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Gleaner_Company
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: jm_jis
   name: Jamaica Information Service
   country: JAM
@@ -14843,7 +14913,9 @@
   tier: national_daily
   notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: kz_kursiv
   name: Kursiv
   country: KAZ
@@ -15028,7 +15100,9 @@
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/kenya
   collector: self_hosted
   collector_since: '2026-10-19'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ke_ntv
   name: NTV Kenya
   country: KEN
@@ -15482,7 +15556,9 @@
   ownership: private
   ownership_source: https://cambodia.mom-gmr.org/en/media/detail/outlet/the-khmer-times/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: kh_koh
   name: Koh Santepheap
   country: KHM
@@ -16275,7 +16351,9 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lb_nna_ar
   name: NNA Arabic
   country: LBN
@@ -16295,7 +16373,9 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/National_News_Agency_(Lebanon)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lb_the961
   name: The961
   country: LBN
@@ -16312,7 +16392,9 @@
   ownership: private
   ownership_source: https://www.the961.com/about-us/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lb_thenational_lb
   name: Now Lebanon
   country: LBN
@@ -16543,7 +16625,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ada_Derana
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lk_ceylontoday
   name: Ceylon Today
   country: LKA
@@ -16653,7 +16737,9 @@
   government_stance: state_controlled
   stance_source: https://www.gov.ls/feed/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ls_newsday
   name: Newsday Lesotho
   country: LSO
@@ -16742,7 +16828,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lt_delfi
   name: Delfi Lithuania
   country: LTU
@@ -17126,7 +17214,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Macau_Daily_Times
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mo_pontofinal
   name: Ponto Final
   country: MAC
@@ -17221,7 +17311,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ma_h24
   name: H24info
   country: MAR
@@ -17473,7 +17565,9 @@
   ownership: private
   ownership_source: https://morocco.mom-gmr.org/en/media/detail/outlet/yabiladi/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: md_ipn
   name: IPN
   country: MDA
@@ -17702,7 +17796,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mx_eleconomista
   name: El Economista
   country: MEX
@@ -18128,7 +18224,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Telma_(TV_channel)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ml_amap
   name: AMAP
   country: MLI
@@ -18168,7 +18266,9 @@
   ownership_source: https://bamada.net/a-propos-de-nous
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ml_journaldumali
   name: Journal du Mali
   country: MLI
@@ -18426,7 +18526,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mm_irrawaddy
   name: The Irrawaddy
   country: MMR
@@ -18638,7 +18740,9 @@
   ownership: private
   ownership_source: https://clubofmozambique.com/about-us/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mz_evidencias
   name: Evidências
   country: MOZ
@@ -18867,7 +18971,9 @@
   ownership: private
   ownership_source: https://ionnews.mu/about-us/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mu_lemauricien
   name: Le Mauricien
   country: MUS
@@ -18913,7 +19019,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mw_malawi24
   name: Malawi24
   country: MWI
@@ -19023,7 +19131,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Mass_media_in_Malawi
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mw_mfn
   name: Malawi Freedom Network
   country: MWI
@@ -19123,7 +19233,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: my_focusmalaysia
   name: Focus Malaysia
   country: MYS
@@ -19140,7 +19252,9 @@
   ownership: private
   ownership_source: https://www.thestar.com.my/business/business-news/2018/02/23/inno-mind-works-is-new-owner-of-focus-malaysia
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: my_hmetro
   name: Harian Metro
   country: MYS
@@ -19288,7 +19402,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/The_Sun_(Malaysia)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: my_thevibes
   name: The Vibes
   country: MYS
@@ -19306,7 +19422,9 @@
   ownership: private
   ownership_source: https://vinodsekhar.com/2020/12/vinod-sekhar-launches-the-vibes-a-new-site-covering-malaysian-news/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: my_utusan
   name: Utusan Malaysia
   country: MYS
@@ -19558,7 +19676,9 @@
   tier: national_daily
   notes: 'Verified 2026-09-02. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ne_nigerinter
   name: Niger Inter
   country: NER
@@ -19815,7 +19935,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/the-punch-nigeria/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ng_sun
   name: The Sun Nigeria
   country: NGA
@@ -19852,7 +19974,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/the-sun-nigeria-bias-and-credibility/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ng_thecable
   name: TheCable
   country: NGA
@@ -20588,7 +20712,9 @@
   ownership: private
   ownership_source: https://www.nepalnews.com/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: np_onlinekhabar
   name: Onlinekhabar
   country: NPL
@@ -20644,7 +20770,9 @@
   ownership_source: https://www.ratopati.com/
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: np_republica
   name: myRepublica
   country: NPL
@@ -20921,7 +21049,9 @@
   ownership_source: https://unglobalcompact.org/what-is-gc/participants/158197-Al-Roya-Newspaper-LLC
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: om_alwatan
   name: https://alwatan.om
   country: OMN
@@ -21031,7 +21161,9 @@
   stance_source: https://en.wikipedia.org/wiki/Associated_Press_of_Pakistan
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: pk_ary
   name: ARY News
   country: PAK
@@ -21585,7 +21717,9 @@
   ownership: private
   ownership_source: https://semanaeconomica.com/quienes-somos
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: pe_trome
   name: Trome
   country: PER
@@ -21682,7 +21816,9 @@
   ownership: private
   ownership_source: https://philippines.mom-gmr.org/en/media/detail/outlet/businessworld/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ph_gma
   name: GMA News
   country: PHL
@@ -22117,7 +22253,9 @@
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/fakt.pl/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: pl_tvn24
   name: TVN24
   country: POL
@@ -22514,7 +22652,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Al-Quds_(newspaper)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ps_felesteen
   name: Felesteen
   country: PSE
@@ -22562,7 +22702,9 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Middle_East_Monitor
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ps_pnn
   name: PNN
   country: PSE
@@ -23724,7 +23866,9 @@
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Arab_News
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sa_asharqalawsat
   name: Asharq Al-Awsat
   country: SAU
@@ -24046,7 +24190,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sn_pressafrik
   name: PressAfrik
   country: SEN
@@ -24980,7 +25126,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Eye_Radio
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ss_radiotamazuj
   name: Radio Tamazuj
   country: SSD
@@ -25211,7 +25359,9 @@
   ownership: private
   ownership_source: https://www.srherald.com/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sr_unitednews
   name: United News
   country: SUR
@@ -25304,7 +25454,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Hospod%C3%A1rske_noviny
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sk_postoj
   name: Postoj
   country: SVK
@@ -25497,7 +25649,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: se_aftonbladet
   name: Aftonbladet
   country: SWE
@@ -25819,7 +25973,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sy_halabtoday
   name: Halab Today
   country: SYR
@@ -25869,7 +26025,9 @@
   ownership: private
   ownership_source: https://npasyria.com/en/about/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sy_northpress_ar
   name: North Press Agency Arabic
   country: SYR
@@ -25886,7 +26044,9 @@
   ownership: private
   ownership_source: https://npasyria.com/en/about/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sy_sana
   name: SANA
   country: SYR
@@ -26388,7 +26548,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Thailand
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: th_thaienquirer
   name: Thai Enquirer
   country: THA
@@ -26426,7 +26588,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Thai_Rath
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: th_thestandard
   name: The Standard
   country: THA
@@ -26505,7 +26669,9 @@
   ownership: private
   ownership_source: https://avesta.tj/about/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: tj_khovar
   name: Khovar
   country: TJK
@@ -26755,7 +26921,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Matangi_Tonga
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: to_talanoa
   name: Talanoa o Tonga
   country: TON
@@ -26808,7 +26976,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/CNC3
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: tt_express
   name: Trinidad Express
   country: TTO
@@ -26938,7 +27108,9 @@
   ownership: private
   ownership_source: https://tunisia.mom-gmr.org/en/media/detail/outlet/businessnewscomtn/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: tn_gnet
   name: Gnet
   country: TUN
@@ -27871,7 +28043,9 @@
   ownership: private
   ownership_source: https://en.everybodywiki.com/Nile_Post_News_Uganda
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ug_observer
   name: The Observer
   country: UGA
@@ -27950,7 +28124,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Espreso_TV
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ua_euromaidan
   name: Euromaidan Press
   country: UKR
@@ -28027,7 +28203,9 @@
   ownership: private
   ownership_source: https://uk.wikipedia.org/wiki/LIGA.net
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ua_nv
   name: NV
   country: UKR
@@ -28171,7 +28349,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Ukrayinska_Pravda
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ua_ukrinform
   name: Ukrinform
   country: UKR
@@ -28304,7 +28484,9 @@
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_País_(Uruguay)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: uy_elpaisdigital
   name: El País Digital
   country: URY
@@ -28323,7 +28505,9 @@
   ownership: private
   ownership_source: https://es.wikipedia.org/wiki/El_País_(Uruguay)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: uy_ladiaria
   name: la diaria
   country: URY
@@ -29137,7 +29321,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/seattle-times/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: us_semafor
   name: Semafor
   country: USA
@@ -29330,7 +29516,9 @@
   notes: 'Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying. Reactivated 2026-10-06: the feed refuses GitHub''s runner but answers from the
     owner''s machine, so the self-hosted collector polls it.'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: us_vox
   name: Vox
   country: USA
@@ -29385,7 +29573,9 @@
   ownership: private
   ownership_source: https://mediabiasfactcheck.com/washington-times/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: us_wsj
   name: The Wall Street Journal
   country: USA
@@ -29653,7 +29843,9 @@
   ownership_source: https://eldiario.com/
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ve_elestimulo
   name: El Estímulo
   country: VEN
@@ -29698,7 +29890,9 @@
   stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
   stance_as_of: 2024
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ve_elpitazo
   name: El Pitazo
   country: VEN
@@ -29790,7 +29984,9 @@
   stance_source: https://freedomhouse.org/country/venezuela/freedom-net/2024
   stance_as_of: 2024
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: vn_baotintuc
   name: Tin Tức
   country: VNM
@@ -30294,7 +30490,9 @@
   ownership: party
   ownership_source: https://en.wikipedia.org/wiki/Al-Islah_(Yemen)
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ye_saba
   name: Saba
   country: YEM
@@ -30649,7 +30847,9 @@
   ownership: private
   ownership_source: https://rsf.org/en/country/zambia
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: zm_zambiadailymail
   name: Zambia Daily Mail
   country: ZMB
@@ -31302,7 +31502,9 @@
   stance_source: https://rsf.org/en/country/belize
   stance_as_of: 2026
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: bz_sanpedrosun
   name: San Pedro Sun
   country: BLZ
@@ -31371,7 +31573,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Cook_Islands_News
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: cw_extra
   name: Extra Curaçao
   country: CUW
@@ -31875,7 +32079,9 @@
   ownership_source: https://www.caribjournal.com/about/
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: kn_timescaribbean
   name: Times Caribbean
   country: KNA
@@ -32192,7 +32398,9 @@
   government_stance: state_controlled
   stance_source: https://www.gov.ms/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ms_montserratreporter
   name: The Montserrat Reporter
   country: MSR
@@ -32500,7 +32708,9 @@
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/38_North
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: kp_dailynk
   name: Daily NK
   country: PRK
@@ -32968,7 +33178,9 @@
   ownership: private
   ownership_source: https://www.iwnsvg.com/about-us/
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: vc_nbc
   name: NBC SVG
   country: VCT
@@ -33206,7 +33418,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: eg_masrawy
   name: Masrawy
   country: EGY
@@ -34502,7 +34716,9 @@
   ownership: unassessed
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: qa_alsharq
   name: Al Sharq
   country: QAT
@@ -34694,7 +34910,9 @@
   ownership_source: https://ro.wikipedia.org/wiki/%C8%98tiripesurse.ro
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sk_sme
   name: Sme
   country: SVK
@@ -35429,7 +35647,9 @@
   ownership: unassessed
   collector: self_hosted
   collector_since: '2026-10-17'
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ec_extra
   name: Extra
   country: ECU
@@ -35806,7 +36026,9 @@
   tier: national_daily
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: re_parallelesud
   name: Parallèle Sud
   country: REU
@@ -35825,7 +36047,9 @@
   tier: business
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ao_makaangola
   name: Maka Angola
   country: AGO
@@ -36081,7 +36305,9 @@
   notes: 'Added 2026-09-28 from the readership research. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 403) on 1 of the 1 China-relevant articles it found here; one request
     from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (10846 characters).'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lc_stluciachronicle
   name: St. Lucia Chronicle
   country: LCA
@@ -36174,7 +36400,9 @@
   tier: regional
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: vi_dailynews
   name: The Virgin Islands Daily News
   country: VIR
@@ -36486,7 +36714,9 @@
   tier: national_daily
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lk_tamilmirror
   name: Tamil Mirror
   country: LKA
@@ -36496,7 +36726,9 @@
   tier: national_daily
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: lk_dailyft
   name: Daily FT
   country: LKA
@@ -36515,7 +36747,9 @@
   tier: national_daily
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: ls_lestimes
   name: Lesotho Times
   country: LSO
@@ -36561,7 +36795,9 @@
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: mm_karennews
   name: Karen News
   country: MMR
@@ -36607,7 +36843,9 @@
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: fm_kpress
   name: Kaselehlie Press
   country: FSM
@@ -36626,7 +36864,9 @@
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: nc_caledosphere
   name: Caledosphere
   country: NCL
@@ -36654,7 +36894,9 @@
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research. Polled by the self-hosted collector from 2026-09-30 because GitHub's runner is refused (HTTP 403).
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: sb_solomontimes
   name: Solomon Times Online
   country: SLB
@@ -36730,7 +36972,9 @@
   notes: 'Added 2026-09-28 from the readership research. Moved to the self-hosted collector 2026-10-12: the hosted runner was refused (HTTP 429) on 1 of the 1 China-relevant articles it found here; one request
     from the owner''s Mac on 2026-10-12, with the project user agent and robots.txt allowing it, returned HTTP 200 and the article text (3264 characters).'
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: pg_pngtoday
   name: Papua New Guinea Today (PNG Facts news)
   country: PNG
@@ -36859,7 +37103,9 @@
   ownership: state
   ownership_source: https://law.moj.gov.tw/ENG/LawClass/LawAll.aspx?pcode=P0000007
   collector: self_hosted
-  active: true
+  active: false
+  inactive_reason: 'blocks the crawler from its server addresses; collection from another network stopped on 2026-10-22 (relay retired)'
+  inactive_since: '2026-10-22'
 - id: tw_digitimes
   name: DIGITIMES
   country: TWN

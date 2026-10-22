@@ -4,8 +4,8 @@ A research instrument that discovers, every day, how much Chinese state-origin
 and Chinese-state-sourced news content is published in every country it can
 monitor, keeps that history permanently, and shows it on a world map.
 
-It generalizes the coding framework of a completed study of 484 articles across
-Italy, Canada and Australia and runs it continuously.
+It generalizes the coding framework of a completed study of 596 articles across
+four countries: Italy, Canada, Australia and Singapore, and runs it continuously.
 
 Every article is placed in one of four categories. The interface names them
 state origin, unchecked state sourcing, independent journalism, and not about
@@ -21,8 +21,8 @@ file is generated from live values and is the authoritative description.
 
 ## Increments landed
 
-1. Outlet registry, schema, feed validator, and dense coverage of the three
-   study countries.
+1. Outlet registry, schema, feed validator, and dense coverage of Italy,
+   Canada and Australia, three of the study's four countries.
 2. Discovery and storage. Hourly feed polling, URL hash deduplication,
    near-duplicate title linking within a country (and, since 2026-10-12,
    body text linking across outlets after fetch), a loose multilingual
@@ -32,8 +32,9 @@ file is generated from live values and is the authoritative description.
    longer Crawl-delay (honored up to ten minutes, for feeds as well as
    pages), identifying user agent, paywall
    declarations respected with no bypass, two retries then a recorded
-   failure. First run over 149 gated articles: 109 fetched, 33 paywalled,
-   4 blocked by robots, 3 failed. Canada obtained only 22 percent because
+   failure. First run, on 2026-09-03, over 149 gated articles: 109 fetched,
+   33 paywalled, 4 blocked by robots, 3 failed. Canada obtained the text of
+   only 6 of its 27 gated articles (22 percent) because
    The Globe and Mail declares every article not free, so Canadian counts
    are flagged as not comparable until more open Canadian outlets are added.
 4. Rules-based state origin detection. pipeline/signatures.yaml holds pattern
@@ -142,21 +143,23 @@ switches on the verification stage. Optional variables: `TRACKER_LLM_MODEL`,
 
 Some outlets answer 403 or time out for GitHub's runner addresses while
 their feeds work from an ordinary network. Those carry `collector:
-self_hosted` in the registry and are relayed from the owner's Mac: a launchd
-job runs `scripts/relay.sh` every hour, which polls and fetches only those
-outlets into a separate database (`data/relay.db`), running from its own git worktree pinned to the published main branch so local uncommitted edits never reach it, then force-pushes one
-gzipped file of the last seven days of articles to the public `relay` branch.
-When `RELAY_BUNDLE_KEY` is set the file is sealed with it
-(pipeline/bundle_crypto.py) and carries the article bodies; without the key it
-goes in clear with every body left out, paywalled ones included, and the
-runner fetches what it can itself. `push_bundle` refuses to push a bundle
-that carries bodies in clear. That branch has no history, so the repository
-does not grow.
-The hosted pipeline job ingests the bundle at the start of every run and
-inserts whatever it does not have yet; classification then happens on the
-hosted side. The main database still has exactly one writer. When the Mac
-is asleep the relay simply skips an hour; nothing queues and nothing is
-blocked. Logs are in `logs/relay-YYYY-MM-DD.log`.
+self_hosted` in the registry. From September 2026 until 2026-10-22 they were
+relayed from the owner's Mac: a launchd job ran `scripts/relay.sh` every hour,
+which polled and fetched those outlets into a separate database
+(`data/relay.db`) and force-pushed a gzipped file of recent articles to the
+public `relay` branch, which the pipeline ingested. Collecting from another
+network works around a site's choice to refuse the crawler, which sits badly
+with a crawler whose identity never changes and with never bypassing a paywall
+or an access control, and article text in a public repository, encrypted or
+not, is still redistribution. So the relay was stopped on 2026-10-22: its 123
+outlets are inactive (`inactive_since: '2026-10-22'`, reason ending "(relay
+retired)"), which leaves the Cook Islands and Kiribati with no active outlet
+and 87 more countries with fewer, the pipeline no longer ingests or
+acknowledges relay bundles, and the `RELAY_BUNDLE_KEY` secret is never to be
+added. What the relay collected before then stays in the database and every
+figure. `scripts/relay.sh`, `pipeline/relay.py` and `pipeline/bundle_crypto.py`
+are kept for the record and their tests. An outlet the runner cannot reach is
+now deactivated by the weekly validation like any other dead outlet.
 
 Only the workflows write the database. Before running any local tool that
 reads it (the review queue, the agreement study, a reclassification), pull
@@ -180,11 +183,9 @@ runs through the Actions cache, with the extracted article bodies, and every
 day `scripts/db_snapshot.sh` publishes to the public `db-snapshot` release a
 compressed copy, `tracker.db.gz`, scrubbed of bylines, feed summaries, raw
 model output, reviewer names and email addresses (pipeline/snapshot_scrub.py).
-The whole database and the bodies go up beside it only encrypted with the
-owner's `RELAY_BUNDLE_KEY`, as `tracker-full.db.gz.enc` and
-`bodies.tar.gz.enc`; without the key no encrypted copy is uploaded, and
-neither is ever uploaded in clear. `scripts/db_restore.sh` shows the restore
-order.
+The whole database and the bodies are never uploaded, in clear or encrypted,
+so a cache miss restores the scrubbed copy and fetches bodies again where it
+can. `scripts/db_restore.sh` shows the restore order.
 Items the relevance gate rejected are pruned after three days, the one
 deliberate exception to the never-delete rule; a permanent per-day
 discovery count is kept so totals do not shrink. A random 2 percent of
@@ -358,8 +359,8 @@ and robots blocks together exceed a third of attempts carries a warning
 marker. Kommersant, the Wall Street Journal and Folha are the largest
 robots.txt exclusions.
 
-Registry unevenness. The registry was seeded densely in the three study
-countries and then expanded by region. The export records
+Registry unevenness. The registry was seeded densely in Italy, Canada and
+Australia, three of the study's four countries, and then expanded by region. The export records
 `registry_unevenness` in meta.json (minimum, median and maximum active
 outlets per country, and the number of single-outlet countries). When the
 densest country has three or more times the median, the interface says so
@@ -368,7 +369,11 @@ and reminds the reader that raw counts display the sampling; on 12 October
 median of 6, and 16 countries had a single outlet. The site has three
 measures: state origin, the default, decided by fixed rules where a signature
 shows it and by the model otherwise (METHODOLOGY.md gives the current split),
-unchecked state sourcing, and all China coverage. It has four bases:
+unchecked state sourcing, and all China coverage. A model state origin call
+that names no credit line, stamp, disclosure or byline and matches no credited
+item (route `unattributed`) is held out of state origin as its own provisional
+figure, code `M` in the data files, until its hand check passes
+(`pipeline/model_only.py`; `python -m pipeline.model_only sample` draws it). It has four bases:
 number of articles, per outlet we monitor, percent of the country's China
 coverage and percent of all its news; per outlet and the share of all its
 news are the corrected views. A Distribution toggle, described below,
@@ -434,7 +439,16 @@ goes to the model as a state origin candidate, the match kept under
 "lookalike" in `articles.llm_trigger`; a state origin label the model gives
 it is stored with its own route, `uncredited_copy`
 (`classify_rules.model_route`), not `unattributed`, and `ensure_routes`
-moves older such labels across at export.
+moves older such labels across at export. The uncredited copy count is a
+lower bound. The check compares an article only with state origin items that
+another monitored outlet ran under a credit, stamp, sponsored disclosure or
+diplomat's byline, within eleven days either side and in the same language;
+a label resting on the model alone is never a reference, and the six English
+reference editions are never one either (they serve only the report only
+measures that set copies beside their originals, alteration and speed). State text that no monitored outlet ever ran with a credit, such as
+Xinhua copy in Italian, Spanish or Portuguese run uncredited everywhere, and
+copy from the state services' other language editions, which are not read,
+cannot be matched.
 
 Methodology review, September 2026. The changes it prompted are listed in
 CHANGELOG.md under 2026-09-15: province terms and a state origin signature
@@ -466,3 +480,10 @@ October 2026, 19 outlets were excluded under this rule: seven in Australia,
 five in Taiwan, three in Hong Kong, two in Malaysia and one each in South
 Korea and Singapore. METHODOLOGY.md, under Known limits, gives the current
 count per country.
+
+The rule is also a blind spot. Chinese-language outlets outside China are
+registered but not monitored, and the original study found state-linked
+content through exactly this layer, for example in the lifestyle section of a
+Chinese-language diaspora paper in Canada. State origin carried in
+Chinese-language diaspora media is therefore not counted in any figure the
+tracker publishes.

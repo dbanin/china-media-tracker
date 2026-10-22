@@ -147,7 +147,8 @@ def test_the_registry_carries_the_corrected_languages():
                 "cm_mimimefo": "fr", "mg_newsmada": "mg", "sy_northpress_ar": "ar", "ye_yemenpress_ar": "ar",
                 "mc_monacotribune_en": "en", "tj_asiaplus": "ru"}
     for oid, lang in expected.items():
-        assert by[oid]["language"] == lang and by[oid]["active"], oid
+        # sy_northpress_ar was a relay outlet, inactive since the relay was retired on 2026-10-22.
+        assert by[oid]["language"] == lang and (by[oid]["active"] or by[oid]["inactive_since"] == "2026-10-22"), oid
     # each split feed is polled once, by the outlet of its language
     for oid, feed in (("sy_northpress_ar", "https://npasyria.com/feed/"), ("ye_yemenpress_ar", "https://ypagency.net/feed/"),
                       ("mc_monacotribune_en", "https://www.monaco-tribune.com/en/feed/"), ("tj_asiaplus", ASIAPLUS)):

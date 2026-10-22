@@ -262,7 +262,9 @@ def collector_of(outlet: Dict) -> str:
 # hourly; with both schedules the median gap is about an hour. Both collectors poll the feeds, the
 # hosted side ingests the relay's items by url_hash like any other relay item, and article pages are
 # fetched once, by fetcher_of: the hosted runner for a shared outlet, which it can reach (an outlet
-# that refuses the runner is self_hosted, not both).
+# that refuses the runner is self_hosted, not both). The relay was retired on 2026-10-22
+# (config.RELAY_RETIRED_ON): its self_hosted outlets are inactive, and both outlets are polled by the
+# hosted runner alone.
 HOSTED, SELF_HOSTED, BOTH = "hosted", "self_hosted", "both"
 
 
@@ -279,8 +281,16 @@ def fetcher_of(outlet: Dict) -> str:
 
 
 def is_shared(outlet: Dict) -> bool:
-    """Polled by both collectors."""
+    """Polled by both collectors (until the relay was retired, config.RELAY_RETIRED_ON; since then the
+    hosted runner alone polls a collector: both outlet)."""
     return collector_of(outlet) == BOTH
+
+
+def relay_dropped(outlet: Dict) -> bool:
+    """An outlet only the relay collected, made inactive the day the relay was retired
+    (config.RELAY_RETIRED_ON), because it refuses the crawler from the runner's addresses."""
+    return (collector_of(outlet) == SELF_HOSTED and not outlet.get("active")
+            and str(outlet.get("inactive_since") or "") == config.RELAY_RETIRED_ON)
 
 
 # Media Bias/Fact Check is a US based rater that places outlets on a United States spectrum. Where it
