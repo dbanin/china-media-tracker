@@ -1,22 +1,24 @@
 # Session labels
 
-Verification judgements given by the classifier model outside the API. When the monthly API
-budget is spent, articles waiting for the model can be judged by the same model with the
-identical system prompt (pipeline/classify_llm.py, SYSTEM_PROMPT) in an interactive session on the
-owner's machine, at no API cost. As on the API path, the model sees the headline and the body
-only, never the outlet, the country or the URL.
+Verification judgements given by a model outside the API. When the monthly API budget is spent,
+articles waiting for the model can be judged with the identical system prompt and output schema
+(pipeline/classify_llm.py, SYSTEM_PROMPT and OUTPUT_SCHEMA) in an interactive session on the
+owner's machine, at no API cost, by the classifier model (`config.LLM_MODEL`, today
+`claude-sonnet-5`) or by another model; every label names the model that made it. As on the API
+path, the model sees the headline and the body only, never the outlet, the country or the URL.
 
 The labelling agents must be given the current `SYSTEM_PROMPT` and `OUTPUT_SCHEMA` exactly as
 pipeline/classify_llm.py holds them on the day of the pass, never a copy kept from an earlier pass.
 Export both at the start of every session pass:
 
 ```
-python -m pipeline.labels export-prompt --out <dir>
+python -m pipeline.labels export-prompt --out <dir> --model <the model that makes the labels>
 ```
 
 This writes `<dir>/SYSTEM_PROMPT.md` and `<dir>/OUTPUT_SCHEMA.json` from the live code. Each file
 is headed with `PROMPT_VERSION`, the sha256 of its content and the `model_version` the labels must
-carry; the agent gets everything below the `---` line of SYSTEM_PROMPT.md as its system prompt,
+carry, naming the `--model` given (`config.LLM_MODEL` when it is left out); the agent gets
+everything below the `---` line of SYSTEM_PROMPT.md as its system prompt,
 and answers in the shape of OUTPUT_SCHEMA.json. Keep the exported files out of this directory.
 
 Each `*.jsonl` file here holds one JSON object per line, every field required:
@@ -25,7 +27,8 @@ Each `*.jsonl` file here holds one JSON object per line, every field required:
 {"url_hash": "3f2a...", "category": "B", "confidence": 0.82,
  "evidence_quote": "...", "reasoning": "...", "china_sources_cited": ["Xinhua"],
  "independent_confirmation_present": false, "confirmation_evidence": null,
- "model_version": "claude-sonnet-5 (session, prompt 2026-10-12)", "labelled_at": "2026-10-13T10:00:00Z",
+ "issuer_type": "none", "state_basis": "none",
+ "model_version": "claude-opus-5-5 (session, prompt 2026-10-17)", "labelled_at": "2026-10-22T10:00:00Z",
  "source": "session"}
 ```
 
@@ -33,11 +36,27 @@ Each `*.jsonl` file here holds one JSON object per line, every field required:
 
 - `category` is one of `A` (state origin), `B` (unchecked state sourcing), `C` (independent
   journalism) or `not_relevant`; `confidence` is a number from 0 to 1.
-- `model_version` must be `"claude-sonnet-5 (session, prompt <PROMPT_VERSION>)"`, where
-  `<PROMPT_VERSION>` is the date in `PROMPT_VERSION` in pipeline/classify_llm.py, today
-  `"claude-sonnet-5 (session, prompt 2026-10-12)"`; export-prompt prints it. The word `session`
-  keeps these labels distinguishable from API labels, which carry `"claude-sonnet-5 (prompt
-  2026-10-12)"`, and a line whose `model_version` does not name the session is malformed. The
+- `issuer_type` (one of `classify_llm.ISSUER_TYPES`: `state_media`, `government`, `party`,
+  `diplomatic`, `state_owned_enterprise`, `sar_government`, `private_release`, `none`) and
+  `state_basis` (one of `classify_llm.STATE_BASES`: `credit_line`, `distribution_stamp`,
+  `sponsored_disclosure`, `diplomatic_byline`, `context_match`, `issuer_named`, `none`) are
+  required from prompt 2026-10-17, as OUTPUT_SCHEMA requires them of the API: a line naming that
+  prompt or a later one without them, or with another value, is malformed. They are stored as an
+  API reply's are: a state origin label is routed from its `state_basis` (`credit_line` is
+  `wire_credit`, `issuer_named` is unattributed and so undetermined), and a label whose category
+  and issuer type contradict each other is stored and flagged for review exactly as an
+  inconsistent API reply is (an `A` with issuer `private_release` or `none` is stored as `C`), and
+  counted in the ingest's `inconsistent`. Lines from older prompts may lack both fields.
+- `model_version` must be `"<model> (session, prompt <PROMPT_VERSION>)"`, where `<model>` is the
+  model that made the label and `<PROMPT_VERSION>` is the date in `PROMPT_VERSION` in
+  pipeline/classify_llm.py: today `"claude-sonnet-5 (session, prompt 2026-10-17)"` for a pass by
+  the classifier model and `"claude-opus-5-5 (session, prompt 2026-10-17)"` for a pass by Claude
+  Opus 5.5; export-prompt prints it for the `--model` given. Never name a model other than the one
+  that made the labels. The word `session` keeps these labels distinguishable from API labels,
+  which carry `"claude-sonnet-5 (prompt 2026-10-17)"`, and a line whose `model_version` does not
+  name the session is malformed. The model name is kept as written and listed per model version
+  in the export (`meta.session_labels.by_model_version`); the stability check
+  (pipeline/second_rater.py) pairs only labels the classifier model made. The
   prompt tag is read by `classify_llm.prompt_version_of`. A label made under an older prompt, or
   naming no prompt (every file before 2026-10-12), would only be queued for the API again, so the
   ingest counts it as `older_prompt` and skips it; the article stays in the queue for a label

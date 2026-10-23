@@ -713,3 +713,17 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
 @media (max-width: 640px) { .prelim { padding: var(--s2); } .prelim .prelim-text { font-size: 0.92rem; } }
 /* Phone width: the pairs and originals line under each speed bar sits in a 4.5rem column; let it wrap there instead of pushing the page sideways. */
 @media (max-width: 700px) { #copies-speed .sp-n em { white-space: normal; overflow-wrap: anywhere; } }
+/* The licensed archive check in the methodology, beside the paywall disclosure: a separate source, set off by a gold hairline. */
+.archive-check { border-left: 2px solid var(--gold); padding: 0.2rem 0 0.2rem 1.1rem; margin: 1.4rem 0 1.6rem; max-width: 62rem; }
+.archive-check h3 { margin: 0 0 0.5rem; }
+.archive-check p { font-size: 0.92rem; overflow-wrap: anywhere; }
+.archive-check .ac-summary { font-family: var(--display); font-size: 1.15rem; line-height: 1.45; color: var(--bone); }
+.archive-check .ac-method { color: var(--ash); font-size: 0.84rem; }
+.ac-table-wrap { max-width: 100%; overflow-x: auto; margin: 0.6rem 0 1rem; }
+.ac-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.ac-table th, .ac-table td { text-align: left; padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--bone-soft); }
+.ac-table th { color: var(--ash); font-weight: 400; font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.ac-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ac-table .ac-country { display: block; color: var(--ash); font-size: 0.74rem; }
+.ac-table .ac-total td { color: var(--bone); border-bottom: 0; }
+@media (max-width: 640px) { .archive-check { padding-left: 0.8rem; } .ac-table { font-size: 0.8rem; } .ac-table th { letter-spacing: 0.06em; } .ac-table th, .ac-table td { padding: 0.3rem 0.25rem; } }

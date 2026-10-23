@@ -1,11 +1,11 @@
 """Model labels produced outside the API, imported by the hosted runner.
 
 When the monthly API budget is spent, articles waiting for the verification judgement pile up at
-status awaiting_llm. The owner can then have the same model judge them with the identical system
-prompt (classify_llm.SYSTEM_PROMPT) in an interactive session on the owner's machine, at no API
-cost. The session is given what the API path gives the model, the headline and the body, and
-nothing else: never the outlet, the country or the URL, so the model still cannot learn a
-geographic pattern the map is supposed to discover.
+status awaiting_llm. The owner can then have the classifier model, or another model the labels then
+name, judge them with the identical system prompt (classify_llm.SYSTEM_PROMPT) in an interactive
+session on the owner's machine, at no API cost. The session is given what the API path gives the
+model, the headline and the body, and nothing else: never the outlet, the country or the URL, so the
+model still cannot learn a geographic pattern the map is supposed to discover.
 
 The session writes its answers to data/labels/*.jsonl, one JSON object per line, and those files
 are committed to the repository. This module is the other half:
@@ -20,30 +20,41 @@ are committed to the repository. This module is the other half:
           the database at all) is counted and skipped, so a file can be ingested any number of
           times and nothing is inserted twice.
 
-The labels carry their own model_version, which names the session (for example
-"claude-sonnet-5 (session)"), and the label's own JSON line is kept as the raw response, so a label
-imported this way can always be told apart from one the API returned. They are model labels like
-any other: they count as such in every figure and are sampled by the reliability study under the
-same rules. Nothing here books API usage, because none was spent. From 2026-10-12 the model_version
-must name both the session and the prompt the session used, "claude-sonnet-5 (session, prompt
-2026-10-12)" for classify_llm.PROMPT_VERSION 2026-10-12 (session_model_version). A line whose
-model_version does not name the session is malformed. A label made under an older prompt, or naming
-no prompt at all (every file before 2026-10-12), would only be queued for the API again
-(classify_llm.relabel_candidates), so ingest counts it as older_prompt and skips it, never fatal,
-and the article stays in the queue for a label under the current prompt.
+The labels carry their own model_version, which names the model that made them and the session (for
+example "claude-opus-5-5 (session, prompt 2026-10-17)" for a pass run by a model other than the
+API's config.LLM_MODEL), and the label's own JSON line is kept as the raw response, so a label
+imported this way can always be told apart from one the API returned, and from one another model
+made. They are model labels like any other: they count as such in every figure and are sampled by
+the hand coding study under the same rules; the stability check pairs only labels the classifier
+model made (second_rater.judged_rows). Nothing here books API usage, because none was spent.
+From 2026-10-12 the model_version must name both the session and the prompt the session used,
+"claude-sonnet-5 (session, prompt 2026-10-12)" for classify_llm.PROMPT_VERSION 2026-10-12
+(session_model_version). A line whose model_version does not name the session is malformed. A label
+made under an older prompt, or naming no prompt at all (every file before 2026-10-12), would only be
+queued for the API again (classify_llm.relabel_candidates), so ingest counts it as older_prompt and
+skips it, never fatal, and the article stays in the queue for a label under the current prompt.
 
 The labelling agents must be given the live prompt, never a copy kept from an earlier pass:
 
   export-prompt  writes SYSTEM_PROMPT.md and OUTPUT_SCHEMA.json from classify_llm.SYSTEM_PROMPT and
                  classify_llm.OUTPUT_SCHEMA as the code holds them now, each headed with
-                 PROMPT_VERSION, a hash of its content and the model_version the labels must carry.
+                 PROMPT_VERSION, a hash of its content and the model_version the labels must carry,
+                 which names the model given with --model (config.LLM_MODEL by default).
 
 Line format (every field required):
   {"url_hash": "...", "category": "A|B|C|not_relevant", "confidence": 0.0..1.0,
    "evidence_quote": "...", "reasoning": "...", "china_sources_cited": ["..."],
    "independent_confirmation_present": true|false, "confirmation_evidence": "..." or null,
-   "model_version": "claude-sonnet-5 (session, prompt 2026-10-12)",
+   "issuer_type": one of classify_llm.ISSUER_TYPES, "state_basis": one of classify_llm.STATE_BASES,
+   "model_version": "claude-sonnet-5 (session, prompt 2026-10-17)",
    "labelled_at": "2026-10-13" or an ISO datetime, "source": "session"}
+
+issuer_type and state_basis are required from prompt 2026-10-17 (SCHEMA_FIELDS_SINCE), as
+classify_llm.OUTPUT_SCHEMA requires them of the API; a line naming that prompt or a later one without
+them, or with a value outside the enum, is malformed. A line from an older prompt may lack them (it is
+older_prompt anyway). They reach store_result exactly as parse_response hands them on, so a session
+state origin label is routed from its state_basis (classify_llm.BASIS_ROUTES, _model_route) and an
+inconsistent one (classify_llm.inconsistency_of) is stored and flagged as the API path stores it.
 
 The same directory holds api_first.jsonl, which is not a labels file and is never ingested. It
 lists the waiting articles whose text the session could not fetch on the owner's machine (HTTP 403,
@@ -55,7 +66,7 @@ younger than config.LLM_SESSION_GRACE_DAYS for the session route. load_api_first
 
 Usage:
   python -m pipeline.labels ingest
-  python -m pipeline.labels export-prompt --out <dir>
+  python -m pipeline.labels export-prompt --out <dir> [--model claude-opus-5-5]
 """
 import argparse
 import datetime as dt
@@ -72,6 +83,10 @@ STAGE = "labels_ingest"
 CATEGORIES = ("A", "B", "C", "not_relevant")
 FIELDS = ("url_hash", "category", "confidence", "evidence_quote", "reasoning", "china_sources_cited",
           "independent_confirmation_present", "confirmation_evidence", "model_version", "labelled_at", "source")
+# Required by classify_llm.OUTPUT_SCHEMA from prompt 2026-10-17 on, so required of a label naming that
+# prompt or a later one; a label from an older prompt may lack them.
+SCHEMA_FIELDS = ("issuer_type", "state_basis")
+SCHEMA_FIELDS_SINCE = "2026-10-17"
 # Enough examples of a bad line to diagnose a file without printing all of it.
 MALFORMED_SAMPLES = 5
 # The list of articles the API takes first; it lives beside the labels but holds none.
@@ -84,10 +99,19 @@ PROMPT_FILE = "SYSTEM_PROMPT.md"
 SCHEMA_FILE = "OUTPUT_SCHEMA.json"
 
 
-def session_model_version(prompt_version: Optional[str] = None) -> str:
-    """The model_version a session label made under the current prompt carries,
-    "claude-sonnet-5 (session, prompt 2026-10-12)"."""
-    return "%s (session, prompt %s)" % (config.LLM_MODEL, prompt_version or classify_llm.PROMPT_VERSION)
+def session_model_version(prompt_version: Optional[str] = None, model: Optional[str] = None) -> str:
+    """The model_version a session label made under the current prompt carries, naming the model that
+    made it (config.LLM_MODEL unless given), "claude-sonnet-5 (session, prompt 2026-10-17)" or
+    "claude-opus-5-5 (session, prompt 2026-10-17)"."""
+    return "%s (session, prompt %s)" % ((model or config.LLM_MODEL).strip(), prompt_version or classify_llm.PROMPT_VERSION)
+
+
+def model_of(model_version: Optional[str]) -> Optional[str]:
+    """The model a label's model_version names, without its session or prompt tag:
+    "claude-opus-5-5 (session, prompt 2026-10-17)" gives "claude-opus-5-5"."""
+    if not model_version or not model_version.strip():
+        return None
+    return model_version.split(" (", 1)[0].strip() or None
 
 
 def _parse_when(value) -> bool:
@@ -139,6 +163,15 @@ def validate(obj) -> Optional[str]:
         return "model_version %r does not name the session, e.g. %r" % (mv, session_model_version())
     if not _parse_when(obj["labelled_at"]):
         return "labelled_at is not an ISO date or datetime"
+    # The fields the current schema requires, checked as parse_response reads them (issuer_type_of,
+    # state_basis_of): a value outside the enum would be stored as no value at all.
+    if (classify_llm.prompt_version_of(mv) or "") >= SCHEMA_FIELDS_SINCE:
+        missing = [f for f in SCHEMA_FIELDS if f not in obj]
+        if missing:
+            return "missing %s, required from prompt %s" % (", ".join(missing), SCHEMA_FIELDS_SINCE)
+    for f, allowed in (("issuer_type", classify_llm.ISSUER_TYPES), ("state_basis", classify_llm.STATE_BASES)):
+        if f in obj and obj[f] not in allowed:
+            return "%s %r is not one of %s" % (f, obj[f], "|".join(allowed))
     return None
 
 
@@ -233,7 +266,8 @@ def load_api_first(directory: Optional[Path] = None, stats: Optional[Dict] = Non
 
 
 def _data(label: Dict) -> Dict:
-    """The label in the shape classify_llm.parse_response hands to store_result."""
+    """The label in the shape classify_llm.parse_response hands to store_result, issuer_type and
+    state_basis included (None for a label from before prompt 2026-10-17, as parse_response gives)."""
     return {
         "category": label["category"],
         "confidence": float(label["confidence"]),
@@ -242,6 +276,8 @@ def _data(label: Dict) -> Dict:
         "china_sources_cited": list(label["china_sources_cited"]),
         "independent_confirmation_present": label["independent_confirmation_present"],
         "confirmation_evidence": label["confirmation_evidence"],
+        "issuer_type": label.get("issuer_type"),
+        "state_basis": label.get("state_basis"),
         "_raw": label["_raw"],
     }
 
@@ -252,7 +288,8 @@ def ingest(conn, directory: Optional[Path] = None, now: Optional[dt.datetime] = 
     now = now or dt.datetime.now(dt.timezone.utc)
     log_id = store.start_stage(conn, "labels-%s" % now.strftime("%Y%m%dT%H%M%SZ"), STAGE)
     counts = {"files": 0, "lines": 0, "malformed": 0, "applied": 0, "already_classified": 0,
-              "not_awaiting": 0, "unknown": 0, "older_prompt": 0, "copied": 0, "by_category": {}}
+              "not_awaiting": 0, "unknown": 0, "older_prompt": 0, "copied": 0, "inconsistent": 0,
+              "by_category": {}}
     try:
         labels, stats = load_files(directory)
         counts.update({k: stats[k] for k in ("files", "lines", "malformed")})
@@ -281,8 +318,10 @@ def ingest(conn, directory: Optional[Path] = None, now: Optional[dt.datetime] = 
             # The same call the API path makes after a reply parses: a current llm classification,
             # the route of a state origin label, and the article moved to status classified.
             # The label's model_version is kept as written, naming the session and the prompt it
-            # used ("claude-sonnet-5 (session, prompt 2026-10-12)").
-            classify_llm.store_result(conn, row["id"], _data(label), label["model_version"], prompt_version=None)
+            # used ("claude-opus-5-5 (session, prompt 2026-10-17)"). An inconsistent label is stored and
+            # flagged in needs_review exactly as an inconsistent API reply is (classify_llm.inconsistency_of).
+            if classify_llm.store_result(conn, row["id"], _data(label), label["model_version"], prompt_version=None):
+                counts["inconsistent"] += 1
             conn.commit()
             applied.append(row["id"])
             counts["applied"] += 1
@@ -314,15 +353,16 @@ def session_label_counts(conn) -> Dict:
     return {"total": sum(by_model.values()), "by_model_version": by_model}
 
 
-def export_prompt(out_dir: Path) -> Dict:
+def export_prompt(out_dir: Path, model: Optional[str] = None) -> Dict:
     """Write SYSTEM_PROMPT.md and OUTPUT_SCHEMA.json into out_dir from classify_llm as the code holds
     them now, so a session pass is never run on a stale copy. Each file is headed with
-    PROMPT_VERSION, the sha256 of the exported content and the model_version the labels must carry.
-    Returns what was written."""
+    PROMPT_VERSION, the sha256 of the exported content and the model_version the labels must carry,
+    naming model, the model that makes the labels (config.LLM_MODEL by default). Returns what was
+    written."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     version = classify_llm.PROMPT_VERSION
-    model_version = session_model_version(version)
+    model_version = session_model_version(version, model)
     prompt = classify_llm.SYSTEM_PROMPT
     prompt_sha = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
     schema_sha = hashlib.sha256(json.dumps(classify_llm.OUTPUT_SCHEMA, sort_keys=True).encode("utf-8")).hexdigest()
@@ -352,11 +392,13 @@ def main(argv=None):
     ap.add_argument("--dir", type=Path, default=None, help="directory of *.jsonl label files (default data/labels)")
     ap.add_argument("--out", type=Path, default=None, help="export-prompt: directory to write %s and %s into"
                     % (PROMPT_FILE, SCHEMA_FILE))
+    ap.add_argument("--model", default=None, help="export-prompt: the model that makes the labels, named in their "
+                    "model_version (default %s)" % config.LLM_MODEL)
     args = ap.parse_args(argv)
     if args.cmd == "export-prompt":
         if args.out is None:
             ap.error("export-prompt needs --out <dir>")
-        print(json.dumps(export_prompt(args.out), sort_keys=True))
+        print(json.dumps(export_prompt(args.out, args.model), sort_keys=True))
         return 0
     conn = store.connect()
     counts = ingest(conn, args.dir)

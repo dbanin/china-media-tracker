@@ -16,6 +16,8 @@ Outputs in docs/data/:
   planted.json         articles whose byline or cited organisation matches a persona or front named
                        in a published investigation, and the recurring bylines diagnostic; never a
                        category, never a count
+  archive_checks.json  aggregate counts from licensed archive checks (sources/archive_checks.yaml),
+                       a separate source and method, kept out of every count, map, share and finding
 
 A day with an LLM ceiling event is marked in the daily file so a truncated day
 is never mistaken for a quiet day, and a day on which the relay collector ran for
@@ -1972,8 +1974,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "relay_withheld_languages": withheld_languages,
         "llm_calls_total": llm["calls"] or 0,
         "llm_labels_total": llm_labels,
-        # The part of llm_labels_total the same model gave outside the API, in an interactive session
-        # at no API cost, and imported by pipeline.labels. Included above, not added to it.
+        # The part of llm_labels_total given outside the API, in an interactive session at no API cost,
+        # and imported by pipeline.labels, by model_version (each names the model that made it, which
+        # need not be llm_model). Included above, not added to it.
         "session_labels": labels_mod.session_label_counts(conn),
         "llm_ceiling_days": ceiling_days,
         "llm_calls_by_day": calls_by_day,
@@ -2330,6 +2333,10 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         put(out / "examples.json", examples)
         # A failure in the planted export is printed and leaves an empty planted.json, never a stop.
         write_json(out / "planted.json", planted.build_export_quietly(conn))
+        # The licensed archive checks (sources/archive_checks.yaml), a separate source and method: their own
+        # side file, read by no count, map, share, top 10 or finding. A failure leaves no checks, never a stop.
+        from pipeline import archive_checks
+        write_json(out / "archive_checks.json", archive_checks.build_export_quietly())
     except BaseException:
         import shutil
         shutil.rmtree(out, ignore_errors=True)

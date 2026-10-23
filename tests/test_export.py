@@ -73,6 +73,8 @@ EXAMPLE_ITEM_SCHEMA = {"type": "object", "required": ["id", "headline", "outlet_
 EXAMPLES_SCHEMA = {"type": "object", "required": ["generated_at", "A"],
                    "properties": {"A": {"type": "array", "items": EXAMPLE_ITEM_SCHEMA},
                                   "B": {"type": "array", "items": EXAMPLE_ITEM_SCHEMA}}}
+ARCHIVE_CHECKS_SCHEMA = {"type": "object", "required": ["kept_apart", "checks"],
+                         "properties": {"kept_apart": {"const": True}, "checks": {"type": "array", "items": {"type": "object", "required": ["id", "titles", "totals", "by_country"]}}}}
 
 
 def _load(p):
@@ -127,6 +129,7 @@ def test_export_on_empty_database(tmp_path, monkeypatch):
     examples = _load(out / "examples.json")
     jsonschema.validate(examples, EXAMPLES_SCHEMA)
     assert examples["A"] == []
+    jsonschema.validate(_load(out / "archive_checks.json"), ARCHIVE_CHECKS_SCHEMA)
 
 
 def test_write_json_atomic_leaves_no_temp_file(tmp_path):

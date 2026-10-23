@@ -363,6 +363,24 @@ warning marker and named in the data notice and in meta.json under
 `paywall_flagged_countries`. Its numbers are not comparable to the rest.
 The remedy is to add more open Canadian outlets, not to bypass anything.
 
+Licensed archive check. To look behind some paywalls without crossing them,
+the owner ran the tracker's state origin signatures and model triggers
+(pipeline/signatures.yaml) as a rules only screen over licensed ProQuest
+full text in TDM Studio, editorial pages only, September to October 2026:
+no model, no human coding, and only aggregate counts leave the archive. The
+counts are in sources/archive_checks.yaml (validated by `python -m
+pipeline.archive_checks validate`, which checks that every row adds up) and
+are exported to docs/data/archive_checks.json. The site shows them as their
+own block beside the paywall disclosure in the methodology, and one line in
+the panels of Canada, Singapore and Argentina; they never join the
+tracker's counts, map, totals, shares, top 10 or findings. The run found no
+state origin signature in 380 China articles across 7 titles; 59 citing
+Chinese official or state sources await review inside the archive, and the
+other 321 are "no state signature found", never independent journalism,
+because no verification step ran. Valor Econômico returned no records
+because it was not searchable there, which says nothing about what it
+carried.
+
 Bot protection. On the first global retrieval run, 490 article fetches
 returned HTTP 403 to the identified crawler, mostly from sites behind bot
 protection, and 65 were disallowed by robots.txt. Both are recorded as
