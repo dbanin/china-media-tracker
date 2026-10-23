@@ -1,0 +1,76 @@
+# Licensed archive checks: aggregate counts from screens the owner ran inside a licensed full text
+# archive, read by pipeline/archive_checks.py and exported to docs/data/archive_checks.json.
+# A separate source with a separate method: these counts never join the tracker's own counts, map,
+# totals, shares, top 10 or findings. Only aggregate counts are recorded here, never article text,
+# a headline or an address. The shape is in sources/archive_checks_schema.json; check the file with
+#   python -m pipeline.archive_checks validate [path]
+#
+# Each check:
+#   id                 a unique slug
+#   source             the archive and the terms it was read under; short_name for the summary line
+#   period             the months searched, in words; period_from and period_to as YYYY-MM
+#   scope              which pages were searched
+#   method             what ran, in words; ruleset_version the signatures.yaml version used (null
+#                      when the run did not record it); model_review and human_review false for a
+#                      rules only screen
+#   run_date           YYYY-MM-DD, or the month in words when the day is not known
+#   records_pulled, records_deduplicated   records returned, and left after removing duplicates
+#   state_origin_signatures   records in which a state origin signature matched
+#   titles             one row per title: name, country (ISO 3166 alpha 3), outlet_id where the title is
+#                      in sources/outlets.yaml, china_relevant, awaiting_model, no_state_signature,
+#                      not_about_china; china_relevant = awaiting_model + no_state_signature
+#   not_searchable     titles the archive returned no records for, with the reason
+#   triggers           what flagged the awaiting_model articles (one article can trip several):
+#                      label, pattern (an llm_triggers id in pipeline/signatures.yaml, or a prefix
+#                      ending in * when the run reported the family), count
+#   totals             the column totals, checked against the rows
+checks:
+  - id: proquest_tdm_2026_10
+    source: ProQuest TDM Studio (licensed full text, non-consumptive)
+    short_name: ProQuest TDM
+    period: September to October 2026
+    period_from: "2026-09"
+    period_to: "2026-10"
+    scope: editorial pages only
+    method: >-
+      The tracker's state origin signatures and model triggers (pipeline/signatures.yaml) run as a
+      rules only screen; no model, no human coding.
+    ruleset_version: null
+    model_review: false
+    human_review: false
+    run_date: October 2026
+    publication: >-
+      The owner confirms the license allows publishing these aggregate counts; no article text,
+      headline or address is published.
+    records_pulled: 1613
+    records_deduplicated: 1597
+    state_origin_signatures: 0
+    state_origin_signatures_note: >-
+      No Xinhua or CGTN credit, no release stamp, no sponsor notice, no diplomat byline.
+    titles:
+      - {name: The Globe and Mail, country: CAN, outlet_id: ca_globeandmail, china_relevant: 113, awaiting_model: 17, no_state_signature: 96, not_about_china: 371}
+      - {name: National Post, country: CAN, outlet_id: ca_nationalpost, china_relevant: 60, awaiting_model: 4, no_state_signature: 56, not_about_china: 200}
+      - {name: Toronto Sun, country: CAN, outlet_id: ca_torontosun, china_relevant: 51, awaiting_model: 19, no_state_signature: 32, not_about_china: 125}
+      - {name: Toronto Star, country: CAN, outlet_id: ca_torontostar, china_relevant: 45, awaiting_model: 12, no_state_signature: 33, not_about_china: 224}
+      - {name: The Business Times, country: SGP, outlet_id: sg_businesstimes, china_relevant: 82, awaiting_model: 4, no_state_signature: 78, not_about_china: 210}
+      - {name: Calgary Herald, country: CAN, outlet_id: ca_calgaryherald, china_relevant: 17, awaiting_model: 2, no_state_signature: 15, not_about_china: 64}
+      - {name: El Cronista, country: ARG, outlet_id: ar_elcronista, china_relevant: 12, awaiting_model: 1, no_state_signature: 11, not_about_china: 23}
+    not_searchable:
+      - name: Valor Econômico
+        country: BRA
+        outlet_id: br_valor
+        records: 0
+        reason: >-
+          it was not searchable in the database, which says nothing about what it carried
+    triggers:
+      - {label: state media reported (English), pattern: state_media_reported_en, count: 22}
+      - {label: Chinese state body (English), pattern: chinese_state_body_en, count: 17}
+      - {label: cites Xinhua, pattern: cites_xinhua, count: 13}
+      - {label: embassy quoted, pattern: chinese_embassy_quoted*, count: 12}
+      - {label: official attribution, pattern: chinese_official_attribution*, count: 9}
+      - {label: foreign ministry, pattern: mofa_spokesperson*, count: 4}
+      - {label: CCTV, pattern: cites_cctv, count: 3}
+      - {label: Global Times, pattern: cites_global_times, count: 3}
+      - {label: named spokesperson, pattern: named_chinese_official_spokesperson, count: 3}
+      - {label: China Daily, pattern: cites_china_daily, count: 1}
+    totals: {china_relevant: 380, awaiting_model: 59, no_state_signature: 321, not_about_china: 1217, records: 1597}

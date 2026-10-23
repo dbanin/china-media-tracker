@@ -126,14 +126,17 @@ day. Drawn records the calls actually made, so a country's figure can be zero on
 a run that stopped at its time budget before working through its allocation;
 that is a run ending early, not a country left out by design.
 
-When the monthly budget is exhausted, waiting articles may be judged by the
-same model with the identical prompt through an interactive session on the
-owner's machine, at no API cost. The session is given the headline and body
-only, never the outlet, the country or the URL, exactly as the API is. These
-labels carry a distinct model version that names the session, are committed to
-the repository and imported once by the runner, only for articles still
-waiting and never over an existing label, and are subject to the same
-reliability study rules as every other model label.
+When the monthly budget is exhausted, waiting articles may be judged with the
+identical prompt and output schema through an interactive session on the
+owner's machine, at no API cost, by the classifier model or by another model.
+The session is given the headline and body only, never the outlet, the country
+or the URL, exactly as the API is. These labels carry a distinct model version
+that names the model that made them and the session, are committed to the
+repository and imported once by the runner, only for articles still waiting
+and never over an existing label, and are subject to the same hand coding
+study rules as every other model label. The stability check pairs only labels
+the classifier model made, so a label another model made is not counted as
+the classifier's own.
 {session_labels_text}
 
 {session_order_text}
@@ -630,6 +633,13 @@ def relay_gap_text(outlets) -> str:
     return text
 
 
+def _archive_check_text() -> str:
+    """The licensed archive check paragraph (pipeline/archive_checks.py), with its blank line, or nothing."""
+    from pipeline import archive_checks
+    text = archive_checks.methodology_text()
+    return text + "\n\n" if text else ""
+
+
 def uncredited_copy_limit_text() -> str:
     """What the uncredited copy route can and cannot match, from the constants pipeline.lookalike runs with.
     Its references are credited state origin labels in other monitored outlets (lookalike.build_index,
@@ -746,7 +756,8 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
     labels = meta.get("llm_labels_total") or 0
     if sl.get("total") and labels:
         session_share = ("%s of the %s current model labels (%d percent) were made in an interactive session on the "
-                         "owner's machine rather than through the API." % (
+                         "owner's machine rather than through the API, each naming in its model version the model "
+                         "that made it." % (
                              "{:,}".format(sl["total"]), "{:,}".format(labels), round(100.0 * sl["total"] / labels)))
     else:
         session_share = "No current model label was made in an interactive session at export time."
@@ -765,12 +776,14 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
         "check against the API on 2026-09-30 (data/labels/README.md) the two agreed on 78 of 98 articles; of the 28 "
         "the API called unchecked state sourcing the session called 12 independent journalism, and the reverse "
         "happened twice. Session labels therefore undercount unchecked state sourcing relative to the API, and the "
-        "published figure is lower than an all API run would give.\n\n"
+        "published figure is lower than an all API run would give. That check was made with the classifier model "
+        "itself; session labels made by another model are not covered by it.\n\n"
         "Translated state copy run without a credit is invisible. The lookalike check and the body pass compare "
         "words, and a translation shares almost none with its original, so a state item translated and run with no "
         "credit line is matched to nothing. Unless it cites an official Chinese source, which sends it to the model, "
         "it is labelled by rules, usually as independent journalism.\n\n"
         + uncredited_copy_limit_text() + "\n\n" + relay_gap_text(outlets) + "\n\n"
+        + _archive_check_text() +
         "The outlets are not a sample of each country's press. They were found by probing candidate feed "
         "addresses and kept only where a feed returned items, so outlets without a working feed are missing, and %d "
         "registered outlets are inactive because they refuse the identified crawler (an HTTP 403 or a robots.txt "

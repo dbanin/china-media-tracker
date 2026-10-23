@@ -1273,6 +1273,59 @@
       Math.round(r.estimated_share * 100) + " percent overall and unevenly by country, and the share reads low over those days; see the methodology.";
   }
 
+  /* Licensed archive checks (data/archive_checks.json, written from sources/archive_checks.yaml by
+     pipeline/archive_checks.py): a separate source and method, joined to no count, map, share, top 10 or
+     finding. Every figure is read from the side file or summed here from its title rows, never typed into
+     the page; the wording is in content.json (archive_check). */
+  var ARCHIVE_NUMBER_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  function archiveInt(n) { return String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function archiveTitles(n) { return (n >= 0 && n < ARCHIVE_NUMBER_WORDS.length ? ARCHIVE_NUMBER_WORDS[n] : archiveInt(n)) + (n === 1 ? " title" : " titles"); }
+  function archiveAnd(items) { return items.length < 2 ? items.join("") : items.slice(0, -1).join(", ") + " and " + items[items.length - 1]; }
+  function archiveFill(tpl, tokens) {
+    return String(tpl || "").replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(tokens, k) ? String(tokens[k]) : m; });
+  }
+  function archiveList(data) {
+    return data && Array.isArray(data.checks) ? data.checks.filter(function (c) { return c && Array.isArray(c.titles) && c.titles.length && c.totals; }) : [];
+  }
+  function archiveCountrySums(check) {
+    var out = {};
+    (check.titles || []).forEach(function (t) {
+      var s = out[t.country] || (out[t.country] = {titles: [], china_relevant: 0, awaiting_model: 0, no_state_signature: 0, not_about_china: 0});
+      s.titles.push(t.name);
+      ["china_relevant", "awaiting_model", "no_state_signature", "not_about_china"].forEach(function (k) { s[k] += Number(t[k]) || 0; });
+    });
+    return out;
+  }
+  function archiveTokens(check) {
+    var t = check.totals || {};
+    return {source: check.source || "", short_name: check.short_name || check.source || "", period: check.period || "", scope: check.scope || "",
+      method: check.method || "", run_date: check.run_date || "", ruleset: check.ruleset_version || "",
+      titles: archiveInt((check.titles || []).length), titles_phrase: archiveTitles((check.titles || []).length),
+      china: archiveInt(t.china_relevant), awaiting: archiveInt(t.awaiting_model), no_signature: archiveInt(t.no_state_signature),
+      not_china: archiveInt(t.not_about_china), records: archiveInt(t.records), pulled: archiveInt(check.records_pulled),
+      deduplicated: archiveInt(check.records_deduplicated), signatures: archiveInt(check.state_origin_signatures),
+      signatures_note: check.state_origin_signatures_note || "",
+      triggers: (check.triggers || []).map(function (tr) { return tr.label + " " + archiveInt(tr.count); }).join(", ")};
+  }
+  /* The one line in a country panel: the first check with titles from iso, or "" when none has any. The
+     no-signature wording is used only when the check found no state origin signature at all. */
+  function archiveCountryLine(data, iso, countryName, tpl) {
+    tpl = tpl || {};
+    var checks = archiveList(data);
+    for (var i = 0; i < checks.length; i++) {
+      var s = archiveCountrySums(checks[i])[iso];
+      if (!s) continue;
+      var a = s.awaiting_model;
+      var tokens = archiveTokens(checks[i]);
+      tokens.country = countryName || iso; tokens.names = archiveAnd(s.titles); tokens.titles_phrase = archiveTitles(s.titles.length);
+      tokens.china = archiveInt(s.china_relevant); tokens.awaiting = archiveInt(a); tokens.no_signature = archiveInt(s.no_state_signature);
+      tokens.awaiting_clause = archiveFill(a === 0 ? tpl.awaiting_none : a === 1 ? tpl.awaiting_one : tpl.awaiting_many, tokens);
+      return archiveFill(Number(checks[i].state_origin_signatures) === 0 ? tpl.country_line : tpl.country_line_signatures, tokens);
+    }
+    return "";
+  }
+  var archiveCheck = {list: archiveList, countrySums: archiveCountrySums, tokens: archiveTokens, fill: archiveFill, countryLine: archiveCountryLine, int: archiveInt, and: archiveAnd};
+
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
   return {EMPTY: EMPTY, UNDETERMINED_LAYER: UNDETERMINED_LAYER, UNDETERMINED_NO_SHARE: UNDETERMINED_NO_SHARE, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
@@ -1288,5 +1341,5 @@
           fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
           leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
           collectorBadge: collectorBadge, relayOutletsSummary: relayOutletsSummary, relayCollectorNotes: relayCollectorNotes,
-          stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryPercent: rediscoveryPercent, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote};
+          stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryPercent: rediscoveryPercent, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote, archiveCheck: archiveCheck};
 }));

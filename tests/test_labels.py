@@ -28,7 +28,10 @@ def _label(url_hash, category="B", **kw):
            "evidence_quote": "The ministry said the launch was a success.", "reasoning": "Relayed without a check.",
            "china_sources_cited": ["China Manned Space Agency"], "independent_confirmation_present": False,
            "confirmation_evidence": None, "model_version": SESSION, "labelled_at": "2026-09-30T10:00:00Z",
-           "source": "session"}
+           "source": "session",
+           # Required from prompt 2026-10-17 (labels.SCHEMA_FIELDS).
+           "issuer_type": "state_media" if category == "A" else "none",
+           "state_basis": "credit_line" if category == "A" else "none"}
     lab.update(kw)
     return lab
 
@@ -55,7 +58,8 @@ def test_label_applies_exactly_as_the_api_path(tmp_path):
     assert counts["applied"] == 1 and counts["by_category"] == {"B": 1}
     # The same data handed to store_result directly, as classify_llm.run does after an API reply.
     data = {k: lab_b[k] for k in ("category", "confidence", "evidence_quote", "reasoning", "china_sources_cited",
-                                  "independent_confirmation_present", "confirmation_evidence")}
+                                  "independent_confirmation_present", "confirmation_evidence", "issuer_type",
+                                  "state_basis")}
     data["_raw"] = json.dumps(lab_b)
     # prompt_version=None, as labels.ingest passes: a session label names its own prompt or none.
     classify_llm.store_result(conn, via_api, data, SESSION, prompt_version=None)
@@ -75,8 +79,9 @@ def test_label_applies_exactly_as_the_api_path(tmp_path):
 def test_state_origin_label_gets_the_model_route(tmp_path):
     conn = _db()
     aid, h = _article(conn, 1, trigger={"a_candidate": ["xinhua_dateline"]})
-    labels.ingest(conn, _write(tmp_path, [_label(h, "A")]))
-    assert _row(conn, aid)["route"] == classify_llm._model_route(conn, aid)
+    lab = _label(h, "A")
+    labels.ingest(conn, _write(tmp_path, [lab]))
+    assert _row(conn, aid)["route"] == classify_llm._model_route(conn, aid, lab) == "wire_credit"
 
 
 def test_second_ingest_applies_nothing(tmp_path):

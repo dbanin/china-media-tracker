@@ -75,6 +75,7 @@ def test_session_label_keeps_the_model_version_it_names(tmp_path):
     a2 = _article(conn, 2, body=False)
     base = {"category": "C", "confidence": 0.8, "evidence_quote": "q", "reasoning": "r", "china_sources_cited": [],
             "independent_confirmation_present": False, "confirmation_evidence": None,
+            "issuer_type": "none", "state_basis": "none",
             "labelled_at": "2026-10-13", "source": "session"}
     tagged_mv = labels.session_model_version()
     assert tagged_mv == "claude-sonnet-5 (session, prompt %s)" % cl.PROMPT_VERSION

@@ -55,7 +55,9 @@ DEFAULT_SECOND_MODEL = "claude-sonnet-5"
 def judged_rows(conn, with_body: bool = False, current_prompt: bool = False) -> List[Dict]:
     """Articles carrying a current model label. with_body keeps only those whose body is still on
     disk, which is what a study can actually re-judge. current_prompt keeps only labels made under
-    the current classifier prompt, the one the second rater judges with."""
+    the current classifier prompt, the one the second rater judges with, by the classifier model
+    (config.LLM_MODEL, its session labels included): a session label another model made
+    (pipeline.labels) is not the first rater's, and pairing it would misreport a same model rerun."""
     rows = conn.execute(
         """SELECT a.id, a.title, a.url_hash, a.country, a.language, a.llm_trigger, c.category, c.confidence,
                   c.evidence_quote, c.model_version
@@ -65,10 +67,18 @@ def judged_rows(conn, with_body: bool = False, current_prompt: bool = False) -> 
     out = [dict(r) for r in rows]
     if current_prompt:
         from pipeline import classify_llm
-        out = [r for r in out if classify_llm.on_current_prompt(r["model_version"])]
+        out = [r for r in out if classify_llm.on_current_prompt(r["model_version"])
+               and _first_rater(r["model_version"])]
     if with_body:
         out = [r for r in out if store.body_path(r["url_hash"]).exists()]
     return out
+
+
+def _first_rater(model_version: Optional[str]) -> bool:
+    """Whether a label was made by the classifier model, config.LLM_MODEL, through the API or in a
+    session; a label from before model_version was recorded counts as the classifier's."""
+    from pipeline import labels
+    return (labels.model_of(model_version) or config.LLM_MODEL) == config.LLM_MODEL
 
 
 def draw(rows: List[Dict], n: int, seed: str = "second-rater") -> List[Dict]:
@@ -447,7 +457,7 @@ def collect_study(conn, client) -> Optional[Dict]:
     prompt = classify_llm.prompt_version_of(b["model_version"])
     second_model = _PROMPT_SUFFIX.sub("", b["model_version"] or "") or b["model_version"]
     by_id = {r["id"]: r for r in judged_rows(conn)
-             if classify_llm.prompt_version_of(r["model_version"]) == prompt}
+             if classify_llm.prompt_version_of(r["model_version"]) == prompt and _first_rater(r["model_version"])}
     day = (b["submitted_at"] or "")[:10] or None
     pairs = []
     for result in client.messages.batches.results(b["batch_id"]):

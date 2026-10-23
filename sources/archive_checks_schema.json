@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Licensed archive checks",
+  "description": "Aggregate counts from rules only screens run inside a licensed full text archive (pipeline/archive_checks.py). Never article text, a headline or an address. Kept apart from every count of the tracker's own.",
+  "type": "object",
+  "required": ["checks"],
+  "additionalProperties": false,
+  "properties": {
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "short_name", "period", "period_from", "period_to", "scope", "method", "ruleset_version",
+                     "model_review", "human_review", "run_date", "records_pulled", "records_deduplicated",
+                     "state_origin_signatures", "titles", "not_searchable", "triggers", "totals"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_]*$"},
+          "source": {"type": "string", "minLength": 1},
+          "short_name": {"type": "string", "minLength": 1},
+          "period": {"type": "string", "minLength": 1},
+          "period_from": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"},
+          "period_to": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$"},
+          "scope": {"type": "string", "minLength": 1},
+          "method": {"type": "string", "minLength": 1},
+          "ruleset_version": {"type": ["string", "null"], "pattern": "^[0-9]{4}\\.[0-9]{2}\\.[0-9]+$"},
+          "model_review": {"type": "boolean"},
+          "human_review": {"type": "boolean"},
+          "run_date": {"type": "string", "minLength": 1},
+          "publication": {"type": "string"},
+          "records_pulled": {"type": "integer", "minimum": 0},
+          "records_deduplicated": {"type": "integer", "minimum": 0},
+          "state_origin_signatures": {"type": "integer", "minimum": 0},
+          "state_origin_signatures_note": {"type": "string"},
+          "titles": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["name", "country", "china_relevant", "awaiting_model", "no_state_signature", "not_about_china"],
+              "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string", "minLength": 1},
+                "country": {"type": "string", "pattern": "^[A-Z]{3}$"},
+                "outlet_id": {"type": "string", "pattern": "^[a-z]{2,3}_[a-z0-9_]+$"},
+                "china_relevant": {"type": "integer", "minimum": 0},
+                "awaiting_model": {"type": "integer", "minimum": 0},
+                "no_state_signature": {"type": "integer", "minimum": 0},
+                "not_about_china": {"type": "integer", "minimum": 0}
+              }
+            }
+          },
+          "not_searchable": {
+            "type": "array",
+            "items": {
+              "type": "object", "required": ["name", "country", "records", "reason"], "additionalProperties": false,
+              "properties": {
+                "name": {"type": "string", "minLength": 1},
+                "country": {"type": "string", "pattern": "^[A-Z]{3}$"},
+                "outlet_id": {"type": "string", "pattern": "^[a-z]{2,3}_[a-z0-9_]+$"},
+                "records": {"type": "integer", "const": 0},
+                "reason": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object", "required": ["label", "pattern", "count"], "additionalProperties": false,
+              "properties": {
+                "label": {"type": "string", "minLength": 1},
+                "pattern": {"type": "string", "pattern": "^[a-z][a-z0-9_]*\\*?$"},
+                "count": {"type": "integer", "minimum": 1}
+              }
+            }
+          },
+          "totals": {
+            "type": "object",
+            "required": ["china_relevant", "awaiting_model", "no_state_signature", "not_about_china", "records"],
+            "additionalProperties": false,
+            "properties": {
+              "china_relevant": {"type": "integer", "minimum": 0},
+              "awaiting_model": {"type": "integer", "minimum": 0},
+              "no_state_signature": {"type": "integer", "minimum": 0},
+              "not_about_china": {"type": "integer", "minimum": 0},
+              "records": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    }
+  }
+}

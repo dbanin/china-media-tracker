@@ -777,4 +777,23 @@ var urows = C.rankCountries({countries: {ITA: uk}, reviewed: {}}, {countries: {I
 assert(urows[0].undetermined === 400 && urows[0].china_total === 100 && !("model_only_state_origin" in urows[0]), "the CSV carries an undetermined column beside A + B + C");
 assert(C.nameOf("U") === "Undetermined: who wrote or commissioned it could not be settled" && !C.NAMES.M, "U is named, M is gone");
 assert(!C.modelOnlyStatus && !C.MODEL_ONLY_PROVISIONAL, "nothing reads a rejoin status");
+/* The licensed archive check: per country sums from the title rows, the panel line, singular and plural. */
+var acData = {kept_apart: true, checks: [{id: "t", short_name: "ProQuest TDM", period: "September to October 2026", state_origin_signatures: 0,
+  titles: [{name: "A Paper", country: "CAN", china_relevant: 10, awaiting_model: 3, no_state_signature: 7, not_about_china: 20},
+           {name: "B Paper", country: "CAN", china_relevant: 5, awaiting_model: 1, no_state_signature: 4, not_about_china: 2},
+           {name: "C Paper", country: "ARG", china_relevant: 2, awaiting_model: 1, no_state_signature: 1, not_about_china: 1000}],
+  totals: {china_relevant: 17, awaiting_model: 5, no_state_signature: 12, not_about_china: 1022, records: 1039}, records_pulled: 1040, records_deduplicated: 1039,
+  triggers: [{label: "cites Xinhua", count: 3}, {label: "CCTV", count: 2}]}]};
+var acTpl = {country_line: "{titles_phrase} from {country} ({names}): {china}; {awaiting_clause}.", country_line_signatures: "covers {titles_phrase}",
+  awaiting_none: "none", awaiting_one: "{awaiting} cites", awaiting_many: "{awaiting} cite"};
+var acSums = C.archiveCheck.countrySums(acData.checks[0]);
+assert(acSums.CAN.china_relevant === 15 && acSums.CAN.awaiting_model === 4 && acSums.CAN.titles.length === 2 && acSums.ARG.not_about_china === 1000, "archive sums by country");
+assert(C.archiveCheck.countryLine(acData, "CAN", "Canada", acTpl) === "two titles from Canada (A Paper and B Paper): 15; 4 cite.", "archive line, plural: " + C.archiveCheck.countryLine(acData, "CAN", "Canada", acTpl));
+assert(C.archiveCheck.countryLine(acData, "ARG", "Argentina", acTpl) === "one title from Argentina (C Paper): 2; 1 cites.", "archive line, singular");
+assert(C.archiveCheck.countryLine(acData, "ITA", "Italy", acTpl) === "" && C.archiveCheck.countryLine(null, "CAN", "Canada", acTpl) === "", "no archive line elsewhere");
+var acTok = C.archiveCheck.tokens(acData.checks[0]);
+assert(acTok.not_china === "1,022" && acTok.records === "1,039" && acTok.titles === "3" && acTok.triggers === "cites Xinhua 3, CCTV 2", "archive tokens");
+assert(C.archiveCheck.fill("{short_name} check, {period}: {signatures} in {china}; {nope}", acTok) === "ProQuest TDM check, September to October 2026: 0 in 17; {nope}", "archive fill");
+assert(C.archiveCheck.countryLine({checks: [Object.assign({}, acData.checks[0], {state_origin_signatures: 2})]}, "CAN", "Canada", acTpl) === "covers two titles", "signatures found: no zero claim");
+assert(C.archiveCheck.list({checks: [{id: "x", titles: []}]}).length === 0, "an empty check is skipped");
 console.log("frontend smoke ok");

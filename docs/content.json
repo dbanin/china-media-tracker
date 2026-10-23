@@ -202,5 +202,28 @@
     "loading": "Loading the daily files for these {days} days.",
     "empty": "No state origin placements were counted in these {days} days.",
     "missing_month": "The daily file for {months} did not load, so its days are missing from these counts."
+  },
+  "archive_check": {
+    "title": "Licensed archive check",
+    "summary": "{short_name} check, {period}: {signatures} state origin signatures in {china} China articles across {titles} titles; {awaiting} citing Chinese official or state sources await model review inside the archive.",
+    "intro": "Paywalled articles are missing from every count on this page. To look behind some of those paywalls without crossing them, the owner ran the tracker's own state origin signatures and model triggers over licensed full text in {source}, {scope}, {period}. It is a rules only screen: no model and no person read these articles. Its counts are not part of the tracker's totals, map, shares, top 10 or findings, because it is a different source with a different method. Only these counts leave the archive, never an article's text, headline or address.",
+    "head_title": "Title",
+    "head_china": "China relevant",
+    "head_awaiting": "Awaiting model",
+    "head_no_signature": "No state signature found",
+    "head_not_china": "Not about China",
+    "total": "Total",
+    "no_signature_note": "No state signature found means only that none of the tracker's state origin signatures matched and no model trigger sent the article on. No verification step ran, so these {no_signature} articles are not counted as independent journalism, or as anything else.",
+    "awaiting_note": "The {awaiting} articles awaiting the model cite Chinese official or state sources. The tracker's model cannot judge them, because their text stays inside TDM Studio, so they await review there. What flagged them, where one article can trip several: {triggers}.",
+    "records_note": "{pulled} records were pulled and {deduplicated} were left after removing duplicates; the rows above add up to {records}. {signatures} of the {deduplicated} carried a state origin signature. {signatures_note}",
+    "not_searchable": "{name} returned no records: {reason}.",
+    "method_line": "{method} Run date: {run_date}.",
+    "ruleset_line": "Ruleset {ruleset}.",
+    "country_line": "A licensed archive check of {titles_phrase} from {country} ({names}) found no state origin signature in {china} China articles from {period}; {awaiting_clause}. These counts are not part of any figure in this panel.",
+    "country_line_signatures": "A licensed archive check covers {titles_phrase} from {country} ({names}), {period}. These counts are not part of any figure in this panel.",
+    "awaiting_none": "none of them was flagged for the model",
+    "awaiting_one": "{awaiting} of them cites Chinese official or state sources and awaits review in the archive",
+    "awaiting_many": "{awaiting} of them cite Chinese official or state sources and await review in the archive",
+    "link_text": "See the licensed archive check"
   }
 }

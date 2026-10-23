@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "88";
+  var ASSET_VERSION = "89";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -128,7 +128,8 @@
       soft("country-names.json", {names: {}}),
       quiet("content.json?v=" + ASSET_VERSION, null),
       quiet("data/examples.json", null),
-      quiet("data/planted.json", null)
+      quiet("data/planted.json", null),
+      quiet("data/archive_checks.json", null)
     ]).then(function (res) {
       state.meta = res[0]; state.latest = res[1] || {countries: {}, totals: {}};
       state.series = res[2] || []; state.outlets = (res[3] && res[3].outlets) || [];
@@ -140,6 +141,7 @@
       state.content = res[7] || null;
       state.examples = res[8] || null;
       state.planted = res[9] || null;
+      state.archiveChecks = res[10] || null;
       state.series.forEach(function (d) { if (d && d.date) state.seriesByDate[d.date] = d; });
       state.monthsAll = monthKeys(state.series);
       /* The opening view: the 31 days ending the last complete day, worked out from the series alone. */
@@ -2333,6 +2335,7 @@
       '</table>';
     html += '<p class="panel-note">' + esc(gateSumText(k, relay, " (" + windowLabel() + ")", "Leaving out the underlying items row, which is part of state origin, and the feed polls row, ")) + '</p>';
     if (k.paywalled) html += '<p class="panel-note">Paywalled articles are never classified, so they are missing from every count above and from the share of China coverage. They remain in the share of monitored output denominator, which counts every item the monitored outlets published, so that share is a lower bound here.</p>';
+    html += archiveCheckPanelLine(iso, name);
     var rts = (agg.routes || {})[iso] || {}, arr = (agg.arrivals || {})[iso] || {};
     if (routeList().length) {
       html += '<h3>How state origin arrived, ' + esc(windowLabel()) + '</h3><table><tr><th>Route</th><th class="num">Articles</th></tr>' +
@@ -2729,6 +2732,47 @@
     wrap.hidden = !rows.length;
   }
 
+  /* The licensed archive check (data/archive_checks.json; pipeline/archive_checks.py), a separate source
+     and method: its own block beside the paywall disclosure in the methodology, and one line in the panel
+     of each country it covers. It feeds no count, map, share, top 10 or finding. The wording is in
+     content.json (archive_check); every figure comes from the side file, the per country ones summed
+     from its title rows (C.archiveCheck). Hidden when either has not loaded. */
+  function archiveCheckText() { return (state.content && state.content.archive_check) || null; }
+  function renderArchiveCheck() {
+    var box = el("archive-check"), tx = archiveCheckText(), AC = C.archiveCheck;
+    var checks = AC.list(state.archiveChecks);
+    if (!box) return;
+    if (!tx || !checks.length) { box.hidden = true; return; }
+    var html = '<h3 id="archive-check-title">' + esc(tx.title) + '</h3>';
+    checks.forEach(function (c) {
+      var tok = AC.tokens(c), t = c.totals;
+      var cell = function (v) { return '<td class="num">' + esc(AC.int(v)) + '</td>'; };
+      html += '<p class="ac-summary">' + esc(AC.fill(tx.summary, tok)) + '</p>' +
+        '<p>' + esc(AC.fill(tx.intro, tok)) + '</p>' +
+        '<div class="ac-table-wrap"><table class="ac-table"><thead><tr><th>' + esc(tx.head_title) + '</th><th class="num">' + esc(tx.head_china) + '</th><th class="num">' +
+        esc(tx.head_awaiting) + '</th><th class="num">' + esc(tx.head_no_signature) + '</th><th class="num">' + esc(tx.head_not_china) + '</th></tr></thead><tbody>' +
+        c.titles.map(function (r) {
+          return '<tr><td>' + esc(r.name) + '<span class="ac-country">' + esc(state.names[r.country] || r.country) + '</span></td>' +
+            cell(r.china_relevant) + cell(r.awaiting_model) + cell(r.no_state_signature) + cell(r.not_about_china) + '</tr>';
+        }).join("") +
+        '<tr class="ac-total"><td>' + esc(tx.total) + '</td>' + cell(t.china_relevant) + cell(t.awaiting_model) + cell(t.no_state_signature) + cell(t.not_about_china) + '</tr>' +
+        '</tbody></table></div>' +
+        '<p>' + esc(AC.fill(tx.no_signature_note, tok)) + '</p>' +
+        (Number(t.awaiting_model) ? '<p>' + esc(AC.fill(tx.awaiting_note, tok)) + '</p>' : '') +
+        '<p>' + esc(AC.fill(tx.records_note, tok)) + '</p>' +
+        (c.not_searchable || []).map(function (n) { return '<p>' + esc(AC.fill(tx.not_searchable, {name: n.name, reason: n.reason})) + '</p>'; }).join("") +
+        '<p class="ac-method">' + esc(AC.fill(tx.method_line, tok)) + (c.ruleset_version ? ' ' + esc(AC.fill(tx.ruleset_line, tok)) : '') + '</p>';
+    });
+    box.innerHTML = html;
+    box.hidden = false;
+  }
+  function archiveCheckPanelLine(iso, name) {
+    var tx = archiveCheckText();
+    if (!tx || !state.archiveChecks) return "";
+    var line = C.archiveCheck.countryLine(state.archiveChecks, iso, name, tx);
+    return line ? '<p class="panel-note ac-panel-line">' + esc(line) + ' <a href="#archive-check">' + esc(tx.link_text) + '</a>.</p>' : "";
+  }
+
   /* --------------------------------------------------------------- exports */
   function download(name, text) {
     var blob = new Blob([text], {type: "text/csv;charset=utf-8"});
@@ -3021,7 +3065,7 @@
         ["renderPreliminary", renderPreliminary], ["bindControls", bindControls], ["setupCountryPicks", setupCountryPicks], ["setupTimeline", setupTimeline],
         ["setupThemeTimeline", setupThemeTimeline], ["setupStartHere", setupStartHere], ["renderNotices", renderNotices],
         ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
-        ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderFindings", renderFindings],
+        ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderArchiveCheck", renderArchiveCheck], ["renderFindings", renderFindings],
         ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures],
         ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures], ["renderStaleNotice", renderStaleNotice]
       ];
