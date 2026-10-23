@@ -87,6 +87,96 @@
     return placed + "; " + s.tested + " counted, no outlet adding more than " + OUTLET_CAP + ", against " + exp + " expected";
   }
 
+  /* ---- What the day was about, and the news beside it ----
+     s.context (the export, pipeline/spikes.py day_context): counts of the themes and terms of the day's
+     state origin items, the day before's, and the country's other China coverage that day. Headlines
+     come only from s.top_items, the spike's own items, which the side file and the article lists
+     already publish. s.news (the export, from sources/spike_context.yaml) or, for a file exported before
+     it, content.json spike_news.notes["ISO YYYY-MM-DD"] (app.js passes content in the api): events that
+     coincide with the day, each with its source. Wording is "coincides with", never a cause. */
+  var CAVEAT = "The tracker shows timing, not cause. A day from one wire feed often follows a single event that wire covered, and the checks listed beside the day, such as a new outlet, a backfill read, a collector catching up or a rule change, can explain it on their own.";
+  var SCOPES = {country: "In the country", bilateral: "Between the country and China", china: "In China, covered by the day's items", world: "Elsewhere, covered by the day's items"};
+  var CONFIDENCE = {confirmed: "confirmed coincidence", plausible: "plausible coincidence"};
+
+  function newsFor(s, api) {
+    if (s && s.news && Array.isArray(s.news.notes)) return s.news;
+    var sn = api && api.content && api.content.spike_news, notes = sn && sn.notes;
+    var hit = notes && s ? notes[s.country + " " + s.date] : null;
+    return hit && Array.isArray(hit.notes) ? hit : null;
+  }
+  function caveatText(api) {
+    var sn = api && api.content && api.content.spike_news;
+    return (sn && typeof sn.caveat === "string" && sn.caveat) || CAVEAT;
+  }
+  function listText(arr, key) {
+    return (arr || []).filter(function (x) { return x && x[key]; }).map(function (x) { return x[key] + " (" + x.n + ")"; }).join(", ");
+  }
+  function dateSpan(a, b) {
+    return b && b !== a ? shortDate(a) + " to " + shortDate(b) : shortDate(a);
+  }
+  function safeUrl(u) {
+    return /^https:\/\/[^\s"'<>]+$/.test(String(u || "")) ? String(u) : "";
+  }
+
+  /* "What the items were about": themes, terms, outlets, up to five of the spike's own headlines, and
+     the day before. "" when the file carries none of it. */
+  function itemsAboutHtml(s) {
+    var esc = M.esc, cx = s.context || {}, st = cx.state || {}, out = [];
+    var th = listText(st.themes, "label"), te = listText(st.terms, "term");
+    if (th) out.push("<li>Themes: " + esc(th) + "</li>");
+    if (te) out.push("<li>Terms more common than usual: " + esc(te) + "</li>");
+    var outs = listText((s.top_outlets || []).map(function (o) { return {name: o.name || o.id, n: o.placements}; }), "name");
+    if (outs) out.push("<li>Carried by: " + esc(outs) + "</li>");
+    var heads = (s.top_items || []).slice(0, 5).filter(function (t) { return t && t.title; });
+    if (heads.length) out.push("<li>Headlines: <ul class=\"sp-heads\">" + heads.map(function (t) {
+      return "<li>" + esc(t.title) + (t.placements > 1 ? " (" + t.placements + " placements)" : "") + "</li>"; }).join("") + "</ul></li>");
+    var db = cx.day_before;
+    if (db && typeof db.placements === "number") {
+      var dth = listText(db.themes, "label");
+      out.push("<li>The day before (" + esc(shortDate(db.date)) + "): " + db.placements + " state origin placement" + (db.placements === 1 ? "" : "s") +
+        (dth ? ", about " + esc(dth) : "") + "</li>");
+    }
+    return out.length ? '<div class="sp-ctx-part"><p class="sp-ctx-h">What the items were about</p><ul class="sp-ctx-list">' + out.join("") + "</ul></div>" : "";
+  }
+
+  /* "Other China coverage that day": the country's other relevant articles, as counts only. */
+  function otherHtml(s) {
+    var esc = M.esc, cx = s.context || {}, o = cx.other;
+    if (!o || typeof o.articles !== "number") return "";
+    var out = ["<li>" + o.articles + " other article" + (o.articles === 1 ? "" : "s") + " about China</li>"];
+    var th = listText(o.themes, "label"), te = listText(o.terms, "term");
+    if (th) out.push("<li>Themes: " + esc(th) + "</li>");
+    if (te) out.push("<li>Terms more common than usual: " + esc(te) + "</li>");
+    if ((cx.shared_terms || []).length) out.push("<li>Terms in both: " + esc(cx.shared_terms.join(", ")) + "</li>");
+    return '<div class="sp-ctx-part"><p class="sp-ctx-h">Other China coverage that day</p><ul class="sp-ctx-list">' + out.join("") + "</ul></div>";
+  }
+
+  /* "In the news": each event, labelled as coinciding with the day, with its source; or what was
+     searched when nothing was found. Always followed by the caveat. */
+  function newsHtml(s, api) {
+    var esc = M.esc, nw = newsFor(s, api);
+    if (!nw || !nw.notes.length) return "";
+    var items = nw.notes.map(function (n) {
+      var scope = SCOPES[n.scope] ? '<span class="sp-scope">' + esc(SCOPES[n.scope]) + ".</span> " : "";
+      if (n.result) return "<li>" + scope + "No matching event found." + (n.searched ? " Searched: " + esc(n.searched) : "") +
+        (n.note ? " " + esc(n.note) : "") + "</li>";
+      var url = safeUrl(n.source_url);
+      var src = url ? '<a href="' + esc(url) + '" rel="noopener noreferrer" target="_blank">' + esc(n.source_title || url) + "</a>" : esc(n.source_title || "");
+      return "<li>" + scope + "Coincides with: " + esc(String(n.event || "").replace(/[.\s]+$/, "")) + " (" + esc(dateSpan(n.event_date, n.event_end)) + ")" +
+        (CONFIDENCE[n.confidence] ? ", a " + CONFIDENCE[n.confidence] : "") + ". " + (n.basis ? esc(n.basis) + " " : "") +
+        (src ? "Source: " + src + "." : "") + "</li>";
+    });
+    return '<div class="sp-ctx-part"><p class="sp-ctx-h">In the news</p><ul class="sp-ctx-list">' + items.join("") + "</ul>" +
+      '<p class="sp-caveat">' + esc(caveatText(api)) + (nw.researched ? " Researched on " + esc(shortDate(nw.researched)) + "." : "") + "</p></div>";
+  }
+
+  /* The three parts in one disclosure under the day's button; "" when there is nothing to show. */
+  function contextHtml(s, api) {
+    var body = itemsAboutHtml(s) + otherHtml(s) + newsHtml(s, api);
+    if (!body) return "";
+    return '<details class="sp-ctx"><summary>What the day was about</summary>' + body + "</details>";
+  }
+
   function itemHtml(s, api, muted) {
     var esc = M.esc, name = api && api.countryName ? api.countryName(s.country) : s.country;
     var what = whatText(s);
@@ -97,7 +187,7 @@
       '<span class="sp-date">' + esc(shortDate(s.date)) + '</span>' +
       '<span class="sp-what"><span class="sp-country">' + esc(name) + '</span> ' + esc(what) + (desc ? '<span class="sp-desc">, ' + esc(desc) + '</span>' : '') + '</span>' +
       (muted && why ? '<span class="sp-why">To check: ' + esc(why) + '</span>' : '') +
-      '</button></li>';
+      '</button>' + contextHtml(s, api) + '</li>';
   }
 
   /* The number of tests and the model's estimate of chance flags, with its caveat: the model assumes
@@ -265,5 +355,6 @@
   if (M) M.register(ID, spec);
   return {ID: ID, render: render, sparkMarks: sparkMarks, findingsExtra: findingsExtra, recentLists: recentLists,
           reasonText: reasonText, descriptorText: descriptorText, marksFor: marksFor, select: select, shortDate: shortDate,
-          selectDetail: selectDetail, whatText: whatText, chanceText: chanceText, relabelText: relabelText, REASONS: REASONS};
+          selectDetail: selectDetail, whatText: whatText, chanceText: chanceText, relabelText: relabelText, REASONS: REASONS,
+          newsFor: newsFor, contextHtml: contextHtml, newsHtml: newsHtml, CAVEAT: CAVEAT};
 }));

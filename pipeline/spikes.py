@@ -77,6 +77,8 @@ import functools
 import json
 import math
 import random
+import re
+import sys
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -685,9 +687,209 @@ def run_analysis(conn, ctx: Optional[Dict] = None, deadline: Optional[float] = N
     names = {o["id"]: o.get("name") or o["id"] for o in outlets}
     if deadline is not None and time.monotonic() >= deadline:
         raise OutOfTime("unusual days: the export's deadline came before the analysis began")
-    res = analyse(daily, until, meta, load_rows(conn, outlets), first_seen, odisc, names, deadline)
+    rows_by = load_rows(conn, outlets)
+    res = analyse(daily, until, meta, rows_by, first_seen, odisc, names, deadline)
     ctx["_spikes"] = res
+    ctx["_spike_rows"] = rows_by    # for the export's day context (add_context), so it is not read twice
     return res
+
+
+# ---------------------------------------------------------------------------
+# What a flagged day was about (the export only; never part of the test)
+# ---------------------------------------------------------------------------
+#
+# For every flagged day, from the tracker's own data and counts only: the themes and the terms of the
+# day's state origin placements, of the day before's, and of the country's other China coverage that
+# day (every other relevant article, whatever its label). A term is a relevance gate term (the
+# section markers left out) or a word from a headline, or for the state origin items, whose headlines
+# the site already publishes, a pair of adjacent words; it is listed when at least
+# TERM_MIN_DF articles of the group carry it and its share of them is at least TERM_LIFT times its
+# share of the country's China coverage on the 28 baseline days, so the words every day carries
+# ("China", "Chinese", "the") drop out and what was particular to the day stays. No headline or text
+# is added: the spike already lists its own items' headlines (top_items, items), which the site shows
+# in its article lists too, and the other coverage is given only as counts of themes and terms.
+
+CONTEXT_VERSION = 1
+CONTEXT_THEMES = 5
+CONTEXT_TERMS = 8
+TERM_MIN_DF = 2
+TERM_LIFT = 2.0
+TERM_MIN_LEN = 4
+_WORD = re.compile(r"[^\W\d_][\w\u2019']*", re.UNICODE)
+# Words a headline carries on any day, in the registry's commonest languages; the lift against the
+# baseline removes most such words anyway, this only keeps a quiet country's short list clean.
+STOP_WORDS = frozenset("""
+about after against also among amid and are back been before being between both but can could day
+days during each first for from has have here how into its just last like made make many more most
+much near need news next not now off one only other our out over said says set still such than that
+the their them then there these they this those three through time today under until upon very
+week what when where which while who why will with within without would year years your new
+press release releases newswire wire media
+yang dan untuk dengan dari pada akan ini itu dalam tidak oleh kepada selepas bagi juga lebih
+susulan antara sebagai telah masih para atau tahun hingga usai atas saat kata lapor
+della delle dello degli dalla dalle dagli nella nelle negli sulla sulle sugli alla alle agli dopo
+durante domani oggi anche come sono essere contro verso prima primo tutti ogni questo questa quello
+ancora nuovo nuova nuovi molto
+para pero como desde entre sobre tras este esta estos hasta según nuevo nueva sus más
+pour dans avec sans sous après avant contre cette plus leurs nouveau nouvelle selon
+pelo pela pelos após mais novo nova sobre
+nach über eine einen einer nicht auch wird sind gegen durch beim unter sich noch neue neuen
+""".split())
+
+
+def _theme_labels() -> Dict[str, str]:
+    try:
+        from pipeline import themes
+        return {t["id"]: t["label"] for t in themes.catalog()}
+    except Exception:   # noqa: BLE001  the context never stops the export
+        return {}
+
+
+def _title_terms(title: Optional[str], pairs: bool = True) -> Dict[str, str]:
+    """{key: display form} of the words (TERM_MIN_LEN letters or more, not a stop word) and, with pairs,
+    the pairs of adjacent such words in a headline."""
+    words = [re.sub("['\u2019]s$", "", w).strip("'\u2019") for w in _WORD.findall(title or "")]
+    ok = [w if (len(w) >= TERM_MIN_LEN and w.lower() not in STOP_WORDS) else None for w in words]
+    out = {}
+    for w in ok:
+        if w:
+            out.setdefault(w.lower(), w)
+    for a, b in zip(ok, ok[1:]) if pairs else ():
+        if a and b:
+            out.setdefault((a + " " + b).lower(), a + " " + b)
+    return out
+
+
+def article_terms(title: Optional[str], gate_terms: Optional[str], pairs: bool = True) -> Dict[str, str]:
+    """{key: display form}: the article's gate terms (section markers left out) and its headline terms
+    (single words only without pairs)."""
+    out = {}
+    try:
+        gt = json.loads(gate_terms) if gate_terms else []
+    except (TypeError, ValueError):
+        gt = []
+    for t in gt if isinstance(gt, list) else []:
+        t = str(t or "").strip()
+        if t and not t.startswith("section:"):
+            out.setdefault(t.lower(), t)
+    for k, v in _title_terms(title, pairs).items():
+        out.setdefault(k, v)
+    return out
+
+
+def _themes_of(stored: Optional[str]) -> List[str]:
+    try:
+        from pipeline import themes
+        return themes.themes_of(stored)
+    except Exception:   # noqa: BLE001
+        return ["other"]
+
+
+def profile(arts: List[Dict], base_df: Counter, base_n: int, labels: Dict[str, str],
+            n_themes: int = CONTEXT_THEMES, n_terms: int = CONTEXT_TERMS, pairs: bool = True) -> Dict:
+    """The themes and the particular terms of a group of articles ({"title", "gate_terms", "themes"}),
+    against the baseline's document frequencies base_df over base_n articles. pairs False lists single
+    words only: the other coverage's headlines are not published, and pairs of words chained together
+    could spell one out."""
+    th = Counter()
+    df, shown = Counter(), {}
+    for a in arts:
+        for t in set(_themes_of(a.get("themes"))):
+            th[t] += 1
+        for k, v in article_terms(a.get("title"), a.get("gate_terms"), pairs).items():
+            df[k] += 1
+            shown.setdefault(k, v)
+    n = len(arts)
+    themes = [{"id": t, "label": labels.get(t, t), "n": c} for t, c in sorted(th.items(), key=lambda kv: (-kv[1], kv[0]))[:n_themes]]
+    picked = []
+    for k, c in df.items():
+        if c < TERM_MIN_DF or not n:
+            continue
+        lift = (c / float(n)) / ((base_df.get(k, 0) + 0.5) / (base_n + 1.0))
+        if lift >= TERM_LIFT:
+            picked.append((k, c, lift))
+    picked.sort(key=lambda t: (-t[1], -t[2], t[0]))
+    # a word is dropped where a pair holding it is listed as often: "Financial Street" says it already
+    pairs = {k: c for k, c, _ in picked if " " in k}
+    terms = []
+    for k, c, lift in picked:
+        if " " not in k and any(c <= pc and k in p.split(" ") for p, pc in pairs.items()):
+            continue
+        terms.append({"term": shown[k], "n": c, "lift": round(lift, 1)})
+        if len(terms) >= n_terms:
+            break
+    return {"themes": themes, "terms": terms}
+
+
+def _context_articles(conn, country: str, day: str, wire_ids: set) -> List[Dict]:
+    """The relevant articles of the export country on day and its WINDOW_DAYS baseline days, with
+    their day of record, as load_rows dates them."""
+    lo = _shift(day, -WINDOW_DAYS)
+    wires = sorted(wire_ids)
+    ph = ",".join("?" * len(wires))
+    from pipeline import registry
+    if country == registry.WORLDWIDE:
+        if not wires:
+            return []
+        where, args = "a.outlet_id IN (%s)" % ph, list(wires)
+    else:
+        where, args = "a.country=?" + (" AND a.outlet_id NOT IN (%s)" % ph if wires else ""), [country] + list(wires)
+    sql = ("SELECT a.id, a.title, a.gate_terms, a.themes, COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10)) AS d "
+           "FROM articles a WHERE a.gate_relevant=1 AND " + where +
+           " AND COALESCE(a.day_of_record, substr(a.discovered_at, 1, 10)) BETWEEN ? AND ?")
+    return [dict(r) for r in conn.execute(sql, args + [lo, day])]
+
+
+def day_context(conn, spike: Dict, rows_by: Dict[Tuple[str, str], List[Dict]], wire_ids: set,
+                labels: Optional[Dict[str, str]] = None) -> Dict:
+    """What one flagged day was about: its state origin placements, the day before's, and the country's
+    other China coverage that day, each as counts of themes and terms, and the terms both share."""
+    labels = labels if labels is not None else _theme_labels()
+    c, d = spike["country"], spike["date"]
+    prev = _shift(d, -1)
+    arts = _context_articles(conn, c, d, wire_ids)
+    state_ids = {r["id"] for r in rows_by.get((d, c), [])}
+    prev_ids = {r["id"] for r in rows_by.get((prev, c), [])}
+    base = [a for a in arts if a["d"] < d]
+    base_df = Counter()
+    for a in base:
+        for k in article_terms(a.get("title"), a.get("gate_terms")):
+            base_df[k] += 1
+    state = [a for a in arts if a["d"] == d and a["id"] in state_ids]
+    other = [a for a in arts if a["d"] == d and a["id"] not in state_ids]
+    before = [a for a in arts if a["d"] == prev and a["id"] in prev_ids]
+    ps = profile(state, base_df, len(base), labels)
+    po = profile(other, base_df, len(base), labels, pairs=False)
+    pb = profile(before, base_df, len(base), labels, n_themes=3, n_terms=5)
+    other_keys = Counter()
+    for a in other:
+        for k in article_terms(a.get("title"), a.get("gate_terms")):
+            other_keys[k] += 1
+    shared = [t["term"] for t in ps["terms"] if other_keys.get(t["term"].lower(), 0) >= 1]
+    return {"version": CONTEXT_VERSION,
+            "state": dict({"placements": len(state)}, **ps),
+            "day_before": dict({"date": prev, "placements": len(before)}, **pb),
+            "other": dict({"articles": len(other)}, **po),
+            "shared_terms": shared,
+            "baseline_articles": len(base)}
+
+
+def add_context(conn, res: Dict, rows_by: Optional[Dict], outlets: List[Dict]) -> int:
+    """Put day_context on every spike of res, in place; a spike whose context fails gets none and the
+    reason is printed (the context is report only and never stops the export). Returns how many got one."""
+    from pipeline import registry
+    if rows_by is None:
+        rows_by = load_rows(conn, outlets)
+    wire_ids = registry.distribution_wire_ids(outlets)
+    labels = _theme_labels()
+    n = 0
+    for s in res.get("spikes") or []:
+        try:
+            s["context"] = day_context(conn, s, rows_by, wire_ids, labels)
+            n += 1
+        except Exception as exc:   # noqa: BLE001  report only
+            print("unusual day context for %s %s not built: %s" % (s.get("country"), s.get("date"), exc), file=sys.stderr)
+    return n
 
 
 # ---------------------------------------------------------------------------
@@ -712,7 +914,14 @@ def _rate(res: Dict) -> Optional[float]:
 
 def build_export(conn, ctx) -> Dict:
     res = run_analysis(conn, ctx)
-    from pipeline import store
+    from pipeline import registry, spike_context, store
+    # What each day was about (counts of themes and terms) and the researched news beside it: report only,
+    # added to the side file and never to the analysis the hand check draws from.
+    outlets = ctx.get("outlets")
+    if outlets is None:
+        outlets = registry.load_outlets()
+    add_context(conn, res, ctx.get("_spike_rows"), outlets)
+    spike_context.attach(res["spikes"])
     clean = sum(1 for s in res["spikes"] if s["status"] == "clean")
     return {"generated_at": store.utcnow(), "version": VERSION,
             "method": {"window_days": WINDOW_DAYS, "min_baseline_days": MIN_BASELINE_DAYS, "trim_share": TRIM_SHARE,
@@ -720,7 +929,15 @@ def build_export(conn, ctx) -> Dict:
                        "min_ratio": MIN_RATIO, "outlet_cap": OUTLET_CAP, "dispersion_days": DISPERSION_DAYS,
                        "model": "negative binomial on the country's own variance to mean ratio (Poisson at 1)",
                        "series": "distinct underlying state origin items per day of record, each outlet counting "
-                                 "at most %d" % OUTLET_CAP},
+                                 "at most %d" % OUTLET_CAP,
+                       "context": {"version": CONTEXT_VERSION, "themes": CONTEXT_THEMES, "terms": CONTEXT_TERMS,
+                                   "term_min_articles": TERM_MIN_DF, "term_lift": TERM_LIFT,
+                                   "terms_are": "relevance gate terms (section markers left out) and words or pairs "
+                                                "of words from headlines (single words only for the other coverage), at least %d articles carrying each, its share "
+                                                "at least %s times its share of the country's China coverage on the "
+                                                "%d baseline days" % (TERM_MIN_DF, ("%g" % TERM_LIFT), WINDOW_DAYS)},
+                       "news": {"window": spike_context.window(), "wording": "coincides with, never caused by: the "
+                                "tracker shows timing, not cause"}},
             "first_tested": res["first_tested"], "last_complete_day": res["last_complete_day"],
             "tests": res["tests"], "expected_false_flags": round(res["expected_false_flags"], 3),
             "expected_false_flag_rate": None if _rate(res) is None else float("%.3g" % _rate(res)),
@@ -784,7 +1001,17 @@ def methodology_text(block) -> str:
         "change stops affecting new days 28 days after it. The repeats in the discovery counts before they were "
         "fixed are noted too, but they touch only the rate per discovered item, not the count. Unusual days are "
         "report only: they change no count, and a hand check of up to 30 flagged days, each judged a real surge or "
-        "an artefact, has to find at least 80 percent real before the marking provisional comes off.")
+        "an artefact, has to find at least 80 percent real before the marking provisional comes off."
+        "\n\n"
+        "Each flagged day also says what it was about, from the tracker's own data and in counts only: the themes "
+        "and the terms of its state origin items and of the day before's, and of the country's other China "
+        "coverage that day, a term being listed only when at least %d articles carry it and it is at least %s "
+        "as common as on the 28 days before, so the words every day carries drop out. Beside it, where "
+        "one was found, is an event in the news that coincides with the day, researched by hand from a major "
+        "outlet or an official site and recorded with its source (sources/spike_context.yaml), or a note that "
+        "no matching event was found. Such a note shows timing, not cause: a day from one wire feed often "
+        "follows a single event that wire covered, and the checks above, listed beside the day, can explain "
+        "it on their own." % (TERM_MIN_DF, "twice" if TERM_LIFT == 2.0 else "%g times" % TERM_LIFT))
 
 
 # ---------------------------------------------------------------------------

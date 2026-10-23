@@ -1,0 +1,94 @@
+# Sourced news context for the unusual days (pipeline/spikes.py), read by pipeline/spike_context.py.
+# Researched by hand from public sources; the export attaches each spike's notes to it in
+# docs/data/spikes.json, and docs/content.json (spike_news) carries the same notes for a page whose
+# data was exported before this file existed. The shape is in sources/spike_context_schema.json; check
+# the file with
+#   python -m pipeline.spike_context validate [path]
+#
+# A note says only that an event coincides with an unusual day. The tracker shows timing, not cause:
+# a day from one wire feed often follows a single event that wire covered, and the checks listed
+# beside the day (a new outlet, a backfill read, a collector catching up, a ruleset or gate change)
+# can explain it on their own.
+#
+# window          the days around a spike an event may fall on: days_before before it to days_after
+#                 after it. An event that runs over several days counts when any of its days does.
+# spikes          one entry per unusual day: country (ISO 3166 alpha 3, WLD for the wires), date
+#                 (YYYY-MM-DD), researched (the day the search was made) and notes.
+# notes           each one of:
+#   found         scope (country: in that country; bilateral: between that country and China; china:
+#                 in China, an event the day's state origin items covered; world: elsewhere, an event
+#                 the day's items covered), event (one plain sentence in our own words, no quote longer
+#                 than 15 words), event_date and optionally event_end (YYYY-MM-DD), source_title,
+#                 source_url (https), confidence and basis (why it is linked to the day).
+#                 confidence: confirmed when the source confirms the event on those dates and the day's
+#                 own items name it; plausible when the event is confirmed and inside the window but the
+#                 items do not show they are about it, or the source could be confirmed only in part.
+#   not found     scope, result: no matching event found, and searched (what was looked for), with an
+#                 optional note (an event just outside the window, say). Nothing is guessed.
+# Only sources a reader can check: a major outlet, an official site, or a page with a cited source.
+# Press releases distributed for the state are the items themselves and are never the source.
+window:
+  days_before: 3
+  days_after: 1
+spikes:
+  - country: SGP
+    date: 2026-10-22
+    researched: 2026-10-23
+    notes:
+      - scope: china
+        event: The North Bund Forum on shipping met in Shanghai alongside the Global Maritime Forum's first Annual Summit held in mainland China.
+        event_date: 2026-10-21
+        event_end: 2026-10-22
+        source_title: Dates confirmed for first Annual Summit in mainland China (Global Maritime Forum)
+        source_url: https://globalmaritimeforum.org/news/annual-summit-dates-confirmed-mainland-china/
+        confidence: confirmed
+        basis: One of the day's items, a Xinhua Silk Road release carried by CNA, names the 2026 North Bund Forum.
+      - scope: china
+        event: China marked 90 years since the end of the Red Army's Long March, whose anniversary falls on 22 October, with exhibitions, tours and new films.
+        event_date: 2026-10-22
+        source_title: "Shows, tours and film: China marks 90 years since end of Long March (South China Morning Post)"
+        source_url: https://scmp.com/news/china/politics/article/3369418/shows-tours-and-film-china-marks-90-years-end-long-march
+        confidence: plausible
+        basis: One CGTN item that day is about the Long March; the article refused automated reading, so the date comes from its listing in a search index.
+      - scope: bilateral
+        result: no matching event found
+        searched: Singapore and China news, visits and agreements from 19 to 23 October 2026, through web searches of major outlets and government sites.
+        note: The other items that day were press releases about a CGTN news app, a technology forum and Laos.
+  - country: MYS
+    date: 2026-10-19
+    researched: 2026-10-23
+    notes:
+      - scope: china
+        event: The Financial Street Forum's 2026 annual conference opened in Beijing, where the governor of the People's Bank of China gave the keynote speech.
+        event_date: 2026-10-19
+        event_end: 2026-10-22
+        source_title: Thoughts on several issues of interest to the market, keynote by Pan Gongsheng at the Financial Street Forum 2026 (Bank for International Settlements)
+        source_url: https://www.bis.org/speeches/20261021-thoughts-several-issues-interest-market
+        confidence: confirmed
+        basis: A release carried by Utusan Malaysia that day reports the conference opening.
+      - scope: world
+        event: Iran's Revolutionary Guards said oil tankers crossing the Strait of Hormuz by routes Iran had not approved struck mines and caught fire.
+        event_date: 2026-10-17
+        source_title: Iran's Guards Say Two Tankers Hit Mines In Strait Of Hormuz (gCaptain)
+        source_url: https://gcaptain.com/irans-guards-say-two-tankers-hit-mines-in-strait-of-hormuz/
+        confidence: plausible
+        basis: Two Xinhua credited items that day, in RTM and Berita Harian, report a tanker exploding on a mine in the strait; the source confirms the claims of 17 October, not that one, and says they were not independently confirmed.
+      - scope: bilateral
+        result: no matching event found
+        searched: Malaysia and China news, visits and agreements from 16 to 20 October 2026, through web searches of major outlets and government sites.
+        note: Malaysia's deputy prime minister made a working visit to China from 12 to 16 October, before the window, and none of the day's items are about it.
+  - country: AUS
+    date: 2026-10-19
+    researched: 2026-10-23
+    notes:
+      - scope: china
+        event: The Financial Street Forum's 2026 annual conference opened in Beijing, where the governor of the People's Bank of China gave the keynote speech.
+        event_date: 2026-10-19
+        event_end: 2026-10-22
+        source_title: Thoughts on several issues of interest to the market, keynote by Pan Gongsheng at the Financial Street Forum 2026 (Bank for International Settlements)
+        source_url: https://www.bis.org/speeches/20261021-thoughts-several-issues-interest-market
+        confidence: confirmed
+        basis: A release carried by the Newcastle Herald that day reports the conference opening; the same distributed releases reached Malaysia that day.
+      - scope: bilateral
+        result: no matching event found
+        searched: Australia and China news, visits and agreements from 16 to 20 October 2026, through web searches of major outlets and government sites.

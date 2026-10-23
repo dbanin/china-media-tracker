@@ -245,11 +245,40 @@ aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric
 .warn { color: var(--warn); }
 .ok { color: var(--good); }
 .fail { color: var(--bad); }
-.mini { width: 100%; height: 5.5rem; display: block; }
-.mini path.a { fill: none; stroke: var(--gold); stroke-width: 1.5; }
-.mini path.b { fill: none; stroke: var(--bone-soft); stroke-width: 1.2; stroke-dasharray: 3 2; }
-.mini path.p { fill: none; stroke: var(--ash); stroke-width: 1; stroke-dasharray: 1.5 2.5; }
-.mini text { font-size: 0.62rem; fill: var(--ash); font-family: var(--font); }
+/* The country time series (renderMini): drawn at its shown size, so these sizes are what the reader sees. */
+.mini-wrap { position: relative; margin: 0.2rem 0 1.4rem; }
+.mini { width: 100%; height: 13.5rem; display: block; overflow: visible; touch-action: pan-y; }
+.mini:focus { outline: none; }
+.mini:focus-visible { outline: 1px solid var(--gold); outline-offset: 4px; }
+.mini path.a, .mini-legend line.a, .mini-tip line.a { fill: none; stroke: var(--gold); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; }
+.mini path.b, .mini-legend line.b, .mini-tip line.b { fill: none; stroke: var(--bone-soft); stroke-width: 2; stroke-dasharray: 5 3; stroke-linejoin: round; }
+.mini path.p, .mini-legend line.p, .mini-tip line.p { fill: none; stroke: var(--ash); stroke-width: 2; stroke-dasharray: 0.1 4; stroke-linecap: round; }
+.mini text { font-size: 0.78rem; fill: var(--ash); font-family: var(--font); font-variant-numeric: tabular-nums; }
+.mini .mini-axis line.grid { stroke: var(--rule); stroke-width: 1; }
+.mini .mini-axis line.base, .mini .mini-axis line.tick { stroke: var(--rule-strong); stroke-width: 1; }
+.mini .mini-hit { fill: transparent; cursor: crosshair; }
+.mini .mini-cross line { stroke: var(--bone-soft); stroke-width: 1; }
+.mini .mini-cross circle { fill: var(--card-2); stroke-width: 2; }
+.mini .mini-cross circle.a { stroke: var(--gold); fill: var(--gold); }
+.mini .mini-cross circle.b { stroke: var(--bone-soft); }
+.mini .mini-cross circle.p { stroke: var(--ash); }
+.mini .mini-spike-rule { stroke: var(--gold-soft); stroke-width: 1; }
+.mini rect.mini-spike, .mini-legend rect.mini-spike { fill: var(--gold); stroke: var(--card-2); stroke-width: 1; }
+.mini rect.mini-spike.spike-check, .mini-legend rect.mini-spike.spike-check { fill: none; stroke: var(--ash); stroke-width: 1.4; }
+.mini-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.8rem; color: var(--bone-soft); margin: 0 0 0.6rem; }
+.mini-legend .ml-item { display: inline-flex; align-items: center; gap: 0.45rem; }
+.ml-key { width: 22px; height: 8px; flex: none; overflow: visible; }
+.mini-ylabel { font-size: 0.8rem; color: var(--ash); margin: 0 0 0.2rem; }
+.mini-tip { position: absolute; pointer-events: none; z-index: 5; background: var(--ink-2); border: 1px solid var(--rule-strong); padding: 0.5rem 0.7rem; font-size: 0.82rem; color: var(--bone-soft); max-width: min(14rem, calc(100% - 8px)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); }
+.mini-tip .mt-date { font-family: var(--display); font-size: 1.1rem; color: var(--bone); margin-bottom: 0.2rem; }
+.mini-tip .mt-row { display: flex; align-items: center; gap: 0.45rem; }
+.mini-tip .mt-row strong { color: var(--bone); font-weight: 600; font-variant-numeric: tabular-nums; min-width: 1.6em; text-align: right; }
+.mini-tip .mt-spike { color: var(--gold); margin-top: 0.3rem; font-size: 0.78rem; }
+@media (min-width: 641px) { .mini-wrap { margin-left: -12px; margin-right: -12px; } }
+/* A selected country widens the panel beside the map from 24rem to 28rem, so the series and the breakdown
+   table have room; the map is already zooming to the country at that moment. */
+@media (min-width: 1101px) { .map-card > main.country-open { grid-template-columns: minmax(0, 1fr) 28rem; } }
+@media (max-width: 640px) { .mini { height: 12rem; } }
 
 #timeline { grid-column: 1; grid-row: 2; border-top: 1px solid var(--rule); padding: 1.1rem 1.6rem 1.3rem 2.4rem; }
 .timeline .tl-kicker { font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.45rem; }
@@ -556,9 +585,10 @@ footer { max-width: var(--page); margin: 0 auto; padding: var(--s4) var(--gutter
   .sh-routes { grid-template-columns: 1fr; }
   .findings-box { padding: var(--s2); }
 }
-/* Keep the map near the top: a one-line title, and the methodology link lives in the header nav. */
-h1 { max-width: none; font-size: clamp(2rem, 3.2vw, 3rem); }
-header.top { padding-top: var(--s4); padding-bottom: var(--s2); }
+/* The title is the page's display line: at most two lines on a laptop, and the methodology link lives in the header nav. */
+h1 { max-width: none; font-size: clamp(2.25rem, 1rem + 4.4vw, 5rem); line-height: 1.04; letter-spacing: -0.015em; margin-bottom: var(--s3); }
+header.top { padding-top: var(--s5); padding-bottom: var(--s2); }
+header.top .brand { margin-bottom: var(--s3); }
 header.top .sub { margin: var(--s1) 0 var(--s2); }
 .map-card .control.method { display: none; }
 .map-head { gap: var(--s2) var(--s2); }
@@ -711,6 +741,12 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
 .prelim .prelim-text { color: var(--bone-soft); font-size: 0.95rem; line-height: 1.6; margin: 0; max-width: 92ch; overflow-wrap: anywhere; }
 .prelim .prelim-text a { white-space: nowrap; }
 @media (max-width: 640px) { .prelim { padding: var(--s2); } .prelim .prelim-text { font-size: 0.92rem; } }
+/* WARNINGS AT THE FOOT, for now (owner, 2026-10-22): the preliminary figures banner and the data notice sit in
+   section#page-notes above the footer, read as notes rather than alarms. The section carries the page gutter, so the
+   banner's wrapper and the notices drop their own frame inside it. To undo, delete these lines with that section. */
+.page-notes { margin-top: var(--s5); }
+.page-notes .prelim-wrap { max-width: none; margin: 0 0 var(--s2); padding: 0; }
+.page-notes .notice { max-width: none; margin: 0 0 var(--s2); }
 /* Phone width: the pairs and originals line under each speed bar sits in a 4.5rem column; let it wrap there instead of pushing the page sideways. */
 @media (max-width: 700px) { #copies-speed .sp-n em { white-space: normal; overflow-wrap: anywhere; } }
 /* The licensed archive check in the methodology, beside the paywall disclosure: a separate source, set off by a gold hairline. */

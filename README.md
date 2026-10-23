@@ -103,6 +103,9 @@ and the section, also planned after that date.
    which are switched on, and engagement and syndication deals, which are
    built and switched off. None changes a label, a count or a denominator, and
    each is marked provisional until its own hand check passes.
+   Each unusual day also says what it was about (themes and terms, counted from the
+   tracker's own data) and, from sources/spike_context.yaml, any event in the news that
+   coincides with it, with its source: timing, never a cause.
 
 ## Running locally
 

@@ -175,7 +175,7 @@
     "map_timeline_caption": "This strip shows the world's daily total for whichever measure and time window you have selected above. Moving it only changes the map; the theme section further down keeps its own separate timeline. Orange bars mark days when more candidate articles were waiting than the model's daily budget could judge, so those days are cut short, not actually quiet. Red ticks mark days, up to 22 October 2026, when the relay on the owner's machine, which alone collected some outlets, was offline for part of the day; it was stopped that day and those outlets are inactive since. A dashed line marks a change in the classification rules, and grey ticks along the top mark days whose labels were made under older rules or an older version of the model's instructions and are still waiting to be redone; a dotted gold line marks a change in which articles even enter the count in the first place.",
     "notes_strip": "A single line above the map that surfaces only what would change how you should read today's numbers right now: for example, a batch of articles still waiting to be judged, a data collector that has gone quiet, or labels still running under an older rule version. Everything it mentions, and more besides, is written out in full under Methodology.",
     "side_panel_labels": "Click a country, on the map or in the ranked list, and a panel opens with that country's figure for the measure and window you have chosen, a time chart, and a breakdown of its articles into rows: state origin, with the underlying items among it; undetermined items, whose authorship could not be settled, shown as their own row and excluded from every count; unchecked state sourcing; articles flagged for the model and still waiting to be judged; independent journalism; not about China; paywalled articles that were never read at all; and the articles that passed the relevance gate but are not counted, those whose fetch failed, those the site's robots.txt blocked, and those still waiting to be fetched or to reach the rules stage. Together these rows add up to every article that passed the gate. Below that sit a breakdown of how any state-origin material arrived, the list of monitored outlets, and the individual articles behind the count.",
-    "ranked_list": "Every monitored country, lined up from most to least by whatever measure and window you have chosen. A small triangle, on the map, or an exclamation mark, in this list, next to a country is not a rating of how much state media it has. It flags a data-quality problem specific to that country: for example, a large share of its articles were behind a paywall and never read, a chunk of its feed checks came back empty because items were missed in between, some of its outlets refuse the crawler and stopped being collected on 22 October 2026, or it mostly publishes in a language our keyword lists do not cover yet. Open the country to read exactly which warning applies. A warning means the number is less certain, not that the country is worse.",
+    "ranked_list": "Every monitored country, lined up from most to least by whatever measure and window you have chosen. An exclamation mark next to a country in this list is not a rating of how much state media it has. It flags a data-quality problem specific to that country: for example, a large share of its articles were behind a paywall and never read, a chunk of its feed checks came back empty because items were missed in between, some of its outlets refuse the crawler and stopped being collected on 22 October 2026, or it mostly publishes in a language our keyword lists do not cover yet. Open the country panel to read exactly which warning applies. A warning means the number is less certain, not that the country is worse.",
     "theme_counter_intro": "Every article about China is tagged with any theme whose keywords show up in its headline, summary, or body: things like diplomacy, trade, Belt and Road investment, technology, military and security, Taiwan and Hong Kong, human rights, China's domestic politics, culture, and disasters or health. One article can carry several tags, or none, so the tags do not add up to the article count. These are keyword matches, not a person reading each piece, so a striking number here is worth checking against the actual articles before you repeat it.",
     "leaning_chart_note": "Every outlet we monitor is sorted by two things, when a cited, named source lets us: its political leaning, judged against its own country's spectrum, and who owns it. State controlled means state owned with no editorial independence. An outlet with no source backing a label is marked not assessed rather than guessed at, so this chart describes the outlets we could check, not the whole registry.",
     "stance_chart_note": "In many countries the divide that matters is not left against right but for or against the government. This view groups outlets by how an independent monitor describes them: state controlled, pro-government, independent of both sides, or aligned with the opposition."
@@ -225,5 +225,91 @@
     "awaiting_one": "{awaiting} of them cites Chinese official or state sources and awaits review in the archive",
     "awaiting_many": "{awaiting} of them cite Chinese official or state sources and await review in the archive",
     "link_text": "See the licensed archive check"
+  },
+  "spike_news": {
+    "caveat": "The tracker shows timing, not cause. A day from one wire feed often follows a single event that wire covered, and the checks listed beside the day, such as a new outlet, a backfill read, a collector catching up or a rule change, can explain it on their own.",
+    "source_file": "sources/spike_context.yaml",
+    "notes": {
+      "SGP 2026-10-22": {
+        "researched": "2026-10-23",
+        "notes": [
+          {
+            "scope": "china",
+            "event": "The North Bund Forum on shipping met in Shanghai alongside the Global Maritime Forum's first Annual Summit held in mainland China.",
+            "event_date": "2026-10-21",
+            "source_title": "Dates confirmed for first Annual Summit in mainland China (Global Maritime Forum)",
+            "source_url": "https://globalmaritimeforum.org/news/annual-summit-dates-confirmed-mainland-china/",
+            "confidence": "confirmed",
+            "basis": "One of the day's items, a Xinhua Silk Road release carried by CNA, names the 2026 North Bund Forum.",
+            "event_end": "2026-10-22"
+          },
+          {
+            "scope": "china",
+            "event": "China marked 90 years since the end of the Red Army's Long March, whose anniversary falls on 22 October, with exhibitions, tours and new films.",
+            "event_date": "2026-10-22",
+            "source_title": "Shows, tours and film: China marks 90 years since end of Long March (South China Morning Post)",
+            "source_url": "https://scmp.com/news/china/politics/article/3369418/shows-tours-and-film-china-marks-90-years-end-long-march",
+            "confidence": "plausible",
+            "basis": "One CGTN item that day is about the Long March; the article refused automated reading, so the date comes from its listing in a search index."
+          },
+          {
+            "scope": "bilateral",
+            "result": "no matching event found",
+            "searched": "Singapore and China news, visits and agreements from 19 to 23 October 2026, through web searches of major outlets and government sites.",
+            "note": "The other items that day were press releases about a CGTN news app, a technology forum and Laos."
+          }
+        ]
+      },
+      "MYS 2026-10-19": {
+        "researched": "2026-10-23",
+        "notes": [
+          {
+            "scope": "china",
+            "event": "The Financial Street Forum's 2026 annual conference opened in Beijing, where the governor of the People's Bank of China gave the keynote speech.",
+            "event_date": "2026-10-19",
+            "source_title": "Thoughts on several issues of interest to the market, keynote by Pan Gongsheng at the Financial Street Forum 2026 (Bank for International Settlements)",
+            "source_url": "https://www.bis.org/speeches/20261021-thoughts-several-issues-interest-market",
+            "confidence": "confirmed",
+            "basis": "A release carried by Utusan Malaysia that day reports the conference opening.",
+            "event_end": "2026-10-22"
+          },
+          {
+            "scope": "world",
+            "event": "Iran's Revolutionary Guards said oil tankers crossing the Strait of Hormuz by routes Iran had not approved struck mines and caught fire.",
+            "event_date": "2026-10-17",
+            "source_title": "Iran's Guards Say Two Tankers Hit Mines In Strait Of Hormuz (gCaptain)",
+            "source_url": "https://gcaptain.com/irans-guards-say-two-tankers-hit-mines-in-strait-of-hormuz/",
+            "confidence": "plausible",
+            "basis": "Two Xinhua credited items that day, in RTM and Berita Harian, report a tanker exploding on a mine in the strait; the source confirms the claims of 17 October, not that one, and says they were not independently confirmed."
+          },
+          {
+            "scope": "bilateral",
+            "result": "no matching event found",
+            "searched": "Malaysia and China news, visits and agreements from 16 to 20 October 2026, through web searches of major outlets and government sites.",
+            "note": "Malaysia's deputy prime minister made a working visit to China from 12 to 16 October, before the window, and none of the day's items are about it."
+          }
+        ]
+      },
+      "AUS 2026-10-19": {
+        "researched": "2026-10-23",
+        "notes": [
+          {
+            "scope": "china",
+            "event": "The Financial Street Forum's 2026 annual conference opened in Beijing, where the governor of the People's Bank of China gave the keynote speech.",
+            "event_date": "2026-10-19",
+            "source_title": "Thoughts on several issues of interest to the market, keynote by Pan Gongsheng at the Financial Street Forum 2026 (Bank for International Settlements)",
+            "source_url": "https://www.bis.org/speeches/20261021-thoughts-several-issues-interest-market",
+            "confidence": "confirmed",
+            "basis": "A release carried by the Newcastle Herald that day reports the conference opening; the same distributed releases reached Malaysia that day.",
+            "event_end": "2026-10-22"
+          },
+          {
+            "scope": "bilateral",
+            "result": "no matching event found",
+            "searched": "Australia and China news, visits and agreements from 16 to 20 October 2026, through web searches of major outlets and government sites."
+          }
+        ]
+      }
+    }
   }
 }

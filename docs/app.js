@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "90";
+  var ASSET_VERSION = "91";
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -106,7 +106,7 @@
 
   /* Every fallback here is recorded. A file that fails to arrive renders as zero everywhere it is read,
      and the one thing the reader must not be shown is an empty dataset that looks like a measured one:
-     the list of what is missing goes into the notice at the top of the page. */
+     the list of what is missing goes into the data notice (in the page notes above the footer, for now). */
   function loadAll() {
     var failed = [];
     function soft(url, fallback) {
@@ -167,7 +167,7 @@
     n.classList.remove("hidden");
   }
 
-  /* A page whose data is old, or assembled from different exports, says so above everything else. Built
+  /* A page whose data is old, or assembled from different exports, says so beside the data notice. Built
      from meta.generated_at alone (meta.stale_after_hours, when an export states it, replaces the 24 hours),
      and from the generated_at and schema_version each data file carries, where it carries them. */
   var STALE_HOURS = 24, GENERATION_GAP_HOURS = 2;
@@ -1111,7 +1111,8 @@
   function measureApi(id) {
     var sec = MS ? MS.SECTIONS.filter(function (x) { return x.measures.indexOf(id) !== -1; })[0] : null;
     return {id: id, slot: MS && MS.SLOTS[id] ? el(MS.SLOTS[id]) : null, section: sec ? el(sec.id) : null,
-            meta: state.meta, names: state.names, esc: esc, countryName: countryName, M: MS, C: C};
+            meta: state.meta, names: state.names, esc: esc, countryName: countryName, M: MS, C: C,
+            content: state.content};   /* content.json, for prose a measure carries there (spike_news) */
   }
   function renderMeasures() {
     if (!MS) return;
@@ -1237,6 +1238,10 @@
 
   /* ------------------------------------------------------------------- map */
   var svg, gCountries, gMarkers, path, projection, colorScale;
+  /* Warning triangles on the map, and the legend line that explains them: off for now, at the owner's request,
+     2026-10-23; set true to restore. The warnings themselves still show in the tooltip, the ranked list,
+     the country panel and the CSV exports. */
+  var SHOW_WARNING_MARKERS = false;
   var ZERO_COLOR = "#f6f1e8", LOW_COLOR = "#f7d3cb", HIGH_COLOR = "#3d0306";
   /* Seven distinct steps, interpolated in Lab so lightness falls steadily: the darker the shade, the more articles. Bin edges follow a square law, so the low end gets most of the
      resolution: a country at a fifth of the cap is already three steps away from white. */
@@ -1381,7 +1386,7 @@
       });
     applyMapFocus();
     gMarkers.selectAll("*").remove();
-    gCountries.selectAll("path.country").each(function (f) {
+    if (SHOW_WARNING_MARKERS) gCountries.selectAll("path.country").each(function (f) {
       var p = f.iso && perIso[f.iso];
       if (!p || !countryWarnings(p.entry, agg).length) return;
       var c = path.centroid(f);
@@ -1529,7 +1534,7 @@
           '<li><span class="sw" style="background:repeating-linear-gradient(0deg,#141618,#141618 3px,#3a4450 3px,#3a4450 4px)"></span><span>Monitored, but no keyword list for the outlets\' language, and nothing found</span></li>' +
           '<li><span class="sw" style="background:#1a1c1f"></span><span>Monitored, but no China coverage in this window</span></li>' +
           (notShown ? '<li><span class="sw" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span><span>' + esc(notShown) + '</span></li>' : '') +
-          '<li><svg class="sw-tri" viewBox="0 0 16 13" aria-hidden="true"><path d="M8,1.5 L14.5,12 L1.5,12 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg><span>Data warning: hover the country to read it</span></li>' +
+          (SHOW_WARNING_MARKERS ? '<li><svg class="sw-tri" viewBox="0 0 16 13" aria-hidden="true"><path d="M8,1.5 L14.5,12 L1.5,12 Z" fill="#0c0d0f" stroke="#d7b46a" stroke-width="1.2"/></svg><span>Data warning: hover the country to read it</span></li>' : '') +
         '</ul>' +
         (wiresOnly() ? '<li><span class="sw" style="background:radial-gradient(#8a7443 0.7px, #23262a 0.8px) 0 0/5px 5px"></span><span>Not drawn by country: the Distribution toggle shows the worldwide wires alone</span></li>' : '') +
         (offMap.length && !wiresOnly() ? '<p class="lg-note">' + plural(offMap.length, "monitored country", "monitored countries") + ' with active outlets have no outline at this map\u2019s scale and are missing from it altogether, not hatched: ' +
@@ -1906,22 +1911,26 @@
           '<span class="tf-label">' + esc(x.c.label) + '</span>' +
           '<span class="tf-track"><span class="tf-bar" style="width:' + (x.v ? Math.max(1.5, 100 * x.v / fmax) : 0) + '%"></span></span>' +
           '<span class="tf-v">' + x.v + '</span><span class="tf-s">' + (x.v ? pctText(share) : "") + '</span></li>';
-      }).join("") + '</ul><p class="tf-hint">' + (state.selected ? 'Click a theme to mark its row in the day grid. Switch to Whole world to compare countries.' : 'Click a theme to rank the countries in the grid by it. Click it again to go back.') + '</p>');
+      }).join("") + '</ul><p class="tf-hint">' + (state.selected === C.WORLDWIDE_ISO ? 'The theme grid compares countries and leaves the worldwide distribution wires out. Switch to Whole world to compare countries.' : state.selected ? 'Click a theme to mark its row in the day grid. Switch to Whole world to compare countries.' : wiresOnly() ? 'The theme grid compares countries and leaves the worldwide distribution wires out. Choose Both or Country outlets to compare countries.' : 'Click a theme to rank the countries in the grid by it. Click it again to go back.') + '</p>');
 
     if (state.selected) { renderCountryThemes(state.selected, sel, catalog, label, noun); return; }
     el("theme-grid").classList.remove("days");
 
     /* Right: countries down, themes across, the number of articles in each cell. */
+    /* Country rows only: the worldwide distribution stratum never has a row (C.themeGridRows), and its
+       cap leaves it out too (C.themeScaleCap), so the shades, the row count and the note match the rows. */
     var sortKey = state.themeSort;
-    var rows = model.rows.slice().sort(function (a, b) {
-      if (sortKey) {
-        var d = (b.t[sortKey] || 0) - (a.t[sortKey] || 0);
-        if (d) return d;
-      }
-      return b.n - a.n || a.name.localeCompare(b.name);
-    });
-    var shown = rows.slice(0, THEME_ROWS);
-    if (sel && shown.indexOf(sel) === -1) shown.push(sel);
+    var gridRows = C.themeGridRows(model.rows, sortKey, THEME_ROWS);
+    var rows = gridRows.all;
+    var shown = gridRows.shown;
+    if (sel && sel.iso !== C.WORLDWIDE_ISO && shown.indexOf(sel) === -1) shown.push(sel);
+    var wiresLeftOut = model.rows.some(function (r) { return r.iso === C.WORLDWIDE_ISO; });
+    if (!rows.length) {
+      el("theme-grid").innerHTML = "";
+      el("theme-legend").innerHTML = '<span class="tl-foot">' + esc(themeGridWiresText(noun)) + '</span>';
+      updateGridScroll();
+      return;
+    }
     var tkey = themeKey(null), heat = shadeFor(tkey);
     el("theme-grid").innerHTML =
       '<thead><tr><th class="c-country" scope="col">Country</th><th class="c-n" scope="col">' + esc(noun.charAt(0).toUpperCase() + noun.slice(1)) + '</th>' +
@@ -1944,7 +1953,9 @@
       (tkey.max > tkey.cap ? '; the darkest shade holds everything above the 95th percentile, up to ' + tkey.max.toLocaleString("en-US") : '') +
       '. ' + esc(C.CAP_UPDATE_NOTE) + esc(partialScaleNote()) + ' Hover a cell for its share of the country’s ' + esc(noun) + '. The ' + Math.min(THEME_ROWS, rows.length) + ' countries with the most ' + esc(noun) +
       (sortKey ? ' in ' + esc(lowerLabel(label[sortKey].label)) : '') + ' in this window' +
-      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '. Click a country to open it, or a theme heading to rank by it.</span>';
+      (sel && rows.indexOf(sel) >= THEME_ROWS ? ', plus the selected country' : '') + '.' +
+      (wiresLeftOut ? ' The worldwide distribution wires are not a country, so they have no row here; their themes are in the theme mix.' : '') +
+      ' Click a country to open it, or a theme heading to rank by it.</span>';
   }
 
   /* Single country view of the theme counter: themes down, days across, ending on the counter's own day.
@@ -1955,7 +1966,23 @@
     if (end === -1) end = tlDays.length - 1;
     return tlDays.slice(Math.max(0, end - n + 1), end + 1);
   }
+  /* What the theme grid says when it has no country row to show: the worldwide distribution stratum is
+     selected, or the Distribution toggle shows the wires alone, or no country has a count in the window. */
+  function themeGridWiresText(noun) {
+    if (state.selected === C.WORLDWIDE_ISO) return "Worldwide distribution is not a country, so the theme grid leaves it out. Its themes are in the theme mix. Switch to Whole world to compare countries.";
+    if (wiresOnly()) return "The theme grid compares countries, and the worldwide distribution wires are not a country, so the grid has no rows while the Distribution toggle shows the wires alone. Their themes are in the theme mix. Choose Both or Country outlets to compare countries.";
+    return "No country has " + noun + " with themes in this window. The worldwide distribution wires are not a country, so the theme grid leaves them out; their themes are in the theme mix.";
+  }
   function renderCountryThemes(iso, sel, catalog, label, noun) {
+    /* The stratum can be opened from the Country search and the ranked list, but the grid has no place
+       for it: no days view, no shades. */
+    if (iso === C.WORLDWIDE_ISO) {
+      el("theme-grid").classList.remove("days");
+      el("theme-grid").innerHTML = "";
+      el("theme-legend").innerHTML = '<span class="tl-foot">' + esc(themeGridWiresText(noun)) + '</span>';
+      updateGridScroll();
+      return;
+    }
     var mi = measureIndex(), name = countryName(iso), ds = countryThemeDays();
     var perDay = ds.map(function (d) {
       var e = C.dayEntry(state.months, d) || {};
@@ -2264,6 +2291,9 @@
 
   function renderPanel() {
     var body = el("panel-body");
+    /* A selected country widens the panel on a wide screen (style.css), so its time series has room. */
+    var panelMain = el("panel") && el("panel").parentNode;
+    if (panelMain && panelMain.classList) panelMain.classList.toggle("country-open", !!state.selected);
     var relayAll = relayFor(null);
     if (!state.selected) {
       var wldEntry = (state.latest.countries || {})[C.WORLDWIDE_ISO];
@@ -2370,32 +2400,171 @@
 
   function bindClose() { var b = el("panel-close"); if (b) b.addEventListener("click", function () { selectCountry(null); }); }
 
+  /* The country's daily series, drawn at the size it is shown rather than stretched from a fixed box, so its
+     text reads at its set size: day ticks along the bottom, a few whole number ticks up the side under a label
+     naming what is counted, a legend of line keys, the unusual days the spikes measure marks for this country,
+     and a crosshair that reads every line on the day under the pointer, or under the arrow keys. */
+  var miniState = null;
+  function miniSpikes(iso) {
+    var b = measureBlocks().spikes, d = state.measureData && state.measureData.spikes;
+    if (!b || !d || (MS ? MS.isOff(b) : b.status === "off")) return {by: {}, suffix: ""};
+    var by = {};
+    (d.spikes || []).forEach(function (s) { if (s && s.country === iso && s.date) (by[s.date] = by[s.date] || []).push(s); });
+    return {by: by, suffix: MS ? MS.provisionalSuffix(b) : ""};
+  }
   function renderMini(iso, relay) {
     var svgm = d3.select("#mini");
     if (svgm.empty()) return;
-    var w = 360, h = 88;
+    var node = svgm.node(), wrap = node.parentNode;
+    if (!wrap.classList || !wrap.classList.contains("mini-wrap")) {
+      wrap = document.createElement("div");
+      wrap.className = "mini-wrap";
+      node.parentNode.insertBefore(wrap, node);
+      wrap.appendChild(node);
+    }
+    Array.prototype.forEach.call(wrap.querySelectorAll(".mini-legend, .mini-ylabel, .mini-tip"), function (n) { n.parentNode.removeChild(n); });
+    svgm.selectAll("*").remove();
+    var box = node.getBoundingClientRect();
+    var w = Math.max(200, Math.round(box.width || 360)), h = Math.max(140, Math.round(box.height || 216));
     svgm.attr("viewBox", "0 0 " + w + " " + h);
-    var pts = days().map(function (d) {
+    miniState = {iso: iso, relay: relay, w: w};
+    /* It ends on the last complete day, as the map's timeline does: the day the export ran is still being
+       collected and would draw as a fall to nothing. */
+    var lastDay = lastCompleteDay();
+    var pts = days().filter(function (d) { return !lastDay || d <= lastDay; }).map(function (d) {
       var e = C.dayEntry(state.months, d);
       var c = (e && e.countries && e.countries[iso]) || C.emptyCounts();
-      return {date: new Date(d + "T00:00:00Z"), A: c.A, B: relay.visible ? c.B : 0, P: c.pending || 0};
+      return {day: d, date: new Date(d + "T00:00:00Z"), A: c.A, B: relay.visible ? c.B : 0, P: c.pending || 0};
     });
-    if (!pts.length) { svgm.append("text").attr("x", 4).attr("y", 14).text("No daily data"); return; }
-    var x = d3.scaleUtc().domain(d3.extent(pts, function (p) { return p.date; })).range([4, w - 4]);
-    /* .nice() rounds the axis outward, so the domain's top is a drawing decision, not an observation.
-       The caption prints the busiest day that actually happened. */
+    if (!pts.length) { svgm.append("text").attr("x", 4).attr("y", 16).text("No daily data"); return; }
+    var series = [{k: "A", cls: "a", label: clearerLabel("A", "State origin")}];
+    if (relay.visible) series.push({k: "B", cls: "b", label: clearerLabel("B", "Unchecked state sourcing") + (relay.provisional ? " (provisional)" : "")});
+    series.push({k: "P", cls: "p", label: clearerLabel("pending", "Official Chinese sourcing, verification pending")});
+    var sp = miniSpikes(iso), spikeDays = Object.keys(sp.by).filter(function (d) { return pts.some(function (p) { return p.day === d; }); });
+    /* The legend is HTML above the drawing, a short stroke of each line beside its name. */
+    var legend = document.createElement("div");
+    legend.className = "mini-legend";
+    series.forEach(function (s) {
+      var it = document.createElement("span");
+      it.className = "ml-item";
+      it.innerHTML = '<svg class="ml-key" viewBox="0 0 22 8" aria-hidden="true"><line class="' + s.cls + '" x1="1" y1="4" x2="21" y2="4"></line></svg>';
+      it.appendChild(document.createTextNode(s.label));
+      legend.appendChild(it);
+    });
+    if (spikeDays.length) {
+      var nClean = spikeDays.filter(function (d) { return sp.by[d].some(function (s) { return s.status === "clean"; }); }).length;
+      var sk = document.createElement("span");
+      sk.className = "ml-item";
+      sk.innerHTML = '<svg class="ml-key" viewBox="0 0 22 8" aria-hidden="true"><rect class="mini-spike' + (nClean ? '' : ' spike-check') + '" x="7" y="0.5" width="7" height="7"></rect></svg>';
+      sk.appendChild(document.createTextNode("Unusual day" + sp.suffix + (nClean === spikeDays.length ? "" : !nClean ? ", to check" : ", hollow when to check")));
+      legend.appendChild(sk);
+    }
+    wrap.insertBefore(legend, node);
+    /* .nice() rounds the axis outward, so the top tick is a drawing decision, not an observation; the
+       busiest day that actually happened is in the axis label. Ticks are whole articles only. */
     var busiest = d3.max(pts, function (p) { return Math.max(p.A, p.B, p.P); }) || 0;
-    var y = d3.scaleLinear().domain([0, busiest || 1]).nice().range([h - 16, 6]);
-    var lineA = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.A); });
-    var lineB = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.B); });
-    var lineP = d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p.P); });
-    svgm.append("path").attr("class", "p").attr("d", lineP(pts));
-    svgm.append("path").attr("class", "a").attr("d", lineA(pts));
-    if (relay.visible) svgm.append("path").attr("class", "b").attr("d", lineB(pts));
-    svgm.append("text").attr("x", 4).attr("y", h - 4).text(pts[0].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", h - 4).attr("text-anchor", "end").text(pts[pts.length - 1].date.toISOString().slice(0, 10));
-    svgm.append("text").attr("x", w - 4).attr("y", 12).attr("text-anchor", "end").text("solid state origin, " + (relay.visible ? "dashed unchecked state sourcing" + (relay.provisional ? " (provisional), " : ", ") : "") + "dotted pending, max " + busiest + " per day");
+    var ylab = document.createElement("div");
+    ylab.className = "mini-ylabel";
+    ylab.textContent = "Articles per day in " + countryName(iso) + "'s monitored outlets, busiest day " + busiest;
+    wrap.insertBefore(ylab, node);
+    var y = d3.scaleLinear().domain([0, Math.max(busiest, 4)]).nice(4);
+    var yt = y.ticks(4).filter(function (t) { return Math.round(t) === t; });
+    var fmtN = d3.format(",d");
+    var m = {t: 18, r: 14, b: 30, l: 14 + 7.5 * d3.max(yt, function (t) { return fmtN(t).length; })};
+    y.range([h - m.b, m.t]);
+    var x = d3.scaleUtc().domain(d3.extent(pts, function (p) { return p.date; })).range([m.l, w - m.r]);
+    var g = svgm.append("g").attr("class", "mini-axis");
+    yt.forEach(function (t) {
+      g.append("line").attr("class", t === 0 ? "base" : "grid").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(t)).attr("y2", y(t));
+      g.append("text").attr("x", m.l - 8).attr("y", y(t)).attr("dy", "0.32em").attr("text-anchor", "end").text(fmtN(t));
+    });
+    var dom = x.domain(), sameYear = dom[0].getUTCFullYear() === dom[1].getUTCFullYear();
+    var fmtD = d3.utcFormat(sameYear ? "%-d %b" : "%-d %b %Y");
+    /* Day ticks fall on whole weeks or months, as many as the width holds: every second or third is kept when
+       there are too many, so a narrow chart still gets three or more rather than one month mark. */
+    var nx = Math.max(2, Math.min(6, Math.floor((w - m.l - m.r) / (sameYear ? 85 : 115))));
+    var xt = pts.length > 1 ? x.ticks(12) : [dom[0]];
+    if (xt.length > nx) { var step = Math.ceil(xt.length / nx); xt = xt.filter(function (t, i) { return i % step === 0; }); }
+    xt.forEach(function (t) {
+      var px = x(t), label = fmtD(t), half = label.length * 3.6;
+      g.append("line").attr("class", "tick").attr("x1", px).attr("x2", px).attr("y1", h - m.b).attr("y2", h - m.b + 5);
+      g.append("text").attr("x", Math.max(half, Math.min(w - half, px))).attr("y", h - m.b + 19).attr("text-anchor", "middle").text(label);
+    });
+    spikeDays.forEach(function (d) {
+      var px = x(new Date(d + "T00:00:00Z")), clean = sp.by[d].some(function (s) { return s.status === "clean"; });
+      svgm.append("line").attr("class", "mini-spike-rule").attr("x1", px).attr("x2", px).attr("y1", m.t - 4).attr("y2", h - m.b);
+      svgm.append("rect").attr("class", "mini-spike" + (clean ? "" : " spike-check")).attr("x", px - 4.5).attr("y", m.t - 14).attr("width", 9).attr("height", 9);
+    });
+    series.slice().reverse().forEach(function (s) {
+      svgm.append("path").attr("class", s.cls).attr("d", d3.line().x(function (p) { return x(p.date); }).y(function (p) { return y(p[s.k]); })(pts));
+    });
+    /* Crosshair and readout: one tooltip for every line on the day nearest the pointer. */
+    var cross = svgm.append("g").attr("class", "mini-cross").style("display", "none");
+    cross.append("line").attr("y1", m.t).attr("y2", h - m.b);
+    var dots = series.map(function (s) { return cross.append("circle").attr("class", s.cls).attr("r", 4); });
+    var tip = document.createElement("div");
+    tip.className = "mini-tip";
+    tip.hidden = true;
+    wrap.appendChild(tip);
+    var cur = -1;
+    function show(i) {
+      cur = Math.max(0, Math.min(pts.length - 1, i));
+      var p = pts[cur], px = x(p.date);
+      cross.style("display", null).select("line").attr("x1", px).attr("x2", px);
+      dots.forEach(function (dot, j) { dot.attr("cx", px).attr("cy", y(p[series[j].k])); });
+      tip.textContent = "";
+      var hd = document.createElement("div");
+      hd.className = "mt-date";
+      hd.textContent = d3.utcFormat("%-d %B %Y")(p.date);
+      tip.appendChild(hd);
+      series.forEach(function (s) {
+        var row = document.createElement("div");
+        row.className = "mt-row";
+        row.innerHTML = '<svg class="ml-key" viewBox="0 0 22 8" aria-hidden="true"><line class="' + s.cls + '" x1="1" y1="4" x2="21" y2="4"></line></svg>';
+        var v = document.createElement("strong");
+        v.textContent = fmtN(p[s.k]);
+        row.appendChild(v);
+        row.appendChild(document.createTextNode(" " + s.label));
+        tip.appendChild(row);
+      });
+      (sp.by[p.day] || []).forEach(function (s) {
+        var row = document.createElement("div");
+        row.className = "mt-spike";
+        row.textContent = "Unusual day" + sp.suffix + ": " + s.count + " placements against about " + d3.format(".1f")(s.expected || 0) + " expected" + (s.status === "clean" ? "" : ", to check");
+        tip.appendChild(row);
+      });
+      tip.hidden = false;
+      /* Beside the crosshair where it fits, otherwise in the corner away from it. */
+      var tw = tip.offsetWidth, left = px + 14;
+      if (left + tw > w) left = px - 14 - tw >= 0 ? px - 14 - tw : (px > w / 2 ? 0 : w - tw);
+      tip.style.left = left + "px";
+      tip.style.top = (node.getBoundingClientRect().top - wrap.getBoundingClientRect().top + m.t) + "px";
+    }
+    function hide() { cross.style("display", "none"); tip.hidden = true; }
+    function nearest(px) { return d3.bisector(function (p) { return p.date; }).center(pts, x.invert(px)); }
+    svgm.append("rect").attr("class", "mini-hit").attr("x", m.l).attr("y", 0).attr("width", Math.max(1, w - m.l - m.r)).attr("height", h)
+      .on("pointermove", function (ev) { show(nearest(d3.pointer(ev, node)[0])); })
+      .on("pointerdown", function (ev) { show(nearest(d3.pointer(ev, node)[0])); })
+      .on("pointerleave", hide);
+    node.setAttribute("tabindex", "0");
+    node.setAttribute("role", "img");
+    node.setAttribute("aria-label", "Daily articles, " + series.map(function (s) { return s.label; }).join("; ") + " in " + countryName(iso) + " from " + pts[0].day + " to " + pts[pts.length - 1].day + ", busiest day " + busiest + ". Left and right arrows read one day at a time.");
+    node.onkeydown = function (ev) {
+      var k = ev.key, i = cur < 0 ? pts.length - 1 : cur;
+      if (k === "ArrowLeft") i -= 1; else if (k === "ArrowRight") i += 1; else if (k === "Home") i = 0; else if (k === "End") i = pts.length - 1;
+      else if (k === "Escape") { hide(); return; } else return;
+      ev.preventDefault();
+      show(i);
+    };
+    node.onblur = hide;
   }
+  /* The chart is drawn to its measured width, so a change of width draws it again. The test shim's window
+     has no addEventListener. */
+  if (typeof window.addEventListener === "function") window.addEventListener("resize", function () {
+    if (!miniState || !state.selected || state.selected !== miniState.iso) return;
+    var n = el("mini");
+    if (n && Math.abs(Math.round(n.getBoundingClientRect().width) - miniState.w) > 2) renderMini(miniState.iso, miniState.relay);
+  });
 
   function loadArticles(iso) {
     var target = el("panel-articles");
@@ -3026,7 +3195,8 @@
   window.TrackerApp = {selectCountry: selectCountry, setDay: openDay, open: openView,
     /* Pure helpers, for tests/app_smoke.js. */
     helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
-              monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes}};
+              monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes,
+              showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
     openView(d);
@@ -3036,7 +3206,7 @@
     if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
   });
 
-  /* The preliminary figures banner under the title. index.html carries its default text, so it shows
+  /* The preliminary figures banner (in the page notes above the footer, for now). index.html carries its default text, so it shows
      without JavaScript; here the sentences are rebuilt from content.json and meta (C.preliminaryBanner),
      so a hand check that has passed is never described as still to come. Without the content block the
      static text stays as it is. */
