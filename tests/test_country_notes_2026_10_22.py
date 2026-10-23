@@ -3,7 +3,8 @@ state authorship the evidence cannot settle is undetermined (code U) and exclude
 the original study: the model's calls with no checkable marker (route unattributed) and its sponsored
 disclosure calls the rules did not confirm, and its uncredited copies of items that are undetermined
 themselves (the audit files do not carry the lookalike reference that decides these, so no check here depends
-on them). The hand-written notes for Chad, Malaysia, Singapore, Brazil,
+on them). The hand-written notes for Chad (rewritten again after the
+export of 2026-10-23 gave it state origin with evidence), Malaysia, Singapore, Brazil,
 Peru, Laos and Hong Kong, the computer FAQ, the side panel caption and the page's Australian duplicate
 figures had described the old definitions. Each corrected note states its dates, and every claim it makes
 about carriers or timing is checked here against the committed audit files (data/export/articles-*.jsonl),
@@ -68,15 +69,28 @@ def last_30():
 
 
 @_local_only
-def test_chad_has_no_state_origin_with_evidence_and_its_note_says_so(all_time):
-    assert sum(_by(all_time["A"], "TCD", lambda r: 1).values()) == 0
+def test_chad_state_origin_is_small_at_alwihda_and_most_of_its_calls_are_undetermined(all_time):
+    # The export of 2026-10-23 labelled articles that were waiting for the model, and some Alwihda Info items
+    # now carry a People's Daily credit line, so Chad's state origin is no longer zero. The note is count free;
+    # these checks read the shape of each claim, not a number, so later labels in the window do not break them.
+    a = [r for r in all_time["A"] if r["country"] == "TCD"]
+    assert {r["outlet_id"] for r in a} <= {"td_alwihda"}                       # "rests on one outlet, Alwihda Info"
+    assert {r.get("route") for r in a} <= {"wire_credit"}                      # "under a ... credit line"
+    assert all("People's Daily" in (r.get("evidence_quote") or "") for r in a)  # "People's Daily articles"
+    assert all(r["_day"].startswith("2026-10-") for r in a)                    # "in October 2026"
     m = _by(all_time["U"], "TCD", lambda r: r["outlet_id"])
-    assert sum(m.values()) > 0 and m["td_alwihda"] / sum(m.values()) >= 0.9   # "nearly all"
+    u = sum(m.values())
+    assert u > len(a) and u / float(u + len(a)) > 0.5                          # "small", "Most of Chad's state origin calls"
+    assert m["td_alwihda"] / float(u) >= 0.9                                   # "nearly all of them also at Alwihda Info"
     note = NOTES["TCD"]
     assert "carried mainly by one outlet" not in note and "rests on the model's judgement:" not in note
-    assert "from 3 September to 21 October 2026" in note and "Alwihda Info" in note
-    assert "undetermined and excluded from every count" in note and "state origin count for those dates is zero" in note
-    assert "shown apart as provisional" not in note
+    assert "state origin count for those dates is zero" not in note and "none named a credit line" not in note
+    assert "From 3 September to 21 October 2026" in note and "Alwihda Info" in note
+    assert "Chad's state origin is small and rests on one outlet, Alwihda Info" in note
+    assert "People's Daily credit line" in note and "in October 2026" in note
+    assert "Most of Chad's state origin calls" in note and "rest on the model's judgement alone" in note
+    assert "undetermined and excluded from every count" in note and "I found no public agreement to cite" in note
+    assert "shown apart as provisional" not in note and not re.search(r"\d+ (placements|labels|calls|items)", note)
 
 
 @pytest.mark.parametrize("window", ["all_time", "last_30"])
@@ -158,8 +172,12 @@ def test_laos_counts_the_laotian_times_and_its_sponsored_calls_are_undetermined(
     assert a and {r["outlet_id"] for r in a} == {"la_laotiantimes"}                              # "all of Laos's state origin count"
     assert sum(1 for r in a if r["route"] == "distribution_stamp") / float(len(a)) > 0.5          # "mostly through ... stamps"
     u = [r for r in all_time["U"] if r["country"] == "LAO"]
-    assert {r["outlet_id"] for r in u} == {"la_laotiantimes"} and len(u) > 3 * len(a)              # "Many more"
-    assert all(r.get("route") == "sponsored_disclosure" for r in u)
+    assert {r["outlet_id"] for r in u} == {"la_laotiantimes"}                                     # "Many more Laotian Times placements"
+    # The note describes the sponsored calls, not every undetermined label: since the export of 2026-10-23 one
+    # Laotian Times call with no marker at all is undetermined too, which the note's wording leaves true.
+    sponsored = [r for r in u if r.get("route") == "sponsored_disclosure"]
+    assert len(sponsored) > 3 * len(a) and len(sponsored) / float(len(u)) > 0.5                   # "Many more ... read as disclosed sponsored content"
+    assert all(r.get("method") != "rules" for r in sponsored)
     note = NOTES["LAO"]
     assert "From 3 September to 21 October 2026" in note and "undetermined and excluded from every count" in note
     assert "mostly through disclosed sponsored placements" not in note
