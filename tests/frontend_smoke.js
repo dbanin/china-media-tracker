@@ -239,6 +239,24 @@ assert(C.themeScaleCap(themeMonths, ["2026-09-01", "2026-09-02"], 2, 2, null, "I
 var grownThemes = JSON.parse(JSON.stringify(themeMonths));
 grownThemes["2026-09"].days["2026-09-03"] = {countries: {}, reviewed: {}, themes: {ITA: {diplomacy: [9, 0, 0], culture: [7, 0, 0]}}};
 assert(C.themeScaleCap(grownThemes, ["2026-09-01", "2026-09-02", "2026-09-03"], 1, 0, ["diplomacy", "culture"]).cap > tsc.cap, "a data update that adds days moves the theme cap too");
+/* The theme grid compares countries: the worldwide distribution stratum never has a row, under any sort or
+   limit, and the grid's cap leaves it out unless it is asked for by name. */
+var gridIn = [{iso: "ITA", name: "Italy", n: 4, t: {trade: 1}}, {iso: C.WORLDWIDE_ISO, name: "Worldwide distribution", n: 90, t: {trade: 80}},
+              {iso: "CAN", name: "Canada", n: 4, t: {trade: 3}}, {iso: "AUS", name: "Australia", n: 9, t: {}}];
+[null, "trade", "culture"].forEach(function (sk) {
+  [undefined, 1, 2, 15].forEach(function (lim) {
+    var gr = C.themeGridRows(gridIn, sk, lim);
+    assert(gr.all.concat(gr.shown).every(function (r) { return r.iso !== "WLD"; }), "theme grid rows never include WLD (sort " + sk + ", limit " + lim + ")");
+    assert(gr.all.length === 3 && gr.shown.length === Math.min(3, lim || 3), "theme grid keeps every country row and the limit counts countries only");
+  });
+});
+assert(C.themeGridRows(gridIn, null, 15).all.map(function (r) { return r.iso; }).join() === "AUS,CAN,ITA", "theme grid ranks by n, then name");
+assert(C.themeGridRows(gridIn, "trade", 1).shown[0].iso === "CAN", "theme grid ranks by the sorted theme, not the stratum's larger count");
+assert(C.themeGridRows([{iso: "WLD", name: "W", n: 5, t: {}}], null, 15).all.length === 0 && C.themeGridRows(null).all.length === 0, "a grid of the stratum alone has no rows");
+var wldThemes = {"2026-09": {days: {"2026-09-01": {countries: {}, reviewed: {}, themes: {ITA: {trade: [2, 1, 1, 0]}, WLD: {trade: [50, 50, 50, 0]}}}}}};
+var wcap = C.themeScaleCap(wldThemes, ["2026-09-01"], 1, 0, ["trade"]);
+assert(wcap.max === 2 && wcap.values === 1, "the theme grid's cap leaves the stratum out: " + JSON.stringify(wcap));
+assert(C.themeScaleCap(wldThemes, ["2026-09-01"], 1, 0, ["trade"], "WLD").max === 50, "the stratum by name still reads its own counts");
 
 /* The "What we found" box: fills the four findings_template sentences from meta.findings. */
 var findingsTemplates = ["Share {state_share_of_china} since {since}.", "{top_country} led, carried by {top_carrier}.",

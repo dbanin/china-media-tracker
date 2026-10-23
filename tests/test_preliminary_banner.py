@@ -1,4 +1,4 @@
-"""The preliminary figures banner under the title (review of 2026-10-22): the site says, near the top and on
+"""The preliminary figures banner (review of 2026-10-22; in the page notes above the footer for now): the site says, on
 every visit, that its counts are preliminary, which state origin evidence the headline rests on, that items
 whose authorship cannot be settled are undetermined and excluded from every count, as in the original study
 (decision D1 as revised), that unchecked state sourcing is provisional, and that no figure has yet been
@@ -35,15 +35,19 @@ def _banner_block():
     return m.group(0)
 
 
-def test_banner_sits_under_the_title_and_above_the_map_controls():
+def test_banner_sits_in_the_page_notes_above_the_footer():
+    """For now (owner, 2026-10-22) the banner is a note at the foot: after the methodology, in section#page-notes,
+    just above the footer, with nothing of it left between the header and the map."""
     for anchor in ('id="preliminary"', 'role="note"', 'aria-labelledby="prelim-title"', 'id="prelim-title"',
                    'id="prelim-text"', 'id="prelim-link"'):
         assert anchor in INDEX, anchor
     at = INDEX.index('id="preliminary"')
-    assert INDEX.index("</header>") < at < INDEX.index('id="map-card"') < INDEX.index('<div class="controls">')
+    assert INDEX.index('id="map-card"') < INDEX.index('class="sec method" id="method"') < INDEX.index('id="page-notes"') < at
+    assert at < INDEX.index('id="data-notice"') < INDEX.index("<footer>")
+    assert "prelim" not in re.sub(r"<!--.*?-->", "", INDEX[INDEX.index("</header>"):INDEX.index('id="map-card"')], flags=re.S)
     block = _banner_block()
     assert " hidden" not in block and "dismiss" not in block and "<button" not in block
-    assert "<noscript" not in INDEX[INDEX.index("</header>"):at]
+    assert "<noscript" not in INDEX[INDEX.index('id="page-notes"'):at]
 
 
 def test_static_text_is_the_default_composed_from_content_json():

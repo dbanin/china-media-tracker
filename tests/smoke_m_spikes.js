@@ -157,5 +157,43 @@
   if (hadEv === "undefined") delete G.Event;
   assert(M.get("spikes").findingsExtra(prov, data, api) === "", "nothing in the findings box itself");
 
+  /* What the day was about: the export's context and the researched news, or content.json's notes for a
+     file exported before them. Wording is "coincides with", never a cause, with the caveat. */
+  var ctxSpike = spike("2026-10-12", "ITA", "check", {
+    top_outlets: [{id: "it_a", name: "Paper A", placements: 3}],
+    top_items: [{item: 1, placements: 2, title: "Forum <opens>"}, {item: 2, placements: 1, title: "Second"}],
+    context: {version: 1, state: {placements: 3, themes: [{id: "economy", label: "Trade and economy", n: 3}], terms: [{term: "Financial Street", n: 2, lift: 9}]},
+              day_before: {date: "2026-10-11", placements: 1, themes: [{id: "other", label: "Other", n: 1}], terms: []},
+              other: {articles: 12, themes: [{id: "diplomacy", label: "Diplomacy and summits", n: 4}], terms: [{term: "Hormuz", n: 3, lift: 5}]},
+              shared_terms: ["Financial Street"], baseline_articles: 300},
+    news: {researched: "2026-10-23", notes: [
+      {scope: "china", event: "A forum opened in Beijing.", event_date: "2026-10-12", event_end: "2026-10-14", source_title: "Forum <page>",
+       source_url: "https://example.org/forum", confidence: "confirmed", basis: "An item names it."},
+      {scope: "bilateral", event: "Bad link.", event_date: "2026-10-12", source_title: "x", source_url: "javascript:alert(1)", confidence: "plausible", basis: "b"},
+      {scope: "country", result: "no matching event found", searched: "news of the week"}]}});
+  var ch = S.contextHtml(ctxSpike, api);
+  assert(ch.indexOf("<details class=\"sp-ctx\">") === 0 && ch.indexOf("What the day was about") !== -1, "one disclosure per day");
+  assert(ch.indexOf("What the items were about") !== -1 && ch.indexOf("Trade and economy (3)") !== -1 && ch.indexOf("Financial Street (2)") !== -1, "the items' themes and terms");
+  assert(ch.indexOf("Carried by: Paper A (3)") !== -1 && ch.indexOf("Forum &lt;opens&gt; (2 placements)") !== -1, "outlets and the spike's own headlines, escaped");
+  assert(ch.indexOf("The day before (11 Oct): 1 state origin placement, about Other (1)") !== -1, "the day before");
+  assert(ch.indexOf("Other China coverage that day") !== -1 && ch.indexOf("12 other articles about China") !== -1 && ch.indexOf("Hormuz (3)") !== -1, "the other coverage, counts only");
+  assert(ch.indexOf("Terms in both: Financial Street") !== -1, "shared terms");
+  assert(ch.indexOf("In the news") !== -1 && ch.indexOf("In China, covered by the day") !== -1 && ch.indexOf("items.</span> Coincides with: A forum opened in Beijing (12 Oct to 14 Oct), a confirmed coincidence") !== -1, "coincides with, dated, with confidence");
+  assert(ch.indexOf('href="https://example.org/forum"') !== -1 && ch.indexOf("Forum &lt;page&gt;") !== -1, "the source linked and escaped");
+  assert(ch.indexOf("javascript:") === -1, "only https links");
+  assert(ch.indexOf("In the country.</span> No matching event found. Searched: news of the week") !== -1, "nothing found is said, not guessed");
+  assert(ch.indexOf("timing, not cause") !== -1 && ch.indexOf("single event that wire covered") !== -1 && ch.indexOf("Researched on 23 Oct") !== -1, "the caveat");
+  assert(!/caused by|because of the/i.test(ch) && !/[\u2013\u2014]/.test(ch), "never a cause, no dashes");
+  /* content.json fallback for a file without news; nothing at all for a day with neither. */
+  var bare = spike("2026-10-19", "AUS", "check");
+  var capi = {esc: M.esc, content: {spike_news: {caveat: "Timing, not cause.", notes: {"AUS 2026-10-19": {researched: "2026-10-23", notes: [
+    {scope: "china", event: "A forum opened.", event_date: "2026-10-19", source_title: "Src", source_url: "https://example.org/a", confidence: "confirmed", basis: "Named."}]}}}}};
+  assert(S.newsFor(bare, capi).notes.length === 1 && S.newsFor(bare, api) === null, "content.json notes by country and day");
+  var cb = S.contextHtml(bare, capi);
+  assert(cb.indexOf("Coincides with: A forum opened (19 Oct), a confirmed coincidence. Named. Source: ") !== -1 && cb.indexOf("Timing, not cause.") !== -1 && cb.indexOf("What the items were about") === -1, "news alone renders");
+  assert(S.contextHtml(bare, api) === "", "nothing to show, no disclosure");
+  M.get("spikes").render(prov, {last_complete_day: "2026-10-13", tests: 10, expected_false_flags: 0, spikes: [ctxSpike]}, api);
+  assert(slot.innerHTML.indexOf("</button><details class=\"sp-ctx\">") !== -1, "the disclosure sits under the day's button, outside it");
+
   console.log("smoke m_spikes ok");
 }());

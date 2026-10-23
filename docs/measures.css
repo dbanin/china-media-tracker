@@ -137,11 +137,22 @@
 #findings-spikes .sp-muted .sp-date { color: var(--ash-faint); }
 #findings-spikes .sp-more, #findings-spikes .sp-foot { color: var(--ash); font-size: 0.82rem; margin: var(--s1) 0 0; }
 #findings-spikes .sp-relabel { color: var(--ash); font-size: 0.84rem; max-width: 70ch; margin: var(--s1) 0 0; }
+#findings-spikes .sp-ctx { margin: 0 0 10px 4.2rem; padding-left: 12px; font-size: 0.84rem; color: var(--bone-soft); max-width: 70ch; overflow-wrap: anywhere; }
+#findings-spikes .sp-ctx summary { cursor: pointer; color: var(--ash); }
+#findings-spikes .sp-ctx summary:hover, #findings-spikes .sp-ctx summary:focus-visible { color: var(--gold); }
+#findings-spikes .sp-ctx-part { margin-top: var(--s1); }
+#findings-spikes .sp-ctx-h { margin: 0 0 4px; font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
+#findings-spikes .sp-ctx-list, #findings-spikes .sp-heads { margin: 0; padding-left: 1.1rem; }
+#findings-spikes .sp-ctx-list li + li { margin-top: 3px; }
+#findings-spikes .sp-ctx a { color: var(--gold); }
+#findings-spikes .sp-scope { color: var(--ash); }
+#findings-spikes .sp-caveat { margin: 6px 0 0; color: var(--ash); }
 .timeline svg.spark rect.spike-mark { fill: var(--gold); stroke: var(--ink); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .timeline svg.spark rect.spike-mark.spike-check { fill: none; stroke: var(--ash); stroke-width: 1.2; }
 @media (max-width: 700px) {
   #findings-spikes .sp-day { grid-template-columns: 1fr; }
   #findings-spikes .sp-why { grid-column: 1; }
+  #findings-spikes .sp-ctx { margin-left: 0; padding-left: 0; }
 }
 /* ==== END spikes ==== */
 

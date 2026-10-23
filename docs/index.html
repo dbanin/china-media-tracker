@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=90">
-<link rel="stylesheet" href="measures.css?v=90">
+<link rel="stylesheet" href="style.css?v=91">
+<link rel="stylesheet" href="measures.css?v=91">
 </head>
 <body>
 <header class="top">
@@ -23,16 +23,8 @@
   </nav>
 </header>
 
-<!-- The preliminary figures banner. Its default text is here so it shows without JavaScript; app.js rebuilds it from
-     content.json (preliminary_banner) and meta, so a hand check that has passed is never described as still to come. -->
-<div class="prelim-wrap">
-  <div class="prelim" id="preliminary" role="note" aria-labelledby="prelim-title">
-    <h2 class="prelim-title" id="prelim-title"><em>Preliminary</em> figures</h2>
-    <p class="prelim-text" id="prelim-text">These counts are published as preliminary while the hand checks run. State origin counts only placements whose state authorship the evidence settles: a wire credit or dateline, a press release distribution stamp, a sponsored or partner disclosure the rules find on the article itself, a Chinese diplomat's byline, or a close match with credited state text. Items whose authorship cannot be settled are undetermined and excluded from every count, as in the original study. Unchecked state sourcing is provisional and marked as such. No figure has yet been checked against human coding. <a href="#method" id="prelim-link">How the figures are checked</a></p>
-  </div>
-</div>
-
-<div id="data-notice" class="notice hidden"></div>
+<!-- WARNINGS MOVED TO THE FOOT, for now (owner, 2026-10-22). The preliminary figures banner and the data notice
+     sat here, between the header and the map; they now live in section#page-notes above the footer. -->
 
 
 
@@ -354,6 +346,24 @@
   <div id="citation"></div>
 </section>
 
+<!-- WARNINGS AT THE FOOT, for now (owner, 2026-10-22: "for now move the warnings to the bottom"). To undo: move
+     div.prelim-wrap and div#data-notice back to the marked spot right after </header>, change the banner's h3 back
+     to h2, and delete this section and the .page-notes rules in style.css. Ids, text and app.js are unchanged:
+     renderPreliminary, renderNotices, renderLoadFailures and renderStaleNotice find them by id wherever they sit.
+     The banner's default text is here so it shows without JavaScript; app.js rebuilds it from content.json
+     (preliminary_banner) and meta, so a hand check that has passed is never described as still to come. -->
+<section class="sec page-notes" id="page-notes" aria-labelledby="page-notes-title">
+  <div class="eyebrow">Before you cite a figure</div>
+  <h2 id="page-notes-title">Notes on these figures</h2>
+  <div class="prelim-wrap">
+    <div class="prelim" id="preliminary" role="note" aria-labelledby="prelim-title">
+      <h3 class="prelim-title" id="prelim-title"><em>Preliminary</em> figures</h3>
+      <p class="prelim-text" id="prelim-text">These counts are published as preliminary while the hand checks run. State origin counts only placements whose state authorship the evidence settles: a wire credit or dateline, a press release distribution stamp, a sponsored or partner disclosure the rules find on the article itself, a Chinese diplomat's byline, or a close match with credited state text. Items whose authorship cannot be settled are undetermined and excluded from every count, as in the original study. Unchecked state sourcing is provisional and marked as such. No figure has yet been checked against human coding. <a href="#method" id="prelim-link">How the figures are checked</a></p>
+    </div>
+  </div>
+  <div id="data-notice" class="notice hidden"></div>
+</section>
+
 <!-- One line of reading notes, kept at the foot of the page by the owner's choice; the full notes are in the methodology section above. -->
 <p id="notes-strip" class="notes-strip" hidden></p>
 
@@ -363,14 +373,14 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=90"></script>
-<script src="measures.js?v=90"></script>
-<script src="m_alteration.js?v=90"></script>
-<script src="m_speed.js?v=90"></script>
-<script src="m_doctrine.js?v=90"></script>
-<script src="m_spikes.js?v=90"></script>
-<script src="m_engagement.js?v=90"></script>
-<script src="m_syndication.js?v=90"></script>
-<script src="app.js?v=90"></script>
+<script src="compute.js?v=91"></script>
+<script src="measures.js?v=91"></script>
+<script src="m_alteration.js?v=91"></script>
+<script src="m_speed.js?v=91"></script>
+<script src="m_doctrine.js?v=91"></script>
+<script src="m_spikes.js?v=91"></script>
+<script src="m_engagement.js?v=91"></script>
+<script src="m_syndication.js?v=91"></script>
+<script src="app.js?v=91"></script>
 </body>
 </html>

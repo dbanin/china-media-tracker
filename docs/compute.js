@@ -375,7 +375,8 @@
 
   /* The theme counter's version of scaleCap: the 95th percentile of every positive theme count in one
      measure slot, pooled over every sampled end date, so the grid's shades keep their meaning while its
-     own day moves. iso, when given, reads that country alone. */
+     own day moves. iso, when given, reads that country alone; without it the worldwide distribution
+     stratum is left out, since the grid these shades color never has a row for it (themeGridRows). */
   function themeScaleCap(months, endDates, windowDays, measureIndex, themeIds, iso, maxSamples) {
     var dates = endDates || [], n = maxSamples || 60, pick = [];
     if (dates.length <= n) pick = dates.slice();
@@ -384,7 +385,7 @@
     pick.forEach(function (d) {
       var by = aggregateThemes(months, d, windowDays);
       Object.keys(by).forEach(function (c) {
-        if (iso && c !== iso) return;
+        if (iso ? c !== iso : c === WORLDWIDE_ISO) return;
         (themeIds || Object.keys(by[c])).forEach(function (t) {
           var v = (by[c][t] || [0, 0, 0, 0])[measureIndex] || 0;
           if (v > 0) { vals.push(v); if (max === null || v > max) max = v; }
@@ -392,6 +393,20 @@
       });
     });
     return {cap: percentile(vals, 0.95), max: max, values: vals.length, dates: pick.length};
+  }
+  /* The rows of the theme grid, which compares countries: the worldwide distribution stratum is not a
+     country, so it never has a row, under any Distribution mode, sort or window; its themes stay in the
+     theme mix beside the grid. rows are {iso, name, n, t}; sortKey, when given, ranks by that theme,
+     then by n, then by name. Returns every country row in order (all) and the first limit of them (shown). */
+  function themeGridRows(rows, sortKey, limit) {
+    var all = (rows || []).filter(function (r) { return r && r.iso !== WORLDWIDE_ISO; }).sort(function (a, b) {
+      if (sortKey) {
+        var d = ((b.t || {})[sortKey] || 0) - ((a.t || {})[sortKey] || 0);
+        if (d) return d;
+      }
+      return b.n - a.n || String(a.name).localeCompare(String(b.name));
+    });
+    return {all: all, shown: limit ? all.slice(0, limit) : all.slice()};
   }
 
   /* ------------------------------------------------------------ color key
@@ -1335,7 +1350,7 @@
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,
           metricValue: metricValue, routeCount: routeCount, fillClass: fillClass, scaleCap: scaleCap, relayStatus: relayStatus,
-          formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
+          formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, themeGridRows: themeGridRows, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, lowerFirst: lowerFirst, PROPER_OPENERS: PROPER_OPENERS, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
           fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
