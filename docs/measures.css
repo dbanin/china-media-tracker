@@ -119,6 +119,9 @@
 
 /* ==== BEGIN spikes ==== */
 #findings-spikes .m-spikes { margin-top: var(--s3); padding-top: var(--s2); border-top: 1px solid var(--rule); }
+/* Under the theme chart: the same rule and rhythm as the theme timeline above it (style.css .th-timeline). */
+#themes #findings-measures { margin: 1.6rem 0 0; padding: 1.1rem 0 0; border-top: 1px solid var(--rule); max-width: none; }
+#themes #findings-spikes .m-spikes { margin-top: 0; padding-top: 0; border-top: 0; max-width: 46rem; }
 #findings-spikes .sp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: var(--s1); }
 #findings-spikes .sp-title { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
 #findings-spikes .sp-sub, #findings-spikes .sp-label { color: var(--bone-soft); font-size: 0.92rem; max-width: 70ch; margin: 0 0 var(--s1); }
