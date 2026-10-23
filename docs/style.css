@@ -727,3 +727,45 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
 .ac-table .ac-country { display: block; color: var(--ash); font-size: 0.74rem; }
 .ac-table .ac-total td { color: var(--bone); border-bottom: 0; }
 @media (max-width: 640px) { .archive-check { padding-left: 0.8rem; } .ac-table { font-size: 0.8rem; } .ac-table th { letter-spacing: 0.06em; } .ac-table th, .ac-table td { padding: 0.3rem 0.25rem; } }
+/* Start here, spacing pass: one scale (8, 12, 16, 24, 32) and one content column. The intro, the category
+   cards and the route cards share the card's full inner width and its left and right edges. On wide screens
+   the intro runs in two text columns (about 65 to 72 characters each) whose gutter matches the card grid's,
+   so the prose fills the width without a long line or an empty right half. The five evidence routes sit
+   three over two, and the long undetermined card spans the full row, so no card is a narrow tower. */
+.start-here { padding: var(--s3) var(--s4); }
+.start-here summary { align-items: baseline; gap: 4px 12px; line-height: 1.2; }
+.start-here summary::before { flex: 0 0 16px; margin-right: 0; text-align: center; line-height: 1.2; }
+.start-here .sh-title, .start-here .sh-hint { line-height: 1.2; }
+.start-here .sh-hint { font-size: 0.84rem; }
+.start-here .sh-body { padding-top: var(--s3); }
+.start-here .sh-intro p { margin: 0 0 var(--s2); max-width: 72ch; }
+.start-here .sh-intro p:last-child { margin-bottom: 0; }
+.start-here .sh-categories { grid-template-columns: minmax(0, 1fr); gap: var(--s4); margin: var(--s4) 0 0; }
+.start-here .sh-cat { padding: var(--s3); }
+.start-here .sh-cat dt { margin: 0 0 var(--s1); padding-top: 0; line-height: 1.25; }
+.start-here .sh-routes-label { margin: var(--s4) 0 var(--s2); line-height: 1.4; }
+.start-here .sh-routes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
+.start-here .sh-route-card { padding: var(--s3); gap: var(--s1); }
+.start-here .sh-route-card::before { top: var(--s3); right: var(--s3); line-height: 1; }
+.start-here .sh-route-name { padding-right: var(--s4); line-height: 1.25; }
+.start-here .sh-route-line { margin-top: 4px; }
+.start-here .sh-route-card:nth-child(5), .start-here .sh-route-card[data-route-id="unattributed"] { grid-column: 1 / -1; }
+@media (min-width: 960px) {
+  .start-here .sh-intro { columns: 2; column-gap: var(--s4); }
+  .start-here .sh-intro p { max-width: none; break-inside: avoid; }
+  .start-here .sh-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .start-here .sh-route-card[data-route-id="unattributed"] .sh-route-how { display: block; columns: 2; column-gap: var(--s4); }
+}
+@media (min-width: 1100px) {
+  .start-here .sh-routes { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .start-here .sh-route-card { grid-column: span 2; }
+  .start-here .sh-route-card:nth-child(4), .start-here .sh-route-card:nth-child(5) { grid-column: span 3; }
+  .start-here .sh-route-card[data-route-id="unattributed"] { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .start-here .sh-categories, .start-here .sh-routes { grid-template-columns: minmax(0, 1fr); gap: var(--s2); }
+  .start-here .sh-cat, .start-here .sh-route-card { padding: var(--s2); }
+  .start-here .sh-route-card::before { top: var(--s2); right: var(--s2); }
+  .start-here .sh-route-card:nth-child(n) { grid-column: auto; }
+  .start-here .sh-hint { flex-basis: 100%; padding-left: 28px; }
+}
