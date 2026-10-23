@@ -7,6 +7,9 @@
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
   var ASSET_VERSION = "91";
+  /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
+     pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
+  var KNOWN_SCHEMA = 18;
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -48,6 +51,7 @@
     return out.sort();
   }
   function loadMonth(m, failed) {
+    dataSlots["data/daily/" + m + ".json"] = function (j) { state.months[m] = j; };
     return getJSON("data/daily/" + m + ".json").then(function (j) { state.months[m] = j; })
       .catch(function (e) { console.error(e); state.monthsFailed[m] = true; failed.push("data/daily/" + m + ".json"); });
   }
@@ -142,6 +146,11 @@
       state.examples = res[8] || null;
       state.planted = res[9] || null;
       state.archiveChecks = res[10] || null;
+      /* Where a data file fetched again past the cache goes (healStragglers). */
+      dataSlots["data/meta.json"] = function (j) { state.meta = j; };
+      dataSlots["data/latest.json"] = function (j) { state.latest = j || {countries: {}, totals: {}}; };
+      dataSlots["data/outlets.json"] = function (j) { state.outlets = (j && j.outlets) || []; };
+      dataSlots["data/examples.json"] = function (j) { state.examples = j || null; };
       state.series.forEach(function (d) { if (d && d.date) state.seriesByDate[d.date] = d; });
       state.monthsAll = monthKeys(state.series);
       /* The opening view: the 31 days ending the last complete day, worked out from the series alone. */
@@ -151,6 +160,7 @@
       /* The research measures' side files (meta.measures[id].file), loaded quietly: a missing one shows
          that measure's empty state and is not a figure on the map. */
       var measureLoads = measureFiles().map(function (mf) {
+        dataSlots["data/" + mf.file] = function (j) { state.measureData[mf.id] = j; };
         return quiet("data/" + mf.file, null).then(function (j) { state.measureData[mf.id] = j; });
       });
       return Promise.all(Object.keys(monthsWanted).map(function (m) { return loadMonth(m, failed); }).concat(measureLoads));
@@ -205,6 +215,131 @@
     }
     n.textContent = lines.join(" ");
     n.classList.toggle("hidden", !lines.length);
+  }
+
+  /* ------------------------------------------------------- deploy self heal
+     GitHub Pages lets every file be cached for 10 minutes, so right after a deploy a browser can hold the old
+     index.html (old ?v= links, old code) with new data files, or new code with old data, and draw a broken or
+     half empty page until a refresh. Three checks put that right without holding up the first render:
+     (1) index.html is fetched past every cache, in parallel with the data; when it links another app.js
+     version than the one running, the page reloads once to the fresh copy (checkFreshIndex);
+     (2) data files from different exports are fetched once more past the cache before the page is drawn,
+     waiting at most HEAL_WAIT_MS (healStragglers); when they still disagree the stale notice says so, as before;
+     (3) a meta.schema_version newer than KNOWN_SCHEMA is a new deploy too: one reload to fresh code (checkSchema).
+     At most one automatic reload per version per tab: the reload is recorded in sessionStorage before it
+     happens, and without working storage there is no reload and nothing is shown. Offline, or when a check
+     fails, the page loads exactly as it did without them. */
+  var HEAL_KEY = "cmt-deploy-heal", HEAL_WAIT_MS = 3000, healing = false, dataSlots = {};
+  /* The ?v= of app.js in an index.html text, or null. */
+  function pageAssetVersion(html) {
+    var m = /<script\b[^>]*\bsrc=["']?(?:[^"'\s>]*\/)?app\.js\?v=([\w.-]+)/i.exec(String(html || ""));
+    return m ? m[1] : null;
+  }
+  /* Whether to reload, pure: {reload, key, query}. o.running is ASSET_VERSION, o.fetched the version the fresh
+     index.html links (null when unknown), o.schema meta.schema_version, o.known KNOWN_SCHEMA, o.tried the keys
+     this tab has already reloaded for (null when sessionStorage is unavailable: never reload). A key once
+     tried is never tried again, so the same version can never reload a tab twice, and two versions served
+     in turn by a half updated cache stop after one reload each. */
+  function healDecision(o) {
+    var no = {reload: false, key: null, query: null};
+    o = o || {};
+    if (!Array.isArray(o.tried)) return no;
+    var running = o.running === undefined || o.running === null ? "" : String(o.running);
+    var fetched = o.fetched === undefined || o.fetched === null ? "" : String(o.fetched);
+    var wanted = [];
+    if (fetched && running && fetched !== running) wanted.push({key: "v" + fetched, query: "v=" + encodeURIComponent(fetched)});
+    if (typeof o.schema === "number" && typeof o.known === "number" && o.schema > o.known) {
+      wanted.push({key: "s" + o.schema, query: "v=" + encodeURIComponent(fetched || running) + "&s=" + o.schema});
+    }
+    for (var i = 0; i < wanted.length; i++) {
+      if (o.tried.indexOf(wanted[i].key) === -1) return {reload: true, key: wanted[i].key, query: wanted[i].query};
+    }
+    return no;
+  }
+  /* The keys this tab has reloaded for, or null when sessionStorage cannot be read. */
+  function healTried() {
+    try {
+      var s = window.sessionStorage;
+      if (!s) return null;
+      var v = JSON.parse(s.getItem(HEAL_KEY) || "[]");
+      return Array.isArray(v) ? v.map(String) : [];
+    } catch (e) { return null; }
+  }
+  function healEnabled() {
+    return !window.__TRACKER_DATA && typeof fetch === "function" && typeof location !== "undefined" &&
+      /^https?:$/.test(location.protocol) && healTried() !== null;
+  }
+  /* Records the key, reads it back, and only then reloads: a key that cannot be stored never reloads. */
+  function healReload(d) {
+    if (!d || !d.reload || healing) return false;
+    try {
+      var tried = healTried();
+      if (!tried || tried.indexOf(d.key) !== -1) return false;
+      window.sessionStorage.setItem(HEAL_KEY, JSON.stringify(tried.concat([d.key])));
+      if ((healTried() || []).indexOf(d.key) === -1) return false;
+      healing = true;
+      location.replace(location.pathname + "?" + d.query + location.hash);
+      return true;
+    } catch (e) { return false; }
+  }
+  function checkFreshIndex() {
+    try {
+      if (!healEnabled()) return;
+      fetch("index.html", {cache: "no-store"}).then(function (r) { return r.ok ? r.text() : null; }).then(function (html) {
+        healReload(healDecision({running: ASSET_VERSION, fetched: pageAssetVersion(html), tried: healTried()}));
+      }).catch(function () { /* offline or refused: the page stays as it loaded */ });
+    } catch (e) { /* the page stays as it loaded */ }
+  }
+  function checkSchema() {
+    try {
+      if (!healEnabled() || !state.meta) return;
+      healReload(healDecision({running: ASSET_VERSION, schema: state.meta.schema_version, known: KNOWN_SCHEMA, tried: healTried()}));
+    } catch (e) { /* the page stays as it loaded */ }
+  }
+  /* The data files to fetch again, pure, from the generations recorded on load: every file with the export
+     stamp (schema_version) whose generated_at or schema_version differs from the newest stamp, and every
+     other file (a measure side file, with its own time) more than GENERATION_GAP_HOURS from it. Empty when
+     they agree. */
+  function stragglers(gens) {
+    var newest = NaN, maxSchema = null, out = [];
+    (gens || []).forEach(function (g) {
+      if (!g || g.schema === null || g.schema === undefined) return;
+      var t = g.at ? Date.parse(g.at) : NaN;
+      if (!isNaN(t) && (isNaN(newest) || t > newest)) newest = t;
+      if (typeof g.schema === "number" && (maxSchema === null || g.schema > maxSchema)) maxSchema = g.schema;
+    });
+    (gens || []).forEach(function (g) {
+      if (!g || !g.url) return;
+      var t = g.at ? Date.parse(g.at) : NaN, stamped = g.schema !== null && g.schema !== undefined, off;
+      if (stamped) off = (!isNaN(t) && !isNaN(newest) && t !== newest) || (maxSchema !== null && g.schema !== maxSchema);
+      else off = !isNaN(t) && !isNaN(newest) && Math.abs(t - newest) > GENERATION_GAP_HOURS * 36e5;
+      if (off && out.indexOf(g.url) === -1) out.push(g.url);
+    });
+    return out;
+  }
+  /* Fetches each straggler once with a cache busting query and puts it in place of the copy loaded. Never
+     rejects, and never waits more than HEAL_WAIT_MS; an answer after that, or a failed fetch, is dropped and
+     the copy loaded first stays. */
+  function healStragglers() {
+    try {
+      if (window.__TRACKER_DATA || typeof fetch !== "function") return Promise.resolve();
+      var urls = stragglers(state.generations).filter(function (u) { return dataSlots[u]; });
+      if (!urls.length) return Promise.resolve();
+      var open = true, bust = "r=" + Date.now();
+      var work = Promise.all(urls.map(function (u) {
+        return fetch(u + "?" + bust, {cache: "no-store"}).then(function (r) {
+          if (!r.ok) throw new Error(u + " " + r.status);
+          return r.json();
+        }).then(function (j) {
+          if (!open) return;
+          state.generations = state.generations.filter(function (g) { return g.url !== u; });
+          noteGeneration(u, j);
+          dataSlots[u](j);
+        }).catch(function () { /* the copy loaded first stays */ });
+      }));
+      var wait = new Promise(function (res) { setTimeout(function () { open = false; res(); }, HEAL_WAIT_MS); });
+      return Promise.race([work, wait]).then(function () { open = false; });
+    } catch (e) { return Promise.resolve(); }
   }
 
   /* ------------------------------------------------------------ projection */
@@ -3196,7 +3331,8 @@
     /* Pure helpers, for tests/app_smoke.js. */
     helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
               monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes,
-              showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings}};
+              showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings,
+              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
     openView(d);
@@ -3225,7 +3361,9 @@
 
   /* ------------------------------------------------------------------ init */
   function init() {
-    loadAll().then(function () {
+    checkFreshIndex();
+    loadAll().then(healStragglers).then(function () {
+      checkSchema();
       try { setupMap(); } catch (e) { console.error("map setup failed", e); mapFallback("The map could not be drawn: " + (e && e.message ? e.message : e)); }
       if (!window.d3) mapFallback("The map library did not load.");
       else if (!state.topo) mapFallback("The world outline data did not load.");
