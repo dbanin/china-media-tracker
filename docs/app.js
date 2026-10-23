@@ -6,7 +6,7 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "91";
+  var ASSET_VERSION = "92";
   /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
      pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
   var KNOWN_SCHEMA = 18;

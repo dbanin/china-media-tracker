@@ -1,6 +1,6 @@
 /* Unusual days (measure spikes, pipeline/spikes.py): days on which a country, or the worldwide wires,
    carried far more state origin placements than in its previous 28 complete days. Rendered into
-   #findings-spikes under What we found: the most recent clean days first, then the ones to check, muted
+   #findings-spikes under the theme chart: the most recent clean days first, then the ones to check, muted
    with their reasons. Each day opens the country on the map at that day. sparkMarks puts a small block
    on the map timeline for every unusual day in the current Distribution scope.
 
@@ -348,7 +348,7 @@
     return "Small blocks near the top are unusual days" + M.provisionalSuffix(block) + ": a country carried far more state origin placements than in its previous 28 days; hollow ones are days to check.";
   }
 
-  /* The unusual days are listed in their own slot under What we found, so nothing goes in the box itself. */
+  /* The unusual days are listed in their own slot under the theme chart, so nothing goes in the What we found box. */
   function findingsExtra() { return ""; }
 
   var spec = {render: render, sparkMarks: sparkMarks, findingsExtra: findingsExtra};

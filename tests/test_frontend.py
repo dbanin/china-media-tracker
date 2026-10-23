@@ -67,8 +67,8 @@ def test_measure_sections_present():
     for anchor in ('id="copies-alteration"', 'id="copies-speed"', 'id="findings-measures"', 'id="findings-spikes"',
                    'id="measure-method"', 'id="measure-method-body"'):
         assert anchor in html, anchor
-    overview = re.search(r'<section id="overview".*?</section>', html, re.S).group(0)
-    assert 'id="findings-spikes"' in overview, "the unusual days slot sits under What we found"
+    themes = re.search(r'<section id="themes".*?</section>', html, re.S).group(0)
+    assert 'id="findings-spikes"' in themes, "the unusual days slot sits under the theme chart"
     method = re.search(r'<section class="sec method" id="method">.*?</section>', html, re.S).group(0)
     assert 'id="measure-method"' in method
     js = (ROOT / "docs" / "measures.js").read_text(encoding="utf-8")
@@ -118,7 +118,8 @@ def test_top10_block_present():
     overview = re.search(r'<section id="overview".*?</section>', html, re.S).group(0)
     for anchor in ('id="top10"', 'id="top10-title"', 'id="top10-sub"', 'id="top10-head"', '<ol id="top10-list"', 'id="top10-notes"'):
         assert anchor in overview, anchor
-    assert overview.index('id="findings-box"') < overview.index('id="top10"') < overview.index('id="findings-measures"')
+    assert overview.index('id="findings-box"') < overview.index('id="top10"')
+    assert 'id="findings-measures"' not in overview, "the unusual days moved under the theme chart"
     assert re.search(r'<h3 id="top10-title"', overview)
     assert re.search(r'<div id="top10"[^>]*\shidden', overview), "the block starts hidden"
     t = json.loads((ROOT / "docs" / "content.json").read_text(encoding="utf-8"))["top10"]
