@@ -20,7 +20,9 @@
                 same_date: "Same date (date only)", date_1_3: "1 to 3 days (date only)", date_later: "Later (date only)"};
   var SOURCES = {ref_xinhua_en: "Xinhua English", ref_cgtn_en: "CGTN English", ref_china_daily_en: "China Daily",
                  ref_global_times_en: "Global Times", ref_peoples_daily_en: "People's Daily English",
-                 ref_peoples_daily_it: "People's Daily Italian", ref_ecns_en: "ECNS"};
+                 ref_peoples_daily_it: "People's Daily Italian", ref_ecns_en: "ECNS",
+                 ref_cgtn_africa_en: "CGTN Africa", ref_china_daily_africa_en: "China Daily Africa",
+                 ref_xinhua_africa_en: "Xinhua Africa (English)", ref_xinhua_africa_fr: "Xinhua Afrique (French)"};
   var TOP_OUTLETS = 10;
 
   function num(v) { return typeof v === "number" && isFinite(v) ? v : 0; }

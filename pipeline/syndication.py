@@ -2,15 +2,21 @@
 timeline with their sources, and a before and after comparison where collection allows one.
 
 Report only. Nothing here changes a label, a count, a denominator or the outlets monitored, and
-China stays unmonitored. The measure is switched off in sources/measures.yaml (min_inputs 10) until
-enough sourced, dated entries exist.
+China stays unmonitored. The measure is switched on in sources/measures.yaml (min_inputs 10: it runs
+while at least 10 sourced, dated entries name a monitored outlet) and is shown provisional with the
+words VERIFICATION_WORDING: on 2026-10-28 every entry's source was reread for the parties, the kind of
+deal and the date (each entry's verification block), which is a check of the sources, not a hand check
+of the measure. The status stays provisional until the hand check (draw_sample, score_check) passes.
 
 The file is sources/syndication.yaml, shaped by sources/syndication_schema.json: a top level
 `entries:` list. Each entry names a monitored outlet (outlet_id, an id in sources/outlets.yaml) or an
 outlet the tracker does not monitor (unmonitored: true with outlet_name), the partner, the kind of
 deal, signed_on with its precision, a public https source and confidence. Validation also checks
 that precision matches the form of signed_on, that no two entries share (outlet, partner, kind,
-signed_on) or an id, and that ended_on does not come before signed_on.
+signed_on) or an id, and that ended_on does not come before signed_on. An entry's verification block,
+when present, needs a status (verified, source_moved, unverified), checked_on and a note; a moved
+source names its previous_url, and the page_date a verified page gives must support signed_on at the
+recorded precision.
 
 The comparison. Collection began on config.COLLECTION_START (3 September 2026) and most deals predate
 it: those carry predates_collection and appear on the timeline only. A deal signed on a known day or
@@ -57,6 +63,9 @@ ZERO_DAY_LIMIT = 3          # or the outlet discovered nothing on at least this 
 SAMPLE_N = 20
 CHECK_THRESHOLD = 0.9
 CHECK_STATISTIC = "share of entries the source confirms"
+VERIFIED_ON = "2026-10-28"
+VERIFICATION_WORDING = "sources verified on %s, not hand coded" % VERIFIED_ON
+VERIFICATION_STATUSES = ("verified", "source_moved", "unverified")
 
 PARTNER_LABELS = {"xinhua": "Xinhua", "cgtn": "CGTN", "china_daily": "China Daily", "global_times": "Global Times",
                   "peoples_daily": "People's Daily", "cri": "China Radio International", "cns": "China News Service",
@@ -192,6 +201,7 @@ def validate(data, outlet_ids) -> Tuple[List[Dict], List[str]]:
                 errs.append("%s %s is not a real date" % (k, v))
         if not str(e.get("source_url") or "").strip():
             errs.append("a source is required: source_url")
+        errs.extend(_verification_errors(e))
         ok_dates = not errs and isinstance(s, str) and _valid_date(s)
         if ok_dates and isinstance(e.get("ended_on"), str) and _valid_date(e["ended_on"]):
             if span(e["ended_on"])[1] < span(s)[0]:
@@ -219,6 +229,38 @@ def validate(data, outlet_ids) -> Tuple[List[Dict], List[str]]:
         elif isinstance(e, dict):
             passed.append(e)
     return passed, errors
+
+
+def _verification_errors(e: Dict) -> List[str]:
+    """The rules of the verification block beyond its shape (the schema checks the shape)."""
+    v = e.get("verification")
+    if not isinstance(v, dict):
+        return []
+    errs = []
+    for k in ("checked_on", "page_date"):
+        x = v.get(k)
+        if isinstance(x, str) and len(x) in PRECISION_OF_LEN and not _valid_date(x):
+            errs.append("verification.%s %s is not a real date" % (k, x))
+    status = v.get("status")
+    if status == "source_moved":
+        if not v.get("previous_url"):
+            errs.append("a moved source names verification.previous_url, the page it moved from")
+        elif v["previous_url"] == e.get("source_url"):
+            errs.append("verification.previous_url is the same as source_url: a moved source cites its new page")
+    s, pd = e.get("signed_on"), v.get("page_date")
+    if status in ("verified", "source_moved") and isinstance(pd, str) and isinstance(s, str) and _valid_date(pd) \
+            and len(s) in PRECISION_OF_LEN and _valid_date(s) and not date_agrees(pd, s):
+        errs.append("verification.page_date %s does not support signed_on %s at its precision" % (pd, s))
+    return errs
+
+
+def verification_counts(entries: List[Dict]) -> Dict[str, int]:
+    """How many entries carry each verification status; unchecked for those with no block."""
+    out = {k: 0 for k in VERIFICATION_STATUSES + ("unchecked",)}
+    for e in entries:
+        v = e.get("verification") if isinstance(e.get("verification"), dict) else {}
+        out[v.get("status") if v.get("status") in VERIFICATION_STATUSES else "unchecked"] += 1
+    return out
 
 
 def _outlets(outlets=None) -> List[Dict]:
@@ -452,6 +494,14 @@ def _entry_row(e: Dict, w: Dict, outlet: Optional[Dict]) -> Dict:
     monitored_ = not e.get("unmonitored") and bool(e.get("outlet_id"))
     source = {"url": e["source_url"], "title": e.get("source_title"), "publisher": e.get("source_publisher"),
               "kind": e.get("source_kind"), "accessed_on": e.get("accessed_on")}
+    v = e.get("verification") if isinstance(e.get("verification"), dict) else None
+    verification = ({k: v.get(k) for k in ("status", "checked_on", "page_date", "note", "previous_url", "archived_url")}
+                    if v else {"status": "unchecked", "checked_on": None, "page_date": None, "note": "",
+                               "previous_url": None, "archived_url": None})
+    links = [{"label": e.get("source_title") or e.get("source_publisher") or e["source_url"],
+              "publisher": e.get("source_publisher"), "url": e["source_url"]}]
+    if verification.get("archived_url"):
+        links.append({"label": "archived copy", "publisher": "Internet Archive", "url": verification["archived_url"]})
     return {"id": e["id"], "outlet_id": e.get("outlet_id") if monitored_ else None,
             "outlet_name": (outlet or {}).get("name") or e.get("outlet_name") or e.get("outlet_id"),
             "country": registry.export_country(outlet) if outlet else None, "monitored": monitored_,
@@ -461,8 +511,7 @@ def _entry_row(e: Dict, w: Dict, outlet: Optional[Dict]) -> Dict:
             "effective_from": e.get("effective_from"), "ended_on": e.get("ended_on"),
             "confidence": e["confidence"], "notes": e.get("notes") or "",
             "predates_collection": predates_collection(e), "comparison": w["reason"], "source": source,
-            "links": [{"label": e.get("source_title") or e.get("source_publisher") or e["source_url"],
-                       "publisher": e.get("source_publisher"), "url": e["source_url"]}]}
+            "verification": verification, "links": links}
 
 
 def build_export(conn, ctx) -> Dict:
@@ -488,10 +537,15 @@ def build_export(conn, ctx) -> Dict:
               "eligible": len(comparisons), "compared": sum(1 for c in comparisons if c["sufficient"]),
               "confounded": sum(1 for c in comparisons if c["sufficient"] and c["confounded"]),
               "invalid": len(errors)}
+    vc = verification_counts(entries)
+    counts.update({"verified": vc["verified"], "source_moved": vc["source_moved"],
+                   "unverified": vc["unverified"], "unchecked": vc["unchecked"]})
     out = {"measure": MEASURE_ID, "version": VERSION, "collection_start": config.COLLECTION_START,
            "last_complete_day": last.isoformat(), "window_days": WINDOW_DAYS,
            "min_china_per_side": MIN_CHINA_PER_SIDE, "eligible_from": lo.isoformat(), "eligible_until": hi.isoformat(),
-           "counts": counts, "timeline": timeline, "comparisons": comparisons}
+           "counts": counts,
+           "verification": {"checked_on": VERIFIED_ON, "wording": VERIFICATION_WORDING, "hand_coded": False},
+           "timeline": timeline, "comparisons": comparisons}
     if ctx is not None:
         ctx["_syndication_counts"] = counts
     return out
@@ -522,6 +576,9 @@ def methodology_text(block) -> str:
         "the date it gives. An entry goes in only when such a page exists; an entry whose page is a third "
         "party's report is marked reported rather than stated. Most of these deals were signed before "
         "collection began on %s, so they appear on the timeline only, with no figure beside them.%s"
+        " The measure is provisional, %s: on %s each entry's page was reread to confirm that it states the "
+        "parties, the kind of deal and the date, and an entry whose page had gone now cites a page that "
+        "states it, but no hand check of the measure has been coded yet."
         "\n\n"
         "Where a deal was signed on a known day or month at least %d days after collection began and at "
         "least %d days before the last complete day, the outlet's state origin share of its China coverage is "
@@ -537,8 +594,8 @@ def methodology_text(block) -> str:
         "The hand check rereads the source page of %d entries drawn at random, without the recorded date, and "
         "notes whether the page states the deal and what date it gives. It passes when at least %s of the "
         "entries checked agree with their page at the precision recorded."
-        % (start, tally, WINDOW_DAYS, WINDOW_DAYS, WINDOW_DAYS, WINDOW_DAYS, MIN_CHINA_PER_SIDE, ZERO_DAY_LIMIT,
-           SAMPLE_N, CHECK_THRESHOLD))
+        % (start, tally, VERIFICATION_WORDING, _long_date(VERIFIED_ON), WINDOW_DAYS, WINDOW_DAYS,
+           WINDOW_DAYS, WINDOW_DAYS, MIN_CHINA_PER_SIDE, ZERO_DAY_LIMIT, SAMPLE_N, CHECK_THRESHOLD))
 
 
 # ---------------------------------------------------------------------------

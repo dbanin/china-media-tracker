@@ -126,7 +126,8 @@ def test_an_article_tagged_without_its_body_is_tagged_again_when_the_body_arrive
     assert themes.ensure(conn, stats=stats) == 1
     st = _stored(conn, aid)
     assert st["b"] == 1 and set(st["t"]) >= {"diplomacy", "economy"} and "other" not in st["t"]
-    assert stats == {"tagged": 1, "with_body": 1, "retagged_with_body": 1, "body_retags_left": 0, "complete": True}
+    assert stats == {"tagged": 1, "with_body": 1, "retagged_with_body": 1, "retagged_version": 0, "body_retags_left": 0,
+                     "version_retags_left": 0, "complete": True}
     assert themes.ensure(conn) == 0
 
 

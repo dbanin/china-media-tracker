@@ -27,10 +27,12 @@
     {id: "doctrine", measures: ["doctrine"]},
     {id: "engagement", measures: ["engagement"]},
     {id: "syndication", measures: ["syndication"]},
-    {id: "findings-measures", measures: ["spikes"]}
+    {id: "findings-measures", measures: ["spikes"]},
+    {id: "findings-calendar-wrap", measures: ["calendar"]}
   ];
   var SLOTS = {alteration: "copies-alteration", speed: "copies-speed", doctrine: "doctrine-body",
-               engagement: "engagement-body", syndication: "syndication-body", spikes: "findings-spikes"};
+               engagement: "engagement-body", syndication: "syndication-body", spikes: "findings-spikes",
+               calendar: "findings-calendar"};
 
   var registry = {}, order = [];
 

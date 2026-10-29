@@ -22,7 +22,7 @@ def test_measures_smoke():
         assert r.returncode == 0, f.name + ": " + r.stdout + r.stderr
 
 
-MEASURE_IDS = ("alteration", "speed", "doctrine", "spikes", "engagement", "syndication")
+MEASURE_IDS = ("alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication")
 
 
 def test_static_files_present():
@@ -78,7 +78,8 @@ def test_measure_sections_present():
     # Scripts in order: compute, measures, each measure, then app.
     order = re.findall(r'<script src="([a-z_]+)\.js\?v=\d+"></script>', html)
     assert order[0] == "compute" and order[1] == "measures" and order[-1] == "app", order
-    assert sorted(order[2:-1]) == sorted("m_" + i for i in MEASURE_IDS), order
+    # Display modules that are not measures (copies_map.js, the copies world map) may sit among them.
+    assert sorted(o for o in order[2:-1] if o.startswith("m_")) == sorted("m_" + i for i in MEASURE_IDS), order
 
 
 def test_reader_sections_present():

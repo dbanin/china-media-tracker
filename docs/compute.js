@@ -1098,6 +1098,54 @@
     return out;
   }
 
+  /* The three themes of themes version 2026.10.1 crossed with a grouping of outlets (political leaning by
+     default), from outlets.json theme_cross ({china, A, cur, t: {theme: [articles, state origin]}}, the theme
+     counter's basis: China coverage is state origin, unchecked state sourcing, independent journalism and
+     candidates waiting for the model). Per group: the share of its China coverage carrying each theme, and
+     the state origin share within those articles, each with its denominator. A share whose denominator is
+     under minN (20 by default) is null, shown as too few. cur counts the China articles already tagged
+     under the current themes version: until it equals china the theme counts are partial (provisional).
+     Active outlets only, without the worldwide distribution wires, in one country when iso is given. */
+  var THEME_CROSS_MIN_N = 20;
+  function themeCross(outlets, groups, key, themeIds, opts) {
+    opts = opts || {};
+    var minN = opts.minN || THEME_CROSS_MIN_N, iso = opts.iso || null;
+    function blank(g) {
+      var r = {id: g[0], label: g[1], color: g[2] || null, outlets: 0, china: 0, A: 0, cur: 0, t: {}};
+      (themeIds || []).forEach(function (tid) { r.t[tid] = {n: 0, a: 0}; });
+      return r;
+    }
+    var rows = (groups || []).map(blank), byId = {};
+    rows.forEach(function (r) { byId[r.id] = r; });
+    var total = blank(["all", "All outlets", null]);
+    (outlets || []).forEach(function (o) {
+      if (!o || !o.active || o.tier === "distribution_wire" || (iso && o.country !== iso)) return;
+      var r = byId[o[key]] || byId.unassessed;
+      if (!r) return;
+      var x = o.theme_cross || null;
+      [r, total].forEach(function (g) {
+        g.outlets += 1;
+        if (!x) return;
+        g.china += x.china || 0; g.A += x.A || 0; g.cur += x.cur || 0;
+        (themeIds || []).forEach(function (tid) {
+          var v = (x.t || {})[tid] || [0, 0];
+          g.t[tid].n += v[0] || 0; g.t[tid].a += v[1] || 0;
+        });
+      });
+    });
+    function finish(g) {
+      g.complete = g.cur >= g.china;
+      (themeIds || []).forEach(function (tid) {
+        var c = g.t[tid];
+        c.share = g.china >= minN ? c.n / g.china : null;
+        c.soShare = c.n >= minN ? c.a / c.n : null;
+      });
+      return g;
+    }
+    rows.forEach(finish); finish(total);
+    return {rows: rows, total: total, minN: minN, complete: total.complete};
+  }
+
   /* Where an outlet's political leaning comes from. Media Bias/Fact Check is a US based rater that
      places outlets on a United States spectrum, so where it is the only source behind a leaning
      outside the United States the leaning is shown with a caution. The export writes the mark as
@@ -1343,6 +1391,29 @@
 
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
+  /* The country panel's line for each sourced foreign state stake on an outlet (outlets.json foreign_state_stake,
+     decision D11). No field means no stake is recorded, never that the outlet has none, so nothing is shown then. */
+  var STAKE_STATE_ADJ = {CHN: "Chinese"};
+  var STAKE_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function stakeDate(d) {
+    var p = String(d || "").split("-");
+    if (p.length === 3) return Number(p[2]) + " " + STAKE_MONTHS[Number(p[1]) - 1] + " " + p[0];
+    if (p.length === 2) return STAKE_MONTHS[Number(p[1]) - 1] + " " + p[0];
+    return p[0];
+  }
+  function stakeNotes(stakes) {
+    return (stakes || []).map(function (s) {
+      var who = STAKE_STATE_ADJ[s.state] ? STAKE_STATE_ADJ[s.state] + " state-linked stake" : "Foreign state-linked stake (" + s.state + ")";
+      var share = typeof s.share_percent === "number" ? s.share_percent + "% of " : "an undisclosed share of ";
+      var when = s.status === "ended" ? stakeDate(s.from) + " to " + stakeDate(s.to)
+        : s.status === "disputed" ? "since " + stakeDate(s.from) + "; sources disagree on whether it still reaches this outlet"
+        : "since " + stakeDate(s.from) + ", still described on " + stakeDate(s.as_of);
+      return {text: who + ": " + share + s.held_in + ", held by " + s.holder + ", " + when,
+              source_url: s.source_url, source_title: s.source_title,
+              status_url: s.status_source_url, status_title: s.status_source_title, note: s.note || ""};
+    });
+  }
+
   return {EMPTY: EMPTY, UNDETERMINED_LAYER: UNDETERMINED_LAYER, UNDETERMINED_NO_SHARE: UNDETERMINED_NO_SHARE, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
           distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
@@ -1353,8 +1424,8 @@
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, themeGridRows: themeGridRows, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, lowerFirst: lowerFirst, PROPER_OPENERS: PROPER_OPENERS, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, planted: planted,
-          leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
+          fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, themeCross: themeCross, THEME_CROSS_MIN_N: THEME_CROSS_MIN_N, planted: planted,
+          stakeNotes: stakeNotes, stakeDate: stakeDate, leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
           collectorBadge: collectorBadge, relayOutletsSummary: relayOutletsSummary, relayCollectorNotes: relayCollectorNotes,
           stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryPercent: rediscoveryPercent, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote, archiveCheck: archiveCheck};
 }));

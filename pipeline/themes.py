@@ -11,6 +11,15 @@ as 0. An export re-tags any article whose stored version differs, so a term chan
 to history, and any article tagged without a body that has since been fetched, so an
 article tagged before its body arrived does not stay tagged from its title and summary for
 good. A body-read tag is never replaced by a title-only tag of the same version.
+
+Since themes version 2026.10.1 a theme may also carry exclusions and proximity rules (exclude and
+near in themes.yaml), read by the shared matcher (pipeline/termlists.py): a term overlapping an
+excluded phrase does not count, an acronym counts only beside a full term of its own list, and a
+near rule counts a term only with a term of each of its context lists within window characters.
+The eleven themes from before keep their plain terms and their matching, so their tags do not
+change. A version change re-tags history newest first within the export's time budget
+(BODY_RETAG_SECONDS); a tag of the older version keeps counting as it stands until it is re-read,
+and progress() says how far the re-reading has come.
 """
 import json
 import re
@@ -46,6 +55,11 @@ HISTORY = [
      "change": "theme counter introduced; terms read in the title, the feed summary and the first 800 characters of the body"},
     {"version": "2026.09.4", "date": "2026-09-15",
      "change": "terms read anywhere in the body instead of the first 800 characters; every article re-tagged"},
+    # Three themes added for the owner's request of 2026-10-28, crossed with outlet leaning on the site.
+    # The eleven earlier themes are unchanged; history is re-tagged newest first within the export budget.
+    {"version": "2026.10.1", "date": "2026-10-28",
+     "change": "three themes added: leaving the Belt and Road, Chinese overcapacity and the EU and China trade war; the earlier themes unchanged; history re-tagged newest first over the next exports",
+     "added": ["bri_withdrawal", "overcapacity", "eu_china_trade"]},
 ]
 
 # The part of an export that re-reads title-only tags whose body has since arrived (not the tagging of
@@ -54,6 +68,15 @@ HISTORY = [
 # with a body, loading included (6,371 in 18.6 seconds), so the first pass over tags stored without "b",
 # up to about 89,000 articles with a body, takes about four minutes or more and may span two exports.
 # Afterwards only the bodies that arrived since the last export are read.
+# Since themes version 2026.10.1 the same budget also bounds the re-tagging of tags stored under an older
+# version, which used to run to the end in one export. Measured on 2026-10-28 on a copy of the database
+# (98,095 relevant articles, all on 2026.09.4, 7,199 bodies on file locally): tagging an article with a
+# body takes 4.2 ms under 2026.09.4 and 6.8 ms under 2026.10.1 on the owner's machine, about 1 ms with
+# the title and summary alone. Scaled to the 2.9 ms measured above, about 4.6 ms an article on the runner,
+# so re-tagging 98,000 articles takes about seven to eight minutes: three exports of 180 seconds, about a
+# day and a half at two exports a day, rather than one export over its budget. The old tag keeps counting
+# as it stands until it is re-read, so a version that adds themes leaves the earlier themes' counts as
+# they were and fills the new ones in, newest articles first.
 BODY_RETAG_SECONDS = 180.0
 
 
@@ -80,7 +103,7 @@ def _compiled(language: str):
     substring = lang in set(data.get("substring_languages", []))
     out = []
     for t in data["themes"]:
-        terms = t["terms"]
+        terms = t.get("terms") or {}
         word_terms = list(terms.get("all", []))
         if lang != "en":
             word_terms += terms.get("en", [])
@@ -102,21 +125,104 @@ def _compiled(language: str):
         # चीन (China) is not read inside प्राचीन (ancient).
         for src in termlists.substring_alternations((s, re.escape(s.replace("*", ""))) for s in sub_terms):
             pats.append(re.compile(src, re.IGNORECASE))
-        out.append((t["id"], pats))
+        if t.get("exclude") or t.get("near"):
+            out.append((t["id"], _ruled_matcher(t, lang, data)))
+        else:
+            out.append((t["id"], _plain_matcher(pats)))
     return out
+
+
+def _plain_matcher(pats):
+    """A theme of plain terms (the eleven themes before 2026.10.1): any term anywhere in the text."""
+    return lambda text: any(p.search(text) for p in pats)
+
+
+def _ruled_matcher(theme: Dict, lang: str, data: Dict):
+    """A theme with exclusions or proximity rules, read by the shared matcher (pipeline/termlists.py).
+
+    terms count anywhere unless they overlap a phrase under exclude; an acronym among them counts only
+    when a full term of the same list is in the text (BRI beside Belt and Road, never Bank BRI alone).
+    Each near rule {window, terms, context: [lists], exclude, avoid} counts one of its terms, outside
+    the theme's and the rule's exclusions, only when every context list has a term within window
+    characters before or after it and no avoid term is that close. A context or avoid term counts on
+    its own, acronyms included (EU); the theme's exclusions apply to the context lists as well (the
+    Spanish EU, which in Mexico's press is Estados Unidos)."""
+    aliases = data.get("language_aliases") or {}
+    subs = data.get("substring_languages") or []
+    exclude = theme.get("exclude") or {}
+    direct = termlists.compile(theme.get("terms") or {}, lang, aliases, subs, exclude=exclude or None)
+    rules = []
+    for rule in theme.get("near") or []:
+        excl = {k: list(exclude.get(k) or []) + list((rule.get("exclude") or {}).get(k) or [])
+                for k in set(exclude) | set(rule.get("exclude") or {})}
+        main = termlists.compile(rule["terms"], lang, aliases, subs, exclude=excl or None)
+        ctxs = [termlists.compile(c, lang, aliases, subs, exclude=exclude or None) for c in rule["context"]]
+        avoid = termlists.compile(rule["avoid"], lang, aliases, subs) if rule.get("avoid") else None
+        if main and all(ctxs):   # an empty context list: the avoid list alone decides
+            rules.append((main, ctxs, avoid or None, int(rule["window"])))
+
+    def present(ts, text: str) -> bool:
+        # A cheap search before find, which lists every match: most texts carry no term at all.
+        return any(p.search(text) for p, _ in ts.pats)
+
+    def match(text: str) -> bool:
+        if direct and present(direct, text) and direct.find(text):
+            return True
+        for main, ctxs, avoid, w in rules:
+            if not present(main, text):
+                continue
+            hits = main.find(text)
+            if not hits:
+                continue
+            if any(all(_near(c, text, h, w) for c in ctxs) and not (avoid is not None and _near(avoid, text, h, w))
+                   for h in hits):
+                return True
+        return False
+    return match
+
+
+def _near(ts, text: str, hit, window: int) -> bool:
+    """Whether a term of ts (acronyms on their own, no exclusions) lies within window characters before or
+    after hit. Only the stretch around the hit is searched; a lookbehind still sees the text before it, and
+    the margin keeps a term that runs past the window whole."""
+    lo, hi = hit[0] - window, hit[1] + window
+    pos, end = max(0, lo - 200), min(len(text), hi + 200)
+    for pat, _acro in ts.pats:
+        for m in pat.finditer(text, pos, end):
+            if m.end() > m.start() and m.start() < hi and m.end() > lo:
+                if ts.excludes and any(x.start() < m.end() and m.start() < x.end()
+                                       for ex in ts.excludes for x in ex.finditer(text, pos, end)):
+                    continue
+                return True
+    return False
+
+
+def _term_lists(theme: Dict):
+    yield theme.get("terms") or {}
+    for rule in theme.get("near") or []:
+        yield rule.get("terms") or {}
+        for c in rule.get("context") or []:
+            yield c
 
 
 def languages() -> set:
     """Languages with theme terms of their own, aliases included."""
     data = load()
-    langs = {l for t in data["themes"] for l in t["terms"] if l != "all"}
+    langs = {l for t in data["themes"] for terms in _term_lists(t) for l in terms if l != "all"}
     return langs | {a for a, target in (data.get("language_aliases") or {}).items() if target in langs}
 
 
 def tag(title: Optional[str], summary: Optional[str], body: Optional[str], language: str) -> List[str]:
     text = "\n".join([title or "", gate.strip_html(summary or ""), body or ""])
-    found = [tid for tid, pats in _compiled(language or "en") if any(p.search(text) for p in pats)]
+    found = [tid for tid, match in _compiled(language or "en") if match(text)]
     return found or ["other"]
+
+
+def cross_themes() -> List[str]:
+    """The themes the site crosses with outlet leaning (themes.yaml leaning_cross), in catalog order."""
+    data = load()
+    want = set(data.get("leaning_cross") or [])
+    return [t["id"] for t in data["themes"] if t["id"] in want]
 
 
 def parse(stored: Optional[str]) -> Optional[Dict]:
@@ -151,18 +257,20 @@ def ensure(conn, body_deadline: Optional[float] = None, stats: Optional[Dict] = 
     re-tag every one tagged without a body (b 0, or no b) whose body file now exists. Returns how many
     articles were written.
 
-    Missing and other-version tags are always all made: an untagged article would count as Other. The
-    re-reading of title-only tags stops at body_deadline (a time.monotonic() value; by default
-    BODY_RETAG_SECONDS from the start) and resumes, newest first, at the next export. Whether a body
-    exists is checked by its path, and a body is loaded only for an article that is tagged. A body-read
-    tag (b 1) is never replaced by a title-only one of the same version. stats, when given, is filled
-    with tagged, with_body, retagged_with_body, body_retags_left and complete."""
+    Missing and unreadable tags are always all made: an untagged article would count as Other. The
+    re-tagging of tags from another version and the re-reading of title-only tags stop at body_deadline
+    (a time.monotonic() value; by default BODY_RETAG_SECONDS from the start) and resume, newest first,
+    at the next export; until then a tag of another version counts as it stands. Whether a body exists
+    is checked by its path, and a body is loaded only for an article that is tagged. A body-read tag (b
+    1) is never replaced by a title-only one of the same version. stats, when given, is filled with
+    tagged, with_body, retagged_with_body, retagged_version, body_retags_left, version_retags_left and
+    complete."""
     v = version()
     if body_deadline is None:
         body_deadline = time.monotonic() + BODY_RETAG_SECONDS
     rows = conn.execute("SELECT id, title, summary, language, url_hash, themes FROM articles "
                         "WHERE gate_relevant=1 ORDER BY id DESC").fetchall()
-    tagged = with_body = retagged = left = 0
+    tagged = with_body = retagged = left = version_retagged = version_left = 0
     for r in rows:
         st = parse(r["themes"])
         current = st is not None and str(st.get("v")) == v
@@ -174,6 +282,10 @@ def ensure(conn, body_deadline: Optional[float] = None, stats: Optional[Dict] = 
             if time.monotonic() >= body_deadline:
                 left += 1
                 continue   # the next export carries on
+        elif st is not None and time.monotonic() >= body_deadline:
+            version_left += 1
+            continue   # a tag of another version counts as it stands until the next export re-reads it
+        version_retagged += 1 if (st is not None and not current) else 0
         body = _body(r["url_hash"])
         b = 1 if body else 0
         if current and not b:
@@ -188,5 +300,53 @@ def ensure(conn, body_deadline: Optional[float] = None, stats: Optional[Dict] = 
     conn.commit()
     if stats is not None:
         stats.update({"tagged": tagged, "with_body": with_body, "retagged_with_body": retagged,
-                      "body_retags_left": left, "complete": left == 0})
+                      "retagged_version": version_retagged, "body_retags_left": left,
+                      "version_retags_left": version_left, "complete": left == 0 and version_left == 0})
     return tagged
+
+
+def progress(conn) -> Dict:
+    """How far the current themes version has come over the relevant articles: relevant, current (tagged
+    under this version), complete, and the themes this version added with the day it took effect. A
+    theme added by the current version counts only the current tags until complete is true."""
+    v = version()
+    rel = cur = 0
+    for (stored,) in conn.execute("SELECT themes FROM articles WHERE gate_relevant=1"):
+        rel += 1
+        st = parse(stored)
+        cur += 1 if (st is not None and str(st.get("v")) == v) else 0
+    last = next((h for h in reversed(HISTORY) if h["version"] == v), {})
+    return {"version": v, "since": last.get("date"), "added": list(last.get("added") or []),
+            "relevant": rel, "current": cur, "complete": cur == rel}
+
+
+def cross_counts(rows, theme_ids: Optional[List[str]] = None) -> Dict[str, Dict]:
+    """Per outlet, the China coverage behind the leaning crossing: {outlet id: {"china": articles, "A":
+    state origin among them, "cur": articles tagged under the current themes version, "t": {theme id:
+    [articles with the theme, state origin among them]}}}.
+
+    rows are export.article_rows (copies another row stands for left out, undetermined labels in no
+    category). China coverage is what the theme counter counts: state origin, unchecked state sourcing,
+    independent journalism and candidates still waiting for the model. Outlets without any are left out."""
+    want = list(theme_ids if theme_ids is not None else cross_themes())
+    v = version()
+    out: Dict[str, Dict] = {}
+    for r in rows:
+        pending = r["status"] in ("awaiting_llm", "llm_submitted")
+        cat = r["m_cat"]
+        if not (pending or cat in ("A", "B", "C")):
+            continue
+        o = out.get(r["outlet_id"])
+        if o is None:
+            o = out[r["outlet_id"]] = {"china": 0, "A": 0, "cur": 0, "t": {t: [0, 0] for t in want}}
+        a = 1 if cat == "A" else 0
+        o["china"] += 1
+        o["A"] += a
+        st = parse(r["themes"])
+        o["cur"] += 1 if (st is not None and str(st.get("v")) == v) else 0
+        tags = themes_of(r["themes"])
+        for t in want:
+            if t in tags:
+                o["t"][t][0] += 1
+                o["t"][t][1] += a
+    return out

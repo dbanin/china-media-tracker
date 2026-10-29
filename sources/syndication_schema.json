@@ -37,7 +37,24 @@
           "confidence": {"enum": ["stated", "reported"],
                          "description": "stated: a party to the deal announced it; reported: a third party reported it"},
           "notes": {"type": "string"},
-          "verified_by": {"type": "string", "minLength": 1}
+          "verified_by": {"type": "string", "minLength": 1},
+          "verification": {
+            "type": "object",
+            "description": "The re-check of the source: whether the page at source_url (or, for source_moved, the page now cited) states the deal and the date it gives. A check of sources, not a hand check of the measure.",
+            "required": ["status", "checked_on", "note"],
+            "additionalProperties": false,
+            "properties": {
+              "status": {"enum": ["verified", "source_moved", "unverified"],
+                         "description": "verified: the page states the parties, the kind and the date; source_moved: the original page no longer serves it and source_url now names a page that does (previous_url keeps the old one); unverified: no page could be read that states it"},
+              "checked_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "page_date": {"type": "string", "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+                            "description": "the signing date the page gives, at the precision it gives"},
+              "previous_url": {"type": "string", "pattern": "^https://[^\\s]+$"},
+              "archived_url": {"type": "string", "pattern": "^https://[^\\s]+$",
+                               "description": "an archived copy of source_url that was read when the live page refused the crawler"},
+              "note": {"type": "string", "minLength": 1}
+            }
+          }
         }
       }
     }

@@ -1,0 +1,475 @@
+# The propaganda calendar: fixed and announced Chinese political and propaganda dates from 1 September
+# 2026 to 31 December 2027, read by pipeline/calendar_test.py (measure "calendar", report only). The
+# shape is in sources/political_calendar_schema.json; check the file with
+#   python -m pipeline.calendar_test validate [path]
+#
+# This file is the pre-registration (owner decision D9). It was compiled on 28 October 2026 from public
+# sources, before the tracker's data for any date after that day existed. Windows that begin before 28
+# October 2026 are a retrospective test: their dates were chosen while the data for them could already
+# be seen, and the site says so. Windows that begin on or after 28 October 2026 are a forward test fixed
+# in advance: the dates, the window, the keywords and the method were committed before the data. An entry
+# added or changed later carries a later added_on and is reported as added after the pre-registration,
+# never as part of it. Git history shows what was committed when.
+#
+# window        lead_days before an event's first day and lag_days after its last day belong to its
+#               window. The same lead and lag for every event, fixed here before the data.
+# events        each one:
+#   id          lower case letters, digits and _, unique
+#   name        the event in plain words
+#   start, end  the first and last day (YYYY-MM-DD, end may equal start). Both null for an event whose
+#               dates are not set yet; expected_period then says when it is expected, and it makes no
+#               window until a later entry gives its dates.
+#   category    party (Party congress, plenums), state (National Day, the Two Sessions), commemoration
+#               (days set by law), anniversary (round anniversaries), holiday (festivals), summit (summits
+#               China hosts), forum (forums and conferences China hosts), trade_fair (expos China hosts)
+#   recurrence  annual_fixed (the same date every year), annual_lunar (a lunar calendar date),
+#               annual_announced (every year, dates set by the organiser), biannual_announced (spring and
+#               autumn sessions), five_yearly, one_off (a round anniversary or a summit China hosts once)
+#   status      fixed (by law, by the calendar or by the lunar date), announced (dates published by the
+#               organiser or the state), expected (inferred from the recurrence; not announced yet)
+#   known_before_compiled  true when the dates were public before 28 October 2026; false for an expected
+#               entry, whose dates are our own expectation, fixed here in advance
+#   added_on    the day the entry was added to this file
+#   keywords    words a state origin headline about the event would carry, any language, lower case;
+#               the test reports the share of the window's state origin items whose headline has one
+#   source_url, source_title  a public page a reader can check (https)
+#   note        optional
+#
+# Left out, with the reason: the 2026 SCO summit (Kyrgyzstan), the 2026 BRICS summit (India) and the next
+# FOCAC meeting are not hosted in China; no fourth Belt and Road Forum had been announced by 28 October
+# 2026; the second China Arab States Summit, the 2027 BRICS summit and the 21st Party Congress are listed
+# without dates because none had been announced.
+compiled_on: 2026-10-28
+window:
+  lead_days: 3
+  lag_days: 3
+events:
+  - id: victory_day_2026
+    name: Victory Day of the War of Resistance against Japanese Aggression
+    start: 2026-09-03
+    end: 2026-09-03
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [victory day, war of resistance, anti-japanese, anti-fascist, 抗战, 抗日, 胜利纪念, guerra de resistencia, antifascista, antifasciste]
+    source_url: https://subsites.chinadaily.com.cn/npc/2014-02/28/c_678151.htm
+    source_title: China ratifies national days on anti-Japanese war victory, Nanjing Massacre (China Daily, NPC site)
+    note: The tracker's record begins on 3 September 2026, a partial first day, so the lead days are outside the data.
+  - id: xiangshan_forum_2026
+    name: 13th Beijing Xiangshan Forum
+    start: 2026-09-15
+    end: 2026-09-17
+    category: forum
+    recurrence: annual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [xiangshan, 香山论坛]
+    source_url: https://news.cgtn.com/news/2026-08-27/13th-Beijing-Xiangshan-Forum-to-be-held-September-15-17-1PWYoN12kAo/share_amp.html
+    source_title: 13th Beijing Xiangshan Forum to be held September 15 to 17 (CGTN)
+  - id: caexpo_2026
+    name: 23rd China ASEAN Expo, Nanning
+    start: 2026-09-17
+    end: 2026-09-21
+    category: trade_fair
+    recurrence: annual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [china-asean expo, caexpo, 东博会, 中国-东盟博览会, nanning]
+    source_url: https://moc.gov.kh/en-US/news/3821
+    source_title: The 23rd China ASEAN Expo, 17 to 21 September 2026 (Cambodia, Ministry of Commerce)
+  - id: mid_autumn_2026
+    name: Mid-Autumn Festival (holiday 25 to 27 September)
+    start: 2026-09-25
+    end: 2026-09-27
+    category: holiday
+    recurrence: annual_lunar
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [mid-autumn, moon festival, mooncake, 中秋, medio otoño, mi-automne]
+    source_url: https://www.news.cn/politics/20251104/88bcffd88ae249e58c699b8772548e3d/c.html
+    source_title: State Council General Office notice on the 2026 holiday schedule (Xinhua)
+  - id: martyrs_day_2026
+    name: Martyrs' Day
+    start: 2026-09-30
+    end: 2026-09-30
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [martyrs, 烈士, mártires, martyrs' day, people's heroes]
+    source_url: https://news.cgtn.com/news/2026-09-28/Xi-Jinping-to-pay-tribute-to-national-heroes-on-Martyrs-Day-1QOogteJTGw/p.html
+    source_title: Xi Jinping to pay tribute to national heroes on Martyrs' Day (CGTN)
+  - id: national_day_2026
+    name: National Day and Golden Week (holiday 1 to 7 October)
+    start: 2026-10-01
+    end: 2026-10-07
+    category: state
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [national day, golden week, 国庆, 黄金周, founding of the people's republic, 77th anniversary, día nacional, fête nationale, dia nacional]
+    source_url: https://www.news.cn/politics/20251104/88bcffd88ae249e58c699b8772548e3d/c.html
+    source_title: State Council General Office notice on the 2026 holiday schedule (Xinhua)
+  - id: canton_fair_140_phase1
+    name: 140th Canton Fair, phase 1
+    start: 2026-10-15
+    end: 2026-10-19
+    category: trade_fair
+    recurrence: biannual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://news.cgtn.com/news/2026-10-15/Xi-highlights-China-s-commitment-to-opening-up-as-Canton-Fair-opens-1RghUMtX4ac/share_amp.html
+    source_title: Xi highlights China's commitment to opening up as Canton Fair opens (CGTN)
+  - id: long_march_90
+    name: 90th anniversary of the end of the Long March
+    start: 2026-10-22
+    end: 2026-10-22
+    category: anniversary
+    recurrence: one_off
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [long march, 长征, red army, 红军, larga marcha, longue marche, longa marcha]
+    source_url: https://scmp.com/news/china/politics/article/3369418/shows-tours-and-film-china-marks-90-years-end-long-march
+    source_title: "Shows, tours and film: China marks 90 years since end of Long March (South China Morning Post)"
+  - id: canton_fair_140_phase2
+    name: 140th Canton Fair, phase 2
+    start: 2026-10-23
+    end: 2026-10-27
+    category: trade_fair
+    recurrence: biannual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://news.cgtn.com/news/2026-10-15/Xi-highlights-China-s-commitment-to-opening-up-as-Canton-Fair-opens-1RghUMtX4ac/share_amp.html
+    source_title: Xi highlights China's commitment to opening up as Canton Fair opens (CGTN)
+  - id: taiwan_recovery_day_2026
+    name: Taiwan Recovery Day (commemoration set by the NPC Standing Committee in 2025)
+    start: 2026-10-25
+    end: 2026-10-25
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [taiwan recovery, taiwan's restoration, restoration of taiwan, retrocession, 台湾光复]
+    source_url: https://subsites.chinadaily.com.cn/npc/2025-10/24/c_1158830.htm
+    source_title: Decision of the NPC Standing Committee on the Designation of the Taiwan Recovery Day (China Daily, NPC site)
+  - id: fifth_plenum_20th_cc
+    name: Fifth plenary session of the 20th CPC Central Committee
+    start: 2026-10-26
+    end: 2026-10-29
+    category: party
+    recurrence: one_off
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [plenary session, plenum, 全会, 全体会议, central committee, 中央委员会, self-governance, pleno, plénum, plenária]
+    source_url: https://news.cgtn.com/news/2026-09-21/CPC-leadership-stresses-Party-self-governance-sets-Party-plenum-dates-1QCkqPyd3qg/share_amp.html
+    source_title: CPC leadership stresses Party self-governance, sets plenum dates (CGTN)
+    note: Dates set by the Political Bureau on 21 September 2026. Its window begins before 28 October, so it is retrospective.
+  - id: canton_fair_140_phase3
+    name: 140th Canton Fair, phase 3
+    start: 2026-10-31
+    end: 2026-11-04
+    category: trade_fair
+    recurrence: biannual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://news.cgtn.com/news/2026-10-15/Xi-highlights-China-s-commitment-to-opening-up-as-Canton-Fair-opens-1RghUMtX4ac/share_amp.html
+    source_title: Xi highlights China's commitment to opening up as Canton Fair opens (CGTN)
+  - id: wic_wuzhen_2026
+    name: World Internet Conference Wuzhen Summit
+    start: 2026-11-02
+    end: 2026-11-05
+    category: forum
+    recurrence: annual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [world internet conference, wuzhen, 乌镇, 世界互联网大会, cyberspace]
+    source_url: https://www.cac.gov.cn/2026-10/21/c_1794335237063244.htm
+    source_title: 2026 World Internet Conference Wuzhen Summit, 2 to 5 November (Cyberspace Administration of China)
+  - id: ciie_2026
+    name: 9th China International Import Expo, Shanghai
+    start: 2026-11-05
+    end: 2026-11-10
+    category: trade_fair
+    recurrence: annual_announced
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [import expo, ciie, 进博会, 进口博览会, hongqiao]
+    source_url: https://english.shanghai.gov.cn/en-ExpressNewsClips-Videos-WhatsNew/20260807/7a6297dc0b4a418b860952b228248474.html
+    source_title: Rising CIIE participation reflects growing global confidence in the Chinese market (Shanghai government)
+  - id: apec_2026_shenzhen
+    name: APEC leaders' week in Shenzhen (CEO Summit 17 to 18 November, Economic Leaders' Meeting 18 to 19 November)
+    start: 2026-11-17
+    end: 2026-11-19
+    category: summit
+    recurrence: one_off
+    status: announced
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [apec, asia-pacific economic cooperation, 亚太经合, shenzhen, 深圳, asia-pacífico, asie-pacifique]
+    source_url: https://www.lg.gov.cn/english/news/latestnews/content/post_12588327.html
+    source_title: The 33rd APEC Economic Leaders' Meeting to occur in Shenzhen, 18 to 19 November 2026 (Longgang district government)
+  - id: nanjing_memorial_2026
+    name: National Memorial Day for the Nanjing Massacre victims
+    start: 2026-12-13
+    end: 2026-12-13
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [nanjing massacre, 南京大屠杀, 国家公祭, national memorial day, nanking, masacre de nankín, massacre de nankin]
+    source_url: https://subsites.chinadaily.com.cn/npc/2014-02/28/c_678151.htm
+    source_title: China ratifies national days on anti-Japanese war victory, Nanjing Massacre (China Daily, NPC site)
+  - id: china_arab_summit_2026
+    name: Second China Arab States Summit, in China
+    start: null
+    end: null
+    expected_period: second half of 2026, dates not announced
+    category: summit
+    recurrence: one_off
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [china-arab, arab states summit, 中阿峰会, cumbre china-árabe, sommet sino-arabe]
+    source_url: https://www.mfa.gov.cn/eng/gjhdq_665435/2675_665437/2878_663746/2880_663750/202603/t20260302_11867145.html
+    source_title: Foreign Ministry of China, March 2026, on hosting the second China Arab States Summit
+  - id: spring_festival_2027
+    name: Spring Festival (Lunar New Year)
+    start: 2027-02-06
+    end: 2027-02-06
+    category: holiday
+    recurrence: annual_lunar
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [spring festival, lunar new year, chinese new year, 春节, 春晚, year of the goat, year of the sheep, año nuevo chino, nouvel an chinois, ano novo chinês]
+    source_url: https://www.hko.gov.hk/en/gts/time/calendar/text/files/T2027e.txt
+    source_title: Gregorian Lunar Calendar Conversion Table of 2027 (Hong Kong Observatory)
+    note: The festival day is fixed by the lunar calendar; the 2027 holiday span had not been announced, so only the day itself is listed.
+  - id: two_sessions_2027
+    name: The Two Sessions (CPPCC National Committee and National People's Congress annual sessions)
+    start: 2027-03-04
+    end: 2027-03-11
+    category: state
+    recurrence: annual_announced
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [two sessions, 两会, national people's congress, 全国人大, cppcc, 政协, government work report, 政府工作报告, dos sesiones, deux sessions]
+    source_url: https://regional.chinadaily.com.cn/cppcc/2026-03/03/c_1163972.htm
+    source_title: Annual session of CPPCC National Committee to run from March 4 to 11 (China Daily, 2026 pattern)
+    note: Expected from the 2026 pattern (CPPCC from 4 March, NPC from 5 March); the 2027 dates are set later by the NPC Standing Committee.
+  - id: canton_fair_141_phase1
+    name: 141st Canton Fair, phase 1
+    start: 2027-04-15
+    end: 2027-04-19
+    category: trade_fair
+    recurrence: biannual_announced
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://expolista.com/tradeshows/canton-fair-spring/2027
+    source_title: Canton Fair Spring 2027 listing (expolista; organiser calendar not yet published)
+  - id: canton_fair_141_phase2
+    name: 141st Canton Fair, phase 2
+    start: 2027-04-23
+    end: 2027-04-27
+    category: trade_fair
+    recurrence: biannual_announced
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://expolista.com/tradeshows/canton-fair-spring/2027
+    source_title: Canton Fair Spring 2027 listing (expolista; organiser calendar not yet published)
+  - id: canton_fair_141_phase3
+    name: 141st Canton Fair, phase 3
+    start: 2027-05-01
+    end: 2027-05-05
+    category: trade_fair
+    recurrence: biannual_announced
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [canton fair, 广交会, import and export fair, feria de cantón, foire de canton, guangzhou fair]
+    source_url: https://expolista.com/tradeshows/canton-fair-spring/2027
+    source_title: Canton Fair Spring 2027 listing (expolista; organiser calendar not yet published)
+  - id: cpc_founding_2027
+    name: Anniversary of the founding of the Communist Party of China (106th)
+    start: 2027-07-01
+    end: 2027-07-01
+    category: party
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [founding of the communist party, party's founding, cpc founding, 建党, 党的生日, 106th anniversary, fundación del partido, fondation du parti]
+    source_url: https://en.wikipedia.org/wiki/Public_holidays_in_China
+    source_title: Public holidays in China (Wikipedia, with the State Council regulation cited)
+  - id: hong_kong_return_30
+    name: 30th anniversary of Hong Kong's return to China
+    start: 2027-07-01
+    end: 2027-07-01
+    category: anniversary
+    recurrence: one_off
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [hong kong's return, handover, 香港回归, 30th anniversary, hksar, regreso de hong kong, rétrocession de hong kong]
+    source_url: https://en.wikipedia.org/wiki/Handover_of_Hong_Kong
+    source_title: Handover of Hong Kong, 1 July 1997 (Wikipedia)
+  - id: marco_polo_bridge_90
+    name: 90th anniversary of the Marco Polo Bridge (Lugou Bridge) Incident
+    start: 2027-07-07
+    end: 2027-07-07
+    category: anniversary
+    recurrence: one_off
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [marco polo bridge, lugou bridge, 卢沟桥, 七七事变, july 7 incident, puente de marco polo, pont marco-polo]
+    source_url: https://en.wikipedia.org/wiki/Marco_Polo_Bridge_incident
+    source_title: Marco Polo Bridge incident, 7 July 1937 (Wikipedia)
+  - id: pla_centenary_2027
+    name: Army Day, the 100th anniversary of the founding of the People's Liberation Army
+    start: 2027-08-01
+    end: 2027-08-01
+    category: anniversary
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [army day, pla day, people's liberation army, 建军, 八一, centenary, 100th anniversary, ejército popular de liberación, armée populaire de libération]
+    source_url: https://jamestown.org/chinas-2027-goal-marks-the-plas-centennial-not-an-expedited-military-modernization/
+    source_title: China's 2027 goal marks the PLA's centennial (Jamestown Foundation)
+  - id: victory_day_2027
+    name: Victory Day of the War of Resistance against Japanese Aggression
+    start: 2027-09-03
+    end: 2027-09-03
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [victory day, war of resistance, anti-japanese, anti-fascist, 抗战, 抗日, 胜利纪念, guerra de resistencia, antifascista, antifasciste]
+    source_url: https://subsites.chinadaily.com.cn/npc/2014-02/28/c_678151.htm
+    source_title: China ratifies national days on anti-Japanese war victory, Nanjing Massacre (China Daily, NPC site)
+  - id: mid_autumn_2027
+    name: Mid-Autumn Festival
+    start: 2027-09-15
+    end: 2027-09-15
+    category: holiday
+    recurrence: annual_lunar
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [mid-autumn, moon festival, mooncake, 中秋, medio otoño, mi-automne]
+    source_url: https://www.hko.gov.hk/en/gts/time/calendar/text/files/T2027e.txt
+    source_title: Gregorian Lunar Calendar Conversion Table of 2027 (Hong Kong Observatory)
+    note: The festival day is fixed by the lunar calendar; the 2027 holiday span had not been announced.
+  - id: martyrs_day_2027
+    name: Martyrs' Day
+    start: 2027-09-30
+    end: 2027-09-30
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [martyrs, 烈士, mártires, martyrs' day, people's heroes]
+    source_url: https://en.wikipedia.org/wiki/Martyrs%27_Day_(China)
+    source_title: Martyrs' Day (China), set by the NPC Standing Committee on 31 August 2014 (Wikipedia)
+  - id: national_day_2027
+    name: National Day and Golden Week
+    start: 2027-10-01
+    end: 2027-10-07
+    category: state
+    recurrence: annual_fixed
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [national day, golden week, 国庆, 黄金周, founding of the people's republic, 78th anniversary, día nacional, fête nationale, dia nacional]
+    source_url: https://en.wikipedia.org/wiki/Public_holidays_in_China
+    source_title: Public holidays in China (Wikipedia, with the State Council regulation cited)
+    note: 1 October is fixed by regulation; the seven day span is expected from earlier years, as the 2027 holiday notice had not been published.
+  - id: party_congress_21
+    name: 21st National Congress of the Communist Party of China
+    start: null
+    end: null
+    expected_period: autumn 2027, dates not announced
+    category: party
+    recurrence: five_yearly
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [party congress, 21st national congress, 二十一大, 党代会, congreso del partido, congrès du parti]
+    source_url: https://en.wikipedia.org/wiki/21st_National_Congress_of_the_Chinese_Communist_Party
+    source_title: 21st National Congress of the Chinese Communist Party (Wikipedia)
+  - id: taiwan_recovery_day_2027
+    name: Taiwan Recovery Day
+    start: 2027-10-25
+    end: 2027-10-25
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [taiwan recovery, taiwan's restoration, restoration of taiwan, retrocession, 台湾光复]
+    source_url: https://subsites.chinadaily.com.cn/npc/2025-10/24/c_1158830.htm
+    source_title: Decision of the NPC Standing Committee on the Designation of the Taiwan Recovery Day (China Daily, NPC site)
+  - id: brics_2027
+    name: 19th BRICS summit, hosted by China
+    start: null
+    end: null
+    expected_period: 2027, dates and city not announced
+    category: summit
+    recurrence: one_off
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [brics, 金砖, cumbre brics, sommet des brics]
+    source_url: https://timesofoman.com/article/176867-brics-chairship-passes-to-china-as-pm-modi-extends-best-wishes
+    source_title: BRICS chairship passes to China (Times of Oman)
+  - id: ciie_2027
+    name: 10th China International Import Expo, Shanghai
+    start: 2027-11-05
+    end: 2027-11-10
+    category: trade_fair
+    recurrence: annual_announced
+    status: expected
+    known_before_compiled: false
+    added_on: 2026-10-28
+    keywords: [import expo, ciie, 进博会, 进口博览会, hongqiao]
+    source_url: https://english.shanghai.gov.cn/en-ExpressNewsClips-Videos-WhatsNew/20260807/7a6297dc0b4a418b860952b228248474.html
+    source_title: Rising CIIE participation (Shanghai government; 2027 dates expected from the 5 to 10 November pattern)
+  - id: nanjing_memorial_2027
+    name: National Memorial Day for the Nanjing Massacre victims (90th anniversary)
+    start: 2027-12-13
+    end: 2027-12-13
+    category: commemoration
+    recurrence: annual_fixed
+    status: fixed
+    known_before_compiled: true
+    added_on: 2026-10-28
+    keywords: [nanjing massacre, 南京大屠杀, 国家公祭, national memorial day, nanking, masacre de nankín, massacre de nankin]
+    source_url: https://subsites.chinadaily.com.cn/npc/2014-02/28/c_678151.htm
+    source_title: China ratifies national days on anti-Japanese war victory, Nanjing Massacre (China Daily, NPC site)

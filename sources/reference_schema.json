@@ -15,7 +15,7 @@
                     "description": "The state publisher, shared by every edition of it (xinhua, cgtn, ...)."},
       "language": {"type": "string", "pattern": "^[a-z]{2}$"},
       "feeds": {"type": "array", "items": {"$ref": "#/$defs/feed"},
-                "description": "RSS feeds (rss), index pages read as feeds (page) and Xinhua list pages (xinhua_list)."},
+                "description": "RSS feeds (rss), index pages read as feeds (page), Xinhua list pages (xinhua_list) and channel pages whose story links match link_pattern (link_list)."},
       "news_sitemaps": {"type": "array", "items": {"$ref": "#/$defs/sitemap"}},
       "credits": {"type": "array", "items": {"type": "string", "minLength": 1},
                   "description": "Signature id prefixes in pipeline/signatures.yaml that credit this publisher."},
@@ -24,7 +24,7 @@
       "active": {"type": "boolean"},
       "page_time": {"enum": ["none", "jsonld", "published_line", "bjt_stamp", "hhmm_month_day_year"],
                     "description": "How the article page gives its publication time, read at fetch when the listing gave a date only or nothing."},
-      "cleaner": {"enum": ["none", "cgtn", "peoples_daily", "china_daily"],
+      "cleaner": {"enum": ["none", "cgtn", "peoples_daily", "china_daily", "xinhua_fr"],
                   "description": "Template lines stripped from the extracted body before it is stored and fingerprinted."},
       "verified_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
       "evidence": {"type": "string"},
@@ -32,17 +32,17 @@
     }
   },
   "$defs": {
-    "time_rule": {"enum": ["as_published", "bjt_if_unzoned", "bjt", "date_only", "url_date"]},
+    "time_rule": {"enum": ["as_published", "bjt_if_unzoned", "bjt", "bjt_url_checked", "date_only", "url_date"]},
     "feed": {
       "type": "object",
       "required": ["url", "type", "time_rule"],
       "additionalProperties": false,
       "properties": {
         "url": {"type": "string", "pattern": "^https?://"},
-        "type": {"enum": ["rss", "page", "xinhua_list"]},
+        "type": {"enum": ["rss", "page", "xinhua_list", "link_list"]},
         "time_rule": {"$ref": "#/$defs/time_rule"},
         "link_pattern": {"type": "string", "minLength": 1,
-                         "description": "A regular expression an entry's link must match (index pages carry hubs and e-paper links)."}
+                         "description": "A regular expression an entry's link must match (index pages carry hubs and e-paper links); required for link_list."}
       }
     },
     "sitemap": {

@@ -4,6 +4,313 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Site: same text, many countries: a world map of shared state texts (2026-10-28)
+
+Display only. No label, count, denominator, share, top 10, finding or monitored outlet changes; RULESET_VERSION and
+GATE_VERSION unchanged.
+
+- New side file docs/data/copies_map.json, written at export time by pipeline/copies_map.py (hooked in
+  pipeline/export.run after archive_checks.json; a failure writes the empty structure, never stops the export).
+  Schema change: a new data file (no existing file changes shape). The orchestrator bumps SCHEMA_VERSION and
+  ASSET_VERSION; this task did neither.
+- What one state text is: the underlying item of current state origin placements (export.article_rows, so shared
+  widgets once per country, one page at two addresses once, numbered series once, undetermined labels excluded),
+  title groups joined through body links and language editions (body_dups.item_groups), joined again through the
+  original the alteration measure paired the copies with (copies.attach_items). Each outlet once per text at its
+  earliest day; each country once; release wires listed under WLD, never a country, never drawn.
+- Ranked lists: top 25 texts in two or more countries, by countries then outlets, for the 30 complete days the map
+  opens on (export.complete_window_30d) and all time; per country counts of shared texts for the "all texts" map.
+- Agency from the copies' credits (copies.credits_of), the reference original's publisher, or the route
+  (distribution stamp: "release by a Chinese state body"; diplomatic byline: "Chinese diplomat"). Xinhua Silk Road
+  releases are shown as Xinhua's commercial release service, not as Xinhua; a "xinhua" that only Jiangsu's Xinhua
+  Daily Media Group name gave is dropped (copies_map.refine_credits). Note for the copies.py owner: credits_of maps
+  any cited source containing "xinhua" (Xinhua Silk Road, Xinhua Daily Media Group) to Xinhua; left unchanged here.
+- Alteration bands per copy only while the alteration measure is provisional or checked; marked provisional.
+- Headlines only of copies listed in articles/ISO3.json; no URL, no body text.
+- Site: new section #copies-map ("Same text, many countries") straight after #themes (the main map and the
+  themes with their unusual days), before What we found: a second world map read with the first, and kept out of
+  #copies, which is hidden while the alteration measure is off. docs/copies_map.js (own module, mounted from
+  app.js with the main map's Robinson projection, outline and names), docs/copies_map.css, nav link "Same text".
+  Side list, window toggle, one text / all texts, shade by outlets or days after first copy, tooltip, table
+  fallback, countries too small for the 110m outline named under the legend. No horizontal scroll at 375px.
+- METHODOLOGY: new section "Same text, many countries" (methodology.copies_map_text); README paragraph.
+- Tests: tests/test_copies_map.py (fixture: one Xinhua text in three countries, copies counted once; window;
+  bands; agency rules; headlines; export writes the file; page wiring), tests/smoke_copies_map.js (pure helpers;
+  run under pytest when node is installed).
+- Data: the local data/tracker.db copy (articles to 2026-10-12, no body links, no state_copies or reference
+  items) gives 0 shared texts, so the exported file is empty and the section shows its empty state. A preview
+  built from the runner's published article lists (capped at 80 per country) gives 20 shared texts, all in
+  2 to 3 countries, mostly PR Newswire releases picked up by Utusan Malaysia, CNA / Straits Times and the ACM
+  AAP widget.
+- tests/test_frontend.py::test_measure_sections_present: the script order check now compares only the m_*.js
+  scripts with MEASURE_IDS, so display modules (copies_map.js) may sit between measures.js and app.js. It still
+  fails on m_calendar until the calendar task adds "calendar" to MEASURE_IDS.
+
+## Measures: a propaganda calendar fixed in advance and a test of state origin around it (2026-10-28)
+
+- New sources/political_calendar.yaml with sources/political_calendar_schema.json: 35 fixed, announced or
+  expected Chinese political and propaganda dates from 1 September 2026 to 31 December 2027 (32 dated, 3
+  expected without dates: the second China Arab States Summit, the 21st Party Congress, the 2027 BRICS
+  summit), each with category, recurrence, status (fixed, announced, expected), known_before_compiled,
+  added_on, keywords and a public source URL. Compiled on 28 October 2026; the header says the committed
+  file is the pre-registration (D9). Window: 3 days before and 3 after every event.
+- New pipeline/calendar_test.py (measure interface of pipeline/measures.py; `python -m pipeline.calendar_test
+  validate` and `site [docs/data]`): rate ratio of evidence settled state origin placements in each window
+  against normal days (outside every window, same weekdays, within 56 days) and, as a conservative check,
+  against every other usable day; negative binomial 95 percent interval, a shifted window permutation p
+  value where 19 or more fit; confounded days left out (partial first day, outage, labelling backlog,
+  ruleset or gate change on the day or 2 days before, backfill, label mix); worldwide and per country with
+  at least 1 placement a day; keyword mention share of the window's headlines. Retrospective and forward
+  windows reported apart; "too few days" below 3 window or 14 comparison days.
+- sources/measures.yaml: calendar entry after spikes (enabled, min_inputs 15, budget 60 seconds).
+- Site: docs/m_calendar.js and a calendar block in docs/measures.css; #findings-calendar-wrap under the
+  unusual days in the Themes section of docs/index.html; docs/measures.js SECTIONS and SLOTS entries.
+- METHODOLOGY.md and docs/METHODOLOGY.md: the calendar paragraph (the same text the export writes);
+  README line.
+- Tests: tests/test_calendar_test.py (validator, window kinds, synthetic rise found, none where none,
+  windows kept out of normal days, confounders, label mix, too few days, mentions, score check, no
+  dashes, site slot) and tests/smoke_m_calendar.js; tests/test_measures.py and tests/test_frontend.py
+  list the new measure id.
+
+## Reference sources: CGTN Africa, China Daily Africa and Xinhua Africa in English and French (2026-10-28)
+
+Originals only (D10). No label, count, denominator, share, top 10, finding or monitored outlet changes; China stays a
+gap and sources/gaps.yaml is unchanged; RULESET_VERSION, GATE_VERSION and copies.VERSION unchanged. No schema change to
+any data file: the speed and alteration exports list the new source ids where they already list the six.
+
+- sources/reference.yaml gains four sources, each checked live on 2026-10-28 through the tracker's own helpers
+  (fetch_articles.can_fetch and get_page, feeds_util.fetch_feed, news_sitemap.get_xml, the tracker's user agent,
+  robots.txt honoured, no paywall seen):
+  - ref_cgtn_africa_en (publisher cgtn): CGTN Africa's page, https://www.cgtn.com/2025/africa.html (africa.cgtn.com
+    serves the same page at every path), stories on newsaf.cgtn.com, URL date then JSON-LD time at fetch.
+  - ref_china_daily_africa_en (publisher china_daily): China Daily's /world/africa and /world/china-africa channels,
+    URL date then JSON-LD time at fetch, china_daily cleaner.
+  - ref_xinhua_africa_en (publisher xinhua): english.news.cn/africa/latest and /africa/china_africa list pages,
+    Beijing list times that equal the page's printed time.
+  - ref_xinhua_africa_fr (publisher xinhua, language fr): french.news.cn/afrique list page; the first French
+    reference source, so a French Xinhua copy can pair with a French original instead of being a translation.
+  Left out, with reasons in the file's head: africa.chinadaily.com.cn (a mirror of the Global Edition, no Africa
+  channel), a CGTN Africa RSS feed (none; section/africa.xml 404), english.news.cn/list/World-Africa.htm (404),
+  global.chinadaily.com.cn/world/china-africa (404), english.news.cn/africa/index.htm (no times).
+- ref_cgtn_en's seven RSS feeds and its latest news sitemap now leave out newsaf.cgtn.com (link_pattern), so CGTN
+  Africa's items are filed under ref_cgtn_africa_en and not under whichever source polls first (url_hash is unique).
+  On the live check the Africa page listed all 6 newsaf items of the sitemap and all 7 of the world and business
+  feeds, so no item is lost; those items now get their time from the page at fetch rather than from the sitemap.
+  Existing ref_cgtn_en rows are untouched.
+- pipeline/reference.py: a listing type link_list (link_entries, fetch_link_list) for channel pages whose stories live
+  on another host or path, which the "page" type (section_pages.article_links) cannot read (no_article_links); a
+  time_rule bjt_url_checked (Beijing time, but a time more than a day from the URL's date is a re-listing and only the
+  URL date is kept: the French list showed a 24 October item at 05:11 on 29 October); a cleaner xinhua_fr (the French
+  newsroom's contact box); the CGTN label rule also drops a lone "Africa;" label. sources/reference_schema.json takes
+  the new type, rule and cleaner, and validate_sources refuses a link_list without a link_pattern.
+- pipeline/copies.py: the headline issuer of a release may name an Africa service ("CGTN Africa:", "China Daily Africa
+  |"). Credits already mapped "CGTN Africa", "China Daily Africa" and "Xinhua Africa" to cgtn, china_daily and xinhua
+  through the model's cited sources, and cgtn_credit already reads "Source: CGTN Africa". Not changed (a ruleset
+  change, out of scope): china_daily_credit does not fire on "Source: China Daily Africa", nor xinhua_credit_line on
+  "Source: Xinhua Africa".
+- docs/m_speed.js and docs/m_alteration.js name the four sources; pipeline/methodology.py (the uncredited copy limit
+  text), METHODOLOGY.md, docs/METHODOLOGY.md, README.md and the reference.py docstring list them.
+- Tests: tests/test_reference_africa.py (14: registry entries, CGTN's newsaf exclusion, link_list on fixtures of both
+  channel pages and its robots check, bjt_url_checked, cleaners, credits, pairing a CGTN Africa, China Daily Africa
+  and French Xinhua copy with its original, the French copy a translation without the Afrique source, counted tables
+  unchanged by an Africa poll and fetch); tests/test_reference.py updated (ids, time rules, a link_list without a
+  pattern refused, the fake network serves the two channel fixtures, the export invariance now carries a row of each
+  Africa source). New fixtures tests/fixtures/reference/cgtn_africa_page.html and cd_africa_channel.html.
+
+## Registry: sourced Chinese state ownership stakes on outlets (2026-10-28)
+
+The registry already recorded each outlet's ownership type, but not a share a foreign state holds in it. A new optional
+field, foreign_state_stake (sources/outlets_schema.json), records each such stake as a list of records: state (ISO
+alpha-3, never the outlet's own country), holder (with the vehicle the stake is held through), holder_type (one or more
+of state_media_group, state_fund, state_owned_enterprise), state_link (how the holder is tied to the state), held_in (the
+outlet or the company that owns it), share_percent (a number, or undisclosed), from and to (a year, month or day, as
+precise as the source; to is null unless the stake ended), status (current, ended, or disputed when sources agree the
+stake exists but conflict on whether it still reaches the outlet), as_of (date of the latest source still describing
+it), source_url and source_title (holder, share, start), status_source_url and status_source_title (the present
+status), and note. pipeline/registry.validate_stakes adds what the schema cannot check: the state is foreign, an ended
+stake has its end date, a current or disputed one has none and carries as_of, and no date runs backwards.
+save_outlets keeps the field. Nothing is inferred, and a stake held through a private company with reported state ties
+(CEFC in the Czech Republic, KNJ in Portugal's Global Media Group, StarTimes, Tencent) is not recorded. Absence of the
+field means no stake is recorded, not that none exists; "no stake found" is recorded nowhere.
+
+First record, on za_iol (IOL) and za_independent (Independent Online World): CHN; Interacom Investment Holdings, the
+vehicle of China International Television Corporation (wholly owned by CCTV) and the China-Africa Development Fund; 20
+percent of Independent News & Media South Africa, which owned IOL when the stake was bought; from August 2013 (Mail &
+Guardian, 23 August 2013); status disputed, as of 22 July 2026 (Daily Maverick still names Interacom as a minority
+shareholder backed by Chinese investors; no sale reported). Disputed because amaBhungane (2018) reports that IOL was
+transferred to Sagarmatha Technologies and IOL says it has been a standalone company since 2014, while Freedom House
+(2022) still describes IOL as Independent Media's digital version. The research found no other sourced foreign state
+stake among monitored outlets.
+
+outlets.json carries foreign_state_stake for every outlet (null when none is recorded). The country panel's outlet
+list shows a line under the outlet's name, "Chinese state-linked stake: 20% of ..., held by ..., since August 2013;
+sources disagree on whether it still reaches this outlet", with links to the source and the status source and the
+record's note as the tooltip (C.stakeNotes and C.stakeDate in docs/compute.js, stakeLines in docs/app.js, .stake-note in
+docs/style.css). The site's Methodology section and pipeline/methodology.py gain a paragraph on how stakes are recorded
+and that absence means not recorded, not none. Stakes enter no count, so RULESET_VERSION and GATE_VERSION do not
+change; the outlets.json record gains a field, for the orchestrator's SCHEMA_VERSION and ASSET_VERSION bump.
+
+Tests: tests/test_foreign_state_stake_2026_10_28.py (schema accepts a sourced stake and rejects unsourced or malformed
+ones, the validator's date and state checks, the IOL entries carry the sourced stake, save_outlets and build_outlets
+carry the field, the site wiring and the methodology paragraph); tests/frontend_smoke.js asserts the stake lines.
+
+## Measures: content agreements switched on, every source verified (2026-10-28)
+
+On 2026-10-28 each of the 51 entries in sources/syndication.yaml was checked against its public source: the page has to state the parties, the kind of deal and the signing date. The result is 50 verified and 1 source moved. No entry was left unverified, and no source contradicts its entry. The measure is now switched on and shown as provisional with the wording "sources verified on 2026-10-28, not hand coded". The hand check of the measure (20 entries, blind to the date) has not been coded yet, so the status stays provisional until it passes. No label, count, denominator, ruleset or gate changes, and China stays unmonitored.
+
+- Fetching: pages were fetched with the tracker's own helpers (pipeline.fetch_articles.can_fetch and get_page: robots.txt, the tracker's user agent and pacing), and no paywall was bypassed. Three exceptions:
+  - Two Belt and Road Portal pages (ATV, UzA). The server reset the Python client, but its robots.txt allows /p/, so they were fetched with curl under the tracker's user agent.
+  - Khaosod English. The live page returned HTTP 403 to the crawler although robots.txt allows it, so it was read from the Internet Archive copy (recorded as archived_url).
+  - Ambito. Only the public part of the page was read.
+- Data changes in sources/syndication.yaml:
+  - Every entry now has a `verification` block: status (verified, source_moved or unverified), checked_on, page_date (the signing date the page gives, at its precision), a note, and previous_url or archived_url where they apply.
+  - br_agenciabrasil_cmg_2019: source moved. The EBC page returned HTTP 500 on three tries, so the entry now cites IstoE's copy of the same Agencia Brasil report (13 November 2019), with the old URL kept in previous_url.
+  - ir_mehr_xinhua_2024: precision lowered from day (2024-10-14) to month (2024-10). The page dates the signing only to the World Media Summit, which opened on Monday 14 October; it does not give the day of signing.
+  - it_ansa_xinhua_2019: the June 2022 end date is not on the cited ANSA page. Lingua Sinica states it, and that page's URL is now in the verification note.
+- Schema: sources/syndication_schema.json gains the optional `verification` object. It requires status, checked_on and note, and allows no other properties.
+- pipeline/syndication.py:
+  - New constants: VERIFIED_ON, VERIFICATION_WORDING and VERIFICATION_STATUSES.
+  - New validation rules: a moved source needs a previous_url that differs from source_url; checked_on and page_date must be real dates; the page_date of a verified or moved entry must support signed_on at the recorded precision (date_agrees).
+  - New function verification_counts().
+  - The export now carries each timeline row's `verification`, plus an "archived copy" link where one was used. The side file has a top-level `verification` = {checked_on, wording, hand_coded: false}, and the counts gain verified, source_moved, unverified and unchecked (so does meta.measures.syndication.summary).
+  - The methodology text now says that the sources were verified on 2026-10-28 and not hand coded. It already said that the comparison shows timing, not cause, and that most deals predate collection (3 September 2026). **The side file has a new key and the summary has new counts: the orchestrator bumps SCHEMA_VERSION.**
+- sources/measures.yaml: syndication `enabled: true` (min_inputs 10; 50 monitored entries pass).
+- docs/m_syndication.js:
+  - While the measure is provisional, the timeline shows "Provisional: sources verified on 2026-10-28, not hand coded." with the number of moved or unverified sources.
+  - Each entry gets a tag: source checked, source moved, new page checked, or source not verified.
+  - The before and after panel always says that it shows timing, not cause, and that most deals were signed before collection began on 3 September 2026.
+  - Early in collection the eligible range is empty, because its end comes before its start. The panel used to print "between 1 October 2026 and 30 September 2026"; it now says that no deal can be compared yet and why. **The orchestrator bumps ASSET_VERSION.**
+- README: one sentence saying that syndication deals is on, with the D7 wording.
+- Tests:
+  - tests/test_syndication.py: the measure is on; all 51 committed entries carry a valid source check (50 verified, 1 moved); the verification rules (8 cases); the export carries the check and the archived link; the D7 wording is in the methodology text.
+  - tests/test_measures.py: one line now expects syndication to be on.
+  - tests/smoke_m_syndication.js: the wording, the tags, the moved and unverified counts, timing not cause with predating in both panel states, and the empty eligible range.
+- Render check: export from a copy of data/tracker.db into a scratchpad directory, with the site served locally. #syndication is visible, with a "Provisional" chip, the D7 line, 51 timeline entries (47 before collection), the archived Khaosod link and the moved Agencia Brasil entry. No comparison is possible yet: the first eligible deal date is 1 October 2026, and the last complete day is 27 October. No console errors. The committed docs/data has no syndication.json; the next export writes it, together with the methodology text.
+- Test runs: the full pytest suite (.venv) has 2072 passed and 2 failed. Both failures are in tests/test_themes.py, which belongs to another agent's concurrent work. The syndication, measures, frontend and rules tests all pass (294). The JS smokes pass under jsc through a CommonJS shim, because node is not installed: measures_smoke and every smoke_m_*.js.
+
+## Flags: hosted travel disclosures, apart from state origin (2026-10-28)
+
+A new disclosure flag, kept apart like the planted bylines: articles that disclose that the reporting trip, the stay or a training programme was paid for or hosted ("travelled as a guest of", "the trip was sponsored by", "a l'invitation de", "auf Einladung der", "atas undangan", ...) and whose host is a Chinese state entity, embassy, state media outlet, party body or Chinese government programme. A weaker class covers disclosures that name no host ("the organisers"), on China coverage only, and is counted apart. A flag is never a route to state origin: no label, category, count, ruleset or gate is touched. RULESET_VERSION and GATE_VERSION are unchanged. Provisional until the flagged lines are checked by hand.
+
+- New: pipeline/hosted_travel.py (detector, incremental and resumable scan, export, meta block, methodology text, CLI `python -m pipeline.hosted_travel scan|list`), pipeline/hosted_travel.yaml (patterns version 2026.10.1; 41 anchors in en, fr, es, pt, it, de, ar, ru, id/ms, nl, tr, zh, uk, hr/sr, ko, vi). The host check reuses classify_rules.has_state_entity's organisation lists, plus state_hosts forms such as "the Chinese government" and the China press centre programmes.
+- A line counts only when it is about the article's own reporting: it names the article or its author, opens with a disclosure label, or is a short closing line whose sentence names no politician, delegation or team. A quoted line never counts.
+- Storage: tables hosted_travel_flags and hosted_travel_state, created by the module (CREATE IF NOT EXISTS). store.py is not changed. Flagged rows are not exempt from pruning; all of them are gate relevant anyway.
+- Pipeline: scanned after the rules in `run classify` (hosted_travel.stage_scan, a failure is a count) and at export.
+- Export: docs/data/hosted_travel.json (status, patterns_version, counts per class, by_country and by_outlet per class, articles newest first with headline, link, outlet, hosts, patterns, basis and the disclosure sentence, capped at 500), meta.hosted_travel (no clock value), and export counts["hosted_travel"]. **New meta key and side file: the orchestrator bumps SCHEMA_VERSION.**
+- Site: a "Hosted travel disclosures" section after Planted bylines, a nav link, and docs/hosted_travel.js, which loads its own data with no change to app.js, at the shared ?v= asset version. The #planted kicker and intro rules in style.css also select #hosted-travel; nothing was appended, because the end of the file is the scoped Start here block. **The orchestrator bumps ASSET_VERSION, which includes the new script tag.**
+- Methodology: a "Hosted travel disclosures" section after Planted bylines (pipeline/methodology.py template plus hosted_travel.methodology_text). README: one paragraph after Planted bylines.
+- Tests: tests/test_hosted_travel.py (49: true positives in 13 languages, 15 hard negatives, the unnamed class, scan, rescan, deadline, export, meta, methodology, site) and tests/hosted_travel_smoke.js (run by node or by jsc from the pytest file).
+- Snapshot check: an export of a copy of data/tracker.db completed in 321 s, with 0 flags. The local copy holds 90,383 bodies, of which only 6,857 body files exist on this machine. The first build flagged 1 line, a closing-line news sentence about a prime minister's working visit "at the invitation of the Chinese government". It was a false positive, fixed by checking the whole sentence for a politician subject.
+
+## Themes 2026.10.1: Belt and Road exits, overcapacity and the EU and China trade war, by outlet leaning (2026-10-28)
+
+Three themes, crossed with outlet political leaning. Themes version 2026.09.4 -> 2026.10.1 (comment at the top of
+pipeline/themes.yaml, dated HISTORY entry in pipeline/themes.py with "added").
+
+**Themes.**
+- bri_withdrawal "Leaving the Belt and Road" (short "BRI exit"): a name of the initiative within 80 characters of a
+  word of leaving, exiting or not renewing. BRI counts only beside a full name (never Bank BRI alone).
+- overcapacity "Chinese overcapacity and dumping": overcapacity/overproduction words anywhere; anti-dumping words (and
+  English "dumping" with a trade word) only beside a word of Chinese origin and never beside a nuclear/waste word
+  (Fukushima) or a retaliation product (brandy, pork, dairy, canola); flood/influx/wave beside cheap/subsidised and a
+  China word within 60; Korean 공급과잉 only within 60 of 중국/中.
+- eu_china_trade "EU and China trade war": EV word + EU name + tariff/duty/probe word within 120; brandy/cognac/pork/
+  dairy + EU/European/French/Spanish word + anti-dumping/duty/probe/retaliation word within 150; rare earths + EU name
+  + export control/licence/shortage word within 150; trade war/tension/dispute within 40 of an EU name with no US
+  word or Trump that close. Spanish "EU" excluded throughout (Mexican press: Estados Unidos).
+- Terms in the 19 languages the theme lists already cover. Every term was read at least once in its own language
+  (all/en: English) in the relevant articles of the snapshot copy (titles, summaries, 7,199 bodies on file locally);
+  candidates not seen were dropped, not translated in. Hand removals: quit* (quite), back out, dejar*, 싼 (inside 비싼),
+  불참 (skipping a forum), dumped (sport), 밀어내기 (volleyball, export push).
+- Known misfire kept: an anti-dumping probe China itself opens, when a Chinese word stands near it.
+
+**Matcher (pipeline/themes.py).**
+- New optional theme keys exclude and near (window, terms, context lists, avoid, exclude), read through
+  pipeline/termlists.py. The eleven earlier themes keep the old plain path: 0 of 7,199 body articles change tags for
+  them between the 2026.09.4 and 2026.10.1 yaml.
+- Version re-tag now resumable: tags of another version are re-tagged newest first within BODY_RETAG_SECONDS (180 s,
+  shared with the body re-read); the old tag counts as it stands until re-read. Missing/unreadable tags always made.
+  stats gain retagged_version and version_retags_left; export counts gain themes_version_retags_left.
+- Cost: 4.2 ms -> 6.8 ms per article with a body locally (about 1 ms title only); scaled to the 2.9 ms runner figure,
+  about 4.6 ms, so ~98,000 articles take about three exports (~a day and a half) instead of one export over budget.
+- progress(conn) -> meta.themes_progress; cross_themes() -> meta.themes_cross (themes.yaml leaning_cross);
+  cross_counts(article_rows) -> outlets.json theme_cross per outlet {china, A, cur, t: {theme: [n, state origin]}}.
+
+**Site.**
+- docs/index.html #leaning: new #lean-cross block (theme selector, table, notes); docs/app.js renderThemeCross
+  (called from renderLeaning, follows the Group outlets by axis and the selected country); docs/compute.js
+  C.themeCross (shares with denominators, too few under 20, partial while cur < china); docs/style.css #lean-cross-table.
+- Always marked provisional (unchecked keyword tags), plus the re-tag progress while incomplete and unchecked model
+  labels in China coverage while the relay is provisional.
+- Methodology: pipeline/methodology.py (Themes paragraph, new "Three themes by leaning" paragraph, themes_progress_text,
+  re-tag sentence), docs/index.html Themes paragraph, README Theme counter section.
+
+**Tests.**
+- tests/test_themes_2026_10_28.py (new): 47 hit/miss fixtures over en es it ru ko ar de tr, body/summary reading,
+  version bump, language coverage, resumable re-tag and progress, cross_counts and export fields.
+- tests/test_themes.py: stats dict with the new keys. tests/test_export.py: methodology phrase updated (2 lines).
+- tests/frontend_smoke.js: C.themeCross block.
+- Full pytest: 2129 passed after the fix (2 methodology assertions failed before it); frontend smoke ok.
+
+**Snapshot (copy of data/tracker.db, exported to scratchpad/new_themes/export).**
+- Re-tag finished in one local export (88,918 relevant after the export's junk-feed step; bodies mostly absent locally).
+- Relevant articles tagged: bri_withdrawal 5, overcapacity 294, eu_china_trade 199.
+- China coverage in the daily files: bri_withdrawal 4, overcapacity 176, eu_china_trade 135; state origin 0 in each.
+- Crossing (active non-wire outlets, all China coverage 36,722): overcapacity 153 (0.4%), eu_china_trade 121 (0.3%),
+  bri_withdrawal 4; by leaning overcapacity is 0.2% (state controlled) to 0.6% (centre right); no state origin share
+  clears the 20-article floor with a nonzero value (all 0%).
+
+**Not done.**
+- SCHEMA_VERSION / ASSET_VERSION not bumped (orchestrator). Not viewed in a browser. graphify not updated.
+
+**Candidate forms left out (not seen in the snapshot, or removed by hand).**
+- bri_withdrawal: ar: عدم تجديد; de: Ausstieg*, Austritt, Neue Seidenstraße, Neuen Seidenstraße, Rückzug, ausgestiegen, aussteigen, austreten, nicht verlänger*, steigt aus, verließ, zurückzieh*; en: end its participation, ended its participation, pullout; es: Franja y Ruta, dejar* (dejar claro and other ordinary uses), no renovará; fa: انصراف, تمدید نشد, تمدید نکرد, یک کمربند یک جاده; fr: ne pas renouveler, ne renouvellera pas; hi: नवीनीकरण नहीं, बाहर होने, बीआरआई, हटने; id: Jalur Sutera, Jalur Sutra, hengkang, tidak memperpanjang; it: Vie della Seta, disdett*, esca, mancato rinnovo, non rinnov*; ja: 延長しない, 更新しない, 更新せず, 脱退; ko: 갱신하지 않, 불참 (skipping a forum, not leaving); nl: Nieuwe Zijderoute, Zijderoute, niet verlengen, opgezegd, opzeggen, stapt uit, stapte uit, trok zich terug, uitstappen, uittreden; pl: Jedwabnego Szlaku, Jedwabny Szlak, Nowy Jedwabny Szlak, Pas i Szlak, nie przedłuż*, wyjście, wyjść*; pt: Faixa e Rota, não renovar, não renovará, sai da; ro: Centura si Drumul, Centura și Drumul, Noul Drum al Mătăsii, nu reînnoi*, nu va reînnoi; ru: не продлева*, не продлит*; th: หนึ่งแถบหนึ่งเส้นทาง, ไม่ต่ออายุ; tr: Kuşak-Yol; vi: không gia hạn
+- overcapacity: ar: الإنتاج الفائض, القدرة الإنتاجية الفائضة, رخيص, منخفضة الثمن; de: Abwasser, Anti-Dumping*, Brandy, Cognac, Milchprodukt*, Müll, Preisdumping, Raps*, Schweinefleisch*, Weinbrand, radioaktiv*; en: Lohndumping, Sozialdumping, dumping fiscal, dumping site*, dumping social, lower-priced, over-capacity, over-production, polyoxymethylene, social dumping, surplus capacity; es: canola, capacidad excedente, coñac, radiactiv*; fa: اضافه تولید, اضافه ظرفیت, براندی, ضد دامپینگ, فاضلاب, لبنیات, مازاد ظرفیت, گوشت خوک, یارانه‌ای; fr: brandy, capacités excédentaires, cognac, colza, excès de capacité*, porcine, radioactiv*; hi: अति उत्पादन, अतिरिक्त क्षमता, अत्यधिक उत्पादन, अधिक उत्पादन, एंटी-डंपिंग, ओवरकैपेसिटी, डंपिंग, पोर्क, ब्रांडी, भरमार, रेडियोधर्मी; id: harga rendah, kapasitas berlebih, kelebihan produksi, lebihan kapasiti, overkapasitas, overproduksi, produksi berlebih; it: a basso prezzo, brandy, canola, capacità in eccesso, cognac, colza, eccesso di capacità, lattiero*, low cost, maiale, rifiuti, sovracapacità, sovvenzionat*, suin*; ja: コニャック, ブランデー, 不当廉売, 中国産, 乳製品, 供給過剰, 処理水, 安値, 安値攻勢, 放射, 格安, 氾濫, 汚染水, 生産能力過剰, 生産過剰, 豚肉, 過剰供給; ko: 생산과잉, 설비과잉, 싼 (inside 비싼 (expensive)), 오염수, 코냑; nl: overproductie, vloed; pl: brandy, koniak*, nabiał*, nadmiern* moc* produkcyjn*, nadwyżk* mocy, radioaktywn*, rzepak*, taniej, wieprzowin*, ścieki; pt: baixo preço, brandy, capacidade excedentária, conhaque, excedente de capacidade, lácteo*, sobreprodução, subvencionad*, águas residuais; ro: Phenian, capacitate excedentară, capacități excedentare, exces de capacitate, supracapacitat*, supraproducți*; ru: бренди, избыточн* мощност*, избыточн* производствен* мощност*, коньяк*, переизбыт* мощност*, перепроизводств*, рапс*, сточн*; th: การผลิตล้นเกิน, กำลังการผลิตล้นเกิน, กำลังการผลิตส่วนเกิน, ผลิตล้นเกิน, ล้นตลาด; tr: anti-damping*, antidamping*, brandi, domuz, konyak, radyoaktif, süt ürün*, Çin malı, Çin menşei; vi: công suất dư thừa, dư thừa công suất, dư thừa sản xuất, hàng Trung Quốc, năng lực sản xuất dư thừa, sản xuất dư thừa, thừa công suất, trợ giá
+- eu_china_trade: ar: إجراءات مضادة, البراندي, السيارات الكهربية, العناصر النادرة, الكونياك, براندي, كونياك, لحم الخنزير, لحوم الخنزير; de: Anti-Dumping*, Anti-Subvention*, Antisubvention*, Ausfuhrbeschränkung*, Ausfuhrkontroll*, Brandy, Cognac, E-Fahrzeug*, Engpass*, Europäische Kommission, Kaution*, Milchprodukt*, Molkerei*, Schweinefleisch*, Seltene-Erden*, Seltenerd*, Sicherheitsleistung*, Strafzoll*, Weinbrand, Zusatzzoll*; en: e-car*; es: antisubvenci*, coñac; fa: براندی, تنش تجاری, خودرو برقی, ضد دامپینگ, عناصر خاکی کمیاب, فلزات کمیاب, لبنیات, محدودیت صادرات, مقابله به مثل, کنترل صادرات, کنیاک, گوشت خوک; fr: antidumping, antisubvention*, brandy, caution*, cognac, conflit commercial, contrôle* des exportations, contrôle* à l'exportation, différend commercial, porcine, prix minimum, prix plancher*; hi: इलेक्ट्रिक कार, ईयू, ईवी, एंटी-डंपिंग, कॉन्यैक, टैरिफ युद्ध, दुर्लभ पृथ्वी, निर्यात नियंत्रण, निर्यात पर रोक, पोर्क, ब्रांडी, यूरोपियन यूनियन; id: antisubsidi, brandy, kereta elektrik, konyak, retaliasi, sengketa dagang, unsur tanah jarang; it: anti-sovvenzion*, antisovvenzion*, brandy, carne suina, cognac, controll* all'export, controll* sulle esportazioni, guerra dei dazi, latticin*, lattiero*, macchine elettriche, maiale, prezzi minimi, suin*, vetture elettriche; ja: コニャック, スペイン, ブランデー, ブリュッセル, 乳製品, 反補助金, 報復, 希土類, 最低価格, 欧州委員会, 欧州連合, 相殺関税, 豚肉, 貿易戦争, 貿易摩擦, 貿易紛争, 輸出制限, 輸出管理, 関税戦争; ko: 반보조금, 최저가격, 코냑; nl: antidumping*, antisubsidie*, brandewijn, cognac, elektrische wagens, exportcontrole*, handelsruzie, minimumprijs*, tegenmaatregel*, varkensvlees, zeldzame aarden, zeldzame metalen, zuivel*; pl: brandy, cłami, koniak*, kontrol* eksportowe*, nabiał*, pierwiastk* ziem rzadkich, retorsj*, spór handlowy, wieprzowin*, wojn* celn*, zakaz* eksportu; pt: antissubvenç*, brandy, conhaque, controlo* de exportação, lácteo*, preços mínimos; ro: antisubvenți*, brandy, carne de porc, coniac, contramăsuri, controale la export, control* al exporturilor, lactate, metale rare, pământuri rare, pământurile rare, tensiuni comerciale; ru: бренди, контрол* над экспорт*, коньяк*, минимальн* цен*, торгов* конфликт*; th: ควบคุมการส่งออก, คอนญัก, ตอบโต้การอุดหนุน, ต่อต้านการทุ่มตลาด, ธาตุหายาก, บรั่นดี, ผลิตภัณฑ์นม, สงครามภาษี, แร่หายาก; tr: anti-damping*, antidamping*, brandi, domuz eti, konyak, süt ürün*; vi: brandy, chiến tranh thuế quan, chiến tranh thương mại, cognac, giá tối thiểu, ký quỹ, sản phẩm sữa, thịt heo
+
+## Registry: six smaller African outlets selected for China coverage, not reach (2026-10-28)
+
+Six African outlets added for their China coverage or documented pro-China content, not for reach, each
+with a recorded selection basis and evidence URL. Selection basis is a new registry field, exported and
+described in the methodology, so comparisons of countries by reach can leave these outlets out or flag them.
+
+Registry (sources/outlets.yaml, appended only; existing entries untouched)
+- ng_theniche (TheNiche), ng_authority (The Authority): Freedom House, Beijing's Global Media Influence 2022, Nigeria.
+- zw_zimbabwemail (The Zimbabwe Mail): China Digital Times, 7 July 2022.
+- ug_ubc (Uganda Broadcasting Corporation): Lingua Sinica (China Media Project) entity page.
+- mz_aim (Agencia de Informacao de Mocambique, pt): AIM's own report of its Xinhua and CMG agreements, April 2026.
+- za_isolezwe (Isolezwe, zu): Freedom House 2022, South Africa (Independent Media title).
+All active, collector hosted, collector_since 2026-10-28, no audience_rank. Each feed passed
+pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows, current items) and two sample
+articles were read without a paywall (extract.detect_paywall). 30 other probed candidates failed (403, robots.txt
+unavailable, no feed, stale feed, 600 s Crawl-delay) and several more lacked evidence; listed in
+scratchpad/friday/small_africa/NOTES.md.
+
+Schema and validator
+- sources/outlets_schema.json: selection_basis (string, must contain "not reach; evidence: <url>").
+- pipeline/registry.py: save_outlets keeps the field; validate_outlets rejects a basis without evidence and a
+  selected outlet carrying an audience_rank; helpers reach_selected, selection_evidence, reach_outlets,
+  selection_summary, constant SELECTED_FOR_CHINA.
+
+Export and methodology
+- outlets.json: selection_basis, reach_selected, selection_evidence per outlet.
+- meta.json: selection_basis {china_selected_active, by_country, ids}.
+- METHODOLOGY.md (pipeline/methodology.py selection_text): how outlets are chosen, the outlets selected for China
+  coverage per country, that they raise their countries' counts by construction, that the site's figures still
+  include them, and how they sit in the share of published items denominator.
+- The site interface is unchanged: no toggle excludes them yet.
+
+Tests
+- tests/test_selection_basis.py: schema and validator accept and reject, audience_rank conflict, helpers,
+  save round trip, outlets.json fields, methodology text, the six new entries.
+- Python 3.9 (.venv): 2126 passed, 3 skipped. Python 3.11 (uv venv): 2126 passed, 3 skipped.
+- JS smokes under jsc: frontend, measures, all smoke_m_*, copies_map, hosted_travel, preliminary ok; app,
+  deploy_heal and map_markers smokes run inside the Python suite (passed).
+
+## Data schema 19 (2026-10-28)
+
+New side files docs/data/copies_map.json and hosted_travel.json, the calendar measure, syndication.json with source checks, and new fields in outlets.json and meta.json listed above. Site assets are now version 93.
+
 ## Site: unusual days sit directly under the theme chart (2026-10-23)
 
 The Unusual days block now sits directly under the theme chart, at the foot of the Themes section after the theme timeline and its notes, instead of at the end of What we found. It moved intact: the same ids (findings-measures and its slot findings-spikes), so measures.js finds it with no change, the same rendering of every day, its What the day was about disclosure and its sourced news, the same hidden state while the measure is off, and the same behaviour when a day is selected (it opens that country on that day). It takes the theme timeline's rhythm, a hairline across the full width of the section with 1.6rem above and 1.1rem below, and keeps its small gold Unusual days heading and Provisional chip in a 46rem reading column. What we found keeps its findings sentences, figures and Top 10 unchanged. The map timeline's unusual day marks carry a hover title only and link nowhere, so no anchor needed changing. Checked in a browser at desktop width and at 375px: 4 days listed with 4 disclosures, 3 marks on the map timeline, no console errors and no sideways scroll.

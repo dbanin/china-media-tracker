@@ -150,10 +150,11 @@ def _json(v, default):
 
 # A press release whose headline names a state publisher as its issuer ("CGTN: How China uses digital
 # tech ..."), as the release wires print them. Xinhua Silk Road, a commercial release service, is not
-# Xinhua's newsroom: its releases do not appear on Xinhua's own pages.
+# Xinhua's newsroom: its releases do not appear on Xinhua's own pages. An Africa service ("CGTN Africa:",
+# "China Daily Africa |") is its publisher's, as the reference sources ref_*_africa_* are.
 _HEADLINE_ISSUER = re.compile(
     r"^\s*(cgtn|china daily|xinhua(?! silk road)|global times|people'?s daily|people\u2019s daily|ecns|"
-    r"china news service|cctv|china media group)\s*[:|]", re.IGNORECASE)
+    r"china news service|cctv|china media group)(?:\s+africa)?\s*[:|]", re.IGNORECASE)
 
 
 def credits_of(signatures_fired=None, china_sources_cited=None, llm_trigger=None, title=None) -> Set[str]:

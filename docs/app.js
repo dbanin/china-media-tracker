@@ -6,10 +6,10 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "92";
+  var ASSET_VERSION = "93";
   /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
      pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
-  var KNOWN_SCHEMA = 18;
+  var KNOWN_SCHEMA = 19;
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -407,6 +407,16 @@
   function safeUrl(u) {
     var t = decodeEntities(u);
     return /^https?:\/\//i.test(t.replace(/[\u0000-\u0020\u007f-\u00a0]/g, "")) ? t.trim() : "";
+  }
+  /* A sourced foreign state ownership stake under the outlet's name in the country panel (C.stakeNotes); the
+     record's note, with the further sources, is the line's tooltip. No line means no stake is recorded. */
+  function stakeLines(o) {
+    return C.stakeNotes(o.foreign_state_stake).map(function (n) {
+      var src = safeUrl(n.source_url), st = safeUrl(n.status_url);
+      return '<div class="stake-note"' + (n.note ? ' title="' + esc(n.note) + '"' : '') + '>' + esc(n.text) +
+        (src ? ', <a href="' + esc(src) + '" target="_blank" rel="noopener" title="' + esc(n.source_title) + '">source</a>' : '') +
+        (st && st !== src ? ', <a href="' + esc(st) + '" target="_blank" rel="noopener" title="' + esc(n.status_title) + '">status source</a>' : '') + '</div>';
+    }).join("");
   }
   function pct(v) { return v === null || v === undefined ? "n/a" : (v * 100).toFixed(1) + "%"; }
   function days() { return C.listDays(state.months); }
@@ -1835,6 +1845,7 @@
   function renderLeaning() {
     if (!el("leaning")) return;
     var md = leanModel(), relay = relayFor(null), noun = measureNoun();
+    renderThemeCross(md);
     var marked = relay.provisional && (state.measure === "b" || state.measure === "china");
     var ax = LEAN_AXIS[md.axis] || LEAN_AXIS.leaning, what = ax.what;
     el("leaning-title").textContent = ax.title;
@@ -1906,6 +1917,61 @@
       tr.addEventListener("focus", function () { highlightLean(id); });
       tr.addEventListener("blur", function () { highlightLean(null); });
     });
+  }
+  /* --------------------------------------------- three themes by leaning */
+  /* The themes of themes version 2026.10.1 (meta.themes_cross) by the grouping chosen above: per group, the
+     share of its China coverage carrying the theme and the state origin share within those articles, each
+     with its denominator (C.themeCross). All time, like the chart, and in one country when one is selected.
+     Always marked provisional: the tags are keyword matches no person has checked; also while the themes
+     version is still being applied to older articles, and while China coverage holds unchecked model labels. */
+  state.crossTheme = null;
+  function crossShare(v) {
+    if (v === null || v === undefined) return "too few";
+    return v > 0 && v < 0.1 ? (100 * v).toFixed(1) + "%" : pctText(v);
+  }
+  function renderThemeCross(md) {
+    var box = el("lean-cross");
+    if (!box) return;
+    var meta = state.meta || {}, cat = {};
+    (meta.themes || []).forEach(function (c) { cat[c.id] = c; });
+    var ids = (meta.themes_cross || []).filter(function (id) { return cat[id]; });
+    if (!ids.length || !(state.outlets || []).some(function (o) { return o.theme_cross; })) { box.hidden = true; return; }
+    box.hidden = false;
+    if (ids.indexOf(state.crossTheme) === -1) state.crossTheme = ids[0];
+    var tid = state.crossTheme, ax = LEAN_AXIS[md.axis] || LEAN_AXIS.leaning;
+    var cx = C.themeCross(state.outlets, LEAN_GROUPS[md.axis] || LEAN_GROUPS.leaning, ax.key, ids, {iso: md.iso});
+    var prog = meta.themes_progress || null;
+    var partial = !cx.complete || !!(prog && prog.complete === false && (prog.added || []).indexOf(tid) !== -1);
+    var relayProv = !!relayFor(null).provisional;
+    el("lean-cross-title").textContent = "Three themes by " + ax.what;
+    var seg = el("lean-cross-theme");
+    seg.innerHTML = ids.map(function (id) {
+      var on = id === tid;
+      return '<button data-cross="' + esc(id) + '"' + (on ? ' class="active"' : '') + ' aria-pressed="' + on + '" title="' + esc(cat[id].label) + '">' + esc(cat[id].short || cat[id].label) + '</button>';
+    }).join("");
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { state.crossTheme = b.getAttribute("data-cross"); renderThemeCross(leanModel()); });
+    });
+    var why = ["the tags are keyword matches no person has checked"];
+    if (partial) why.push(prog && prog.relevant ? "older articles are still being tagged for it, newest first: " + (prog.current || 0).toLocaleString("en-US") + " of " + prog.relevant.toLocaleString("en-US") + " relevant articles so far" : "older articles are still being tagged for it");
+    if (relayProv) why.push("China coverage includes model labels no person has checked yet");
+    el("lean-cross-sub").textContent = cat[tid].label + ": the share of each group's China coverage that carries the theme, and the share of those articles that are state origin, " +
+      (md.iso ? "in " + countryName(md.iso) : "in every monitored country") + ", all time. Provisional: " + why.join("; ") + ".";
+    var row = function (r, cls) {
+      var c = r.t[tid];
+      return '<tr class="' + (cls || "") + (r.china ? "" : " zero") + '"><td>' + esc(r.label) + '</td>' +
+        '<td class="num">' + r.outlets + '</td><td class="num">' + r.china.toLocaleString("en-US") + '</td>' +
+        '<td class="num">' + c.n.toLocaleString("en-US") + '</td><td class="num">' + crossShare(c.share) + '</td>' +
+        '<td class="num">' + c.a.toLocaleString("en-US") + '</td><td class="num">' + crossShare(c.soShare) + '</td></tr>';
+    };
+    el("lean-cross-table").innerHTML = '<thead><tr><th>' + ax.head + '</th><th class="num">Outlets</th><th class="num">China articles</th>' +
+      '<th class="num">With theme</th><th class="num">Share</th><th class="num">State origin among them</th><th class="num">Share</th></tr></thead><tbody>' +
+      cx.rows.map(function (r) { return row(r); }).join("") + row(cx.total, "total") + '</tbody>';
+    el("lean-cross-note").textContent = "Share is articles with the theme over the group's China articles (state origin, unchecked state sourcing, independent journalism and articles waiting for the model); the state origin share is state origin articles with the theme over all articles with the theme. " +
+      "A share over fewer than " + cx.minN + " articles is shown as too few. An article can carry more than one of these themes. " +
+      "Theme tags read the headline, the feed summary and the body, and should be checked by hand before a figure is cited. " +
+      (md.axis === "leaning" ? "A leaning resting on Media Bias/Fact Check alone outside the United States is marked in the table above. " : "") +
+      "A group with more outlets publishes more, so compare the shares, not the counts.";
   }
   function highlightLean(id) {
     d3.selectAll("#lean-pie .slice").classed("dim", function () { return id !== null && this.getAttribute("data-id") !== id; });
@@ -2521,7 +2587,7 @@
       var editorial = o.feeds.filter(function (f) { return !f.kind || f.kind === "editorial"; });
       var okN = editorial.filter(function (f) { return f.ok; }).length;
       var feedCls = !o.active ? "muted" : (okN === editorial.length ? "ok" : (okN === 0 ? "fail" : "warn"));
-      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (C.collectorBadge(o.collector, relayRetiredOn()) ? ' <span class="badge" title="' + esc(C.collectorBadge(o.collector, relayRetiredOn()).title) + '">' + esc(C.collectorBadge(o.collector, relayRetiredOn()).label) + '</span>' : '') + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.visible ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
+      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (C.collectorBadge(o.collector, relayRetiredOn()) ? ' <span class="badge" title="' + esc(C.collectorBadge(o.collector, relayRetiredOn()).title) + '">' + esc(C.collectorBadge(o.collector, relayRetiredOn()).label) + '</span>' : '') + stakeLines(o) + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.visible ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
     });
     html += '</table>';
     html += '<h3>State origin, unchecked state sourcing and unjudged candidates first, then the rest</h3><p class="muted">State placements, unchecked state sourcing, and pieces flagged for the model that still await its judgement (official Chinese sourcing, a weak signature, or a near copy of a credited state item), each with the sentence or match that flagged it. The unjudged candidates are listed for inspection only and are not a finding. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
@@ -3359,6 +3425,17 @@
     text.innerHTML = esc(b.text) + (b.linkText ? ' <a href="' + href + '" id="prelim-link">' + esc(b.linkText) + "</a>" : "");
   }
 
+  /* Same text, many countries (docs/copies_map.js): it loads data/copies_map.json itself and draws its own map
+     with this page's projection and outline; a country is monitored when it has an active outlet. */
+  function mountCopiesMap() {
+    if (!window.TrackerCopiesMap) return;
+    var mon = {};
+    Object.keys((state.latest && state.latest.countries) || {}).forEach(function (iso) {
+      if ((state.latest.countries[iso].outlets_active || 0) > 0) mon[iso] = true;
+    });
+    window.TrackerCopiesMap.mount({topo: state.topo, numToIso: state.numToIso, names: state.names, monitored: mon, projection: robinson});
+  }
+
   /* ------------------------------------------------------------------ init */
   function init() {
     checkFreshIndex();
@@ -3374,7 +3451,7 @@
         ["setupThemeTimeline", setupThemeTimeline], ["setupStartHere", setupStartHere], ["renderNotices", renderNotices],
         ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
         ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderArchiveCheck", renderArchiveCheck], ["renderFindings", renderFindings],
-        ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures],
+        ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures], ["copiesMap", mountCopiesMap],
         ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures], ["renderStaleNotice", renderStaleNotice]
       ];
       var failed = [];

@@ -36,6 +36,13 @@
   # inputs: days with discovery on record; one test needs 14 baseline days and the day itself
   min_inputs: 15
   budget_seconds: 120
+- id: calendar
+  label: Propaganda calendar
+  module: pipeline.calendar_test
+  enabled: true
+  # inputs: days with discovery on record; a window needs 3 usable days and 14 comparison days
+  min_inputs: 15
+  budget_seconds: 60
 - id: engagement
   label: Engagement
   module: pipeline.engagement
@@ -45,6 +52,7 @@
 - id: syndication
   label: Syndication deals
   module: pipeline.syndication
-  enabled: false
+  # on since 2026-10-28, provisional: sources verified on 2026-10-28, not hand coded
+  enabled: true
   min_inputs: 10
   budget_seconds: 60

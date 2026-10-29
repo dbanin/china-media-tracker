@@ -1,5 +1,6 @@
 """Load and validate the outlet registry and the coverage gaps file."""
 import json
+import re
 from pathlib import Path
 from typing import Dict, List
 
@@ -112,11 +113,80 @@ def validate_outlets(outlets: List[Dict]) -> None:
                 raise ValueError("active outlet %s needs junk_feed until, the day it stopped polling the feed" % o["id"])
             if o["active"] and junk["url"] in {e["url"] for e in feed_entries(o)}:
                 raise ValueError("active outlet %s still polls its junk_feed %s" % (o["id"], junk["url"]))
+        validate_stakes(o)
+        basis = o.get("selection_basis")
+        if basis is not None:
+            # An outlet chosen for its China coverage rather than its audience (RULES D12) says so and
+            # names its evidence, and carries no audience rank: a rank would put it among a country's
+            # largest outlets, the denominator of the share of published items, by the back door.
+            if not SELECTION_EVIDENCE.search(basis):
+                raise ValueError("outlet %s: selection_basis must say 'not reach; evidence: <url>'" % o["id"])
+            if o.get("audience_rank"):
+                raise ValueError("outlet %s was selected for its China coverage, not reach, and cannot carry an audience_rank" % o["id"])
     shared = shared_feed_urls(outlets)
     if shared:
         raise ValueError("editorial feed polled by more than one active outlet (items are credited to whichever outlet "
                          "polls first, and its feed health flips between them): %s" % "; ".join(
                              "%s on %s" % (u, ", ".join(ids)) for u, ids in sorted(shared.items())))
+
+
+def validate_stakes(outlet: Dict) -> None:
+    """The checks on foreign_state_stake the schema cannot make (decision D11: a stake is recorded only
+    from a public source, never inferred). The state is foreign to the outlet; a stake that ended has
+    its end date and one still held or disputed has none and carries the date of the latest source
+    that describes it; no date runs backwards. Dates are compared as text, which orders a year, a
+    month and a day correctly whatever their precision."""
+    for i, s in enumerate(outlet.get("foreign_state_stake") or []):
+        where = "outlet %s foreign_state_stake %d" % (outlet["id"], i + 1)
+        if s["state"] == outlet["country"]:
+            raise ValueError("%s: the state %s is the outlet's own country, not a foreign state" % (where, s["state"]))
+        if s["status"] == "ended":
+            if not s.get("to"):
+                raise ValueError("%s: an ended stake needs to, the date its source gives for the end" % where)
+            if s["to"] < s["from"]:
+                raise ValueError("%s: to comes before from" % where)
+        else:
+            if s.get("to"):
+                raise ValueError("%s: a %s stake has no end date (to must be null)" % (where, s["status"]))
+            if not s.get("as_of"):
+                raise ValueError("%s: a %s stake needs as_of, the date of the latest source describing it" % (where, s["status"]))
+        if s.get("as_of") and s["as_of"] < s["from"]:
+            raise ValueError("%s: as_of comes before from" % where)
+
+
+# Selection basis (RULES D12). The registry's outlets were chosen by reach, the largest of each country
+# from readership sources. Outlets added for their China coverage or documented pro-China content (small
+# outlets running Xinhua or CGTN partner content, outlets with a content agreement with Chinese state
+# media) carry selection_basis with the evidence URL. They raise their country's counts because of how
+# they were chosen, so a comparison of countries by reach leaves them out or flags them.
+SELECTION_EVIDENCE = re.compile(r"not reach; evidence: https?://\S+")
+SELECTED_FOR_CHINA = "selected for China coverage or documented pro-China content, not reach; evidence: "
+
+
+def reach_selected(outlet: Dict) -> bool:
+    """True for an outlet chosen by reach (no selection_basis), False for one chosen for its China coverage."""
+    return not outlet.get("selection_basis")
+
+
+def selection_evidence(outlet: Dict):
+    """The evidence URL of a selection_basis, or None for a reach selected outlet."""
+    m = SELECTION_EVIDENCE.search(outlet.get("selection_basis") or "")
+    return m.group(0).split("evidence: ", 1)[1] if m else None
+
+
+def reach_outlets(outlets: List[Dict]) -> List[Dict]:
+    """The outlets a comparison of countries by reach may use: those not selected for China coverage."""
+    return [o for o in outlets if reach_selected(o)]
+
+
+def selection_summary(outlets: List[Dict]) -> Dict:
+    """Active country outlets selected for China coverage, not reach: {active, by_country, ids}."""
+    sel = [o for o in active_outlets(outlets) if not reach_selected(o)]
+    by_country = {}
+    for o in sel:
+        by_country[o["country"]] = by_country.get(o["country"], 0) + 1
+    return {"china_selected_active": len(sel), "by_country": dict(sorted(by_country.items())),
+            "ids": sorted(o["id"] for o in sel)}
 
 
 def feed_key(url: str) -> str:
@@ -164,7 +234,7 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
     key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "section_feeds", "release_sections", "tier", "network", "notes",
-                 "audience_rank", "rank_source", "political_leaning", "leaning_source", "leaning_second_source", "ownership", "ownership_source",
+                 "audience_rank", "rank_source", "selection_basis", "political_leaning", "leaning_source", "leaning_second_source", "ownership", "ownership_source", "foreign_state_stake",
                  "government_stance", "stance_source", "stance_as_of",
                  "collector", "collector_since", "active", "inactive_reason", "inactive_since", "junk_feed"]
     # Every field the schema allows must be listed, or saving drops it silently. The weekly feed

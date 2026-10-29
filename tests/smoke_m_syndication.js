@@ -20,19 +20,24 @@ assert(slot.hidden === true && slot.innerHTML === "", "off hides and clears");
 var data = {
   measure: "syndication", version: "1", collection_start: "2026-09-03", last_complete_day: "2026-12-30", window_days: 28,
   min_china_per_side: 50, eligible_from: "2026-10-01", eligible_until: "2026-12-02",
-  counts: {entries: 3, monitored: 2, unmonitored: 1, predates_collection: 2, eligible: 1, compared: 1, confounded: 1},
+  counts: {entries: 3, monitored: 2, unmonitored: 1, predates_collection: 2, eligible: 1, compared: 1, confounded: 1,
+           verified: 1, source_moved: 1, unverified: 1, unchecked: 0},
+  verification: {checked_on: "2026-10-28", wording: "sources verified on 2026-10-28, not hand coded", hand_coded: false},
   timeline: [
     {id: "it_x_2026", outlet_id: "it_x", outlet_name: "Outlet <X>", country: "ITA", monitored: true, partner: "xinhua", partner_label: "Xinhua",
      kind: "mou", kind_label: "memorandum", signed_on: "2026-11-02", precision: "day", confidence: "stated", notes: "Signed in Rome.",
      predates_collection: false, comparison: "eligible", source: {url: "https://example.org/deal", title: "Deal", publisher: "Outlet X"},
+     verification: {status: "verified", checked_on: "2026-10-28", page_date: "2026-11-02", note: "States it."},
      links: [{label: "Deal signed", publisher: "Outlet X", url: "https://example.org/deal"}]},
     {id: "it_y_2019", outlet_id: "it_y", outlet_name: "Outlet Y", country: "ITA", monitored: true, partner: "cmg", partner_label: "China Media Group",
      kind: "content_exchange", kind_label: "content exchange", signed_on: "2019-03", precision: "month", ended_on: "2022-06", confidence: "reported",
      notes: "", predates_collection: true, comparison: "predates_collection", source: {url: "javascript:alert(1)", title: "Bad"},
+     verification: {status: "source_moved", checked_on: "2026-10-28", page_date: "2019-03", previous_url: "https://example.org/old", note: "Moved."},
      links: [{label: "Bad link", url: "javascript:alert(1)"}]},
     {id: "unmonitored_z", outlet_id: null, outlet_name: "Paper Z", country: null, monitored: false, partner: "china_daily", partner_label: "China Daily",
      kind: "supplement", kind_label: "supplement", signed_on: "2025", precision: "year", confidence: "stated", predates_collection: true,
-     comparison: "unmonitored", source: {url: "https://example.org/z"}, links: [{label: "Z", url: "https://example.org/z"}]}
+     comparison: "unmonitored", source: {url: "https://example.org/z"}, links: [{label: "Z", url: "https://example.org/z"}],
+     verification: {status: "unverified", checked_on: "2026-10-28", page_date: null, note: "Gone."}}
   ],
   comparisons: [
     {entry_id: "it_x_2026", outlet_id: "it_x", outlet_name: "Outlet <X>", country: "ITA", partner: "xinhua", kind: "mou", signed_on: "2026-11-02", precision: "day",
@@ -59,12 +64,32 @@ assert(h.indexOf("syn-table") !== -1 && h.indexOf("10.0%") !== -1 && h.indexOf("
 assert(h.indexOf("timing, not cause") !== -1, "timing, not cause");
 assert(h.indexOf("syn-confounded") !== -1 && h.indexOf("relevance gate changed") !== -1, "confounders shown");
 assert(h.indexOf("(provisional)") !== -1, "provisional suffix on the comparison");
+assert(h.indexOf("Provisional: sources verified on 2026-10-28, not hand coded.") !== -1, "D7 wording while provisional");
+assert(S.WORDING === "sources verified on 2026-10-28, not hand coded", "fallback wording");
+assert(h.indexOf("source checked 28 October 2026") !== -1 && h.indexOf("source moved, new page checked 28 October 2026") !== -1 &&
+       h.indexOf("source not verified") !== -1, "verification tags per entry");
+assert(h.indexOf("1 source has moved") !== -1 && h.indexOf("1 could not be verified") !== -1, "moved and unverified counts");
+assert(/timing, not cause\. Most deals were signed before collection began on 3 September 2026/.test(h), "comparison intro: timing, not cause, and most predate collection");
+var nov = JSON.parse(JSON.stringify(data)); delete nov.verification;
+slot = {hidden: true, innerHTML: ""};
+M.get("syndication").render(prov, nov, api(slot));
+assert(slot.innerHTML.indexOf("sources verified on 2026-10-28, not hand coded") !== -1, "wording falls back without data.verification");
+var chk = {status: "checked", label: "Syndication deals", check: {state: "passed", n: 20, coded: 20, statistic: "share", value: 0.95, threshold: 0.9}};
+M.get("syndication").render(chk, data, api(slot));
+assert(slot.innerHTML.indexOf("not hand coded") === -1, "no provisional wording once checked by hand");
 
 /* No comparison yet: the timeline, and a line saying why. */
 var only = JSON.parse(JSON.stringify(data)); only.comparisons = [];
 slot = {hidden: true, innerHTML: ""};
 M.get("syndication").render(prov, only, api(slot));
 assert(slot.innerHTML.indexOf("No deal yet falls where a comparison is possible") !== -1 && slot.innerHTML.indexOf("3 September 2026") !== -1, "no comparison line");
+assert(slot.innerHTML.indexOf("timing, not cause") !== -1 && slot.innerHTML.indexOf("Most deals were signed before collection began") !== -1, "no comparison line keeps timing, not cause");
+/* Early in collection the eligible range is empty: no impossible "between 1 October and 30 September". */
+var early = JSON.parse(JSON.stringify(only)); early.eligible_from = "2026-10-01"; early.eligible_until = "2026-09-29";
+slot = {hidden: true, innerHTML: ""};
+M.get("syndication").render(prov, early, api(slot));
+assert(slot.innerHTML.indexOf("No deal can be compared yet") !== -1 && slot.innerHTML.indexOf("1 October 2026") !== -1 &&
+       slot.innerHTML.indexOf("29 September 2026") === -1, "an empty eligible range says when the first comparison can come");
 assert(slot.innerHTML.indexOf("syn-table") === -1, "no table without comparisons");
 
 /* Insufficient side. */

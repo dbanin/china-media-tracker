@@ -231,6 +231,7 @@ aside#panel table { width: 100%; border-collapse: collapse; font-size: 0.86rem; 
 aside#panel th, aside#panel td { text-align: left; padding: 0.35rem 0.3rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 aside#panel th { color: var(--ash); font-weight: 400; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
 aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.stake-note { font-size: 0.74rem; color: var(--ash); margin-top: 0.2rem; line-height: 1.35; max-width: 34rem; }
 .badge { display: inline-block; font-size: 0.62rem; padding: 0.1rem 0.45rem; border: 1px solid var(--rule-strong); color: var(--ash); margin-left: 0.35rem; vertical-align: middle; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 2px; }
 .badge.cat-A { border-color: var(--gold); color: var(--gold); }
 .badge.cat-B { border-color: var(--warn); color: var(--warn); }
@@ -425,6 +426,15 @@ body.map-failed.force-list #map-wrap { display: block; }
 #lean-table tbody tr:hover td, #lean-table tbody tr:focus-within td { background: var(--ink-3); }
 .lean-sw { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; vertical-align: -0.1rem; }
 .lean-note { color: var(--ash); font-size: 0.8rem; max-width: 54rem; margin: 1.2rem 0 0; }
+/* Three themes by leaning (the table under the chart, app.js renderThemeCross). */
+.lean-cross { margin-top: 2rem; border-top: 1px solid var(--rule); padding-top: 1.2rem; }
+.lean-cross h3 { font-size: 1rem; font-weight: 500; margin: 0 0 0.8rem; color: var(--bone-soft); }
+#lean-cross-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 0.8rem; }
+#lean-cross-table th { color: var(--ash); font-weight: 400; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; text-align: left; padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--rule-strong); }
+#lean-cross-table td { padding: 0.42rem 0.4rem; border-bottom: 1px solid var(--rule); color: var(--bone-soft); }
+#lean-cross-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+#lean-cross-table tr.zero td { color: var(--ash-faint); }
+#lean-cross-table tr.total td { border-top: 1px solid var(--rule-strong); font-weight: 500; }
 /* The caution under a leaning group whose outlets outside the US are rated only by a US based rater. */
 .lean-caveat { display: block; color: var(--ash); font-size: 0.72rem; line-height: 1.35; margin-top: 0.15rem; }
 /* The base rule above is later in the sheet than the medium-width block, so the row override must
@@ -621,8 +631,8 @@ section.sec.faq, section.sec.method { max-width: var(--page); padding-left: var(
 .ex-lede { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
 /* Planted bylines: an intro, a flags table, a one-line count by country, and a closed diagnostic.
    Tables scroll inside their own wrapper, so the card never widens the page on a phone. */
-#planted .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
-#planted .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s3); }
+#planted .th-kicker, #hosted-travel .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
+#planted .th-sub, #hosted-travel .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s3); }
 .pl-empty { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
 .pl-line { color: var(--ash); font-size: 0.9rem; max-width: 70ch; margin: 0 0 var(--s2); }
 .pl-table-wrap { overflow-x: auto; max-width: 100%; margin: 0 0 var(--s2); -webkit-overflow-scrolling: touch; }

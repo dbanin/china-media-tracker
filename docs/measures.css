@@ -158,6 +158,30 @@
   #findings-spikes .sp-ctx { margin-left: 0; padding-left: 0; }
 }
 /* ==== END spikes ==== */
+/* ==== BEGIN calendar ==== */
+/* The propaganda calendar under the unusual days (docs/m_calendar.js): the same rule and rhythm. */
+#themes #findings-calendar-wrap { margin: 1.6rem 0 0; padding: 1.1rem 0 0; border-top: 1px solid var(--rule); max-width: none; }
+#findings-calendar .m-calendar { max-width: 46rem; }
+#findings-calendar .cal-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin-bottom: var(--s1); }
+#findings-calendar .cal-title { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+#findings-calendar .cal-sub { color: var(--bone-soft); font-size: 0.92rem; max-width: 70ch; margin: 0 0 var(--s1); }
+#findings-calendar .cal-label { color: var(--ash); font-size: 0.92rem; margin: var(--s2) 0 var(--s1); }
+#findings-calendar .cal-list { list-style: none; margin: 0; padding: 0; }
+#findings-calendar .cal-item { display: grid; grid-template-columns: 7.2rem 1fr; gap: 2px 12px; padding: 9px 0; border-bottom: 1px solid var(--rule);
+  font-size: 0.92rem; color: var(--bone-soft); overflow-wrap: anywhere; }
+#findings-calendar .cal-date { color: var(--gold); font-variant-numeric: tabular-nums; }
+#findings-calendar .cal-name { color: var(--bone); }
+#findings-calendar .cal-verdict { color: var(--gold); font-size: 0.8rem; letter-spacing: 0.06em; margin-left: 6px; }
+#findings-calendar .cal-why { grid-column: 2; color: var(--ash); font-size: 0.84rem; }
+#findings-calendar .cal-why a { color: var(--gold); }
+#findings-calendar .cal-muted .cal-name { color: var(--bone-soft); }
+#findings-calendar .cal-muted .cal-date { color: var(--ash); }
+#findings-calendar .cal-more, #findings-calendar .cal-foot { color: var(--ash); font-size: 0.82rem; margin: var(--s1) 0 0; max-width: 70ch; }
+@media (max-width: 560px) {
+  #findings-calendar .cal-item { grid-template-columns: 1fr; }
+  #findings-calendar .cal-why { grid-column: 1; }
+}
+/* ==== END calendar ==== */
 
 /* ==== BEGIN engagement ==== */
 .m-eng-lead { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); overflow-wrap: anywhere; }

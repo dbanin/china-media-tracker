@@ -37,12 +37,13 @@ def _feed(src, url_part):
 def test_the_registry_validates_and_holds_the_recommended_set():
     srcs = reference.load_sources()
     assert [s["id"] for s in srcs] == ["ref_xinhua_en", "ref_cgtn_en", "ref_global_times_en", "ref_peoples_daily_en",
-                                       "ref_china_daily_en", "ref_ecns_en"]
+                                       "ref_china_daily_en", "ref_ecns_en", "ref_cgtn_africa_en", "ref_china_daily_africa_en",
+                                       "ref_xinhua_africa_en", "ref_xinhua_africa_fr"]
     for s in srcs:
         assert s["id"].startswith("ref_") and "country" not in s
         assert s["collector"] == "hosted" and s["active"] is True
         for f in reference._listings(s):
-            assert f["time_rule"] in ("as_published", "bjt_if_unzoned", "bjt", "date_only", "url_date")
+            assert f["time_rule"] in ("as_published", "bjt_if_unzoned", "bjt", "bjt_url_checked", "date_only", "url_date")
     # Xinhua Italian does not exist; CRI English and CGTN Italian are not usable.
     assert not any("italian" in f["url"] or "cri.cn" in f["url"] for s in srcs for f in reference._listings(s))
 
@@ -64,6 +65,9 @@ def test_reference_ids_are_apart_from_the_outlets_and_china_is_not_monitored():
       "feeds": [{"url": "https://x.test/f", "type": "rss", "time_rule": "guess"}]}],
     [{"id": "ref_x", "name": "x", "publisher": "xinhua", "language": "en", "credits": [], "collector": "hosted", "active": True,
       "feeds": []}],
+    # a link_list reads every link its pattern takes, so it must have one
+    [{"id": "ref_x", "name": "x", "publisher": "cgtn", "language": "en", "credits": [], "collector": "hosted", "active": True,
+      "feeds": [{"url": "https://x.test/africa.html", "type": "link_list", "time_rule": "url_date"}]}],
 ])
 def test_a_malformed_registry_is_refused(bad):
     with pytest.raises(Exception):
@@ -94,8 +98,11 @@ def test_cgtn_sitemap_z_times_are_beijing_time():
     by = {k.split("-")[-1].split("/")[0]: v["published_at"] for k, v in items.items()}
     # 2026-10-13T16:39Z in the sitemap is the item the RSS gives as 08:39:33 GMT
     assert by["1RcZzKR0rRK"] == "2026-10-13T08:39:00+00:00"
-    # 2026-10-14T01:27Z is shown on the page as datePublished 2026-10-14T01:27:17+08:00
-    assert by["1RdxyyECXmM"] == "2026-10-13T17:27:00+00:00"
+    # 2026-10-14T01:27Z is shown on the page as datePublished 2026-10-14T01:27:17+08:00. It is a CGTN Africa
+    # item (newsaf.cgtn.com), which CGTN's listings leave to ref_cgtn_africa_en since 2026-10-28.
+    assert "1RdxyyECXmM" not in by
+    raw = next(e for e in entries if "1RdxyyECXmM" in e["link"])
+    assert reference.normalise_time(raw["published"], "bjt_if_unzoned", None, raw["link"]) == "2026-10-13T17:27:00+00:00"
     assert reference.page_time((FIX / "cgtn_page_time.html").read_text(), "jsonld") == "2026-10-13T17:27:17+00:00"
     assert by["1RbLjN2vbZ6"] == "2026-10-12T16:25:00+00:00"
 
@@ -240,6 +247,10 @@ class FakeNet:
 
     def page(self, url):
         self.requests.append(url)
+        if url == "https://www.cgtn.com/2025/africa.html":
+            return (FIX / "cgtn_africa_page.html").read_text(), 200, None
+        if url.startswith("https://www.chinadaily.com.cn/world/"):
+            return (FIX / "cd_africa_channel.html").read_text(), 200, None
         if "list" in url or url.endswith("index.htm"):
             return (FIX / "xinhua_list.html").read_text(), 200, None
         if url == PAYWALL_URL:
@@ -297,6 +308,12 @@ def test_poll_and_fetch_write_reference_items_only(db, monkeypatch):
     # the Xinhua item on a list and on the homepage keeps the list's time
     xh = rows["https://english.news.cn/20261013/47d14df2c9eb49e4a5403c5486386250/c.html"]
     assert xh["published_at"] == "2026-10-13T13:51:45+00:00"
+    # CGTN Africa's item, which the CGTN sitemap also lists, is filed under CGTN Africa with its URL date
+    af = [r for u, r in rows.items() if "1RdxyyECXmM" in u]
+    assert len(af) == 1 and af[0]["source_id"] == "ref_cgtn_africa_en" and af[0]["published_at"] == "2026-10-14"
+    # the Xinhua Africa channels have addresses of their own
+    assert rows["https://english.news.cn/africa/20261013/47d14df2c9eb49e4a5403c5486386250/c.html"]["source_id"] == "ref_xinhua_africa_en"
+    assert rows["https://french.news.cn/20261013/47d14df2c9eb49e4a5403c5486386250/c.html"]["language"] == "fr"
     assert rows[SHARED_URL]["also_monitored"] == str(ids[0])
     assert "http://epaper.chinadaily.com.cn/global" not in rows
     health = db.execute("SELECT COUNT(*) FROM reference_feed_health").fetchone()[0]
@@ -430,14 +447,21 @@ def _fixture_db(path):
     return conn
 
 
+# The Africa services (2026-10-28) are in the invariance too: originals only, like the six before them.
+AFRICA_ROWS = (("ref_cgtn_africa_en", "https://newsaf.cgtn.com/news/2026-10-12/Kenya-story-1RcAfrTst09/p.html", "en"),
+               ("ref_china_daily_africa_en", "https://www.chinadaily.com.cn/a/202610/12/WS6acc0009e4b06d4aa0562909.html", "en"),
+               ("ref_xinhua_africa_en", "https://english.news.cn/africa/20261012/%032x/c.html" % 9, "en"),
+               ("ref_xinhua_africa_fr", "https://french.news.cn/20261012/%032x/c.html" % 10, "fr"))
+
+
 def _add_reference_rows(conn):
     now = store.utcnow()
-    for i in range(4):
+    rows = [("ref_xinhua_en", "https://english.news.cn/2026101%d/%032x/c.html" % (i, i), "en") for i in range(4)] + list(AFRICA_ROWS)
+    for i, (sid, url, lang) in enumerate(rows):
         conn.execute("""INSERT INTO reference_items(source_id, url, url_hash, language, title, published_at, discovered_at, fetched_at,
                             status, body_hash, body_chars, sig, shingles, collector) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                     ("ref_xinhua_en", "https://english.news.cn/2026101%d/%032x/c.html" % (i, i), "ref%d" % i, "en",
-                      "Story %d about China and Xinhua" % i, "2026-10-12T01:00:00+00:00", now, now, "fetched", "b%d" % i, 900,
-                      b"\x00" * 256, 80, "hosted"))
+                     (sid, url, "ref%d" % i, lang, "Story %d about China and Xinhua" % i, "2026-10-12T01:00:00+00:00", now, now,
+                      "fetched", "b%d" % i, 900, b"\x00" * 256, 80, "hosted"))
     conn.execute("""INSERT INTO reference_feed_health(feed_url, source_id, last_checked, last_ok, last_entries, consecutive_failures,
                         total_checks, total_failures) VALUES ('https://english.news.cn/list/latestnews.htm', 'ref_xinhua_en', ?, ?, 20, 0, 1, 0)""",
                  (now, now))
@@ -515,7 +539,7 @@ def test_export_is_the_same_with_and_without_reference_items(tmp_path, monkeypat
     assert latest["countries"]["CHN"]["coverage"] == "gap"
     assert results["ref"]["articles/CHN.json"] == []
     # the reference rows were there throughout
-    assert store.connect(with_ref).execute("SELECT COUNT(*) FROM reference_items").fetchone()[0] == 4
+    assert store.connect(with_ref).execute("SELECT COUNT(*) FROM reference_items").fetchone()[0] == 4 + len(AFRICA_ROWS)
 
 
 # ---------------------------------------------------------------------------

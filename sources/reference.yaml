@@ -11,6 +11,17 @@
 # that refuses the runner is reported by python -m pipeline.reference validate; the relay that once took such
 # sources was retired on 2026-10-22, so it is checked by hand or made inactive.
 #
+# The four Africa services at the end (CGTN Africa, China Daily's Africa channels, Xinhua's English Africa
+# channel and its French Afrique channel) were found and checked on 2026-10-28 the same way (task
+# africa_reference_sources: scratchpad friday/africa_ref). Robots: www.cgtn.com's robots.txt allows the
+# Africa page; newsaf.cgtn.com, english.news.cn, french.news.cn and www.chinadaily.com.cn have none (404,
+# allow all). No paywall, bot challenge, 403 or 429 was seen. Like the six above they are originals only
+# (decision D10 of 2026-10-28): never classified, counted or in a denominator, and Africa's monitored
+# outlets are the copies they are compared with. An item has one source (url_hash is unique), the first
+# that stores it; pairing goes by publisher, so where an item is filed changes no pair, only the by-source
+# tables of the speed and alteration measures. CGTN's own listings leave newsaf.cgtn.com, CGTN Africa's
+# host, to ref_cgtn_africa_en (their link_pattern), so CGTN Africa's items are filed under it.
+#
 # time_rule says how a listing's entry times are read. Stored times are UTC ISO with a time of day, or a
 # bare YYYY-MM-DD when only the date is known (lookalike.published_ts and tie_rank read that as day
 # resolution):
@@ -19,6 +30,9 @@
 #                   is trusted.
 #   bjt             the value has no zone and is Beijing time.
 #   date_only       only the date of the value is used; the time comes from the page at fetch (page_time).
+#   bjt_url_checked as bjt, but a time whose Beijing date is more than a day from the article URL's date is
+#                   a re-listing (Xinhua's French Afrique list showed a 24 October item at 05:11 on 29 October),
+#                   so only the URL date is kept.
 #   url_date        the listing has no time; the date is read from the article URL (a Beijing date), and the
 #                   time from the page at fetch (page_time).
 # page_time says how the article page states its time, read at fetch when the listing gave a date only:
@@ -32,6 +46,7 @@
 #                   "DOWNLOAD OUR APP" / the copyright line on.
 #   peoples_daily   the "Photos" and "Related Stories" link list at the tail and the copyright line.
 #   china_daily     the "Most Popular" link list and footer at the tail, the share and menu lines.
+#   xinhua_fr       the two lines of the French newsroom's contact box under the article.
 #   The CGTN cleaner also drops a video page's clip duration, section label and "CGTN Now" line.
 #
 # Left out: Xinhua Italian (no such edition: italian.news.cn, italian.xinhuanet.com and it.news.cn do not
@@ -39,6 +54,15 @@
 # English), CRI English (a script shell for CGTN Radio), CGTN Italian (bodies rendered in the browser, so
 # extraction gets only page chrome), and People's Daily Italian (date only, half its homepage links are
 # evergreen back to 2021, and it is not the origin of the Italpress copy, so it adds little).
+# Left out on 2026-10-28 (Africa services): africa.cgtn.com, which answers every path, robots.txt included,
+# with the Africa page (so its robots.txt is an HTML page without rules; the page's canonical address on
+# www.cgtn.com is read instead, under a real robots.txt); a CGTN Africa RSS feed (none on CGTN's subscribe
+# page, /subscribe/rss/section/africa.xml is 404); africa.chinadaily.com.cn, titled "Global Edition", a mirror
+# of China Daily's Global Edition with no Africa channel of its own; global.chinadaily.com.cn/world/china-africa
+# (404); english.news.cn/list/World-Africa.htm (404); english.news.cn/africa/index.htm (links with no times;
+# the Africa latest list carries the same stories timed). The "page" listing type finds no links on the CGTN
+# and China Daily channel pages (no_article_links: their stories live on another host or path than the
+# page), so those two are read as link_list.
 
 - id: ref_xinhua_en
   name: Xinhua English
@@ -80,16 +104,16 @@
   publisher: cgtn
   language: en
   feeds:
-    - {url: "https://www.cgtn.com/subscribe/rss/section/china.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/world.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/politics.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/business.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/tech-sci.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/culture.xml", type: rss, time_rule: as_published}
-    - {url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml", type: rss, time_rule: as_published}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/china.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/world.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/politics.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/business.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/tech-sci.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/culture.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
+    - {url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml", type: rss, time_rule: as_published, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
   news_sitemaps:
     # One Beijing day of every CGTN host (news, newsaf, newseu, newsus), 286 entries on 2026-10-13.
-    - {url: "https://www.cgtn.com/sitemap_latestnews.xml", time_rule: bjt_if_unzoned}
+    - {url: "https://www.cgtn.com/sitemap_latestnews.xml", time_rule: bjt_if_unzoned, link_pattern: "^https?://(?!newsaf\\.cgtn\\.com/)"}
   credits: [cgtn_, china_media_group_credit]
   collector: hosted
   active: true
@@ -104,7 +128,9 @@
     menu and footer, hence the cleaner.
   notes: >-
     RSS links carry UTM query strings, removed before storing. sitemap_news.xml (30,000 unsorted URLs) is
-    not read.
+    not read. Since 2026-10-28 every listing leaves out newsaf.cgtn.com (CGTN Africa), filed under
+    ref_cgtn_africa_en: on the check of that day the Africa page listed all 6 newsaf items of this
+    sitemap and all 7 of the world and business feeds.
 
 - id: ref_global_times_en
   name: Global Times
@@ -190,3 +216,104 @@
     "(ECNS) --" dateline kept.
   notes: >-
     No ECNS-credited copies in the 14 days before 2026-10-13, so it is low priority.
+
+- id: ref_cgtn_africa_en
+  name: CGTN Africa
+  publisher: cgtn
+  language: en
+  feeds:
+    # CGTN Africa's page (africa.cgtn.com shows the same page; this is its canonical address). Its stories
+    # live on newsaf.cgtn.com; 171 of them were linked on 2026-10-28, 3 to 6 a day back to mid September.
+    - {url: "https://www.cgtn.com/2025/africa.html", type: link_list, time_rule: url_date, link_pattern: "^https://newsaf\\.cgtn\\.com/news/\\d{4}-\\d{2}-\\d{2}/[^/]+/p\\.html$"}
+  news_sitemaps: []
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: jsonld
+  cleaner: cgtn
+  verified_on: "2026-10-28"
+  evidence: >-
+    The page gives no times; the URL carries the Beijing date (/news/YYYY-MM-DD/) and the page's JSON-LD
+    datePublished (+08:00) gave the time on 9 of 9 pages, on the URL's Beijing date in every case (for example
+    URL 2026-10-28, datePublished 2026-10-28T21:05:26+08:00). Extraction 9 of 9 good: news pages 1,519 to
+    2,694 characters after the CGTN cleaner, which also takes the "Africa;" label line under the "CGTN"
+    credit; Africa Watch video pages 677 to 1,014 characters, ending in the crew lines ("Cameraman: ...").
+  notes: >-
+    Publisher cgtn, so a copy credited to CGTN or CGTN Africa (the cgtn_credit signature reads "Source: CGTN
+    Africa"; the model's cited source "CGTN Africa") pairs with it. CGTN Africa runs agency copy too: of the
+    9 pages, 2 ended "Source(s): Xinhua News Agency" and 2 "Source(s): AFP"; as for CGTN, pairing goes by the
+    copy's credit.
+
+- id: ref_china_daily_africa_en
+  name: China Daily Africa
+  publisher: china_daily
+  language: en
+  feeds:
+    # China Daily's Africa and China-Africa channels on the main site (32 links each on 2026-10-28; about 5
+    # Africa stories a day). None of their 2026 stories was on the China Daily homepage that ref_china_daily_en reads.
+    - {url: "https://www.chinadaily.com.cn/world/africa", type: link_list, time_rule: url_date, link_pattern: "^https://www\\.chinadaily\\.com\\.cn/a/\\d{6}/\\d{2}/WS[0-9a-f]+\\.html$"}
+    - {url: "https://www.chinadaily.com.cn/world/china-africa", type: link_list, time_rule: url_date, link_pattern: "^https://www\\.chinadaily\\.com\\.cn/a/\\d{6}/\\d{2}/WS[0-9a-f]+\\.html$"}
+  news_sitemaps: []
+  credits: [china_daily_]
+  collector: hosted
+  active: true
+  page_time: jsonld
+  cleaner: china_daily
+  verified_on: "2026-10-28"
+  evidence: >-
+    No times in the listing; the URL carries the Beijing date (/a/YYYYMM/DD/) and the page's JSON-LD
+    datePublished (+08:00) gave the time on 9 of 9 pages, on the URL's Beijing date. Extraction 9 of 9
+    good (481 to 7,614 characters, bylines of the Kenya and Zimbabwe bureaus), with nothing
+    for the cleaner to take; short news briefs are about 500 characters.
+  notes: >-
+    The channels also link a few evergreen and non-Africa China Daily pages (2024 to 2025 features), which
+    the age limit keeps out. The "Africa edition" at africa.chinadaily.com.cn is a mirror of the Global
+    Edition and is not read (see the head of this file). A story listed on the homepage too is filed under
+    whichever source stores it first.
+
+- id: ref_xinhua_africa_en
+  name: Xinhua Africa (English)
+  publisher: xinhua
+  language: en
+  feeds:
+    # Xinhua English's Africa channel, its own address space (/africa/YYYYMMDD/<32 hex>/c.html): none of its
+    # stories was on the lists ref_xinhua_en reads. Same list markup as the other Xinhua list pages.
+    - {url: "https://english.news.cn/africa/latest/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
+    - {url: "https://english.news.cn/africa/china_africa/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: none
+  verified_on: "2026-10-28"
+  evidence: >-
+    20 timed items a list (the latest list covered about 9 hours on 2026-10-28), Beijing time with no zone;
+    the time equals the page's printed time on 7 of 7 pages. The list time's Beijing date equals the URL
+    date for 35 of 40 items; the other 5 were listed between 23:44 and 23:59 with the next day's URL date.
+    Extraction 7 of 7 good (802 to 5,580 characters, the "(Xinhua) --" dateline kept).
+
+- id: ref_xinhua_africa_fr
+  name: Xinhua Afrique (French)
+  publisher: xinhua
+  language: fr
+  feeds:
+    # Xinhua French's Afrique channel. Its stories are Xinhua French wire stories (/YYYYMMDD/<32 hex>/c.html);
+    # no other French Xinhua edition is read, so French copies can now pair with a French original.
+    - {url: "https://french.news.cn/afrique/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: xinhua_fr
+  verified_on: "2026-10-28"
+  evidence: >-
+    20 timed items (about two days), Beijing time with no zone; the page itself gives only a date (meta
+    publishdate), which agrees with the list date. One item of 20 was re-listed: URL and page date
+    2026-10-24, dateline 23 octobre, listed at 2026-10-29 05:11, so the rule keeps the URL date only for it.
+    Extraction 8 of 8 good (544 to 7,446 characters, the "(Xinhua) --" dateline kept); one page carried the
+    newsroom's contact box, hence the cleaner.
+  notes: >-
+    French only for the Africa service; Xinhua has no Africa channel in other languages that the tracker's
+    African outlets use.

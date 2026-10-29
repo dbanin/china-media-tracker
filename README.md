@@ -97,15 +97,28 @@ and the section, also planned after that date.
    as reference originals only (sources/reference.yaml, pipeline/reference.py),
    so that state copy in monitored outlets can be set beside the text it came
    from. They are never classified, never counted and never in a denominator,
-   China remains a gap, and sources/gaps.yaml is unchanged. The same day added
+   China remains a gap, and sources/gaps.yaml is unchanged. Since 28 October 2026
+   four Africa services join them on the same terms, so copy in African outlets
+   can be set beside its original: CGTN Africa, China Daily's Africa channels,
+   and Xinhua's Africa channel in English and its Afrique channel in French
+   (ref_cgtn_africa_en, ref_china_daily_africa_en, ref_xinhua_africa_en,
+   ref_xinhua_africa_fr). 14 October also added
    six report only measures (sources/measures.yaml, pipeline/measures.py): the
    alteration score, republication speed, doctrine terms and unusual days,
    which are switched on, and engagement and syndication deals, which are
    built and switched off. None changes a label, a count or a denominator, and
-   each is marked provisional until its own hand check passes.
+   each is marked provisional until its own hand check passes. Since 28 October
+   2026 syndication deals is switched on too: its 51 entries were each reread
+   against their source that day (sources verified on 2026-10-28, not hand coded),
+   and it shows a timeline whose before and after comparison shows timing, not
+   cause; most deals predate collection, which began on 3 September 2026.
    Each unusual day also says what it was about (themes and terms, counted from the
    tracker's own data) and, from sources/spike_context.yaml, any event in the news that
    coincides with it, with its source: timing, never a cause.
+   The propaganda calendar (sources/political_calendar.yaml, pipeline/calendar_test.py),
+   compiled on 28 October 2026 and committed as its pre-registration, tests whether state
+   origin volume rises around fixed Chinese political dates against normal days; windows
+   before that day are retrospective, later ones a forward test fixed in advance.
 
 ## Running locally
 
@@ -226,8 +239,23 @@ culture and tourism, and disasters and health. An article can carry several
 themes; one with none is Other. The terms live in `pipeline/themes.yaml`, in
 English plus eighteen other languages (Malay reads the Indonesian list), and
 the tagger in `pipeline/themes.py`.
-Changing a term means bumping `version` in that file; the next export
-re-tags every article. The daily files carry, per day and country, each
+Changing a term means bumping `version` in that file (with a dated entry in
+`themes.HISTORY`); the exports that follow re-tag every article newest first,
+within each export's time budget (`BODY_RETAG_SECONDS`, 180 seconds), and an
+article keeps its older tag until it is re-read (`meta.themes_progress` says how
+far it has come). Themes version 2026.10.1 (28 October 2026) adds three themes
+that use exclusions and proximity rules (`exclude` and `near` in the yaml, read
+by `pipeline/termlists.py`): leaving the Belt and Road, Chinese overcapacity and
+dumping, and the EU and China trade war. Each of their terms was read in its own
+language in the tracked outlets' China coverage of that day's snapshot; forms
+not seen were left out rather than translated in. The eleven earlier themes are
+unchanged. Re-tagging the whole history under the new version takes about three
+exports. The three are crossed with outlet leaning (`leaning_cross`): each
+outlet in `outlets.json` carries `theme_cross` (its China coverage, state origin,
+articles on the current version, and per theme the articles and state origin
+among them), and the "Who publishes it" section shows per group the share of
+China coverage carrying each theme and the state origin share within it, with
+denominators, too few under 20 articles, marked provisional. The daily files carry, per day and country, each
 theme's count of all China coverage, unchecked state sourcing and state origin
 articles, so the counter follows the Measure, Window and Distribution
 toggles. They also
@@ -260,6 +288,12 @@ recurring bylines diagnostic exists on the command line only
 lists syndicated agency reporters. `python -m pipeline.planted scan --full`
 rescans everything; `--budget-seconds N` stops a scan cleanly and the next
 scan resumes where it stopped.
+
+Hosted travel disclosures (`pipeline/hosted_travel.py`, patterns in
+`pipeline/hosted_travel.yaml`) flag article bodies that disclose a trip, stay or
+training programme hosted or paid for by a Chinese state body (or by an unnamed
+host, shown apart), exported to `docs/data/hosted_travel.json` and shown, provisional,
+in the Hosted travel disclosures section; a disclosure flag, never state origin.
 
 ## Near-duplicates
 
@@ -383,6 +417,8 @@ other 321 are "no state signature found", never independent journalism,
 because no verification step ran. Valor Econômico returned no records
 because it was not searchable there, which says nothing about what it
 carried.
+
+Same text, many countries. pipeline/copies_map.py writes docs/data/copies_map.json at export time: the state texts run by outlets in the most countries (last 30 complete days and all time), each with its agency, first seen day, and every country and outlet that ran it with its day and, where scored, its provisional alteration band; the site's "Same text, many countries" section maps them. Display only, counted by the placement rules, read by no count.
 
 Bot protection. On the first global retrieval run, 490 article fetches
 returned HTTP 403 to the identified crawler, mostly from sites behind bot

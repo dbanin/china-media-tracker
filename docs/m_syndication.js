@@ -1,7 +1,8 @@
 /* Syndication deals (measure syndication, pipeline/syndication.py). Renders data/syndication.json into
    #syndication-body: a timeline of publicly announced agreements between outlets and Chinese state media,
    newest first, each with its source link, and a before and after table for the deals collection can
-   compare. Hidden while the measure is off. A comparison shows timing, not cause.
+   compare. Hidden while the measure is off. A comparison shows timing, not cause, and most deals predate
+   collection. While provisional it says the sources were verified, not hand coded (data.verification).
    Loaded in the browser after measures.js, and in Node or jsc with module.exports. */
 (function (root, factory) {
   var M = root && root.TrackerMeasures;
@@ -11,6 +12,8 @@
 }(typeof self !== "undefined" ? self : this, function (M) {
   "use strict";
   var ID = "syndication";
+  var WORDING = "sources verified on 2026-10-28, not hand coded";   /* fallback for data.verification.wording */
+  var VERIFY_TAGS = {verified: "source checked", source_moved: "source moved, new page checked", unverified: "source not verified"};
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
                 "October", "November", "December"];
 
@@ -50,6 +53,8 @@
     if (!e.monitored) tags.push("outlet not monitored");
     if (e.ended_on) tags.push("ended " + fmtDate(e.ended_on));
     if (e.effective_from) tags.push("in force from " + fmtDate(e.effective_from));
+    var v = e.verification || {};
+    if (VERIFY_TAGS[v.status]) tags.push(VERIFY_TAGS[v.status] + (v.status !== "unverified" && v.checked_on ? " " + fmtDate(v.checked_on) : ""));
     var links = (e.links && e.links.length ? e.links : [{url: src.url, label: src.title, publisher: src.publisher}]).map(function (l) {
       return link(l.url, l.label || l.url) + (l.publisher ? ' <span class="syn-pub">(' + esc(l.publisher) + ')</span>' : "");
     }).join("; ");
@@ -73,12 +78,20 @@
   function compareHtml(block, data, api) {
     var rows = data.comparisons || [];
     var head = '<h3>Before and after' + M.provisionalSuffix(block) + '</h3>';
+    var predate = 'Most deals were signed before collection began on ' + esc(fmtDate(data.collection_start)) +
+      ', so they appear on the timeline only, with no comparison.';
     var intro = '<p class="m-empty">State origin share of each outlet\'s China coverage over the ' + esc(String(data.window_days || 28)) +
-      ' days before and after a deal. It shows timing, not cause.</p>';
+      ' days before and after a deal. It shows timing, not cause. ' + predate + '</p>';
     if (!rows.length) {
-      return head + '<p class="m-empty">No deal yet falls where a comparison is possible: one needs a deal signed on a known day or month between ' +
-        esc(fmtDate(data.eligible_from)) + ' and ' + esc(fmtDate(data.eligible_until)) + ', with ' + esc(String(data.min_china_per_side || 50)) +
-        ' China articles on each side. Most deals were signed before collection began on ' + esc(fmtDate(data.collection_start)) + '.</p>';
+      var days = esc(String(data.window_days || 28)), from = String(data.eligible_from || ""), until = String(data.eligible_until || "");
+      /* Early on the range is empty (its end falls before its start): say when the first comparison can come. */
+      var when = from && until && until < from
+        ? 'No deal can be compared yet: a comparison needs ' + days + ' days of collection on each side of a deal, so the earliest deal it can take was signed on ' +
+          esc(fmtDate(from)) + ', and collection has not yet run ' + days + ' days past that. Each side also needs '
+        : 'No deal yet falls where a comparison is possible: one needs a deal signed on a known day or month between ' +
+          esc(fmtDate(from)) + ' and ' + esc(fmtDate(until)) + ', with ';
+      return head + '<p class="m-empty">' + when + esc(String(data.min_china_per_side || 50)) +
+        ' China articles. A comparison, when there is one, shows timing, not cause. ' + predate + '</p>';
     }
     var body = rows.map(function (c) {
       var change = c.sufficient ? pts(c.difference) + (c.difference_ci ? ' <span class="syn-ci">(' + pts(c.difference_ci[0]) + " to " + pts(c.difference_ci[1]) + ')</span>' : "")
@@ -103,13 +116,19 @@
     var counts = data.counts || {};
     var lead = '<p class="m-empty">' + esc(String(data.timeline.length)) + ' agreements, each with the public page that states it' +
       (counts.predates_collection ? '; ' + esc(String(counts.predates_collection)) + ' were signed before collection began on ' + esc(fmtDate(data.collection_start)) + ' and appear here only' : '') + '.</p>';
+    var wording = (data.verification && data.verification.wording) || WORDING;
+    var verified = M.statusOf(block) === "provisional"
+      ? '<p class="m-empty syn-verified">Provisional: ' + esc(wording) + '.' +
+        (counts.source_moved ? ' ' + esc(String(counts.source_moved)) + ' source' + (counts.source_moved === 1 ? ' has' : 's have') + ' moved and now cite' + (counts.source_moved === 1 ? 's' : '') + ' a page that states the deal.' : '') +
+        (counts.unverified ? ' ' + esc(String(counts.unverified)) + ' could not be verified and ' + (counts.unverified === 1 ? 'is' : 'are') + ' marked.' : '') + '</p>'
+      : '';
     slot.innerHTML =
-      '<div class="m-panel syn-panel"><h3>Timeline ' + M.statusChip(block) + '</h3>' + lead +
+      '<div class="m-panel syn-panel"><h3>Timeline ' + M.statusChip(block) + '</h3>' + verified + lead +
       '<ol class="syn-timeline">' + data.timeline.map(function (e) { return entryHtml(e, api); }).join("") + '</ol></div>' +
       '<div class="m-panel syn-panel">' + compareHtml(block, data, api) + '</div>';
   }
 
   var spec = {render: render};
   if (M) M.register(ID, spec);
-  return {ID: ID, render: render, fmtDate: fmtDate, safeUrl: safeUrl, pts: pts};
+  return {ID: ID, WORDING: WORDING, render: render, fmtDate: fmtDate, safeUrl: safeUrl, pts: pts};
 }));

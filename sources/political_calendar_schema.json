@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "The propaganda calendar: fixed and announced Chinese political dates, pre-registered",
+  "type": "object",
+  "required": ["compiled_on", "window", "events"],
+  "additionalProperties": false,
+  "properties": {
+    "compiled_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "window": {
+      "type": "object",
+      "required": ["lead_days", "lag_days"],
+      "additionalProperties": false,
+      "properties": {
+        "lead_days": {"type": "integer", "minimum": 0, "maximum": 7},
+        "lag_days": {"type": "integer", "minimum": 0, "maximum": 7}
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "start", "end", "category", "recurrence", "status", "known_before_compiled",
+                     "added_on", "keywords", "source_url", "source_title"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "name": {"type": "string", "minLength": 5, "maxLength": 200},
+          "start": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "end": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "expected_period": {"type": "string", "minLength": 4, "maxLength": 120},
+          "category": {"enum": ["party", "state", "commemoration", "anniversary", "holiday", "summit", "forum", "trade_fair"]},
+          "recurrence": {"enum": ["annual_fixed", "annual_lunar", "annual_announced", "biannual_announced", "five_yearly", "one_off"]},
+          "status": {"enum": ["fixed", "announced", "expected"]},
+          "known_before_compiled": {"type": "boolean"},
+          "added_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "keywords": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 2, "maxLength": 60}},
+          "source_url": {"type": "string", "pattern": "^https://[^\\s]+\\.[^\\s]+$"},
+          "source_title": {"type": "string", "minLength": 5, "maxLength": 200},
+          "note": {"type": "string", "minLength": 10, "maxLength": 400}
+        }
+      }
+    }
+  }
+}

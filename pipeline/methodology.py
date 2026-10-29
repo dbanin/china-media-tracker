@@ -3,6 +3,7 @@ from typing import Dict
 
 from pipeline import config, registry
 from pipeline import measures as measures_mod
+from pipeline import hosted_travel
 
 TEMPLATE = """# Methodology
 
@@ -241,6 +242,14 @@ rather than by the country alone.
 
 {planted_text}
 
+## Hosted travel disclosures
+
+{hosted_travel_text}
+
+## Same text, many countries
+
+{copies_map_text}
+
 {measures_text}## What the numbers mean
 
 The default measure is state origin only. It is not a label decided without
@@ -263,6 +272,8 @@ would describe a handful of feeds rather than a country. No per capita figure
 is shown, because population is a poor denominator for what outlets publish.
 The resident population of each country is still exported, in the population
 column of the CSV of the current view, and no figure is divided by it.
+
+{selection_text}
 
 A syndicated wire item placed in thirty outlets and thirty separate items are
 different phenomena. Near-duplicate titles within a country are linked as one
@@ -359,12 +370,34 @@ on {relay_retired_on}, and its outlets are inactive since (Known limits); no
 day after it is marked, and the shared outlets are polled by the hosted runner
 alone.
 
+Foreign state ownership stakes. The registry records a stake a foreign state
+holds in an outlet, or in the company that owns it, through a state media
+group, a state fund or a state owned enterprise (sources/outlets.yaml
+foreign_state_stake): the holder, its tie to the state, the company the stake
+is held in, the share or undisclosed, the dates, a public source for each, and
+a source for its present status. Nothing is inferred, and a stake held through
+a private company with reported state ties is not recorded. A stake whose
+sources conflict on whether it still reaches the outlet is marked disputed.
+An outlet without the field has no stake recorded, which does not mean it has
+none. The stakes are exported in outlets.json and shown in the country panel;
+they enter no count.
+
 Themes. Every article that concerns China is tagged with each theme whose
 terms appear in its headline, its feed summary or anywhere in its body
 (pipeline/themes.yaml, themes version {themes_version}): diplomacy and summits,
 trade and economy, Belt and Road and investment, technology, energy and
 electric vehicles, military and security, Taiwan and Hong Kong, human rights,
 Chinese domestic politics, culture and tourism, and disasters and health.
+Since themes version 2026.10.1 three narrower themes are added: leaving the
+Belt and Road (a name of the initiative within 80 characters of a word of
+leaving, exiting or not renewing), Chinese overcapacity and dumping
+(overcapacity words; anti-dumping words beside a word of Chinese origin; a flood
+of cheap or subsidised goods beside a China word), and the EU and China trade
+war (EU tariffs or probes on electric vehicles, China's measures on brandy,
+pork, dairy and rare earths, or a trade war beside an EU name and away from any
+United States word). These three use exclusions and proximity rules, and each
+of their terms was read in its own language in the tracked outlets' China
+coverage of 28 October 2026; the earlier themes keep plain terms.
 Until themes version 2026.09.4 only the first 800 characters of the body were
 read, which favored whatever an article names early.
 {themes_changes_text} An article can carry
@@ -373,6 +406,18 @@ is Other. Theme terms exist for {theme_languages}; articles in other languages
 are matched on the English terms only. The tags are keyword matches, not a
 reading of the article, and should be checked by hand before a theme count is
 cited.
+
+Three themes by leaning. Under the leaning chart, a table gives for each
+group of outlets (by political leaning, ownership or stance, as the chart is
+grouped) the share of its China coverage that carries each of the three themes
+added in 2026.10.1, and the share of those articles that are state origin, with
+both denominators. China coverage there is the theme counter's: state origin,
+unchecked state sourcing, independent journalism and candidates waiting for the
+model, copies counted through another row left out. A share over fewer than 20
+articles is shown as too few. The table is always marked provisional: the term
+lists have not been checked by hand, older articles are re-tagged for the new
+themes newest first over several exports ({themes_progress_text}), and China
+coverage holds model labels no person has checked yet.
 
 {limits_text}
 
@@ -655,12 +700,14 @@ def uncredited_copy_limit_text() -> str:
         "repeats is settled state origin, and a copy of an undetermined item is undetermined itself. Headlines are compared only "
         "within one language, and feed summaries and bodies by the words they share, so the original has to be in "
         "the article's language. The English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily "
-        "and ECNS that the tracker reads as reference originals are used only to set credited copies beside the "
+        "and ECNS, and the Africa services of CGTN, China Daily and Xinhua (Xinhua's in English and in French), "
+        "that the tracker reads as reference originals are used only to set credited copies beside the "
         "text they came from; they are never a reference for this match. The check can therefore find state text "
         "only where some monitored outlet also ran it with a credit, in the same language, in that window. It "
         "cannot find state text that no monitored outlet ever ran with a credit, such as Xinhua copy in Italian, "
         "Spanish or Portuguese that every outlet carrying it ran uncredited, and it cannot find copy from the state "
-        "services' editions in other languages, which the tracker does not read. The model then decides whether "
+        "services' editions in other languages, which the tracker does not read (Xinhua's French Afrique channel "
+        "is read, as a reference original only). The model then decides whether "
         "each match is that state text without substantive alteration."
         % (lookalike.WINDOW_BEFORE_DAYS, lookalike.WINDOW_AFTER_DAYS))
 
@@ -856,6 +903,12 @@ def issuer_text(meta: Dict) -> str:
                    "issuer type yet." % ("; ".join(parts), "{:,}".format(it.get("unrecorded") or 0)))
 
 
+def copies_map_text() -> str:
+    """The copies world map paragraph (pipeline/copies_map.py): a display of copying, never a count."""
+    from pipeline import copies_map
+    return copies_map.methodology_text()
+
+
 def planted_text(meta: Dict) -> str:
     """The planted bylines section: what a flag is and is not, and the current count."""
     p = meta.get("planted") or {}
@@ -926,6 +979,29 @@ def candidate_recall_text(meta: Dict) -> str:
     return head + text
 
 
+def selection_text(meta: Dict) -> str:
+    """How outlets were chosen, and the outlets chosen for their China coverage rather than reach (RULES D12)."""
+    sel = meta.get("selection_basis") or {}
+    n = sel.get("china_selected_active") or 0
+    by_country = sel.get("by_country") or {}
+    head = ("Outlets are chosen by reach: the largest outlets of each country, from readership sources. Some "
+            "were added instead for their China coverage or documented pro-China content, such as small outlets "
+            "that run Xinhua or CGTN partner content or have a content agreement with Chinese state media, as "
+            "published research or reporting documents. Each of these carries a selection_basis in "
+            "sources/outlets.yaml with its evidence URL, and reach_selected false in outlets.json. ")
+    if not n:
+        return head + "No active outlet was selected this way at export time."
+    countries = ", ".join("%s %d" % (registry.country_name(c), k) for c, k in sorted(by_country.items(), key=lambda kv: (-kv[1], kv[0])))
+    return head + (
+        "At export time %d active %s in %d %s were selected this way (%s). They are monitored to see a route "
+        "that the selection by reach misses, and they raise their countries' counts because of how they were "
+        "chosen, so a comparison of countries by reach leaves them out (outlets with reach_selected true only) "
+        "or flags the countries that have them; the site's figures still include them. None carries an "
+        "audience rank, so in a country with ranks none is among the largest outlets behind the share of "
+        "published items; in a country without ranks every active outlet is, these included." % (
+            n, "outlet" if n == 1 else "outlets", len(by_country), "country" if len(by_country) == 1 else "countries", countries))
+
+
 def backfill_day_text(meta: Dict) -> str:
     """The day of record and its backfill exception (export._day, store.backfill_day)."""
     gate = meta.get("gate_version") or config.GATE_VERSION
@@ -942,12 +1018,26 @@ def backfill_day_text(meta: Dict) -> str:
         "gate that applied to the other items of that day." % (reads, config.BACKFILL_LAG_HOURS, config.COLLECTION_START, gate))
 
 
+def themes_progress_text(meta: Dict) -> str:
+    """How far the current themes version has come over the relevant articles (meta.themes_progress)."""
+    p = meta.get("themes_progress") or {}
+    if not p.get("relevant"):
+        return "no relevant article was on file at this export"
+    if p.get("complete"):
+        return "at this export every one of the %s relevant articles carries version %s tags" % (
+            format(p["relevant"], ","), p.get("version"))
+    return "at this export %s of %s relevant articles carry version %s tags" % (
+        format(p.get("current") or 0, ","), format(p["relevant"], ","), p.get("version"))
+
+
 def themes_changes_text(meta: Dict) -> str:
     """Each themes version with the day it took effect and what changed (meta.themes_changes), and why a
     version change leaves no break in the published theme series."""
     hist = [h for h in (meta.get("themes_changes") or []) if h and h.get("version") and h.get("date")]
-    retag = ("Every export re-tags each relevant article whose tags were made under another version, so every "
-             "article carries the tags of the current version and the published series has no break at a version change")
+    retag = ("Every export re-tags, newest first and within its time budget, the relevant articles whose tags were made "
+             "under another version; until an article is re-read its older tag counts as it stands, so a version that only "
+             "adds themes leaves the earlier themes' series without a break and fills the new themes in from the newest "
+             "articles back")
     if not hist:
         return ("This export carries no record of earlier themes versions, so the theme timeline shows no version mark. "
                 + retag + ".")
@@ -1213,6 +1303,8 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         relevance_rule=relevance_rule_text(),
         session_order_text=session_order_text(config.LLM_SESSION_GRACE_DAYS),
         planted_text=planted_text(meta),
+        hosted_travel_text=hosted_travel.methodology_text(meta),
+        copies_map_text=copies_map_text(),
         measures_text=measures_mod.methodology_text(meta),
         generated_at=meta["generated_at"], ruleset_version=meta["ruleset_version"], schema_version=meta["schema_version"],
         llm_model=meta["llm_model"],
@@ -1254,7 +1346,9 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
                            if (gc := meta.get("gate_changes")) else "No gate change has been recorded yet."),
         themes_version=meta.get("themes_version", "not recorded"),
         themes_changes_text=themes_changes_text(meta),
+        themes_progress_text=themes_progress_text(meta),
         backfill_day_text=backfill_day_text(meta),
+        selection_text=selection_text(meta),
         theme_languages=", ".join(meta.get("theme_languages") or []) or "no language yet",
         top_n=meta.get("top_outlets_per_country", 30),
         min_outlets=meta.get("min_outlets_for_output_share", config.MIN_OUTLETS_FOR_OUTPUT_SHARE),

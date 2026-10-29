@@ -16,7 +16,11 @@
 #   source_title, source_publisher, source_kind (primary, news_report, ngo_report, academic), accessed_on
 #   confidence         stated (a party announced it) or reported (a third party reported it)
 #   notes, verified_by optional
-# Entries researched 2026-10-13 from public pages only (51; 47 predate collection).
+#   verification       the source check: status (verified, source_moved or unverified), checked_on, the
+#                      page_date the page gives for the signing, a note, and previous_url (source_moved)
+#                      or archived_url (read from an archived copy). A check of sources, not a hand check.
+# Entries researched 2026-10-13 from public pages only (51; 47 predate collection). Every source was
+# re-read on 2026-10-28: 50 verified, 1 source moved, none unverified or contradicted.
 entries:
   - id: it_italpress_xinhua_2025
     outlet_id: it_italpress
@@ -31,6 +35,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Italpress announced a partnership with Xinhua at the China Italy media and think tank forum in Rome and later added a Xinhua section that republishes Xinhua text and video.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-12-17"
+      note: "The Italpress page, published 17 December 2025, states the new Xinhua and Italpress partnership presented at the China Italy media and think tank forum in Rome; the date is the page's own."
 
   - id: it_italpress_cctvplus_2025
     outlet_id: it_italpress
@@ -45,6 +54,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Italpress reported on 28 May 2025 that it had signed a content exchange partnership with CCTV+, the video agency of China Media Group, letting it use CCTV+ feeds and distribute its own video in China.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-05"
+      note: "The Italpress page, published 28 May 2025, states that Italpress has signed a content exchange partnership with CCTV+ of China Media Group."
 
   - id: it_adnkronos_xinhua_2017
     outlet_id: it_adnkronos
@@ -59,6 +73,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The memorandum covering news exchange, video production and digital links was signed at the World Internet Conference in Wuzhen in December 2017.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2017-12"
+      note: "The page states that AdnKronos and Xinhua signed a cooperation agreement (an MoU in its title) in December 2017 at the fourth World Internet Conference in Wuzhen."
 
   - id: it_ansa_xinhua_2016
     outlet_id: it_ansa
@@ -73,6 +92,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: ANSA and Xinhua signed a strategic cooperation accord in Rome covering information exchange and new media know how.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2016-05-16"
+      note: "The ANSA page, dated 16 May 2016, states that ANSA and Xinhua signed a cooperation accord in Rome on Monday, 16 May."
 
   - id: it_ansa_xinhua_2019
     outlet_id: it_ansa
@@ -88,6 +112,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: ANSA agreed during Xi Jinping's Rome visit to distribute an Italian language Xinhua news service exclusively on its platforms, and Lingua Sinica reports ANSA ended the arrangement in June 2022.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-03-22"
+      note: "The ANSA page, dated 22 March 2019, states the accord for ANSA to distribute Xinhua's Italian service exclusively. The end in June 2022 is not on this page; Lingua Sinica states it at https://lingua-sinica.org/dispatch/xinhua-signs-agreement-with-ansa-to-launch-xinhua-italian-service/ (read 2026-10-28)."
 
   - id: it_rainews_cmg_2019
     outlet_id: it_rainews
@@ -102,6 +131,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: RAI, the parent of Rai News, signed a three year memorandum with China Media Group covering radio, television, cinema and training exchanges during Xi Jinping's Rome visit.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-03-22"
+      note: "The page states that RAI and China Media Group signed a three year memorandum on 22 March 2019 during Xi Jinping's visit to Rome."
 
   - id: it_sole24ore_economicdaily_2019
     outlet_id: it_sole24ore
@@ -116,6 +150,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The agreement with the state run Economic Daily created a China economic special section printed in Il Sole 24 Ore, which its own journalists later criticised as undisclosed propaganda.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-03-20"
+      note: "The page states that Economic Daily and Il Sole 24 Ore signed a cooperation agreement in Rome on 20 March 2019 for a China economic special section in the paper."
 
   - id: id_antara_cmg_2025
     outlet_id: id_antara
@@ -130,6 +169,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Antara signed a media cooperation agreement with China Media Group during Premier Li Qiang's visit to Jakarta, and the same terms apply to Antara English.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-05-25"
+      note: "The Antara page, dated 25 May 2025, states the Antara and China Media Group media cooperation agreement signed on Sunday during Li Qiang's state visit."
 
   - id: id_antara_xinhua_2025
     outlet_id: id_antara
@@ -144,6 +188,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Antara signed a media cooperation agreement with Xinhua on the same day as its China Media Group agreement, building on a relationship that dates to 1957.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-05-25"
+      note: "The Antara page, dated 25 May 2025, states the Antara and Xinhua media cooperation agreement signed on Sunday during Li Qiang's state visit."
 
   - id: id_antara_nanfang_2026
     outlet_id: id_antara
@@ -158,6 +207,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Antara signed a memorandum with the Guangdong provincial Nanfang Media Group at the Asia Pacific Media Forum in Shenzhen covering joint interviews, coordinated content distribution and AI work.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-09-05"
+      note: "The Newsgd page, published 5 September 2026, states that Nanfang Media Group signed an MoU with Antara at the Asia Pacific Media Forum, which opened that day."
 
   - id: hk_scmp_nanfang_2026
     outlet_id: hk_scmp
@@ -172,6 +226,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: The SCMP signed a non binding memorandum with the Guangdong provincial Nanfang Media Group and its GDToday platform covering content exchange, events and AI innovation.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-09-05"
+      note: "The SCMP release states that the SCMP and Nanfang Media Group signed a non binding strategic memorandum in Shenzhen on Saturday, 5 September 2026."
 
   - id: hk_rthk_szmg_2026
     outlet_id: hk_rthk
@@ -186,13 +245,18 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: RTHK signed a memorandum with the municipal Shenzhen Media Group in Shenzhen on programme resources, talent exchanges and programme production.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-10-09"
+      note: "The government press release of 9 October 2026 states that RTHK signed a memorandum with Shenzhen Media Group in Shenzhen."
 
   - id: ir_mehr_xinhua_2024
     outlet_id: ir_mehr
     partner: xinhua
     kind: mou
-    signed_on: "2024-10-14"
-    precision: day
+    signed_on: "2024-10"
+    precision: month
     source_url: https://www.tehrantimes.com/news/505051/Mehr-Media-Group-signs-MoU-with-Xinhua-News-Agency
     source_title: "Mehr Media Group signs MoU with Xinhua News Agency"
     source_publisher: Tehran Times
@@ -200,6 +264,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Mehr Media Group and Xinhua signed a memorandum on news exchange and media technology at the World Media Summit in Urumqi, and it also covers Mehr News English.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-10"
+      note: "The Tehran Times page, dated 16 October 2024, states the Mehr and Xinhua MoU signed on the sidelines of the World Media Summit, which opened on Monday 14 October. It does not give the day of signing, so the precision was lowered from day (2024-10-14) to month on 2026-10-28."
 
   - id: hu_atv_xinhua_2024
     outlet_id: hu_atv
@@ -214,6 +283,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Xinhua's president and the ATV chief executive signed a memorandum in Budapest on exchanging news products and staff.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-05-02"
+      note: "The Belt and Road Portal page states that Xinhua and ATV signed an MoU in Budapest on Thursday, 2 May 2024. Its robots.txt allows the page, but the server reset the tracker's Python client, so it was read with curl under the tracker's user agent."
 
   - id: ru_rg_xinhua_2023
     outlet_id: ru_rg
@@ -228,6 +302,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Rossiyskaya Gazeta was one of five partners that signed news exchange and personnel agreements with Xinhua at the World Media Summit in Guangzhou.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2023-12-02"
+      note: "The page states that Xinhua signed cooperation agreements on 2 December 2023 at the World Media Summit in Guangzhou, Rossiyskaya Gazeta among them."
 
   - id: ru_tass_xinhua_2025
     outlet_id: ru_tass
@@ -243,6 +322,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: TASS and Xinhua signed a cooperation strategy for 2026 to 2030 covering mutual access to news feeds, photo and video exchange and AI guidelines, and it also covers TASS English.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-09-02"
+      note: "The TASS page, datelined Beijing 2 September, states that TASS and Xinhua signed a cooperation strategy for 2026 to 2030."
 
   - id: ru_ria_xinhua_2026
     outlet_id: ru_ria
@@ -257,6 +341,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Rossiya Segodnya, which runs RIA Novosti, signed a memorandum with Xinhua during Putin's Beijing visit to co host a 2026 SCO expert forum.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-05-20"
+      note: "The page states that Xinhua signed a memorandum with Rossiya Segodnya on 20 May 2026 during Putin's state visit to Beijing."
 
   - id: jp_jiji_xinhua_2025
     outlet_id: jp_jiji
@@ -271,6 +360,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Xinhua and Jiji Press signed a memorandum in Tokyo on economic information cooperation and technical exchanges.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-02-18"
+      note: "The Xinhua page, datelined Tokyo 18 February, states that Xinhua and Jiji Press signed an MoU on Tuesday, 18 February 2025."
 
   - id: ke_capitalfm_chinadaily_2025
     outlet_id: ke_capitalfm
@@ -285,6 +379,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Capital FM agreed in Nairobi to republish China Daily articles on its website and co produce short videos with China Daily Africa.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-08-11"
+      note: "The page states that Capital FM signed a content sharing agreement with China Daily in Nairobi on 11 August 2025."
 
   - id: ke_kbc_hubei_2026
     outlet_id: ke_kbc
@@ -299,6 +398,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: KBC signed a pact with the provincial Hubei Media Group in Nairobi on archive digitisation, joint programming and dubbed Chinese dramas.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-06-26"
+      note: "The page states that KBC formalised a cooperation agreement with Hubei Media Group in Nairobi on 26 June 2026."
 
   - id: my_rtm_cmg_2024
     outlet_id: my_rtm
@@ -313,6 +417,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: RTM and China Media Group signed a broadcasting cooperation memorandum during Premier Li Qiang's June 2024 visit to Malaysia.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-06"
+      note: "The page states that a memorandum establishing cooperation between RTM and China Media Group was signed during Li Qiang's visit to Malaysia in June 2024."
 
   - id: rs_rts_cmg_2024
     outlet_id: rs_rts
@@ -327,6 +436,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Radio Television of Serbia signed a programme exchange and co production agreement with China Media Group during Xi Jinping's Belgrade visit.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-05-08"
+      note: "The page states that China Media Group signed agreements with Serbian media, Radio Television of Serbia among them, on 8 May 2024."
 
   - id: sn_rts_cmg_2018
     outlet_id: sn_rts
@@ -341,6 +455,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: RTS agreed in Dakar to air a China Theater block of French dubbed Chinese dramas, documentaries and films supplied by China Media Group.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2018-07-19"
+      note: "The page states that China Media Group and RTS signed a framework agreement for a China Theater block in Dakar on 19 July 2018."
 
   - id: sn_rts_cmg_2024
     outlet_id: sn_rts
@@ -355,6 +474,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: A memorandum on news exchange, joint production and training was signed in Beijing during the FOCAC summit and witnessed by both presidents.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-09-04"
+      note: "The page states a China Media Group memorandum signed in Beijing on 4 September 2024; its title names RTS, while the signatory named in the text is Senegal's communication minister."
 
   - id: mv_psmnews_cmg_2024
     outlet_id: mv_psmnews
@@ -369,6 +493,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Maldives Public Service Media, which runs PSM News, signed a content exchange memorandum with China Media Group during President Muizzu's state visit to Beijing.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-01-10"
+      note: "The page states that China Media Group and Maldives Public Service Media signed a cooperation memorandum in Beijing on 10 January 2024."
 
   - id: sk_tasr_cmg_2024
     outlet_id: sk_tasr
@@ -383,6 +512,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: TASR signed a cooperation memorandum with China Media Group on content sharing and technical cooperation during the Slovak prime minister's visit to China.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-11-05"
+      note: "The page states that China Media Group and TASR signed a cooperation memorandum on 5 November 2024."
 
   - id: gr_naftemporiki_cmg_2023
     outlet_id: gr_naftemporiki
@@ -397,6 +531,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Naftemporiki signed a memorandum with China Media Group in Athens on shared news resources and joint economic and shipping coverage.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2023-10-30"
+      note: "The Naftemporiki page, dated 30 October 2023, states that Naftemporiki and China Media Group signed a memorandum of cooperation on Monday."
 
   - id: es_europapress_xinhua_2019
     outlet_id: es_europapress
@@ -411,6 +550,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Europa Press and Xinhua announced a collaboration agreement that added Chinese news to the Europa Press international service.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-10-25"
+      note: "The page states that Xinhua and Europa Press announced a collaboration agreement on 25 October 2019."
 
   - id: qa_aljazeera_xinhua_2016
     outlet_id: qa_aljazeera
@@ -425,6 +569,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Al Jazeera Media Network signed a collaboration agreement with Xinhua on news gathering, and it covers the network's Arabic channel as well.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2016-03-29"
+      note: "The Al Jazeera Media Network release, published 29 March 2016, states the collaboration agreement with Xinhua; the date is the release's own."
 
   - id: th_khaosod_en_xinhua_2019
     outlet_id: th_khaosod_en
@@ -439,6 +588,12 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Khaosod English extended its existing free content agreement with Xinhua into 2020 on the day five more Thai outlets signed up.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-11-20"
+      archived_url: https://web.archive.org/web/20260414143611/https://www.khaosodenglish.com/news/2019/11/20/5-more-thai-media-sites-sign-partnership-with-xinhua/
+      note: "The live page refused the tracker's crawler with HTTP 403 although robots.txt allows it, so it was read from the Internet Archive copy of the same URL. That page, dated 20 November 2019, states that Khaosod English extended its Xinhua agreement to 2020."
 
   - id: th_matichon_xinhua_2019
     outlet_id: th_matichon
@@ -453,6 +608,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Matichon Group, which also owns Khaosod and Prachachat, announced a Xinhua content partnership in 2019 that let it publish Xinhua material free of charge.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019"
+      note: "The CFR page states that in 2019 Khao Sod and Matichon announced a content partnership with Xinhua."
 
   - id: ar_ambito_xinhua_2015
     outlet_id: ar_ambito
@@ -467,6 +627,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Ambito Financiero, then owned by Grupo Indalo, reported on 12 November 2015 an integrated cooperation agreement with Xinhua for reciprocal news publication.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2015-11"
+      note: "The Ambito page, published 12 November 2015, states the Grupo Indalo and Xinhua cooperation agreement signed with Ambito Financiero. Only the public part was read; the rest is for subscribers."
 
   - id: br_agenciabrasil_cmg_2019
     outlet_id: br_agenciabrasil
@@ -474,13 +639,19 @@ entries:
     kind: cooperation_agreement
     signed_on: "2019-11-13"
     precision: day
-    source_url: https://agenciabrasil.ebc.com.br/radioagencia-nacional/geral/audio/2019-11/ebc-e-estatal-chinesa-de-comunicacao-assinam-acordo-para
-    source_title: "EBC e estatal chinesa de comunicacao assinam acordo para troca de conteudo e intercambio tecnologico"
-    source_publisher: Radioagencia Nacional (EBC)
-    source_kind: primary
-    accessed_on: "2026-10-13"
+    source_url: https://istoe.com.br/ebc-firma-acordo-com-a-china-para-compartilhamento-de-conteudos
+    source_title: "EBC firma acordo com a China para compartilhamento de conteudos"
+    source_publisher: IstoE (republishing Agencia Brasil)
+    source_kind: news_report
+    accessed_on: "2026-10-28"
     confidence: stated
     notes: EBC, publisher of Agencia Brasil, signed a content exchange and technology cooperation accord with China Media Group during the BRICS summit in Brasilia.
+    verification:
+      status: source_moved
+      checked_on: "2026-10-28"
+      page_date: "2019-11-13"
+      previous_url: https://agenciabrasil.ebc.com.br/radioagencia-nacional/geral/audio/2019-11/ebc-e-estatal-chinesa-de-comunicacao-assinam-acordo-para
+      note: "The EBC page returned HTTP 500 on three tries on 2026-10-28. IstoE carries the same Agencia Brasil report, which states that EBC and China Media Group signed a cooperation accord in Brasilia on Wednesday, 13 November 2019."
 
   - id: br_agenciabrasil_xinhua_2023
     outlet_id: br_agenciabrasil
@@ -495,6 +666,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: EBC and Xinhua agreed in Beijing during Lula's state visit to exchange text and images free of charge and to swap staff.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2023-04-14"
+      note: "The IstoE copy of the Agencia Brasil report states the EBC and Xinhua agreement signed in Beijing on Friday, 14 April 2023."
 
   - id: vn_vna_xinhua_2024
     outlet_id: vn_vna
@@ -509,6 +685,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: VNA and Xinhua signed a professional cooperation agreement in Beijing on multimedia information exchange witnessed by To Lam and Xi Jinping, and it also covers VietnamPlus English.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-08-20"
+      note: "The page states that VNA and Xinhua signed a professional cooperation agreement in Beijing on 20 August 2024."
 
   - id: pe_larepublica_cmg_2024
     outlet_id: pe_larepublica
@@ -523,6 +704,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Grupo La Republica signed a one year, automatically renewable convention with China Media Group on co production, content exchange and staff training.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2024-06-28"
+      note: "The La Republica page, dated 28 June 2024, states that Grupo La Republica and China Media Group signed a cooperation convention on Friday."
 
   - id: pe_andina_cctvplus_2025
     outlet_id: pe_andina
@@ -537,6 +723,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Editora Peru, publisher of Andina, signed a memorandum with CCTV+ the day before a 13 June 2025 report, allowing CCTV+ to use Andina content and offering training and content exchange.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-06"
+      note: "The El Peruano page, published 13 June 2025, states that Editora Peru signed a memorandum with CCTV+ the day before (ayer)."
 
   - id: uz_uza_xinhua_2022
     outlet_id: uz_uza
@@ -551,6 +742,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: UzA and Xinhua signed an updated agreement in the week before 15 September 2022 providing for regular news exchange and staff exchanges.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2022-09"
+      note: "The Belt and Road Portal page, datelined 15 September 2022, states that Xinhua and UzA signed a cooperation agreement earlier that week. It was read with curl under the tracker's user agent, for the same reason as the ATV entry."
 
   - id: ua_ukrinform_xinhua_2018
     outlet_id: ua_ukrinform
@@ -565,6 +761,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: Ukrinform and Xinhua signed an information cooperation agreement in Kyiv on the day of a ministerial meeting with Xinhua's editor in chief.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2018-09-14"
+      note: "The ministry page states that on 14 September 2018 Ukrinform and Xinhua signed an agreement on information cooperation."
 
   - id: st_stp_xinhua_2018
     outlet_id: st_stp
@@ -579,6 +780,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: STP-Press and Xinhua agreed in Sao Tome to exchange news, train staff jointly and possibly supply equipment, as reported on 20 November 2018.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2018-11"
+      note: "The Forum Macao page, released 20 November 2018, states that STP-Press and Xinhua signed an agreement in Sao Tome; it gives no day of signing."
 
   - id: to_tbc_cctv_2006
     outlet_id: to_tbc
@@ -593,6 +799,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The Tonga Broadcasting Commission agreed with CCTV, now part of China Media Group, to air CCTV programmes on its domestic network.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2006-05"
+      note: "The Matangi Tonga page of 2 November 2006 states that CCTV signed an agreement in May for TBC to air CCTV programmes."
 
   - id: sb_tavuli_guizhou_2026
     outlet_id: sb_tavuli
@@ -607,6 +818,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Tavuli News signed a memorandum with the provincial Guizhou Today Convergent Media Group in Guiyang on news exchange, joint reporting and journalist exchanges.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-06-27"
+      note: "The page states that Tavuli News signed a memorandum of cooperation with Guizhou Today Convergent Media Group in Guiyang on Saturday, 27 June."
 
   - id: tl_tatoli_guangxi_2025
     outlet_id: tl_tatoli
@@ -621,6 +837,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: TATOLI signed a cooperation memorandum with the provincial Guangxi International Communication Center during its 21 to 25 December 2025 visit, covering content exchange, joint reporting and training.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-12"
+      note: "The TATOLI page states that the Guangxi International Communication Center signed a memorandum of cooperation with TATOLI during its 21 to 25 December 2025 visit."
 
   - id: ng_nan_xinhua_2019
     outlet_id: ng_nan
@@ -635,6 +856,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The News Agency of Nigeria signed a memorandum with Xinhua tied to the Belt and Road Economic Information Partnership, citing a NAN report of 9 May 2019.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2019-05-09"
+      note: "The page states that NAN signed a memorandum with Xinhua in May 2019, and its event date field gives 9 May 2019."
 
   - id: au_sbs_cmg_2018
     outlet_id: au_sbs
@@ -650,6 +876,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: SBS agreed to carry CCTV Mandarin and CGTN English bulletins on its World Watch service and suspended them in March 2021 after forced confession complaints.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2018-03"
+      note: "The page states that SBS agreed with China Media Group in March 2018 to carry CCTV and CGTN bulletins, and suspended them in March 2021."
 
   - id: au_smh_chinadaily_2016
     outlet_id: au_smh
@@ -664,6 +895,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Fairfax Media agreed with China Daily to carry a monthly eight page China Watch supplement in the Sydney Morning Herald.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2016-05"
+      note: "The page states that China Daily and Fairfax Media signed an agreement in May 2016 for a monthly China Watch supplement in the Sydney Morning Herald, The Age and the Financial Review."
 
   - id: au_theage_chinadaily_2016
     outlet_id: au_theage
@@ -678,6 +914,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The same Fairfax and China Daily agreement placed the monthly China Watch supplement in The Age.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2016-05"
+      note: "The page states that China Daily and Fairfax Media signed an agreement in May 2016 for a monthly China Watch supplement in the Sydney Morning Herald, The Age and the Financial Review."
 
   - id: au_afr_chinadaily_2016
     outlet_id: au_afr
@@ -692,6 +933,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: The same Fairfax and China Daily agreement placed the monthly China Watch supplement in the Australian Financial Review.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2016-05"
+      note: "The page states that China Daily and Fairfax Media signed an agreement in May 2016 for a monthly China Watch supplement in the Sydney Morning Herald, The Age and the Financial Review."
 
   - id: za_iol_cctv_2014
     outlet_id: za_iol
@@ -706,6 +952,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: reported
     notes: Independent Media, owner of IOL, signed a partnership with CCTV in Beijing during President Zuma's state visit to build an African news platform.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2014-12"
+      note: "The Cape Times page, dated 5 December 2014, states that Independent Media signed a partnership with CCTV in Beijing the day before, during President Zuma's state visit."
 
   - id: unmonitored_thestar_ke_chinadaily_2025
     unmonitored: true
@@ -721,6 +972,11 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: The Star agreed in Nairobi to run China Daily's China Watch insert every Tuesday for one year with an option to renew.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2025-07-16"
+      note: "The Star page, dated 17 July 2025, states that The Star and China Daily Africa signed a one year content partnership on Wednesday, 16 July, with China Watch inserted every Tuesday."
 
   - id: id_antara_en_nanfang_2026
     outlet_id: id_antara_en
@@ -735,3 +991,8 @@ entries:
     accessed_on: "2026-10-13"
     confidence: stated
     notes: This mirrors the Antara memorandum with Nanfang Media Group for the separately tracked Antara English service.
+    verification:
+      status: verified
+      checked_on: "2026-10-28"
+      page_date: "2026-09-05"
+      note: "The Newsgd page, published 5 September 2026, states that Nanfang Media Group signed an MoU with Antara at the Asia Pacific Media Forum, which opened that day."

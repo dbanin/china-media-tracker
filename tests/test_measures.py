@@ -377,10 +377,10 @@ def test_the_template_reads_the_same_with_every_measure_off(tmp_path, monkeypatc
 
 def test_the_measures_file():
     specs = measures.load_config()
-    assert [s["id"] for s in specs] == ["alteration", "speed", "doctrine", "spikes", "engagement", "syndication"]
+    assert [s["id"] for s in specs] == ["alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication"]
     on = {s["id"]: s["enabled"] for s in specs}
-    assert on["engagement"] is False and on["syndication"] is False
-    assert all(on[i] for i in ("alteration", "speed", "doctrine", "spikes"))
+    assert on["engagement"] is False and on["syndication"] is True    # syndication on since 2026-10-28 (D7)
+    assert all(on[i] for i in ("alteration", "speed", "doctrine", "spikes", "calendar"))
     assert all(s["module"].startswith("pipeline.") and s["min_inputs"] >= 1 for s in specs)
     assert all(s["label"] and "Category" not in s["label"] for s in specs)
     # every measure has its own budget, and the enabled ones fit inside the total

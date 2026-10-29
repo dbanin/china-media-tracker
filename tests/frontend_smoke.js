@@ -814,4 +814,36 @@ assert(acTok.not_china === "1,022" && acTok.records === "1,039" && acTok.titles 
 assert(C.archiveCheck.fill("{short_name} check, {period}: {signatures} in {china}; {nope}", acTok) === "ProQuest TDM check, September to October 2026: 0 in 17; {nope}", "archive fill");
 assert(C.archiveCheck.countryLine({checks: [Object.assign({}, acData.checks[0], {state_origin_signatures: 2})]}, "CAN", "Canada", acTpl) === "covers two titles", "signatures found: no zero claim");
 assert(C.archiveCheck.list({checks: [{id: "x", titles: []}]}).length === 0, "an empty check is skipped");
+/* Foreign state ownership stakes (decision D11): one line per sourced stake, nothing when none is recorded. */
+assert(C.stakeNotes(null).length === 0 && C.stakeNotes(undefined).length === 0, "no stake recorded, no line");
+assert(C.stakeDate("2013-08") === "August 2013" && C.stakeDate("2013") === "2013" && C.stakeDate("2026-07-22") === "22 July 2026", "stake dates");
+var stk = {state: "CHN", holder: "H", holder_type: ["state_fund"], state_link: "L", held_in: "Owner Co", share_percent: 20, from: "2013-08", to: null,
+           status: "disputed", as_of: "2026-07-22", source_url: "https://a.example/1", source_title: "A", status_source_url: "https://b.example/2", status_source_title: "B", note: "N"};
+var stkLine = C.stakeNotes([stk])[0];
+assert(stkLine.text.indexOf("Chinese state-linked stake: 20% of Owner Co, held by H, since August 2013") === 0 && /disagree/.test(stkLine.text), "disputed stake line");
+assert(stkLine.source_url === "https://a.example/1" && stkLine.status_url === "https://b.example/2" && stkLine.note === "N", "stake sources carried");
+assert(C.stakeNotes([Object.assign({}, stk, {status: "ended", to: "2018", share_percent: "undisclosed"})])[0].text === "Chinese state-linked stake: an undisclosed share of Owner Co, held by H, August 2013 to 2018", "ended stake line");
+assert(/still described on 22 July 2026$/.test(C.stakeNotes([Object.assign({}, stk, {status: "current"})])[0].text), "current stake line");
+/* Three themes crossed with outlet leaning (C.themeCross): shares with their denominators, wires and inactive
+   outlets left out, too few below 20, and partial while the themes version is still being applied. */
+var xo = [
+  {id: "l1", active: true, tier: "national", country: "ITA", political_leaning: "left", theme_cross: {china: 100, A: 10, cur: 100, t: {ov: [40, 8], eu: [5, 1]}}},
+  {id: "l2", active: true, tier: "regional", country: "FRA", political_leaning: "left", theme_cross: {china: 60, A: 0, cur: 50, t: {ov: [20, 2], eu: [0, 0]}}},
+  {id: "r1", active: true, tier: "national", country: "ITA", political_leaning: "right", theme_cross: null},
+  {id: "w1", active: true, tier: "distribution_wire", country: "WLD", political_leaning: "left", theme_cross: {china: 900, A: 900, cur: 0, t: {ov: [900, 900], eu: [0, 0]}}},
+  {id: "i1", active: false, tier: "national", country: "ITA", political_leaning: "left", theme_cross: {china: 50, A: 50, cur: 50, t: {ov: [50, 50], eu: [0, 0]}}},
+  {id: "u1", active: true, tier: "national", country: "ITA", theme_cross: {china: 10, A: 1, cur: 10, t: {ov: [2, 1], eu: [0, 0]}}}];
+var xg = [["left", "Left"], ["right", "Right"], ["unassessed", "Not assessed"]];
+var xc = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"]);
+var xl = xc.rows[0], xr = xc.rows[1], xu = xc.rows[2];
+assert(xl.outlets === 2 && xl.china === 160 && xl.t.ov.n === 60 && xl.t.ov.a === 10, "cross sums active non-wire outlets");
+assert(Math.abs(xl.t.ov.share - 60 / 160) < 1e-12 && Math.abs(xl.t.ov.soShare - 10 / 60) < 1e-12, "cross shares");
+assert(xl.t.eu.n === 5 && xl.t.eu.soShare === null && xl.t.eu.share !== null, "state origin share needs 20 theme articles");
+assert(xr.outlets === 1 && xr.china === 0 && xr.t.ov.share === null, "a group without China coverage has no share");
+assert(xu.outlets === 1 && xu.china === 10 && xu.t.ov.share === null, "unassessed outlets fall in Not assessed; too few");
+assert(xc.total.china === 170 && xc.total.outlets === 4 && xc.complete === false && xl.complete === false, "partial while cur < china");
+var xi = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"], {iso: "ITA"});
+assert(xi.rows[0].china === 100 && xi.complete === true && xi.rows[0].t.ov.share === 0.4, "one country");
+assert(C.themeCross([], xg, "political_leaning", ["ov"]).total.t.ov.share === null, "empty crossing");
 console.log("frontend smoke ok");
+

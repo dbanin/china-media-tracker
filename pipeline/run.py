@@ -122,6 +122,8 @@ def cmd_fetch(conn, run_id, args, deadline):
 def cmd_classify(conn, run_id, args, deadline):
     from pipeline import classify_rules
     counts = classify_rules.run(conn, run_id, deadline=deadline)
+    from pipeline import hosted_travel   # disclosure flag (D8), scanned after the rules; never a label
+    hosted_travel.stage_scan(conn, counts, deadline)
     print("classify_rules:", json.dumps(counts))
     if not args.no_llm:
         try:

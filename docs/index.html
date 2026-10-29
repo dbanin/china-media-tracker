@@ -9,8 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500&display=swap">
-<link rel="stylesheet" href="style.css?v=92">
-<link rel="stylesheet" href="measures.css?v=92">
+<link rel="stylesheet" href="style.css?v=93">
+<link rel="stylesheet" href="measures.css?v=93">
+<link rel="stylesheet" href="copies_map.css?v=93">
 </head>
 <body>
 <header class="top">
@@ -18,8 +19,8 @@
   <h1>Chinese state media, <em>traced</em> through the world's newsrooms.</h1>
   <p class="sub">Counting, country by country and day by day, how often Chinese state text runs in about 1,700 monitored outlets.</p>
   <nav class="top-nav" aria-label="Sections">
-    <a href="#map-card">Map</a><a href="#themes">Themes</a><a href="#overview">What we found</a><a href="#start-here">Start here</a><a href="#examples">Examples</a>
-    <a href="#planted">Planted bylines</a><a href="#leaning">Who publishes it</a><a href="#faq">Questions</a><a href="#method">Methodology</a>
+    <a href="#map-card">Map</a><a href="#themes">Themes</a><a href="#copies-map">Same text</a><a href="#overview">What we found</a><a href="#start-here">Start here</a><a href="#examples">Examples</a>
+    <a href="#planted">Planted bylines</a><a href="#hosted-travel">Hosted travel</a><a href="#leaning">Who publishes it</a><a href="#faq">Questions</a><a href="#method">Methodology</a>
   </nav>
 </header>
 
@@ -185,7 +186,48 @@
     <div id="findings-measures" class="m-findings" hidden>
       <div id="findings-spikes"></div>
     </div>
+    <!-- The propaganda calendar (docs/m_calendar.js), under the unusual days. Hidden while the measure is off. -->
+    <div id="findings-calendar-wrap" class="m-findings" hidden>
+      <div id="findings-calendar"></div>
+    </div>
     <div id="theme-tip" class="tooltip"></div>
+</section>
+
+<!-- Same text, many countries (docs/copies_map.js, data/copies_map.json, pipeline/copies_map.py). Its own section
+     straight after the map and the themes with their unusual days: it is a second world map, read with the first,
+     and it shows which texts spread on the days the themes and unusual days flag. It is not inside #copies, which
+     stays hidden while the alteration measure is off; the alteration bands here are only an annotation. -->
+<section id="copies-map" class="sec card-sec" aria-labelledby="copies-map-title" hidden>
+    <div class="th-kicker">One state text, run in many countries</div>
+    <h2 id="copies-map-title">Same text, <em>many</em> countries</h2>
+    <p class="th-sub" id="copies-map-intro">The Xinhua, CGTN and other state texts that outlets in the most countries ran. Pick one to see where and when it ran, and how much each outlet changed it where the copy was scored. Counted as everywhere on this site: each outlet once per text, a shared widget once per country, undetermined labels left out, release wires listed but never drawn. A text translated into another language counts as a text of its own.</p>
+    <p class="cm-empty" id="cm-empty" hidden></p>
+    <div id="cm-body">
+      <div class="th-head cm-head">
+        <div class="control"><label id="lbl-cm-scope">Window</label><div class="segment" id="cm-scope" role="group" aria-labelledby="lbl-cm-scope">
+          <button type="button" data-scope="last_30d" class="active" aria-pressed="true">Last 30 complete days</button>
+          <button type="button" data-scope="all_time" aria-pressed="false">All time</button>
+        </div></div>
+        <div class="control"><label id="lbl-cm-view">Map</label><div class="segment" id="cm-view" role="group" aria-labelledby="lbl-cm-view">
+          <button type="button" data-view="one" class="active" aria-pressed="true">One text</button>
+          <button type="button" data-view="all" aria-pressed="false">All texts</button>
+        </div></div>
+        <div class="control" id="cm-mode-wrap"><label id="lbl-cm-mode">Shade by</label><div class="segment" id="cm-mode" role="group" aria-labelledby="lbl-cm-mode">
+          <button type="button" data-mode="outlets" class="active" aria-pressed="true">Outlets</button>
+          <button type="button" data-mode="days" aria-pressed="false">Days after first copy</button>
+        </div></div>
+      </div>
+      <p class="cm-count"><span id="cm-window"></span>. <span id="cm-count"></span></p>
+      <div class="cm-grid">
+        <ol class="cm-list" id="cm-list" aria-label="State texts run in the most countries"></ol>
+        <div class="cm-mapwrap">
+          <svg id="cm-map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map of the copies"></svg>
+          <div id="cm-legend" class="cm-legend"></div>
+        </div>
+      </div>
+      <div id="cm-detail" class="cm-detail" aria-live="polite"></div>
+    </div>
+    <div id="cm-tip" class="tooltip" role="status"></div>
 </section>
 
 <section id="overview" class="sec overview" aria-labelledby="overview-title">
@@ -225,6 +267,13 @@
     <h2 id="planted-title">Planted bylines</h2>
     <p class="th-sub" id="planted-intro"></p>
     <div id="planted-body"></div>
+</section>
+
+<section id="hosted-travel" class="sec card-sec" aria-labelledby="hosted-travel-title">
+    <div class="th-kicker">Disclosed trips and programmes, provisional</div>
+    <h2 id="hosted-travel-title">Hosted travel disclosures</h2>
+    <p class="th-sub" id="hosted-travel-intro">Articles that disclose a reporting trip, stay or training programme paid for or hosted by a Chinese state body. A disclosed hosted trip, not state origin.</p>
+    <div id="hosted-travel-body"></div>
 </section>
 
 <!-- Research measures (docs/measures.js, docs/m_<id>.js). Report only; each section stays hidden while its measures are off. -->
@@ -281,6 +330,13 @@
     </div>
     <p class="lean-note" id="lean-note"></p>
     <div id="lean-tip" class="tooltip"></div>
+    <div class="lean-cross" id="lean-cross" role="region" aria-labelledby="lean-cross-title" hidden>
+      <h3 id="lean-cross-title">Three themes by political leaning</h3>
+      <div class="control"><label id="lbl-lean-cross">Theme</label><div class="segment" id="lean-cross-theme" role="group" aria-labelledby="lbl-lean-cross"></div></div>
+      <p class="lean-note" id="lean-cross-sub"></p>
+      <div class="th-grid-wrap"><table id="lean-cross-table"></table></div>
+      <p class="lean-note" id="lean-cross-note"></p>
+    </div>
 </section>
 
 
@@ -303,7 +359,8 @@
     <p><strong>Color scale.</strong> Exactly zero is white. Any positive value takes one of seven tinted steps from pale pink to deep red. The step edges follow a square law between zero and a cap, the 95th percentile of every country's value on every date of the timeline for the chosen measure and window (once the timeline passes 60 days, on 60 evenly spaced dates), so the scale does not move when the day changes and a shade means the same number on every date. The cap is not frozen for good: it is computed in the browser from the published data, and each data update, about once a day, adds the newest days and recomputes it over the timeline as it then stands, so a shade can stand for a different number from one week to the next. Every measure, basis and window has its own cap, so the key changes when any of them does, and its heading names all three. The edges are rounded to what the key prints, and the map colors with the rounded edges, so a printed tier is exactly the set of values that takes its shade: whole numbers for amounts, where a step too narrow to hold a whole number is left out rather than printed twice, and two significant figures for everything else. A share of monitored output is read per 1,000 published items, since it is a small fraction of one percent almost everywhere. Values above the cap sit in the darkest, overflow step, and the legend gives the highest value. The theme counter shades its cells by the number of articles in them, on the same steps and colors, with its own cap pooled over every day of its timeline for the chosen measure and window, recomputed at each data update in the same way. Countries withheld, unreadable, not monitored or with too small a denominator have their own patterns and are never on the scale.</p>
     <p><strong>Stance toward government.</strong> A third grouping records whether each outlet supports its own government, is independent of it, or sides with the opposition, taken from a dated third-party source: Reporters Without Borders country pages, Freedom House country reports, the Media Ownership Monitor and Media Landscapes. An outlet's description of itself does not count. A stance is toward the government of the day, so each carries the year its source describes and a source from before a change of government, or older than 2023, is not used. State owned outlets without editorial independence are state controlled, from the sourced ownership. Outlets no such source describes are not assessed.</p>
     <p><strong>Political leaning and ownership.</strong> An outlet is given a political leaning and an ownership type only where a cited source supports it: Wikipedia media lists with alignment columns, Media Bias/Fact Check, RSF's Media Ownership Monitor, the Reuters Institute Digital News Report, academic studies or the outlet's own editorial statement. Leaning is judged against each country's own political spectrum, so a centre right paper in one country and in another need not hold the same positions. Not assessed means no reliable source was found; it is never inferred from an outlet's name, language or country. A state owned outlet without editorial independence is shown as state controlled: its line is the government's, not a left or right one, and the ownership source stands for it. Many outlets are still not assessed, especially small ones, so the chart describes the assessed outlets, not every outlet. Ownership separates private outlets, domestic public service broadcasters with statutory editorial independence, state funded international broadcasters, state outlets without editorial independence, and party owned outlets. State funded international broadcasters are funded by a government to reach audiences abroad, with editorial independence set by statute, charter or grant agreement: Radio Free Asia and RFE/RL (grantees of the U.S. Agency for Global Media), Deutsche Welle, RFI and France 24, the BBC World Service language services, KBS World and RNZ Pacific. They are kept apart from domestic public service broadcasters such as the BBC at home, ABC, SBS or CBC, because their funder's foreign policy is part of their remit; outlets a state runs abroad without editorial independence, such as RT and Sputnik, stay under state. Media Bias/Fact Check is a US based rater that places outlets on a United States spectrum, so a leaning outside the United States that rests on it alone is kept but shown with a caution in the chart's table, and the note under the chart counts how many leanings come from each kind of source. The chart is all time, counts active outlets only, and leaves out the global press release distribution services, which are not national newsrooms. A share of articles partly counts outlets, because a leaning with more monitored outlets publishes more, so the table beside the chart also gives the rate per outlet.</p>
-    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms appear in its headline, its feed summary or anywhere in its body. Until themes version 2026.09.4 only the first 800 characters of the body were read, which favored whatever an article names early. An article can carry several themes, so theme counts do not add up to article counts, and one with none is Other. The theme counter carries the same three measure buttons as the map, and the two move together, so it can show themes for state origin, unchecked state sourcing or all China coverage. It has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country. Its tags are keyword matches, not a reading of the article, so they should be checked by hand before a theme count is cited.</p>
+    <p><strong>Foreign state ownership stakes.</strong> Where a foreign state holds a share of an outlet, or of the company that owns it, through a state media group, a state fund or a state owned enterprise, the registry records the stake with the holder, how it is tied to the state, the company it is held in, the share (or undisclosed), when it began and when it ended, each from a public source, and the source for its present status: the latest source still describing it, or the one dating its end. Nothing is inferred from an outlet's coverage, partners or content agreements, and a stake held through a private company with reported state ties is not recorded. Where sources agree that a stake exists but conflict on whether it still reaches the outlet, the record says disputed and names the sources on each side. The country panel shows each stake under the outlet's name with its source. An outlet with no stake shown has none recorded, which is not the same as having none: only stakes found in public reporting are listed. The first record is the 20 percent stake China International Television Corporation, a subsidiary of CCTV, and the China-Africa Development Fund took in Independent News &amp; Media South Africa, then the owner of IOL, in 2013.</p>
+    <p><strong>Themes.</strong> Every article that concerns China is tagged with each theme whose terms appear in its headline, its feed summary or anywhere in its body. Until themes version 2026.09.4 only the first 800 characters of the body were read, which favored whatever an article names early. An article can carry several themes, so theme counts do not add up to article counts, and one with none is Other. The theme counter carries the same three measure buttons as the map, and the two move together, so it can show themes for state origin, unchecked state sourcing or all China coverage. It has its own window and timeline, separate from the map. The One country toggle, either Country search box, or a click on a country opens the single country view in both places, and Whole world returns to every country. Its tags are keyword matches, not a reading of the article, so they should be checked by hand before a theme count is cited. Themes version 2026.10.1 adds three narrower themes: leaving the Belt and Road, Chinese overcapacity and dumping, and the EU and China trade war. They use proximity rules (a name of the Belt and Road near a word of leaving; anti-dumping near a word of Chinese origin; EU tariffs near electric vehicles) and exclusions, every term was read in its own language in the tracked outlets' coverage, and older articles are tagged for them newest first over several exports, so until that finishes their counts are partial. Under the leaning chart a table gives, per group of outlets, the share of China coverage carrying each of the three and the state origin share within it, with both denominators, marked provisional.</p>
     <p><strong>Denominators.</strong> Per outlet we monitor divides by the country's active monitored outlets. % of all its news divides by every item the country's counted outlets put in their feeds during the window, whether or not it concerns China, and the tooltip gives the same figure per 1,000 published items. Where the registry records audience ranks for some of a country's outlets, the counted outlets are the ranked ones, at most the 30 best ranked; where it records none, they are every active outlet. The tooltip says which. No share is shown for a country with fewer than five outlets, where it would describe a handful of feeds. No per capita figure is shown, because population is a poor denominator for what outlets publish; each country's resident population is still given in the population column of the CSV of the current view, and no figure is divided by it. Paywalled articles are never classified, so they are missing from every count, and from the share of China coverage, where an unread article is in neither half. They do stay in the share of monitored output denominator, which counts every item the monitored outlets published whether or not it could be read, so in a country with many paywalls that share is a lower bound. A country where paywalls pass a third of retrieved articles carries a warning on every figure shown for it.</p>
     <div id="archive-check" class="archive-check" role="region" aria-labelledby="archive-check-title" hidden></div>
     <p><strong>Placements and underlying items.</strong> One wire item syndicated to thirty outlets and thirty separate items are different phenomena. Near-duplicate titles within a country are linked as one underlying item, and so, after the full text is fetched, are near-identical bodies in different outlets: a body link lowers a country's count of underlying items only when both placements are in that country, and a world count wherever they are. The tooltip, the ranked list, the country panel and the CSV export show both numbers. Counts are sensitive to how duplicates are defined: the rule here counts a release shown by one shared widget across a network of mastheads once per country, and counting each release one shared AAP widget showed across ten ACM mastheads that way, instead of once per masthead, cut Australia's state origin from 1,350 placements to 135 over 2026-09-03 to 2026-10-15, a tenfold fall. Both figures include placements now undetermined and excluded from every count since 22 October 2026, in Australia model calls with no checkable marker and uncredited copies of such calls; without them the fall is also tenfold. The tracker counts every placement of a release across a country's monitored outlets over its window, while the original study sampled newspaper pages, so the two Australian figures are not comparable.</p>
@@ -373,14 +430,17 @@
 
 <script src="vendor/d3.v7.min.js"></script>
 <script src="vendor/topojson-client.min.js"></script>
-<script src="compute.js?v=92"></script>
-<script src="measures.js?v=92"></script>
-<script src="m_alteration.js?v=92"></script>
-<script src="m_speed.js?v=92"></script>
-<script src="m_doctrine.js?v=92"></script>
-<script src="m_spikes.js?v=92"></script>
-<script src="m_engagement.js?v=92"></script>
-<script src="m_syndication.js?v=92"></script>
-<script src="app.js?v=92"></script>
+<script src="compute.js?v=93"></script>
+<script src="measures.js?v=93"></script>
+<script src="m_alteration.js?v=93"></script>
+<script src="m_speed.js?v=93"></script>
+<script src="m_doctrine.js?v=93"></script>
+<script src="m_spikes.js?v=93"></script>
+<script src="m_calendar.js?v=93"></script>
+<script src="m_engagement.js?v=93"></script>
+<script src="m_syndication.js?v=93"></script>
+<script src="copies_map.js?v=93"></script>
+<script src="hosted_travel.js?v=93"></script>
+<script src="app.js?v=93"></script>
 </body>
 </html>

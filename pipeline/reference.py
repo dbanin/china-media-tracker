@@ -1,18 +1,21 @@
 """Reference sources: editions of Chinese state outlets read as originals (sources/reference.yaml).
 
 The research measures compare state copy in monitored outlets against the text it came from, so the
-tracker reads the English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily and ECNS.
-They are originals only. A reference source is never an outlet: it has no country, its id is always
-ref_*, its items are never classified, never counted, never in a denominator and never in the export's
-figures, and China stays unmonitored. Everything here writes reference_items and
-reference_feed_health, and the body files, and nothing else: no articles row, no discovery count, no
-feed health or feed poll of a monitored outlet, no seen_urls entry. There is no relevance gate, since
-every item is state text.
+tracker reads the English editions of Xinhua, CGTN, Global Times, People's Daily, China Daily and ECNS,
+and since 2026-10-28 the Africa services of CGTN, China Daily and Xinhua (English and French). They are
+originals only (for the Africa services, decision D10 of 2026-10-28). A reference source is never an
+outlet: it has no country, its id is always ref_*, its items are never classified, never counted, never
+in a denominator and never in the export's figures, and China stays unmonitored. Everything here writes
+reference_items and reference_feed_health, and the body files, and nothing else: no articles row, no
+discovery count, no feed health or feed poll of a monitored outlet, no seen_urls entry. There is no
+relevance gate, since every item is state text.
 
 Polling (poll). Each active source of this collector (config.COLLECTOR) is read on its listings:
 RSS feeds and index pages through fetch_feeds.poll_outlet (so robots.txt, the per domain rate limiter
 and the user agent are the collector's own), Google News sitemaps through news_sitemap.get_xml, read
-here so the raw publication date survives, and Xinhua's static list pages through list_entries. Each
+here so the raw publication date survives, Xinhua's static list pages through list_entries, and channel
+pages whose stories live on another host or path (CGTN Africa, China Daily's Africa channels) through
+link_entries, every link the listing's link_pattern takes, under fetch_articles.can_fetch and get_page. Each
 listing's entry times are normalised by its time_rule (the notes in sources/reference.yaml give the
 evidence for each). A new item is stored as discovered; an item seen again gains a time of day when it
 had only a date. Feed health goes to reference_feed_health (store.record_reference_feed_health).
@@ -169,6 +172,8 @@ def validate_sources(sources: List[Dict], schema_path: Path = SCHEMA_PATH) -> No
         for f in list(s.get("feeds") or []) + list(s.get("news_sitemaps") or []):
             if f.get("link_pattern"):
                 re.compile(f["link_pattern"])
+            elif f.get("type") == "link_list":
+                raise ValueError("reference source %s: a link_list listing needs a link_pattern" % s["id"])
 
 
 def load_sources(path: Path = REFERENCE_PATH, validate: bool = True) -> List[Dict]:
@@ -278,6 +283,9 @@ def normalise_time(raw: Optional[str], rule: str, parsed=None, link: Optional[st
       as_published    the parsed time as written (feedparser's published_parsed, or the stamp's own zone)
       bjt_if_unzoned  no zone or "Z": Beijing time; an explicit other offset is trusted
       bjt             Beijing time, whatever zone is written
+      bjt_url_checked Beijing time, unless its Beijing date lies more than PAGE_TIME_AGREE_DAYS from the
+                      date in the article URL: then the URL date only (Xinhua's French Afrique list shows
+                      a re-listed item at the time it was re-listed, days after the URL's date)
       date_only       the date as written, without its time
       url_date        the date in the article URL"""
     if rule == "url_date":
@@ -308,6 +316,12 @@ def normalise_time(raw: Optional[str], rule: str, parsed=None, link: Optional[st
         return _iso(naive.replace(tzinfo=BJT) if zone in (None, "Z", "z") else _with_zone(naive, zone))
     if rule == "bjt":
         return _iso(naive.replace(tzinfo=BJT))
+    if rule == "bjt_url_checked":
+        stamp = naive.replace(tzinfo=BJT)
+        day = url_date(link)
+        if day is not None and abs((stamp.date() - dt.date.fromisoformat(day)).days) > PAGE_TIME_AGREE_DAYS:
+            return day
+        return _iso(stamp)
     raise ValueError("unknown time_rule %r" % rule)
 
 
@@ -315,7 +329,8 @@ def normalise_time(raw: Optional[str], rule: str, parsed=None, link: Optional[st
 # of UTC: a URL date, and a Beijing stamp without its time, is a Beijing date; date_only keeps the date
 # the listing wrote, which for the Global Times sitemap (its only user) is the UTC date (see its
 # evidence in sources/reference.yaml); an RSS date as published is read as UTC.
-RULE_DATE_ZONES = {"url_date": 480, "bjt": 480, "bjt_if_unzoned": 480, "date_only": 0, "as_published": 0}
+RULE_DATE_ZONES = {"url_date": 480, "bjt": 480, "bjt_url_checked": 480, "bjt_if_unzoned": 480, "date_only": 0,
+                   "as_published": 0}
 BJT_MINUTES = 480
 
 
@@ -324,7 +339,7 @@ def date_zone_minutes(src: Dict) -> Optional[int]:
     date giving listings (url_date and date_only) when they agree, else of all its listings when
     they agree, else None (pipeline/speed.py then takes a Beijing date)."""
     rules = [f.get("time_rule") for f in _listings(src)]
-    for pick in ([r for r in rules if r in ("url_date", "date_only")], rules):
+    for pick in ([r for r in rules if r in ("url_date", "date_only", "bjt_url_checked")], rules):
         zones = {RULE_DATE_ZONES[r] for r in pick if r in RULE_DATE_ZONES}
         if len(zones) == 1:
             return zones.pop()
@@ -441,6 +456,58 @@ def fetch_list(url: str) -> Dict:
             "elapsed": time.time() - started}
 
 
+# A link_list anchor needs this much headline text; image links to the same story are passed over.
+LINK_LIST_MIN_TITLE_CHARS = 10
+
+
+def link_entries(html: str, list_url: str, link_pattern: str) -> List[Dict]:
+    """The story links of a channel page whose stories live on another path or host than the page
+    (CGTN Africa's page on www.cgtn.com links newsaf.cgtn.com; China Daily's Africa channel links
+    /a/YYYYMM/DD/): every anchor whose absolute, cleaned address matches link_pattern, with the first
+    anchor text of at least LINK_LIST_MIN_TITLE_CHARS characters as its title (an image link to the
+    same story carries none). No times: the listing's time_rule is url_date and page_time gives the
+    time at fetch. Entries in the shape of a feedparser item; first occurrence order."""
+    from lxml import html as lhtml
+    try:
+        doc = lhtml.fromstring(html or "<html></html>")
+    except Exception:  # noqa: BLE001  an unparsable page is an empty listing
+        return []
+    pat = re.compile(link_pattern)
+    titles: Dict[str, str] = {}
+    order: List[str] = []
+    for a in doc.iter("a"):
+        href = (a.get("href") or "").strip()
+        if not href or href.startswith(("#", "mailto:", "javascript:")):
+            continue
+        url = clean_url(urljoin(list_url, href))
+        if not url.startswith("http") or not pat.search(url):
+            continue
+        if url not in titles:
+            titles[url] = ""
+            order.append(url)
+        text = " ".join(htmllib.unescape(a.text_content() or "").split())
+        if not titles[url] and len(text) >= LINK_LIST_MIN_TITLE_CHARS:
+            titles[url] = text[:500]
+    return [{"link": u, "title": titles[u], "summary": "", "published": None, "published_parsed": None}
+            for u in order if titles[u]]
+
+
+def fetch_link_list(url: str, link_pattern: str) -> Dict:
+    """Read one channel page (link_entries), as feeds_util.fetch_feed returns a feed: robots.txt, the per
+    domain pacing and the user agent are fetch_articles.can_fetch and get_page's."""
+    from pipeline import fetch_articles
+    started = time.time()
+    allowed, why = fetch_articles.can_fetch(url)
+    if not allowed:
+        return {"ok": False, "entries": [], "status": None, "error": why, "elapsed": time.time() - started}
+    html, status, err = fetch_articles.get_page(url)
+    if html is None:
+        return {"ok": False, "entries": [], "status": status, "error": err, "elapsed": time.time() - started}
+    entries = link_entries(html, url, link_pattern)
+    return {"ok": bool(entries), "entries": entries, "status": status, "error": None if entries else "no_matching_links",
+            "elapsed": time.time() - started}
+
+
 def sitemap_entries(body: bytes) -> Tuple[List[Dict], Optional[str]]:
     """The <url> records of a Google News sitemap urlset, each with its raw news:publication_date
     (news_sitemap.parse converts it to UTC, which is exactly the reading CGTN's and Global Times's
@@ -486,7 +553,7 @@ def _listings(src: Dict) -> List[Dict]:
     times), then RSS, then sitemaps, then index pages, so an item listed twice is stored with its time."""
     feeds = [dict(f) for f in src.get("feeds") or []]
     maps = [dict(f, type="news_sitemap") for f in src.get("news_sitemaps") or []]
-    order = {"xinhua_list": 0, "rss": 1, "news_sitemap": 2, "page": 3}
+    order = {"xinhua_list": 0, "rss": 1, "news_sitemap": 2, "page": 3, "link_list": 3}
     return sorted(feeds + maps, key=lambda f: order.get(f["type"], 9))
 
 
@@ -496,6 +563,8 @@ def read_listing(src: Dict, feed: Dict) -> Optional[Dict]:
     t = feed["type"]
     if t == "xinhua_list":
         return fetch_list(feed["url"])
+    if t == "link_list":
+        return fetch_link_list(feed["url"], feed["link_pattern"])
     if t == "news_sitemap":
         return fetch_sitemap(feed["url"])
     from pipeline import fetch_feeds, registry
@@ -768,7 +837,7 @@ _CGTN_TIME_LINE = re.compile(r"^\d{1,2}:\d{2}, \d{1,2}-[A-Z][a-z]{2}-\d{4}$")
 _CGTN_TAIL = {"search trends", "choose your language", "download our app"}
 _CGTN_DROP = {"breaking news", "subscribe", "get timely updates on major events from around the globe with cgtn breaking news."}
 _CGTN_DURATION = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
-_CGTN_LABELS = re.compile(r"^[A-Za-z&' ]+(;[A-Za-z&' ]+)+$")
+_CGTN_LABELS = re.compile(r"^[A-Za-z&' ]+(;[A-Za-z&' ]*)+$")
 _CD_DROP = {"share - wechat", "- search", "photo", "top"}
 # The CGTN head: the language menu (each language in English and in its own script) and the cookie
 # notice. Its accept line has been "I agree"; other wordings are taken too, and when there is no accept
@@ -776,6 +845,9 @@ _CD_DROP = {"share - wechat", "- search", "photo", "top"}
 _CGTN_ACCEPT = {"i agree", "agree", "i accept", "accept", "accept all", "accept cookies", "got it", "ok", "okay"}
 _CGTN_MENU_HEAD = "choose your language"
 _CD_NAV = re.compile(r"^- [A-Z]+$")
+# Xinhua French: the newsroom's contact box under the article ("Vous avez une question, une remarque, des
+# suggestions ? Contactez" / "notre équipe de rédaction par e-mail à xinhuanet_french@news.cn").
+_XINHUA_FR_DROP = ("vous avez une question, une remarque", "notre équipe de rédaction par e-mail")
 
 
 def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
@@ -792,6 +864,10 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
                      it) and the "Copyright ... People's Daily Online" line.
       china_daily    everything from the "Most Popular" link list or the "Copyright 1994" footer on, the
                      "Share - WeChat", "Photo" and "Top" lines and the "- HOME" style menu lines.
+      xinhua_fr      the two lines of the French newsroom's contact box ("Vous avez une question, une
+                     remarque, des suggestions ? Contactez" and the e-mail line), seen on the live check of
+                     2026-10-28. The CGTN label rule also takes a lone label with its semicolon ("Africa;"),
+                     which CGTN Africa pages carry under the "CGTN" credit line.
     Seen on every sample T1a extracted (4 CGTN pages, 3 People's Daily pages) and on the live check of
     2026-10-14 (3 pages a source)."""
     lines = (text or "").split("\n")
@@ -828,6 +904,8 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
                 lines = lines[:i]
                 break
         lines = [line for line in lines if line.strip().lower() not in _CD_DROP and not _CD_NAV.match(line.strip())]
+    elif cleaner == "xinhua_fr":
+        lines = [line for line in lines if not line.strip().lower().startswith(_XINHUA_FR_DROP)]
     return "\n".join(lines).strip()
 
 

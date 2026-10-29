@@ -865,7 +865,7 @@ def test_methodology_lists_each_themes_version_from_meta(tmp_path, monkeypatch):
     for h in themes.changes():
         assert "%s from %s (%s)" % (h["version"], h["date"], h["change"]) in text
     assert ("2026.09.4 from 2026-09-15 (terms read anywhere in the body instead of the first 800 characters") in text
-    assert "the published series has no break at a version change" in text
+    assert "leaves the earlier themes' series without a break" in text
     assert "the marks on the theme timeline record when the method changed" in text
     assert "{themes_changes_text}" not in text and "—" not in text and "–" not in text
 
@@ -875,7 +875,7 @@ def test_methodology_renders_without_themes_changes(tmp_path, monkeypatch):
     text = _rendered_methodology(tmp_path, monkeypatch, themes_changes=None)
     assert "Themes versions, each with the day it took effect" not in text
     assert "the theme timeline shows no version mark" in text
-    assert "the published series has no break at a version change" in text
+    assert "leaves the earlier themes' series without a break" in text
     assert "{themes_changes_text}" not in text
 
 

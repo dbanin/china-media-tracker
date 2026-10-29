@@ -283,6 +283,95 @@
         "type": "string",
         "description": "URL of the source for ownership."
       },
+      "foreign_state_stake": {
+        "type": "array",
+        "minItems": 1,
+        "description": "Ownership stakes a foreign state holds, through a state media group, a state fund or a state owned enterprise, in the outlet or in the company that owns it, each recorded only from a public source that names the holder, its link to the state, the share and the dates; never inferred. Absence of the field means no stake is recorded, not that none exists. A stake held through a private company with reported state ties is not recorded here.",
+        "items": {
+          "type": "object",
+          "required": ["state", "holder", "holder_type", "state_link", "held_in", "share_percent", "from", "to", "status",
+                       "source_url", "source_title", "status_source_url", "status_source_title"],
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "description": "ISO 3166-1 alpha-3 of the state behind the holder; never the outlet's own country."
+            },
+            "holder": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The holder or holders as the source names them, with the vehicle the stake is held through."
+            },
+            "holder_type": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "enum": ["state_media_group", "state_fund", "state_owned_enterprise"]},
+              "description": "What kind of state entity each holder is; several when a vehicle joins more than one."
+            },
+            "state_link": {
+              "type": "string",
+              "minLength": 1,
+              "description": "How each holder is tied to the state, as the sources describe it."
+            },
+            "held_in": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The company the stake is held in: the outlet itself or the group that owns it."
+            },
+            "share_percent": {
+              "oneOf": [
+                {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+                {"const": "undisclosed"}
+              ],
+              "description": "Share of held_in, in percent, or undisclosed when no source gives it."
+            },
+            "from": {
+              "type": "string",
+              "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+              "description": "When the stake was acquired: a year, a month or a day, as precise as the source."
+            },
+            "to": {
+              "type": ["string", "null"],
+              "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$",
+              "description": "When the stake ended, as precise as the source; null while it is current or disputed."
+            },
+            "status": {
+              "type": "string",
+              "enum": ["current", "ended", "disputed"],
+              "description": "current: a source dated as_of still describes the stake. ended: a source dates its end (to). disputed: the stake itself is documented, but sources conflict on whether it still reaches the outlet; the note says how."
+            },
+            "as_of": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+              "description": "Date of the latest source that still describes the stake; required unless status is ended."
+            },
+            "source_url": {
+              "type": "string",
+              "pattern": "^https?://",
+              "description": "The source for the holder, the share and the start."
+            },
+            "source_title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status_source_url": {
+              "type": "string",
+              "pattern": "^https?://",
+              "description": "The source for the status: the latest description of the stake (as_of), or its end."
+            },
+            "status_source_title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "note": {
+              "type": "string",
+              "description": "Anything a reader needs to weigh the record, with the further sources it rests on."
+            }
+          }
+        }
+      },
       "government_stance": {
         "type": "string",
         "enum": ["pro_government", "independent", "opposition", "state_controlled", "unassessed"],
@@ -299,6 +388,12 @@
       "rank_source": {
         "type": "string",
         "description": "URL of the readership source behind audience_rank."
+      },
+      "selection_basis": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "not reach; evidence: https?://\\S+",
+        "description": "Why the outlet is monitored, set only when it was not chosen for its audience. Unset means the usual selection by reach (the largest outlets of a country, from readership sources). Set on outlets added for their China coverage or documented pro-China content, such as small outlets that run Xinhua or CGTN partner content or have a content agreement with Chinese state media: \"selected for China coverage or documented pro-China content, not reach; evidence: <url>\", the URL of published research or reporting that documents it. Such outlets raise a country's counts because of how they were chosen, so analyses that compare countries by reach exclude or flag them (outlets.json reach_selected, meta.selection_basis)."
       }
     }
   }

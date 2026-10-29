@@ -1,0 +1,50 @@
+/* Same text, many countries (docs/copies_map.js): the copies world map section. Uses the site's tokens. */
+#copies-map .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
+#copies-map .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; margin: 0 0 1.3rem; }
+#copies-map .cm-head { display: flex; flex-wrap: wrap; gap: 1rem 2.2rem; align-items: flex-end; margin: 0 0 1rem; }
+#copies-map .cm-count { color: var(--ash); font-size: 0.86rem; margin: 0 0 1rem; }
+#copies-map .cm-empty { color: var(--bone-soft); }
+.cm-grid { display: grid; grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); gap: 1.4rem; align-items: start; }
+.cm-list { list-style: none; margin: 0; padding: 0; max-height: 34rem; overflow-y: auto; border-top: 1px solid var(--rule); }
+.cm-list li { border-bottom: 1px solid var(--rule); }
+.cm-item { display: flex; gap: 0.7rem; width: 100%; text-align: left; background: transparent; border: none; border-left: 2px solid transparent;
+  border-radius: 0; padding: 0.65rem 0.6rem; color: var(--bone-soft); cursor: pointer; font: inherit; }
+.cm-item:hover { color: var(--bone); border-left-color: var(--gold-soft); }
+.cm-item.active { color: var(--bone); border-left-color: var(--gold); background: rgba(201, 169, 97, 0.06); }
+.cm-rank { font-family: var(--display); font-size: 1.15rem; color: var(--gold); min-width: 1.4rem; line-height: 1.2; }
+.cm-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.cm-title { font-size: 0.9rem; line-height: 1.35; overflow-wrap: anywhere; }
+.cm-meta { font-size: 0.74rem; color: var(--ash); overflow-wrap: anywhere; }
+.cm-none { color: var(--ash); padding: 0.6rem 0; }
+.cm-mapwrap { min-width: 0; }
+#cm-map { width: 100%; height: auto; display: block; }
+#cm-map .sphere { fill: var(--sea); stroke: var(--rule-strong); }
+#cm-map path.country { stroke: var(--border-country); stroke-width: 0.5; vector-effect: non-scaling-stroke; transition: fill 300ms ease; }
+#cm-map path.country.cm-on { stroke: rgba(235, 229, 216, 0.35); }
+#cm-map path.country:hover { stroke: var(--gold); stroke-width: 0.9; }
+.cm-legend { margin-top: 0.6rem; font-size: 0.78rem; color: var(--ash); }
+.cm-keys { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; }
+.cm-key { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.cm-key i { display: inline-block; width: 0.9rem; height: 0.9rem; border: 1px solid var(--rule-strong); }
+.cm-key i.cm-hatch-key { background: repeating-linear-gradient(45deg, #141618 0 3px, #2b2e33 3px 4.4px); }
+.cm-wld { margin: 0.5rem 0 0; color: var(--bone-soft); overflow-wrap: anywhere; }
+.cm-detail { margin-top: 1.6rem; }
+.cm-h3 { font-family: var(--display); font-weight: 400; font-size: 1.35rem; margin: 0 0 0.4rem; overflow-wrap: anywhere; }
+.cm-sub { color: var(--ash); font-size: 0.86rem; margin: 0 0 0.8rem; max-width: 70ch; }
+.cm-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.86rem; }
+.cm-table th, .cm-table td { text-align: left; vertical-align: top; padding: 0.4rem 0.6rem 0.4rem 0; border-bottom: 1px solid var(--rule); overflow-wrap: anywhere; }
+.cm-table thead th { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ash); font-weight: 400; }
+.cm-table tbody th { color: var(--bone); font-weight: 400; }
+.cm-table td { color: var(--bone-soft); }
+.cm-after { color: var(--ash); font-size: 0.78rem; white-space: nowrap; }
+#copies-map { position: relative; }
+#cm-tip { max-width: min(22rem, calc(100vw - 48px)); }
+#cm-tip div + div { margin-top: 0.15rem; }
+@media (max-width: 900px) {
+  .cm-grid { grid-template-columns: minmax(0, 1fr); }
+  .cm-list { max-height: 20rem; }
+}
+@media (max-width: 520px) {
+  .cm-table { font-size: 0.8rem; }
+  #copies-map .cm-head { gap: 0.8rem; }
+}

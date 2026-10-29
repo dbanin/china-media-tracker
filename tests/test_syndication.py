@@ -107,12 +107,69 @@ def test_the_file_shape_and_yaml_dates(tmp_path):
     assert syn.validate_file(tmp_path / "missing.yaml", OUTLETS) == ([], [])
 
 
-def test_the_committed_file_is_valid_and_the_measure_stays_off():
+def test_the_committed_file_is_valid_and_the_measure_is_on():
+    """D7 (2026-10-28): the measure is switched on, and runs while at least 10 sourced, dated entries
+    name a monitored outlet."""
     good, errs = syn.validate_file()
     assert errs == []
     assert isinstance(yaml.safe_load((ROOT / "sources" / "syndication.yaml").read_text(encoding="utf-8"))["entries"], list)
     spec = next(m for m in measures.load_config() if m["id"] == "syndication")
-    assert spec["enabled"] is False and spec["min_inputs"] == 10 and spec["module"] == "pipeline.syndication"
+    assert spec["enabled"] is True and spec["min_inputs"] == 10 and spec["module"] == "pipeline.syndication"
+    assert len(syn.monitored(good)) >= spec["min_inputs"]
+    assert all(e.get("source_url") and e.get("signed_on") for e in good)
+
+
+def test_every_committed_entry_carries_its_source_check():
+    """Each of the 51 entries was re-read on 2026-10-28: a verification block with its status, the date the
+    page gives (supporting signed_on at its precision) and a note; a moved source keeps its old URL."""
+    raw = syn.load_file()["entries"]
+    good, errs = syn.validate_file()
+    assert errs == [] and len(raw) == len(good) == 51
+    for e in raw:
+        v = e.get("verification")
+        assert isinstance(v, dict), e["id"]
+        assert v["status"] in syn.VERIFICATION_STATUSES and v["checked_on"] == syn.VERIFIED_ON and v["note"].strip(), e["id"]
+        if v["status"] != "unverified":
+            assert syn.date_agrees(v["page_date"], e["signed_on"]), e["id"]
+        if v["status"] == "source_moved":
+            assert v["previous_url"].startswith("https://") and v["previous_url"] != e["source_url"], e["id"]
+        assert "\u2014" not in v["note"] and "\u2013" not in v["note"], e["id"]
+    counts = syn.verification_counts(good)
+    assert counts == {"verified": 50, "source_moved": 1, "unverified": 0, "unchecked": 0}
+    by_id = {e["id"]: e for e in raw}
+    iol = by_id["za_iol_cctv_2014"]
+    assert iol["partner"] == "cmg" and iol["signed_on"] == "2014-12" and iol["verification"]["status"] == "verified"
+    moved = by_id["br_agenciabrasil_cmg_2019"]
+    assert moved["verification"]["status"] == "source_moved" and "agenciabrasil.ebc.com.br" in moved["verification"]["previous_url"]
+    # the page gives no day for the Mehr signing, so the precision is the month
+    assert by_id["ir_mehr_xinhua_2024"]["signed_on"] == "2024-10" and by_id["ir_mehr_xinhua_2024"]["precision"] == "month"
+
+
+@pytest.mark.parametrize("v, words", [
+    ({"status": "source_moved", "checked_on": "2026-10-28", "note": "Moved."}, "previous_url"),
+    ({"status": "source_moved", "checked_on": "2026-10-28", "note": "Moved.", "previous_url": "https://example.org/deal"},
+     "same as source_url"),
+    ({"status": "verified", "checked_on": "2026-10-28", "note": "Yes.", "page_date": "2026-11"}, "does not support signed_on"),
+    ({"status": "verified", "checked_on": "2026-10-28", "note": "Yes.", "page_date": "2026-11-03"}, "does not support signed_on"),
+    ({"status": "verified", "checked_on": "2026-02-30", "note": "Yes."}, "not a real date"),
+    ({"status": "checked", "checked_on": "2026-10-28", "note": "Yes."}, "status"),
+    ({"status": "verified", "checked_on": "2026-10-28"}, "note"),
+    ({"status": "verified", "checked_on": "2026-10-28", "note": "Yes.", "extra": 1}, "extra"),
+])
+def test_the_verification_rules(v, words):
+    errs = errors_of(entry(verification=v))
+    assert errs and any(words in m for m in errs), errs
+
+
+def test_a_good_verification_passes_and_an_unverified_entry_stays():
+    ok = {"status": "verified", "checked_on": "2026-10-28", "page_date": "2026-11-02", "note": "The page states it."}
+    un = {"status": "unverified", "checked_on": "2026-10-28", "note": "No page could be read."}
+    moved = {"status": "source_moved", "checked_on": "2026-10-28", "page_date": "2026-11-02", "note": "Moved.",
+             "previous_url": "https://example.org/old"}
+    good, errs = syn.validate({"entries": [entry(verification=ok), entry(id="u", partner="cgtn", verification=un),
+                                           entry(id="m", partner="cmg", verification=moved)]}, OUTLET_IDS)
+    assert errs == [] and len(good) == 3
+    assert syn.verification_counts(good + [entry(id="n")]) == {"verified": 1, "source_moved": 1, "unverified": 1, "unchecked": 1}
 
 
 def test_the_command_line_validates_a_file(tmp_path, capsys):
@@ -275,7 +332,9 @@ def test_the_export_shape(db, tmp_path, monkeypatch):
     ctx = {"outlets": OUTLETS, "today": "2026-12-31"}
     out = syn.build_export(db, ctx)
     assert set(out) == {"measure", "version", "collection_start", "last_complete_day", "window_days", "min_china_per_side",
-                        "eligible_from", "eligible_until", "counts", "timeline", "comparisons"}
+                        "eligible_from", "eligible_until", "counts", "verification", "timeline", "comparisons"}
+    assert out["verification"] == {"checked_on": "2026-10-28", "wording": "sources verified on 2026-10-28, not hand coded",
+                                   "hand_coded": False}
     assert out["last_complete_day"] == "2026-12-30" and out["eligible_from"] == "2026-10-01"
     assert [t["id"] for t in out["timeline"]] == ["it_alpha_xinhua_2026", "it_alpha_thin", "ke_star", "it_alpha_cmg_2019"]
     t = {x["id"]: x for x in out["timeline"]}
@@ -284,7 +343,9 @@ def test_the_export_shape(db, tmp_path, monkeypatch):
     assert t["it_alpha_xinhua_2026"]["links"] == [{"label": "Alpha and Xinhua sign", "publisher": "Alpha", "url": "https://example.org/deal"}]
     assert t["it_alpha_xinhua_2026"]["partner_label"] == "Xinhua" and t["it_alpha_xinhua_2026"]["country"] == "ITA"
     assert out["counts"] == {"entries": 4, "monitored": 3, "unmonitored": 1, "predates_collection": 2, "eligible": 2,
-                             "compared": 1, "confounded": 1, "invalid": 0}
+                             "compared": 1, "confounded": 1, "invalid": 0,
+                             "verified": 0, "source_moved": 0, "unverified": 0, "unchecked": 4}
+    assert all(x["verification"]["status"] == "unchecked" for x in out["timeline"])
     c = {x["entry_id"]: x for x in out["comparisons"]}
     full = c["it_alpha_xinhua_2026"]
     assert full["before"]["state_origin"] == 10 and full["before"]["china"] == 100 and full["before"]["share"] == 0.1
@@ -299,6 +360,17 @@ def test_the_export_shape(db, tmp_path, monkeypatch):
     assert "\u2014" not in text and "\u2013" not in text
     assert syn.meta_summary(db, ctx) == out["counts"]
     assert syn.meta_summary(db, {"outlets": OUTLETS, "today": "2026-12-31"}) == out["counts"]
+
+
+def test_the_export_carries_each_entry_s_source_check(db, tmp_path, monkeypatch):
+    arch = {"status": "verified", "checked_on": "2026-10-28", "page_date": "2026-11-02", "note": "Read from an archived copy.",
+            "archived_url": "https://web.archive.org/web/2026/https://example.org/deal"}
+    _install_file(monkeypatch, tmp_path, [entry(verification=arch)])
+    out = syn.build_export(db, {"outlets": OUTLETS, "today": "2026-12-31"})
+    row = out["timeline"][0]
+    assert row["verification"]["status"] == "verified" and row["verification"]["page_date"] == "2026-11-02"
+    assert row["links"][1] == {"label": "archived copy", "publisher": "Internet Archive", "url": arch["archived_url"]}
+    assert out["counts"]["verified"] == 1 and out["counts"]["unchecked"] == 0
 
 
 def test_inputs_present_counts_valid_monitored_entries(tmp_path, monkeypatch):
@@ -341,6 +413,7 @@ def test_methodology_text():
     assert "timing, not cause" in t and "3 September 2026" in t and "Of the 51 entries" in t
     assert "\u2014" not in t and "\u2013" not in t and "Category" not in t and " - " not in t
     assert len([p for p in t.split("\n\n") if p.strip()]) == 3
+    assert "sources verified on 2026-10-28, not hand coded" in t and "Most of these deals were signed before collection began" in t
     assert "3 September 2026" in syn.methodology_text({})
 
 

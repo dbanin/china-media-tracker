@@ -16,8 +16,12 @@ Outputs in docs/data/:
   planted.json         articles whose byline or cited organisation matches a persona or front named
                        in a published investigation, and the recurring bylines diagnostic; never a
                        category, never a count
+  hosted_travel.json   articles that disclose a hosted trip or programme with a Chinese state host, or an
+                       unnamed one (pipeline/hosted_travel.py); a disclosure flag, never state origin
   archive_checks.json  aggregate counts from licensed archive checks (sources/archive_checks.yaml),
                        a separate source and method, kept out of every count, map, share and finding
+  copies_map.json      the state texts run in the most countries, with the outlets, days and alteration bands
+                       of their copies, for the copies world map; display only, read by no count
 
 A day with an LLM ceiling event is marked in the daily file so a truncated day
 is never mistaken for a quiet day, and a day on which the relay collector ran for
@@ -1010,6 +1014,9 @@ def build_global_series(daily: Dict[str, Dict]) -> List[Dict]:
 
 def build_outlets(conn, outlets: List[Dict]) -> Dict:
     feed_health = {r["feed_url"]: dict(r) for r in conn.execute("SELECT * FROM feed_health")}
+    # The China coverage behind the site's crossing of three themes with outlet leaning (pipeline/themes.py
+    # cross_counts), on the theme counter's basis: copies counted through another row left out.
+    theme_cross = themes_mod.cross_counts(article_rows(conn))
     per_outlet = defaultdict(_empty_country)
     for r in conn.execute(
         """SELECT outlet_id, category, method, route, COUNT(*) n, SUM(rev) rev FROM (
@@ -1085,17 +1092,25 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
         out.append({"id": o["id"], "name": o["name"], "country": registry.export_country(o), "language": o["language"],
                     "tier": o["tier"], "active": o["active"], "notes": o.get("notes"),
                     "audience_rank": o.get("audience_rank"),
+                    # Chosen for China coverage, not reach (RULES D12): a comparison of countries by reach
+                    # leaves out or flags the outlets with reach_selected false.
+                    "selection_basis": o.get("selection_basis"), "reach_selected": registry.reach_selected(o),
+                    "selection_evidence": registry.selection_evidence(o),
                     "political_leaning": o.get("political_leaning") or "unassessed", "leaning_source": o.get("leaning_source"),
                     "leaning_second_source": o.get("leaning_second_source"),
                     "leaning_source_weak": registry.leaning_source_weak(o),
                     "ownership": o.get("ownership") or "unassessed", "ownership_source": o.get("ownership_source"),
+                    # Sourced foreign state stakes (decision D11); None means none is recorded, not that none exists.
+                    "foreign_state_stake": o.get("foreign_state_stake") or None,
                     "government_stance": o.get("government_stance") or "unassessed", "stance_source": o.get("stance_source"),
                     "stance_as_of": o.get("stance_as_of"),
                     "inactive_reason": o.get("inactive_reason"), "feeds": feeds, "counts": dict(per_outlet[o["id"]]),
                     # Copies counted through another outlet's row (pipeline/placements.py); None when there are none.
                     "not_counted": dict(not_counted[o["id"]]) if o["id"] in not_counted else None,
                     "collector": registry.collector_of(o),
-                    "release_sections": (o.get("release_sections") or {}).get("status") or "not_searched"})
+                    "release_sections": (o.get("release_sections") or {}).get("status") or "not_searched",
+                    # {china, A, cur, t: {theme: [articles, state origin]}} for themes.yaml leaning_cross; None without China coverage.
+                    "theme_cross": theme_cross.get(o["id"])})
     return {"generated_at": store.utcnow(), "outlets": out}
 
 
@@ -1924,11 +1939,17 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "themes_version": themes_mod.version(),
         # Themes versions and their dates, marked on the theme timeline (pipeline/themes.py HISTORY).
         "themes_changes": themes_mod.changes(),
+        # The themes crossed with outlet leaning, and how far the current themes version's re-tagging has come:
+        # a theme it added counts only the articles already re-read until complete (pipeline/themes.py progress).
+        "themes_cross": themes_mod.cross_themes(),
+        "themes_progress": themes_mod.progress(conn),
         "theme_languages": sorted(themes_mod.languages()),
         "gate_languages": len(gate.supported_languages()),
         "population_source": registry.population_source(),
         "top_outlets_per_country": registry.TOP_OUTLETS_PER_COUNTRY,
         "countries_with_audience_ranks": registry.top_outlets(outlets)[1],
+        # Active outlets selected for their China coverage, not reach, per country (registry.selection_summary).
+        "selection_basis": registry.selection_summary(outlets),
         "min_outlets_for_output_share": config.MIN_OUTLETS_FOR_OUTPUT_SHARE,
         "gaps": [g for g in gaps if (latest["countries"].get(g["country"]) or {}).get("coverage") == "gap"],
         "articles_discovered": conn.execute("SELECT COALESCE(SUM(discovered), 0) FROM daily_discovery").fetchone()[0],
@@ -2287,6 +2308,8 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     routed = classify_rules.ensure_routes(conn)
     authors_cleaned = extract.clean_stored_authors(conn)
     planted_counts = planted.scan_quietly(conn)
+    from pipeline import hosted_travel   # disclosure flag (D8): never a label, a category or a count
+    hosted_counts = hosted_travel.scan_quietly(conn)
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
@@ -2297,6 +2320,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     articles = build_articles(conn, outlets=outlets)
     examples = build_examples(conn, outlets=outlets)
     meta = build_meta(conn, outlets, gaps, latest, outlets_json)
+    meta["hosted_travel"] = hosted_travel.meta_block_quietly(conn)
     check_discovered_floor(meta, export_dir, allow_shrink=allow_shrink,
                            withdrawn=sum(int((t or {}).get("discovered_withdrawn") or 0) for t in (junk or {}).values()))
     # The data files the site reads first (latest, daily, outlets, meta, examples) carry this export's
@@ -2333,21 +2357,29 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         put(out / "examples.json", examples)
         # A failure in the planted export is printed and leaves an empty planted.json, never a stop.
         write_json(out / "planted.json", planted.build_export_quietly(conn))
+        write_json(out / "hosted_travel.json", hosted_travel.build_export_quietly(conn))
         # The licensed archive checks (sources/archive_checks.yaml), a separate source and method: their own
         # side file, read by no count, map, share, top 10 or finding. A failure leaves no checks, never a stop.
         from pipeline import archive_checks
         write_json(out / "archive_checks.json", archive_checks.build_export_quietly())
+        # Same text, many countries (pipeline/copies_map.py): the most widely copied state texts for the copies
+        # world map, a display side file read by no count, map, share, top 10 or finding. A failure leaves it empty.
+        from pipeline import copies_map
+        write_json(out / "copies_map.json", copies_map.build_export_quietly(conn, outlets, latest, articles, meta.get("measures")))
     except BaseException:
         import shutil
         shutil.rmtree(out, ignore_errors=True)
         raise
     swap_in_export_dir(out, export_dir)
-    counts = {"planted": planted_counts,"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
+    counts = {"planted": planted_counts, "hosted_travel": hosted_counts,"countries": len(latest["countries"]), "months": len(daily), "days": len(series), "articles_files": len(articles),
               "pruned_gated_out": pruned, "themes_tagged": tagged, "routes_filled": routed, "authors_cleaned": authors_cleaned, "audit_files": write_audit_files(conn, audit_dir)}
     counts.update(roll)
     if themes_stats.get("body_retags_left"):
         # Title-only theme tags whose body has arrived, left for the next export (pipeline/themes.py).
         counts["themes_body_retags_left"] = themes_stats["body_retags_left"]
+    if themes_stats.get("version_retags_left"):
+        # Tags of an older themes version left for the next export, newest re-read first (pipeline/themes.py).
+        counts["themes_version_retags_left"] = themes_stats["version_retags_left"]
     if retagged:
         counts["section_retag"] = retagged
     if junk:

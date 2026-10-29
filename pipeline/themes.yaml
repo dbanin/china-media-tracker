@@ -1,5 +1,8 @@
-version: 2026.09.4
-note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or anywhere in its body (only the first 800 characters before 2026.09.4); an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged at the next export.
+# 2026.10.1 (2026-10-28): three themes added at the end, crossed with outlet leaning on the site (leaning_cross).
+# The eleven earlier themes are unchanged, so their tags do not change; history is re-tagged newest first
+# within each export's time budget (pipeline/themes.py BODY_RETAG_SECONDS).
+version: 2026.10.1
+note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or anywhere in its body (only the first 800 characters before 2026.09.4); an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged, newest first, over the next exports within each export's time budget; until then an article keeps its older tag. Since 2026.10.1 a theme may also carry exclude and near rules (see the three themes at the end).
 language_aliases:
   ms: id
 substring_languages:
@@ -3478,3 +3481,515 @@ themes:
     - มลพิษ
     - สภาพภูมิอากาศ
     - สิ่งแวดล้อม
+# Themes 2026.10.1, added for the owner's request of 2026-10-28. The three themes below use the shared
+# matcher (pipeline/termlists.py; pipeline/themes.py _ruled_matcher): terms under exclude never count; an
+# acronym counts only beside a full term of its own list; a near rule counts one of its terms only when a
+# term of every context list lies within window characters of it and no avoid term does. Every term was
+# read at least once in its own language (all and en: in English) in the relevant articles of the tracked
+# outlets in the snapshot of 2026-10-28 (titles, feed summaries and the bodies on file); a candidate form
+# not seen there was left out, never translated in. The forms left out are listed in the round's changelog.
+# Leaving the Belt and Road: a name of the initiative with a word of leaving, exiting or not renewing within
+# 80 characters (Italy's exit in 2023, Panama's in 2025, Colombia's debate in 2026). "back out" and "quit*"
+# were dropped (heading back out on the road; quite); 불참 too, which is skipping a forum, not leaving.
+- id: bri_withdrawal
+  label: Leaving the Belt and Road
+  short: BRI exit
+  terms: {}
+  near:
+  - window: 80
+    terms:
+      all: [Belt and Road, BRI, One Belt One Road, OBOR, New Silk Road]
+      es: [Franja y la Ruta, Nueva Ruta de la Seda, Ruta de la Seda]
+      fr: [Nouvelles routes de la soie, Nouvelle route de la soie, routes de la soie, route de la soie, la Ceinture
+          et la Route]
+      pt: [Cinturão e Rota, Nova Rota da Seda, Rota da Seda]
+      it: [Via della Seta, Nuova Via della Seta]
+      de: [Seidenstraße, Seidenstrasse]
+      ru: [Пояс и путь, Пояса и пути, Один пояс, Шелков* пут*]
+      ar: [الحزام والطريق, طريق الحرير]
+      ko: [일대일로]
+      ja: [一帯一路]
+      vi: [Vành đai và Con đường, Con đường tơ lụa]
+      id: [Sabuk dan Jalan]
+      tr: [Kuşak ve Yol, İpek Yolu]
+      ro: [Drumul Mătăsii]
+      pl: [Pasa i Szlaku]
+      fa: [کمربند و جاده, جاده ابریشم]
+      hi: [बेल्ट एंड रोड]
+      th: [เส้นทางสายไหม]
+    context:
+    - en: [withdraw*, withdrawal, withdrew, exit*, pull out, pulls out, pulled out, pulling out, leave the, leaves
+          the, leaving the, left the, not renew*, not to renew, non-renewal, abandon*, ditch*, drop out, dropped
+          out, drops out, scrap*, step away, walk away, walked away, terminate*, terminating]
+      es: [retir*, salida, salir*, sale de, abandon*, no renovar*, deja la, dejó la]
+      fr: [retrait, retir*, sortie, sortir, sort de, quitt*, abandon*, renonc*]
+      pt: [retirada, retir*, saída, sair*, deixar*, deixa a, deixou a, abandon*]
+      it: [uscita, uscire, uscit*, esce, abbandon*, ritir*, addio]
+      de: [verlass*, kündig*]
+      ru: [выход*, выйти, выходит, вышла, вышел, вышли, отказ*, покида*, покинул*, покинуть]
+      ar: [انسحاب, الانسحاب, ينسحب, تنسحب, انسحبت, الخروج, خروج, التخلي]
+      ko: [탈퇴, 이탈, 철회, 연장하지 않, 탈피]
+      ja: [離脱, 撤退]
+      vi: [rút khỏi, rút lui, từ bỏ, rời khỏi, ra khỏi]
+      id: [keluar dari, mundur dari, menarik diri, meninggalkan, keluar]
+      tr: [çekil*, ayrıl*, çıkış*, çıkma*, yenileme*]
+      nl: [terugtrekken, trekt zich terug, verlaten, verlaat, verliet]
+      ro: [retragere*, retras*, se retrage, ieși*, ieșire*, părăsi*]
+      pl: [wycofa*, wystąpi*, opuści*]
+      fa: [خروج, کناره‌گیری]
+      hi: [बाहर निकल, अलग होने]
+      th: [ถอนตัว, ออกจาก]
+# Chinese overcapacity and dumping: overcapacity and overproduction words anywhere; anti-dumping words, and the
+# English dumping with a trade word, only beside a word of Chinese origin (Chinese, from China, 중국산, aus
+# China) and never beside a nuclear, waste or retaliation word (the dumping of Fukushima water; China's own
+# probes into EU brandy, pork and dairy belong to the EU and China trade war); a flood, influx or wave of goods
+# beside cheap, low cost or subsidised and a China word, within 60 characters; the Korean supply glut words
+# (공급과잉) only within 60 characters of 중국 or 中. "dumped" was dropped (dumped out of the Shanghai Masters),
+# 밀어내기 too (a volleyball push, an export push before a holiday). Known misfire: an anti-dumping probe China
+# itself opens, when a Chinese word stands near it.
+- id: overcapacity
+  label: Chinese overcapacity and dumping
+  short: Overcapacity
+  terms:
+    en: [overcapacity, overcapacities, excess capacity, excess industrial capacity, overproduction]
+    es: [sobrecapacidad*, exceso de capacidad, sobreproducción, exceso de producción]
+    fr: [surcapacité*, surproduction*]
+    pt: [sobrecapacidade*, excesso de capacidade, excesso de produção, superprodução]
+    it: [sovraccapacità, sovrapproduzione]
+    de: [Überkapazität*, Überproduktion*]
+    ar: [فائض الطاقة الإنتاجية, الطاقة الإنتاجية الفائضة, فائض القدرة الإنتاجية, فائض الإنتاج, إغراق السوق, إغراق
+        الأسواق, مكافحة الإغراق]
+    ko: [과잉생산, 과잉 생산, 과잉설비, 저가 공세]
+    ja: [過剰生産]
+    vi: [bán phá giá]
+    id: [kelebihan kapasitas, lambakan]
+    tr: [aşırı kapasite*, kapasite fazla*, aşırı üretim*, üretim fazlası]
+    nl: [overcapaciteit]
+    pl: [nadprodukcj*]
+    fa: [ظرفیت مازاد, تولید مازاد, مازاد تولید]
+    th: [ทุ่มตลาด]
+  near:
+  - window: 120
+    terms:
+      en: [dumping]
+    exclude:
+      en: [dumping ground*, illegal dumping]
+    context:
+    - en: [Chinese, from China, China-made, Chinese-made, made in China]
+      es: [chinos, chinas, chino, procedentes de China, de origen chino, made in China]
+      fr: [chinois, chinoises, chinoise, en provenance de Chine, made in China]
+      pt: [chineses, chinesas, chinês, chinesa, provenientes da China, da China, made in China]
+      it: [cinesi, cinese, dalla Cina, made in China]
+      de: [chinesisch*, aus China, Made in China]
+      ru: [китайск*, из Китая, из КНР]
+      ar: [الصينية, الصيني, صينية, من الصين]
+      ko: [중국산, 중국발, 중국 제품, 중국 철강, 中철강]
+      ja: [中国製, 中国からの]
+      vi: [từ Trung Quốc, của Trung Quốc]
+      id: [dari China, asal China, buatan China, produk China, impor China, dari Tiongkok, asal Tiongkok]
+      tr: [Çin'den, Çin menşeli, Çin üretimi]
+      nl: [Chinese, uit China]
+      ro: [chinezești, chinezesc, chinezeşti, din China]
+      pl: [chińsk*, z Chin]
+      fa: [چینی]
+      hi: [चीन से, चीनी सामान]
+      th: [จากจีน, สินค้าจีน, ของจีน]
+    - en: [imports, exports, goods, products, steel, prices, market, markets, tariff*, duties, subsidi*, cheap*,
+        vehicles, cars, solar, overcapacity, trade, manufactur*, industr*]
+    avoid:
+      all: [Fukushima]
+      en: [nuclear, radioactive, wastewater, waste water, treated water, contaminated water, sewage, waste, garbage,
+        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM]
+      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza]
+      fr: [nucléaire*, déchets, eaux usées, porc, laiti*, canola]
+      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola]
+      it: [nucleare, radioattiv*, acque reflue]
+      de: [nuklear*, Atom*, Abfall*]
+      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*]
+      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라]
+      ja: [原発]
+      tr: [nükleer, atık*]
+      pl: [jądrow*, odpad*]
+      fa: [هسته‌ای]
+      hi: [परमाणु, डेयरी]
+  - window: 120
+    terms:
+      en: [anti-dumping, antidumping]
+      es: [antidumping]
+      de: [Dumping*, Antidumping*]
+      ru: [демпинг*, антидемпинг*]
+      ko: [덤핑, 반덤핑]
+      ja: [ダンピング, 反ダンピング]
+      vi: [chống bán phá giá]
+      id: [anti-dumping, antidumping]
+      tr: [damping*]
+      pl: [dumping*, antydumping*]
+      fa: [دامپینگ]
+    context:
+    - en: [Chinese, from China, China-made, Chinese-made, made in China]
+      es: [chinos, chinas, chino, procedentes de China, de origen chino, made in China]
+      fr: [chinois, chinoises, chinoise, en provenance de Chine, made in China]
+      pt: [chineses, chinesas, chinês, chinesa, provenientes da China, da China, made in China]
+      it: [cinesi, cinese, dalla Cina, made in China]
+      de: [chinesisch*, aus China, Made in China]
+      ru: [китайск*, из Китая, из КНР]
+      ar: [الصينية, الصيني, صينية, من الصين]
+      ko: [중국산, 중국발, 중국 제품, 중국 철강, 中철강]
+      ja: [中国製, 中国からの]
+      vi: [từ Trung Quốc, của Trung Quốc]
+      id: [dari China, asal China, buatan China, produk China, impor China, dari Tiongkok, asal Tiongkok]
+      tr: [Çin'den, Çin menşeli, Çin üretimi]
+      nl: [Chinese, uit China]
+      ro: [chinezești, chinezesc, chinezeşti, din China]
+      pl: [chińsk*, z Chin]
+      fa: [چینی]
+      hi: [चीन से, चीनी सामान]
+      th: [จากจีน, สินค้าจีน, ของจีน]
+    avoid:
+      all: [Fukushima]
+      en: [nuclear, radioactive, wastewater, waste water, treated water, contaminated water, sewage, waste, garbage,
+        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM]
+      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza]
+      fr: [nucléaire*, déchets, eaux usées, porc, laiti*, canola]
+      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola]
+      it: [nucleare, radioattiv*, acque reflue]
+      de: [nuklear*, Atom*, Abfall*]
+      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*]
+      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라]
+      ja: [原発]
+      tr: [nükleer, atık*]
+      pl: [jądrow*, odpad*]
+      fa: [هسته‌ای]
+      hi: [परमाणु, डेयरी]
+  - window: 60
+    terms:
+      en: [flood*, influx, deluge, glut, surge of, wave of, swamp*, inundat*]
+      es: [avalancha, inundación, inunda*, invasión, aluvión, oleada]
+      fr: [afflux, déferlante, inond*, invasion, vague]
+      pt: [enxurrada, inund*, invasão, avalanche, onda]
+      it: [invasione, ondata, inond*, afflusso, valanga]
+      de: [Flut, Schwemme, überschwemm*, überflut*, Welle]
+      ru: [наплыв*, поток*, наводн*, навод*, заполон*]
+      ar: [تدفق, إغراق, غزو]
+      ko: [물량 공세, 쏟아지, 범람, 공세]
+      ja: [流入, 攻勢, あふれ]
+      vi: [tràn ngập, ồ ạt, tràn vào, đổ bộ]
+      id: [banjir*, membanjiri, serbuan, gempuran]
+      tr: [akın*, sel*, istila*]
+      nl: [stroom, overspoel*, golf]
+      ro: [invazi*, val*, inund*]
+      pl: [zalew*, napływ*, fal*]
+      fa: [سیل, هجوم]
+      hi: [बाढ़]
+      th: [ทะลัก, ทุ่ม, ไหลบ่า]
+    context:
+    - en: [cheap*, low-cost, low-priced, underpriced, cut-price, subsidised, subsidized]
+      es: [barat*, bajo costo, bajo coste, a bajo precio, subvencionad*, subsidiad*]
+      fr: [bon marché, bas prix, à bas coût, low-cost, subventionn*]
+      pt: [barat*, baixo custo, subsidiad*]
+      it: [a basso costo, sussidiat*, economici]
+      de: [billig*, Billig*, subventioniert*]
+      ru: [дешев*, дешёв*, субсидир*]
+      ar: [رخيصة, الرخيصة, منخفضة التكلفة, مدعوم*]
+      ko: [저가, 값싼]
+      ja: [安価, 低価格, 安い]
+      vi: [giá rẻ, giá thấp]
+      id: [murah, bersubsidi]
+      tr: [ucuz*, düşük fiyat*, sübvanse]
+      nl: [goedkop*, subsidie*]
+      ro: [ieftin*, preț* mic*, subvenționat*]
+      pl: [tani*, tanich, subsydiowan*, dotowan*]
+      fa: [ارزان]
+      hi: [सस्ते, सस्ता, सस्ती]
+      th: [ราคาถูก, ราคาต่ำ]
+    - es: [chinos, chinas, chino, procedentes de China, de origen chino, made in China, China, Pekín, Beijing]
+      ro: [chinezești, chinezesc, chinezeşti, din China, China, Beijing]
+      ja: [中国製, 中国からの, 中国]
+      ru: [китайск*, из Китая, из КНР, Китай*, Пекин*, КНР]
+      fr: [chinois, chinoises, chinoise, en provenance de Chine, made in China, Chine, Pékin]
+      pl: [chińsk*, z Chin, Chiny, Chin, Chinach, Pekin]
+      hi: [चीन से, चीनी सामान, चीन]
+      ar: [الصينية, الصيني, صينية, من الصين, الصين, بكين]
+      en: [Chinese, from China, China-made, Chinese-made, made in China, China, Beijing]
+      tr: [Çin'den, Çin menşeli, Çin üretimi, Çin, Pekin]
+      ko: [중국산, 중국발, 중국 제품, 중국 철강, 中철강, 중국, 中]
+      nl: [Chinese, uit China, China, Peking]
+      pt: [chineses, chinesas, chinês, chinesa, provenientes da China, da China, made in China, China, Pequim]
+      it: [cinesi, cinese, dalla Cina, made in China, Cina, Pechino]
+      de: [chinesisch*, aus China, Made in China, China, Peking]
+      vi: [từ Trung Quốc, của Trung Quốc, Trung Quốc, Bắc Kinh]
+      fa: [چینی, چین, پکن]
+      th: [จากจีน, สินค้าจีน, ของจีน, จีน]
+      id: [dari China, asal China, buatan China, produk China, impor China, dari Tiongkok, asal Tiongkok, China,
+        Tiongkok, Beijing]
+  - window: 60
+    terms:
+      ko: [공급과잉, 공급 과잉]
+    context:
+    - ko: [중국, 中]
+# EU and China trade war: an electric vehicle word with an EU name and a tariff, duty or probe word within 120
+# characters; brandy, cognac, pork or dairy with an EU, European, French or Spanish word and an anti-dumping,
+# duty, probe or retaliation word within 150; rare earths with an EU name and an export control, licence or
+# shortage word within 150; trade war, trade tension or trade dispute within 40 characters of an EU name, with no
+# United States word or Trump that close. In Spanish EU is excluded everywhere in this theme: Mexico's press
+# writes EU for Estados Unidos, and Spanish writes UE for the Union.
+- id: eu_china_trade
+  label: EU and China trade war
+  short: EU trade war
+  terms: {}
+  exclude:
+    es: [EU]
+  near:
+  - window: 120
+    terms:
+      all: [EV, EVs]
+      en: [electric vehicle*, electric car*]
+      es: [vehículo* eléctrico*, coche* eléctrico*, auto* eléctrico*]
+      fr: [véhicule* électrique*, voiture* électrique*]
+      pt: [veículo* elétrico*, carro* elétrico*]
+      it: [auto elettrich*, auto elettrica, veicoli elettrici]
+      de: [Elektroauto*, E-Auto*, Elektrofahrzeug*]
+      ru: [электромобил*]
+      ar: [السيارات الكهربائية, سيارات كهربائية, المركبات الكهربائية]
+      ko: [전기차, 전기자동차]
+      ja: [電気自動車]
+      vi: [xe điện, ô tô điện]
+      id: [mobil listrik, kendaraan listrik, kenderaan elektrik, kendaraan listrik berbasis baterai]
+      tr: [elektrikli araç*, elektrikli otomobil*]
+      nl: [elektrische auto*, elektrische voertuigen]
+      ro: [mașini electrice, mașinile electrice, vehicule electrice, vehiculele electrice]
+      pl: [samochod* elektryczn*, aut* elektryczn*, pojazd* elektryczn*, elektryk*]
+      fa: [خودروهای برقی]
+      hi: [इलेक्ट्रिक वाहन]
+      th: [รถยนต์ไฟฟ้า, รถ EV, อีวี]
+    context:
+    - all: [EU]
+      en: [European Union, European Commission, Brussels]
+      es: [Unión Europea, UE, Bruselas, Comisión Europea]
+      fr: [Union européenne, UE, Bruxelles, Commission européenne]
+      pt: [União Europeia, UE, Bruxelas, Comissão Europeia]
+      it: [Unione europea, UE, Ue, Bruxelles, Commissione europea]
+      de: [Europäische Union, Europäischen Union, Brüssel, EU-Kommission, Europäischen Kommission]
+      ru: [ЕС, Евросоюз*, Европейск* союз*, Брюссел*, Еврокомисси*]
+      ar: [الاتحاد الأوروبي, بروكسل, المفوضية الأوروبية, للاتحاد الأوروبي]
+      ko: [유럽연합, 브뤼셀, 집행위]
+      ja: [欧州]
+      vi: [Liên minh châu Âu, Ủy ban châu Âu, châu Âu, Brussels]
+      id: [Uni Eropa, UE, Komisi Eropa, Brussel, Kesatuan Eropah]
+      tr: [Avrupa Birliği, AB, Avrupa Komisyonu, Brüksel]
+      nl: [Europese Unie, Brussel, Europese Commissie]
+      ro: [Uniunea Europeană, UE, Bruxelles, Comisia Europeană]
+      pl: [Unia Europejska, Unii Europejskiej, UE, Bruksel*, Komisja Europejska, Komisji Europejskiej]
+      fa: [اتحادیه اروپا, بروکسل, کمیسیون اروپا]
+      hi: [यूरोपीय संघ]
+      th: [สหภาพยุโรป, อียู]
+    - en: [tariff*, duties, duty, levy, levies, anti-subsidy, countervailing, probe, investigation, minimum price*,
+        price undertaking*]
+      es: [arancel*, investigación, derechos compensatorios, precios mínimos]
+      fr: [droits de douane, tarif*, surtaxe*, taxe*, enquête*]
+      pt: [tarifa*, sobretaxa*, taxa*, investigação, antissubsídio*]
+      it: [dazi, dazio, indagine]
+      de: [Zoll, Zölle, Zöllen, Strafzölle*, Zusatzzölle*, Ausgleichszoll*, Ausgleichszölle*, Untersuchung*, Mindestpreis*,
+        EU-Zölle*]
+      ru: [пошлин*, расследован*, антисубсид*]
+      ar: [رسوم, الرسوم, تعريفات, التعريفات, تحقيق, رسوم جمركية, الرسوم الجمركية]
+      ko: [관세, 상계관세, 조사]
+      ja: [関税, 調査]
+      vi: [thuế, thuế quan, điều tra, chống trợ cấp]
+      id: [tarif, bea masuk, bea, penyelidikan, investigasi, anti-subsidi, harga minimum]
+      tr: [gümrük vergi*, vergi*, tarife*, soruşturma*, sübvansiyon*]
+      nl: [heffing*, invoerheffing*, tarieven, importheffing*, onderzoek]
+      ro: [tarife, taxe vamale, taxe, investigați*, anchet*]
+      pl: [cła, cło, ceł, cłach, dochodzeni*, antysubsyd*]
+      fa: [تعرفه, عوارض, تحقیق]
+      hi: [टैरिफ, शुल्क, जांच]
+      th: [ภาษี, ไต่สวน]
+  - window: 150
+    terms:
+      en: [brandy, cognac, pork, dairy]
+      es: [brandy, cerdo, porcino*, lácteo*]
+      fr: [porc, laiti*]
+      pt: [carne suína, suín*, porco, laticínio*]
+      ru: [свинин*, молочн*]
+      ar: [الألبان, منتجات الألبان]
+      ko: [브랜디, 돼지고기, 유제품]
+      vi: [thịt lợn]
+      id: [daging babi, produk susu]
+      hi: [डेयरी]
+      th: [เนื้อหมู]
+    context:
+    - all: [EU]
+      en: [European Union, European Commission, Brussels, European, Europe, France, French, Spain, Spanish]
+      es: [Unión Europea, UE, Bruselas, Comisión Europea, europe*, Europa, Francia, francés, francesa, franceses,
+        España, español*]
+      fr: [Union européenne, UE, Bruxelles, Commission européenne, europée*, Europe, France, français*, Espagne,
+        espagnol*]
+      pt: [União Europeia, UE, Bruxelas, Comissão Europeia, europe*, Europa, França, francês, francesa, Espanha,
+        espanho*]
+      it: [Unione europea, UE, Ue, Bruxelles, Commissione europea, europe*, Europa, Francia, frances*, Spagna, spagnol*]
+      de: [Europäische Union, Europäischen Union, Brüssel, EU-Kommission, europäisch*, Europa, Frankreich, französisch*,
+        Spanien, spanisch*]
+      ru: [ЕС, Евросоюз*, Европейск* союз*, Брюссел*, Еврокомисси*, европейск*, Европ*, Франци*, французск*, Испани*,
+        испанск*]
+      ar: [الاتحاد الأوروبي, بروكسل, المفوضية الأوروبية, الأوروبي*, أوروبا, فرنسا, الفرنسي*, إسبانيا, الإسباني*]
+      ko: [유럽연합, 브뤼셀, 집행위, 유럽, 프랑스, 스페인]
+      ja: [欧州, フランス]
+      vi: [Liên minh châu Âu, Ủy ban châu Âu, châu Âu, Pháp, Tây Ban Nha]
+      id: [Uni Eropa, UE, Komisi Eropa, Eropa, Prancis, Perancis, Spanyol, Kesatuan Eropah]
+      tr: [Avrupa Birliği, AB, Avrupa, Fransa, Fransız, İspanya]
+      nl: [Europese Unie, Brussel, Europese Commissie, Europese, Europa, Frankrijk, Frans*, Spanje, Spaans*]
+      ro: [Uniunea Europeană, UE, Bruxelles, Comisia Europeană, europen*, Europa, Franța, francez*, Spania, spaniol*]
+      pl: [Unia Europejska, Unii Europejskiej, UE, Bruksel*, europejsk*, Europ*, Francj*, francusk*, Hiszpani*,
+        hiszpańsk*]
+      fa: [اتحادیه اروپا, بروکسل, اروپا, فرانسه, اسپانیا]
+      hi: [यूरोपीय संघ, यूरोप, फ्रांस, स्पेन]
+      th: [สหภาพยุโรป, อียู, ยุโรป, ฝรั่งเศส, สเปน]
+    - en: [anti-dumping, antidumping, anti-subsidy, tariff*, duties, duty, levy, levies, probe, investigation, retaliat*,
+        countermeasure*, deposit*]
+      es: [antidumping, arancel*, investigación, represalia*, contramedida*, depósito*]
+      fr: [droits de douane, tarif*, surtaxe*, taxe*, enquête*, représailles, contre-mesure*, dépôt*]
+      pt: [antidumping, antissubsídio*, tarifa*, sobretaxa*, taxa*, investigação, retaliaç*, represália*, depósito*]
+      it: [antidumping, dazi, dazio, indagine, ritorsion*, rappresaglia*, contromisur*, deposit*]
+      de: [Antidumping*, Zoll, Zölle, Zöllen, Strafzölle*, Untersuchung*, Vergeltung*, Gegenmaßnahme*]
+      ru: [антидемпинг*, пошлин*, расследован*, ответн* мер*, контрмер*]
+      ar: [مكافحة الإغراق, رسوم, الرسوم, تعريفات, التعريفات, تحقيق, رد, انتقام]
+      ko: [반덤핑, 관세, 조사, 보복, 맞대응, 보증금]
+      ja: [反ダンピング, 関税, 調査, 対抗措置, 保証金]
+      vi: [chống bán phá giá, thuế, điều tra, trả đũa]
+      id: [antidumping, anti-dumping, tarif, bea masuk, penyelidikan, investigasi, balasan, pembalasan]
+      tr: [gümrük vergi*, vergi*, soruşturma*, misilleme*]
+      nl: [heffing*, invoerheffing*, onderzoek, vergelding*]
+      ro: [antidumping, tarife, taxe vamale, taxe, investigați*, anchet*, represalii]
+      pl: [antydumping*, cła, cło, ceł, dochodzeni*, odwet*]
+      fa: [تعرفه, عوارض, تحقیق, تلافی]
+      hi: [टैरिफ, शुल्क, जांच, जवाबी]
+      th: [ทุ่มตลาด, ภาษี, ไต่สวน, ตอบโต้]
+  - window: 150
+    terms:
+      en: [rare earth*, rare-earth*]
+      es: [tierras raras]
+      fr: [terres rares]
+      pt: [terras raras]
+      it: [terre rare]
+      de: [Seltene Erden, Seltenen Erden]
+      ru: [редкоземельн*]
+      ar: [المعادن النادرة, العناصر الأرضية النادرة, الأتربة النادرة, المعادن الأرضية النادرة]
+      ko: [희토류]
+      ja: [レアアース]
+      vi: [đất hiếm]
+      id: [logam tanah jarang, tanah jarang, nadir bumi]
+      tr: [nadir toprak*]
+      nl: [zeldzame aardmetalen]
+      pl: [metali ziem rzadkich, metale ziem rzadkich, ziem rzadkich]
+      fa: [خاک‌های کمیاب, عناصر نادر خاکی]
+      hi: [रेयर अर्थ, दुर्लभ खनिज]
+      th: [แรร์เอิร์ธ]
+    context:
+    - all: [EU]
+      en: [European Union, European Commission, Brussels]
+      es: [Unión Europea, UE, Bruselas, Comisión Europea]
+      fr: [Union européenne, UE, Bruxelles, Commission européenne]
+      pt: [União Europeia, UE, Bruxelas, Comissão Europeia]
+      it: [Unione europea, UE, Ue, Bruxelles, Commissione europea]
+      de: [Europäische Union, Europäischen Union, Brüssel, EU-Kommission, Europäischen Kommission]
+      ru: [ЕС, Евросоюз*, Европейск* союз*, Брюссел*, Еврокомисси*]
+      ar: [الاتحاد الأوروبي, بروكسل, المفوضية الأوروبية, للاتحاد الأوروبي]
+      ko: [유럽연합, 브뤼셀, 집행위]
+      ja: [欧州]
+      vi: [Liên minh châu Âu, Ủy ban châu Âu, châu Âu, Brussels]
+      id: [Uni Eropa, UE, Komisi Eropa, Brussel, Kesatuan Eropah]
+      tr: [Avrupa Birliği, AB, Avrupa Komisyonu, Brüksel]
+      nl: [Europese Unie, Brussel, Europese Commissie]
+      ro: [Uniunea Europeană, UE, Bruxelles, Comisia Europeană]
+      pl: [Unia Europejska, Unii Europejskiej, UE, Bruksel*, Komisja Europejska, Komisji Europejskiej]
+      fa: [اتحادیه اروپا, بروکسل, کمیسیون اروپا]
+      hi: [यूरोपीय संघ]
+      th: [สหภาพยุโรป, อียู]
+    - en: [export control*, export restriction*, export curb*, export ban*, restrict*, curb*, licen*, retaliat*,
+        shortage*, countermeasure*]
+      es: [control* de exportación, controles a la exportación, restricci*, licencia*, represalia*, escasez]
+      fr: [restriction*, licence*, représailles, pénurie*]
+      pt: [controle* de exportação, restriç*, licença*, retaliaç*, escassez]
+      it: [restrizion*, licenz*, ritorsion*, carenza, stretta]
+      de: [Exportkontroll*, Exportbeschränkung*, Exportstopp*, Exportverbot*, Lizenz*, Engpässe*, Mangel]
+      ru: [экспортн* контрол*, ограничен*, лицензи*, дефицит*, запрет*]
+      ar: [قيود, ضوابط التصدير, تراخيص, حظر, القيود]
+      ko: [수출 통제, 수출통제, 수출 제한, 수출제한, 보복, 통제]
+      ja: [輸出規制]
+      vi: [kiểm soát xuất khẩu, hạn chế xuất khẩu, hạn chế]
+      id: [kontrol ekspor, pembatasan ekspor, larangan ekspor, pembatasan, pengendalian ekspor]
+      tr: [ihracat kontrol*, ihracat kısıtlama*, kısıtlama*, ihracat yasağ*]
+      nl: [exportbeperking*, beperking*, exportverbod*]
+      ro: [restricți*]
+      pl: [ograniczeni*, kontrol* eksportu]
+      fa: [محدودیت]
+      hi: [प्रतिबंध]
+      th: [จำกัดการส่งออก, มาตรการ]
+  - window: 40
+    terms:
+      en: [trade war*, trade tension*, trade dispute*, trade row, trade conflict*, trade spat, trade fight, tariff
+          war*]
+      es: [guerra comercial, guerra arancelaria, tensiones comerciales, disputa comercial, conflicto comercial]
+      fr: [guerre commerciale, tensions commerciales]
+      pt: [guerra comercial, guerra tarifária, tensões comerciais, disputa comercial]
+      it: [guerra commerciale, tensioni commerciali]
+      de: [Handelskrieg*, Handelsstreit*, Handelskonflikt*, Zollstreit*, Zollkrieg*]
+      ru: [торгов* войн*, торгов* спор*]
+      ar: [الحرب التجارية, حرب تجارية, التوترات التجارية, النزاع التجاري]
+      ko: [무역전쟁, 무역 전쟁, 무역갈등, 무역 갈등, 무역분쟁, 무역 분쟁, 관세전쟁, 관세 전쟁]
+      vi: [căng thẳng thương mại]
+      id: [perang dagang, ketegangan perdagangan, perang tarif]
+      tr: [ticaret savaş*, ticari gerilim*, gümrük savaş*]
+      nl: [handelsoorlog*, handelsconflict*]
+      ro: [război* comercial*]
+      pl: [wojn* handlow*, konflikt* handlow*]
+      fa: [جنگ تجاری, جنگ تعرفه]
+      hi: [व्यापार युद्ध, ट्रेड वॉर]
+      th: [สงครามการค้า]
+    context:
+    - all: [EU]
+      en: [European Union, European Commission, Brussels]
+      es: [Unión Europea, UE, Bruselas, Comisión Europea]
+      fr: [Union européenne, UE, Bruxelles, Commission européenne]
+      pt: [União Europeia, UE, Bruxelas, Comissão Europeia]
+      it: [Unione europea, UE, Ue, Bruxelles, Commissione europea]
+      de: [Europäische Union, Europäischen Union, Brüssel, EU-Kommission, Europäischen Kommission]
+      ru: [ЕС, Евросоюз*, Европейск* союз*, Брюссел*, Еврокомисси*]
+      ar: [الاتحاد الأوروبي, بروكسل, المفوضية الأوروبية, للاتحاد الأوروبي]
+      ko: [유럽연합, 브뤼셀, 집행위]
+      ja: [欧州]
+      vi: [Liên minh châu Âu, Ủy ban châu Âu, châu Âu, Brussels]
+      id: [Uni Eropa, UE, Komisi Eropa, Brussel, Kesatuan Eropah]
+      tr: [Avrupa Birliği, AB, Avrupa Komisyonu, Brüksel]
+      nl: [Europese Unie, Brussel, Europese Commissie]
+      ro: [Uniunea Europeană, UE, Bruxelles, Comisia Europeană]
+      pl: [Unia Europejska, Unii Europejskiej, UE, Bruksel*, Komisja Europejska, Komisji Europejskiej]
+      fa: [اتحادیه اروپا, بروکسل, کمیسیون اروپا]
+      hi: [यूरोपीय संघ]
+      th: [สหภาพยุโรป, อียู]
+    avoid:
+      all: [Trump, Washington]
+      en: [US, U.S., United States, American]
+      es: [Estados Unidos, EE.UU., EEUU, estadounidense*]
+      fr: [États-Unis, Etats-Unis, américain*]
+      pt: [Estados Unidos, EUA, norte-american*]
+      it: [Stati Uniti, USA, american*]
+      de: [USA, Vereinigten Staaten, US-amerikanisch*, amerikanisch*]
+      ru: [США, Соединенн* Штат*, американск*]
+      ar: [الولايات المتحدة, أمريكا, واشنطن, ترامب, الأمريكي*]
+      ko: [미국, 트럼프]
+      ja: [米国, アメリカ, トランプ, 米中]
+      vi: [Mỹ, Hoa Kỳ]
+      id: [Amerika Serikat, AS]
+      tr: [ABD, Amerika]
+      nl: [Verenigde Staten, Amerikaans*]
+      ro: [SUA, Statele Unite, american*]
+      pl: [USA, Stany Zjednoczone, Stanów Zjednoczonych, amerykańsk*]
+      fa: [آمریکا, ایالات متحده, ترامپ]
+      hi: [अमेरिका, ट्रंप]
+      th: [สหรัฐ, ทรัมป์]
+# The themes the site crosses with the political leaning of the outlet (the Who publishes it section).
+leaning_cross:
+- bri_withdrawal
+- overcapacity
+- eu_china_trade
