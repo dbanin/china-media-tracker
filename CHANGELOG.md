@@ -76,7 +76,8 @@ ASSET_VERSION 94.
   separators; decorative curves are hidden from screen readers; an empty favicon link stops a 404 on every load;
   theme grid text picks its ink by WCAG contrast, with white on the middle red where neither page ink reaches
   4.5:1. The methodology lists each new measure as one closed block named with its status
-  (measures.methodBlocks), which shortens the page at 375 px from about 91,000 px to about 66,000. Checked: 36 missing or malformed file cases, the deploy self heal paths, no horizontal scroll at four
+  (measures.methodBlocks), which shortens the page at 375 px from about 91,000 px to about 66,000. Numbers in
+  the country panel's tables no longer break inside themselves (126 had wrapped as 12 over 6). Checked: 36 missing or malformed file cases, the deploy self heal paths, no horizontal scroll at four
   widths, one h1 with no skipped levels, every keyboard stop visible, and the headline numbers identical across
   the cards, the panel, the findings box and scripts/numbers_sheet.py.
 

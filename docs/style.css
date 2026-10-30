@@ -231,6 +231,7 @@ aside#panel table { width: 100%; border-collapse: collapse; font-size: 0.86rem; 
 aside#panel th, aside#panel td { text-align: left; padding: 0.35rem 0.3rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 aside#panel th { color: var(--ash); font-weight: 400; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
 aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric: tabular-nums; }
+aside#panel td.num { white-space: nowrap; overflow-wrap: normal; }
 .stake-note { font-size: 0.74rem; color: var(--ash); margin-top: 0.2rem; line-height: 1.35; max-width: 34rem; overflow-wrap: anywhere; }
 .stake-status { display: inline-block; font-size: 0.6rem; padding: 0 0.35rem; border: 1px solid var(--rule-strong); color: var(--bone-soft); letter-spacing: 0.1em; text-transform: uppercase; border-radius: 2px; margin-right: 0.2rem; }
 .stake-status.is-disputed { border-color: var(--warn); color: var(--warn); }
@@ -850,3 +851,6 @@ aside#panel h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--gold); ou
   .start-here .sh-route-card:nth-child(n) { grid-column: auto; }
   .start-here .sh-hint { flex-basis: 100%; padding-left: 28px; }
 }
+
+/* A number never breaks inside itself, wherever a parent lets long words wrap anywhere. */
+td.num { overflow-wrap: normal; }
