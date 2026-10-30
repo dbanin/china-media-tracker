@@ -60,6 +60,12 @@ HISTORY = [
     {"version": "2026.10.1", "date": "2026-10-28",
      "change": "three themes added: leaving the Belt and Road, Chinese overcapacity and the EU and China trade war; the earlier themes unchanged; history re-tagged newest first over the next exports",
      "added": ["bri_withdrawal", "overcapacity", "eu_china_trade"]},
+    # The three themes' terms corrected after every hit of 2026.10.1 in the snapshot and the runner's audit files
+    # was read (overcapacity 281 of 324 right, the EU and China trade war 226 of 234, leaving the Belt and Road 4
+    # of 5). changed lists the themes whose counts are partial until the re-tagging is complete, as for added.
+    {"version": "2026.10.2", "date": "2026-10-29",
+     "change": "the three new themes' terms corrected: overcapacity no longer counted for Volkswagen's own plants, China's own anti-dumping cases or other countries' dumping cases; the EU and China trade war also read in tariffs, quotas, safeguards and anti-dumping cases beside an EU name and a China word; the eleven earlier themes unchanged; history re-tagged newest first over the next exports",
+     "changed": ["overcapacity", "eu_china_trade", "bri_withdrawal"]},
 ]
 
 # The part of an export that re-reads title-only tags whose body has since arrived (not the tagging of
@@ -307,8 +313,9 @@ def ensure(conn, body_deadline: Optional[float] = None, stats: Optional[Dict] = 
 
 def progress(conn) -> Dict:
     """How far the current themes version has come over the relevant articles: relevant, current (tagged
-    under this version), complete, and the themes this version added with the day it took effect. A
-    theme added by the current version counts only the current tags until complete is true."""
+    under this version), complete, the day the version took effect, and the themes it added and the themes
+    whose terms it changed. Until complete is true a theme it added counts only the current tags, and a theme
+    it changed counts the older tags as they were made (under the version before) beside the current ones."""
     v = version()
     rel = cur = 0
     for (stored,) in conn.execute("SELECT themes FROM articles WHERE gate_relevant=1"):
@@ -317,7 +324,7 @@ def progress(conn) -> Dict:
         cur += 1 if (st is not None and str(st.get("v")) == v) else 0
     last = next((h for h in reversed(HISTORY) if h["version"] == v), {})
     return {"version": v, "since": last.get("date"), "added": list(last.get("added") or []),
-            "relevant": rel, "current": cur, "complete": cur == rel}
+            "changed": list(last.get("changed") or []), "relevant": rel, "current": cur, "complete": cur == rel}
 
 
 def cross_counts(rows, theme_ids: Optional[List[str]] = None) -> Dict[str, Dict]:
@@ -326,15 +333,15 @@ def cross_counts(rows, theme_ids: Optional[List[str]] = None) -> Dict[str, Dict]
     [articles with the theme, state origin among them]}}}.
 
     rows are export.article_rows (copies another row stands for left out, undetermined labels in no
-    category). China coverage is what the theme counter counts: state origin, unchecked state sourcing,
-    independent journalism and candidates still waiting for the model. Outlets without any are left out."""
+    category). China coverage is A + B + C: state origin, unchecked state sourcing and independent
+    journalism. Candidates still waiting for the model carry no category yet and are left out (until
+    2026-10-29 they were counted). Outlets without any are left out."""
     want = list(theme_ids if theme_ids is not None else cross_themes())
     v = version()
     out: Dict[str, Dict] = {}
     for r in rows:
-        pending = r["status"] in ("awaiting_llm", "llm_submitted")
         cat = r["m_cat"]
-        if not (pending or cat in ("A", "B", "C")):
+        if cat not in ("A", "B", "C"):
             continue
         o = out.get(r["outlet_id"])
         if o is None:

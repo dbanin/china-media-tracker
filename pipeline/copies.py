@@ -295,15 +295,19 @@ _AGENCIES_ANY_CASE = (r"xinhua|xinhuanet|ecns|cgtn|cctv|china daily|global times
                       r"italpress|agenzia nova|adnkronos|bernama|antara|reuters")
 _AGENCIES_CAPS = r"ANSA|AGI|NOVA|Nova|AKI|AFP|AP|EFE|LUSA|Lusa|APA|DPA|dpa|CNA|KPL|MNA|AIP|CRI|ECNS|CGTN|CCTV"
 _AGENCIES = r"(?i:%s)|%s" % (_AGENCIES_ANY_CASE, _AGENCIES_CAPS)
+# A state agency's regional service after its name, in a credit line, a tail tag or a dateline: "CGTN
+# Africa" (the byline at the head of CGTN Africa's pages), "Xinhua Afrique", "China Daily Africa". Without
+# it a bare "CGTN Africa" credit line was scored as an added paragraph of the copy (2026-10-29).
+_SERVICES = r"(?:\s+(?i:africa|afrique|fran[c\u00e7]ais|america|europe|radio|digital))?"
 # A dateline: a place (and date) of at most eight words in capitals or title case, the agency or an
 # upper case tag in brackets, then a dash: "BEIJING, Oct. 13 (Xinhua) --", "ROMA (ITALPRESS) -",
 # "Jakarta (ANTARA) -". Case sensitive outside the agency names, so "The minister (who spoke) - " is
 # text, not a dateline.
 _DATELINE = re.compile(
     r"^(?:[A-Z\u00C0-\u00DE][\w\u00C0-\u024F.,'\u2019/]*(?:\s+[\w\u00C0-\u024F.,'\u2019/]+){0,7}\s*)?"
-    r"\(\s*(?:%s|[A-Z][A-Z .]{1,24})\s*\)\s*[%s]{1,2}\s*" % (_AGENCIES, _DASHES))
+    r"\(\s*(?:(?:%s)%s|[A-Z][A-Z .]{1,24})\s*\)\s*[%s]{1,2}\s*" % (_AGENCIES, _SERVICES, _DASHES))
 _DATELINE_UPPER = re.compile(r"^[A-Z][A-Z .,'\u2019]{2,40}(?:\([A-Z .]{2,20}\))?\s*[%s]{1,2}\s+(?=\S)" % _DASHES)
-_TAIL_CREDIT = re.compile(r"\(\s*(?:%s)\s*\)\.?\s*$" % _AGENCIES)
+_TAIL_CREDIT = re.compile(r"\(\s*(?:%s)%s\s*\)\.?\s*$" % (_AGENCIES, _SERVICES))
 _CREDIT_WORDS = re.compile(
     r"^\W*(?:source|sources|fonte|fuente|fontes|sumber|quelle|photo|photos|foto|fotos|fotografia|image|images|video|"
     r"editor|editing|edited by|reporting|reported by|written by|translated|translation|traduzione|tradu\u00e7\u00e3o|"
@@ -347,7 +351,7 @@ def is_credit_line(line: str) -> bool:
         return True
     if len(words) > 12:
         return False
-    if re.fullmatch(r"[\(\[]?\s*(?:%s)\s*[\)\]]?\.?" % _AGENCIES, s):
+    if re.fullmatch(r"[\(\[]?\s*(?:%s)%s\s*[\)\]]?\.?" % (_AGENCIES, _SERVICES), s):
         return True
     if not _AGENCY_NAME.search(s):
         return False

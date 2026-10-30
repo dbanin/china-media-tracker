@@ -6,10 +6,10 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "93";
+  var ASSET_VERSION = "94";
   /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
      pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
-  var KNOWN_SCHEMA = 19;
+  var KNOWN_SCHEMA = 20;
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -408,15 +408,43 @@
     var t = decodeEntities(u);
     return /^https?:\/\//i.test(t.replace(/[\u0000-\u0020\u007f-\u00a0]/g, "")) ? t.trim() : "";
   }
-  /* A sourced foreign state ownership stake under the outlet's name in the country panel (C.stakeNotes); the
-     record's note, with the further sources, is the line's tooltip. No line means no stake is recorded. */
+  /* A sourced foreign state ownership stake under the outlet's name in the country panel (C.stakeNotes). The
+     status is a visible tag and words in the line, the record's note opens in place (a tooltip never shows on a
+     touch screen), each link names its source to a screen reader, and only https and http links are made links.
+     No line means no stake is recorded, which stakeAbsenceNote says once under the table. */
+  function stakeNoteHtml(note) {
+    var out = "", last = 0, re = /https?:\/\/[^\s()<>"]+[^\s()<>".,;:']/g, m;
+    while ((m = re.exec(note))) {
+      var u = safeUrl(m[0]);
+      out += esc(note.slice(last, m.index)) + (u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(m[0]) + '</a>' : esc(m[0]));
+      last = m.index + m[0].length;
+    }
+    return out + esc(note.slice(last));
+  }
   function stakeLines(o) {
-    return C.stakeNotes(o.foreign_state_stake).map(function (n) {
+    var notes = C.stakeNotes(o.foreign_state_stake, countryName);
+    if (!notes.length) return "";
+    return notes.map(function (n) {
       var src = safeUrl(n.source_url), st = safeUrl(n.status_url);
-      return '<div class="stake-note"' + (n.note ? ' title="' + esc(n.note) + '"' : '') + '>' + esc(n.text) +
-        (src ? ', <a href="' + esc(src) + '" target="_blank" rel="noopener" title="' + esc(n.source_title) + '">source</a>' : '') +
-        (st && st !== src ? ', <a href="' + esc(st) + '" target="_blank" rel="noopener" title="' + esc(n.status_title) + '">status source</a>' : '') + '</div>';
-    }).join("");
+      var known = /^(current|ended|disputed)$/.test(n.status || "");
+      return '<div class="stake-note"><span class="stake-status' + (known ? ' is-' + n.status : '') + '">' + esc(n.status_label) + '</span> ' + esc(n.text) +
+        (src ? ' <a href="' + esc(src) + '" target="_blank" rel="noopener" title="' + esc(n.source_title) + '" aria-label="' + esc("Source for the stake: " + (n.source_title || src)) + '">source</a>' : '') +
+        (st && st !== src ? ', <a href="' + esc(st) + '" target="_blank" rel="noopener" title="' + esc(n.status_title) + '" aria-label="' + esc("Source for its status: " + (n.status_title || st)) + '">status source</a>' : '') +
+        (n.note ? '<details class="stake-more"><summary>Sources and caveats</summary><p>' + stakeNoteHtml(n.note) + '</p></details>' : '') + '</div>';
+    }).join("") + '<div class="stake-note stake-caveat">' + esc(C.STAKE_CAVEAT) + '</div>';
+  }
+  /* An outlet added for its China coverage, not reach (C.selectionBadge): a visible tag, what its source
+     documents in words, and a link to the source that names it to a screen reader. */
+  function selectionLine(o) {
+    var b = C.selectionBadge(o);
+    if (!b) return "";
+    var u = safeUrl(b.url);
+    return '<div class="stake-note sel-note"><span class="badge">' + esc(b.label) + '</span> ' + esc(b.text) +
+      (u ? ' <a href="' + esc(u) + '" target="_blank" rel="noopener" aria-label="' + esc("Evidence for the selection of " + o.name) + '">evidence</a>' : '') + '</div>';
+  }
+  function stakeAbsenceNote(outlets) {
+    return outlets.some(function (o) { return C.stakeNotes(o.foreign_state_stake).length; })
+      ? '<p class="panel-note">A stake is listed under an outlet only where a public source records it; an outlet without one has none recorded, which is not the same as having none.</p>' : '';
   }
   function pct(v) { return v === null || v === undefined ? "n/a" : (v * 100).toFixed(1) + "%"; }
   function days() { return C.listDays(state.months); }
@@ -604,9 +632,9 @@
      12 October 2026, when a model study could publish; it was never a synonym for correct. */
   function relayText(relay, b) {
     if (!relay.measured) return "not yet measured";
-    if (relay.provisional) return String(b) + " (provisional)";
+    if (relay.provisional) return (typeof b === "number" ? intComma(b) : String(b)) + " (provisional)";
     if (!relay.publishable) return "withheld";
-    return String(b) + (relayBasis() === "model_vs_model" ? " (model agreement)" : "");
+    return (typeof b === "number" ? intComma(b) : String(b)) + (relayBasis() === "model_vs_model" ? " (model agreement)" : "");
   }
 
   function routeList() { return C.withRouteFallbacks(state.meta && state.meta.routes).map(function (r) { return {kind: "route", id: r.id, label: r.label}; }); }
@@ -675,7 +703,7 @@
       var rs = m.release_sections;
       if (rs && rs.outlets_active) {
         var searched = rs.outlets_active - (rs.not_searched || 0);
-        parts.push(searched + " of " + rs.outlets_active + " active outlets have had their press release, sponsored and partner sections searched" + (searched ? ", and " + (rs.found || 0) + " had one" : "") + ". State origin placed through a section nobody searched cannot be found.");
+        parts.push(intComma(searched) + " of " + intComma(rs.outlets_active) + " active outlets have had their press release, sponsored and partner sections searched" + (searched ? ", and " + (rs.found || 0) + " had one" : "") + ". State origin placed through a section nobody searched cannot be found.");
       }
       /* Relay only outlets and the ones the hosted runner also polls are stated apart: a silent relay
          leaves only the first uncollected (C.relayCollectorNotes). */
@@ -686,7 +714,7 @@
          detail rather than something that changes how today's map should be read: they live in the
          Technical notes block inside the methodology section (renderTechnicalNotes), not here. */
       var fs = m.feed_saturation;
-      if (fs && fs.polls && fs.saturated) parts.push(fs.saturated + " of " + fs.polls + " feed polls returned a full window with nothing seen before, so items were lost between polls: " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + ". Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
+      if (fs && fs.polls && fs.saturated) parts.push(intComma(fs.saturated) + " of " + intComma(fs.polls) + " feed polls returned a full window with nothing seen before, so items were lost between polls: " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + ". Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
       /* One line per provisional or withheld research measure, in the full notes only, never the short strip. */
       if (MS) Array.prototype.push.apply(parts, MS.noticeLines(m.measures));
@@ -764,7 +792,7 @@
       see.addEventListener("click", function (ev) {
         ev.preventDefault(); selectCountry(tc.iso);
         if (window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
-        var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+        var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: scrollBehavior(), block: "start"});
       });
       box.appendChild(see);
     }
@@ -802,7 +830,7 @@
   function openCountryFromFindings(iso) {
     selectCountry(iso);
     if (window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
-    var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+    var card = el("map-card"); if (card && card.scrollIntoView) card.scrollIntoView({behavior: scrollBehavior(), block: "start"});
   }
   function renderTop10() {
     var box = el("top10");
@@ -834,11 +862,12 @@
       var w = top.max ? Math.max(2, 100 * r.count / top.max) : 0;
       var items = intComma(r.underlying) + (r.underlying === 1 ? " underlying item" : " underlying items");
       var why = "fewer than " + C.MIN_SHARE_DENOMINATOR + " China articles in these days";
-      var label = "Rank " + r.rank + (r.tied ? ", tied" : "") + ", " + r.name + ": " + intComma(r.count) + " state origin placements, " + items + ", " +
+      var sel = C.chinaSelectedCountry((state.latest.countries || {})[r.iso]);
+      var label = "Rank " + r.rank + (r.tied ? ", tied" : "") + ", " + r.name + (sel ? ", its figures include outlets selected for China coverage, not reach" : "") + ": " + intComma(r.count) + " state origin placements, " + items + ", " +
         (r.share === null ? "share of its China coverage n/a, " + why : pct(r.share) + " of its China coverage") + ". Opens the country view.";
       return '<li><button type="button" class="t10-row" data-iso="' + esc(r.iso) + '" aria-label="' + esc(label) + '">' +
         '<span class="t10-rank">' + r.rank + '</span>' +
-        '<span class="t10-name">' + esc(r.name) + (r.tied ? ' <span class="t10-tied">tied</span>' : '') + '</span>' +
+        '<span class="t10-name">' + esc(r.name) + (sel ? '<sup class="t10-sel" aria-hidden="true">' + C.SELECTION_MARK + '</sup>' : '') + (r.tied ? ' <span class="t10-tied">tied</span>' : '') + '</span>' +
         '<span class="t10-bar"><span style="width:' + w.toFixed(1) + '%"></span></span>' +
         '<span class="t10-count"><span class="t10-n">' + intComma(r.count) + '</span><span class="t10-items">' + esc(items) + '</span></span>' +
         '<span class="t10-share"' + (r.share === null ? ' title="' + esc("Not shown: " + why) + '"' : '') + '>' +
@@ -854,6 +883,7 @@
       lines.push(top10Text(t, top.tiedBeyond.length <= 5 ? "tied_beyond" : "tied_beyond_many", tv));
     }
     if (rows.length) lines.push(top10Text(t, "share_note", vars));
+    lines.push(C.selectionTop10Note(rows.filter(function (r) { return C.chinaSelectedCountry((state.latest.countries || {})[r.iso]); }).map(function (r) { return r.name; })));
     if (top.worldwide) lines.push(top10Text(t, "worldwide", {n: intComma(top.worldwide.count)}));
     if (top.underlyingSummed) lines.push(C.UNDERLYING_SUMMED);
     var missing = state.monthsAll.filter(function (m) { return state.monthsFailed[m] && m >= start.slice(0, 7) && m <= lastDay.slice(0, 7); });
@@ -1131,7 +1161,7 @@
     sel.value = value;
     sel.dispatchEvent(new Event("change"));
     var wrap = el("map-wrap");
-    if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({behavior: "smooth", block: "start"});
+    if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({behavior: scrollBehavior(), block: "start"});
   }
   function renderStartHere() {
     var det = el("start-here");
@@ -1266,7 +1296,7 @@
     var failed = MS.renderAll(blocks, state.measureData, measureApi);
     var wrap = el("measure-method"), body = el("measure-method-body");
     if (wrap && body) {
-      var paras = MS.methodParagraphs(blocks);
+      var paras = MS.methodBlocks(blocks);
       body.innerHTML = paras.join("");
       wrap.hidden = !paras.length;
     }
@@ -1598,8 +1628,9 @@
     }
     state.zoomK = k;
     var t = "translate(" + tx + "," + ty + ") scale(" + k + ")";
-    gCountries.interrupt().transition().duration(650).attr("transform", t);
-    gMarkers.interrupt().transition().duration(650).attr("transform", t);
+    var ms = scrollBehavior() === "auto" ? 0 : 650;   /* no zoom animation under reduced motion */
+    gCountries.interrupt().transition().duration(ms).attr("transform", t);
+    gMarkers.interrupt().transition().duration(ms).attr("transform", t);
   }
 
   /* The legend reads top to bottom: what the color measures and over which days, the value range
@@ -1925,9 +1956,16 @@
      Always marked provisional: the tags are keyword matches no person has checked; also while the themes
      version is still being applied to older articles, and while China coverage holds unchecked model labels. */
   state.crossTheme = null;
-  function crossShare(v) {
+  function crossShare(v, few) {
+    if (few) return "few outlets";
     if (v === null || v === undefined) return "too few";
+    if (v > 0 && v < 0.001) return "<0.1%";   /* 4 of 19,655 is not 0.0% */
     return v > 0 && v < 0.1 ? (100 * v).toFixed(1) + "%" : pctText(v);
+  }
+  /* A share cell; "too few" and "few outlets" may wrap at phone width, a number never does. */
+  function shareCell(v, few) {
+    var t = crossShare(v, few);
+    return '<td class="num' + (/\d/.test(t) ? "" : " word") + '">' + esc(t) + '</td>';
   }
   function renderThemeCross(md) {
     var box = el("lean-cross");
@@ -1941,7 +1979,10 @@
     var tid = state.crossTheme, ax = LEAN_AXIS[md.axis] || LEAN_AXIS.leaning;
     var cx = C.themeCross(state.outlets, LEAN_GROUPS[md.axis] || LEAN_GROUPS.leaning, ax.key, ids, {iso: md.iso});
     var prog = meta.themes_progress || null;
-    var partial = !cx.complete || !!(prog && prog.complete === false && (prog.added || []).indexOf(tid) !== -1);
+    /* Partial when the table's own China articles are not all tagged under the current version (cx.cur
+       against cx.china); the global progress is not used, so a country already re-tagged is not marked. */
+    var partial = !cx.complete;
+    var retagged = prog && ((prog.added || []).indexOf(tid) !== -1 || (prog.changed || []).indexOf(tid) !== -1);
     var relayProv = !!relayFor(null).provisional;
     el("lean-cross-title").textContent = "Three themes by " + ax.what;
     var seg = el("lean-cross-theme");
@@ -1950,25 +1991,32 @@
       return '<button data-cross="' + esc(id) + '"' + (on ? ' class="active"' : '') + ' aria-pressed="' + on + '" title="' + esc(cat[id].label) + '">' + esc(cat[id].short || cat[id].label) + '</button>';
     }).join("");
     Array.prototype.forEach.call(seg.querySelectorAll("button"), function (b) {
-      b.addEventListener("click", function () { state.crossTheme = b.getAttribute("data-cross"); renderThemeCross(leanModel()); });
+      b.addEventListener("click", function () {
+        state.crossTheme = b.getAttribute("data-cross");
+        renderThemeCross(leanModel());
+        var again = el("lean-cross-theme").querySelector('[data-cross="' + state.crossTheme + '"]');
+        if (again) again.focus();   /* the buttons are rebuilt, so focus would fall back to the page */
+      });
     });
     var why = ["the tags are keyword matches no person has checked"];
-    if (partial) why.push(prog && prog.relevant ? "older articles are still being tagged for it, newest first: " + (prog.current || 0).toLocaleString("en-US") + " of " + prog.relevant.toLocaleString("en-US") + " relevant articles so far" : "older articles are still being tagged for it");
+    if (partial) why.push("older articles are still being re-tagged, newest first: " + cx.total.cur.toLocaleString("en-US") + " of the " + cx.total.china.toLocaleString("en-US") + " China articles here carry the current tags so far, and the others keep the tags of an earlier version" +
+      (retagged ? ", which " + ((prog.added || []).indexOf(tid) !== -1 ? "had no such theme" : "may lack the theme or read it with other terms") : ""));
     if (relayProv) why.push("China coverage includes model labels no person has checked yet");
     el("lean-cross-sub").textContent = cat[tid].label + ": the share of each group's China coverage that carries the theme, and the share of those articles that are state origin, " +
       (md.iso ? "in " + countryName(md.iso) : "in every monitored country") + ", all time. Provisional: " + why.join("; ") + ".";
     var row = function (r, cls) {
       var c = r.t[tid];
-      return '<tr class="' + (cls || "") + (r.china ? "" : " zero") + '"><td>' + esc(r.label) + '</td>' +
-        '<td class="num">' + r.outlets + '</td><td class="num">' + r.china.toLocaleString("en-US") + '</td>' +
-        '<td class="num">' + c.n.toLocaleString("en-US") + '</td><td class="num">' + crossShare(c.share) + '</td>' +
-        '<td class="num">' + c.a.toLocaleString("en-US") + '</td><td class="num">' + crossShare(c.soShare) + '</td></tr>';
+      return '<tr class="' + (cls || "") + (r.china ? "" : " zero") + '"><th scope="row">' + esc(r.label) + '</th>' +
+        '<td class="num">' + r.outlets.toLocaleString("en-US") + '</td><td class="num">' + r.china.toLocaleString("en-US") + '</td>' +
+        '<td class="num">' + c.n.toLocaleString("en-US") + '</td>' + shareCell(c.share, r.fewOutlets) +
+        '<td class="num">' + c.a.toLocaleString("en-US") + '</td>' + shareCell(c.soShare, r.fewOutlets) + '</tr>';
     };
-    el("lean-cross-table").innerHTML = '<thead><tr><th>' + ax.head + '</th><th class="num">Outlets</th><th class="num">China articles</th>' +
-      '<th class="num">With theme</th><th class="num">Share</th><th class="num">State origin among them</th><th class="num">Share</th></tr></thead><tbody>' +
+    el("lean-cross-table").innerHTML = '<caption class="sr-only">' + esc(cat[tid].label) + ' by ' + esc(ax.what) + '</caption>' +
+      '<thead><tr><th scope="col">' + ax.head + '</th><th scope="col" class="num">Outlets</th><th scope="col" class="num">China articles</th>' +
+      '<th scope="col" class="num">With theme</th><th scope="col" class="num" aria-label="Share of China articles with the theme">Share</th><th scope="col" class="num">State origin among them</th><th scope="col" class="num" aria-label="State origin share of the articles with the theme">Share</th></tr></thead><tbody>' +
       cx.rows.map(function (r) { return row(r); }).join("") + row(cx.total, "total") + '</tbody>';
-    el("lean-cross-note").textContent = "Share is articles with the theme over the group's China articles (state origin, unchecked state sourcing, independent journalism and articles waiting for the model); the state origin share is state origin articles with the theme over all articles with the theme. " +
-      "A share over fewer than " + cx.minN + " articles is shown as too few. An article can carry more than one of these themes. " +
+    el("lean-cross-note").textContent = "Share is articles with the theme over the group's China articles (state origin, unchecked state sourcing and independent journalism); the state origin share is state origin articles with the theme over all articles with the theme. " +
+      "A share over fewer than " + cx.minN + " articles is shown as too few, and a group whose China articles come from fewer than " + cx.minOutlets + " outlets as few outlets, because its share would describe those outlets rather than a kind of outlet. An article can carry more than one of these themes. " +
       "Theme tags read the headline, the feed summary and the body, and should be checked by hand before a figure is cited. " +
       (md.axis === "leaning" ? "A leaning resting on Media Bias/Fact Check alone outside the United States is marked in the table above. " : "") +
       "A group with more outlets publishes more, so compare the shares, not the counts.";
@@ -1994,7 +2042,18 @@
      The share of the row each cell holds is in its tooltip. Like the map, the tiers are pooled over every
      day of the theme timeline, so moving the counter's day never changes what a shade means. */
   /* Dark ink from Lab lightness 55 up: between 55 and 62 the light ink fell under 4.5:1 on the mid reds. */
-  function inkOn(color) { return d3.lab(color).l > 55 ? "#0c0d0f" : "#f3ede2"; }
+  /* Text on a shaded cell: the page's dark or cream ink, whichever contrasts more, and pure white where
+     neither reaches 4.5:1 (the middle red of the shared ramp gives cream 4.2:1, white 4.8:1). */
+  function relLum(color) {
+    var c = d3.rgb(color);
+    return [c.r, c.g, c.b].map(function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+      .reduce(function (a, v, i) { return a + v * [0.2126, 0.7152, 0.0722][i]; }, 0);
+  }
+  function contrastOf(a, b) { var x = relLum(a), y = relLum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function inkOn(color) {
+    var dark = "#0c0d0f", cream = "#f3ede2", best = contrastOf(color, dark) >= contrastOf(color, cream) ? dark : cream;
+    return contrastOf(color, best) >= 4.5 ? best : "#ffffff";
+  }
   var THEME_ROWS = 15;
   var themeCapCache = {};
   function themeKey(iso) {
@@ -2070,6 +2129,8 @@
     var themeLive = "Showing " + noun + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() + "." +
       (routeActive() ? " Themes are not split by route, so the route filter does not apply here." : "") +
       (wiresOnly() ? " Distribution: the worldwide wires alone." : countryOnly() ? " Distribution: the country outlets alone." : "");
+    var retagNote = C.themesRetagNote(state.meta && state.meta.themes_progress, themeLabels());
+    if (retagNote) themeLive += " " + retagNote;
     el("themes-sub").textContent = themeCap ? themeCap + " " + themeLive :
       noun.charAt(0).toUpperCase() + noun.slice(1) + (state.measure !== "a" && relayFor(null).provisional ? " (provisional)" : "") + " by theme" + (state.selected ? " in " + countryName(state.selected) : "") + ", " + themeWindowLabel() +
       ". Tags read the headline, the feed summary and the whole body. An article can carry more than one theme, so theme counts do not add up to the number of articles." +
@@ -2319,6 +2380,10 @@
      down, so a country opened from above it would change nothing in view. When the panel's top is below
      the fold, or force says so, it is scrolled into view and its heading takes the focus. Returns whether
      it did. */
+  /* "auto" (a jump) for a reader who asks for reduced motion, otherwise "smooth". */
+  function scrollBehavior() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  }
   function revealPanel(force) {
     var panel = el("panel");
     if (!panel || !panel.getBoundingClientRect) return false;
@@ -2510,11 +2575,11 @@
       body.innerHTML = '<h2>Select a country</h2><p class="muted">' + esc(introText) + '</p>' +
         (top3.length ? '<div class="panel-shortcuts" id="panel-shortcuts"><span class="ps-label">Jump to the top ' + top3.length + ':</span>' +
           top3.map(function (r) { return '<button type="button" class="ps-btn" data-iso="' + esc(r.iso) + '">' + esc(r.name) + '</button>'; }).join("") + '</div>' : '') +
-        (t ? '<h3>' + esc(totalsHead) + '</h3><table><tr><th>' + esc(clearerLabel("A", "State origin")) + '</th><td class="num">' + t.A + '</td></tr>' +
-          '<tr class="undetermined-row"><th>' + esc(UNDETERMINED_ROW) + '</th><td class="num">' + (t.U || 0) + '</td></tr>' +
-          '<tr><th>' + esc(clearerLabel("B", "Unchecked state sourcing")) + '</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</th><td class="num">' + t.pending + '</td></tr><tr><th>' + esc(clearerLabel("C", "Independent journalism")) + '</th><td class="num">' + t.C + '</td></tr><tr><th>' + esc(clearerLabel("N", "Not relevant")) + '</th><td class="num">' + t.N + '</td></tr><tr><th>' + esc(clearerLabel("paywalled", "Paywalled, unread and uncounted")) + '</th><td class="num">' + t.paywalled + '</td></tr>' +
-          gateRows(t).map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + r[1] + '</td></tr>'; }).join("") +
-          (relayAll.visible ? '<tr><th>Passed the relevance gate</th><td class="num"><strong>' + (t.rel || 0) + '</strong></td></tr>' : '') + '</table>' +
+        (t ? '<h3>' + esc(totalsHead) + '</h3><table><tr><th>' + esc(clearerLabel("A", "State origin")) + '</th><td class="num">' + intComma(t.A) + '</td></tr>' +
+          '<tr class="undetermined-row"><th>' + esc(UNDETERMINED_ROW) + '</th><td class="num">' + intComma((t.U || 0)) + '</td></tr>' +
+          '<tr><th>' + esc(clearerLabel("B", "Unchecked state sourcing")) + '</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</th><td class="num">' + intComma(t.pending) + '</td></tr><tr><th>' + esc(clearerLabel("C", "Independent journalism")) + '</th><td class="num">' + intComma(t.C) + '</td></tr><tr><th>' + esc(clearerLabel("N", "Not relevant")) + '</th><td class="num">' + intComma(t.N) + '</td></tr><tr><th>' + esc(clearerLabel("paywalled", "Paywalled, unread and uncounted")) + '</th><td class="num">' + intComma(t.paywalled) + '</td></tr>' +
+          gateRows(t).map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + intComma(r[1]) + '</td></tr>'; }).join("") +
+          (relayAll.visible ? '<tr><th>Passed the relevance gate</th><td class="num"><strong>' + intComma((t.rel || 0)) + '</strong></td></tr>' : '') + '</table>' +
           '<p class="panel-note">' + esc(gateSumText(t, relayAll, totalsSpan)) + esc(gateStoredText()) + '</p>' : '<p class="muted">No totals available.</p>');
       Array.prototype.forEach.call(body.querySelectorAll(".ps-btn"), function (btn) {
         btn.addEventListener("click", function () { selectCountry(btn.getAttribute("data-iso")); });
@@ -2549,19 +2614,19 @@
        the mini chart. They used to disagree, one printing counts while the next printed "withheld". */
     var relayNote = relay.provisional ? ' (provisional)' : '';
     var relayCells = relay.visible
-      ? '<td class="num">' + k.B + '</td><td class="num">' + k.Br + '</td><td class="num">' + k.Bl + '</td><td class="num">' + rv.B + '</td>'
+      ? '<td class="num">' + intComma(k.B) + '</td><td class="num">' + intComma(k.Br) + '</td><td class="num">' + intComma(k.Bl) + '</td><td class="num">' + intComma(rv.B) + '</td>'
       : '<td class="num relay-state" colspan="4">' + esc(relayText(relay, 0)) + '</td>';
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
-      '<tr><td>' + esc(clearerLabel("A", "State origin")) + '</td><td class="num">' + k.A + '</td><td class="num">' + k.Ar + '</td><td class="num">' + k.Al + '</td><td class="num">' + rv.A + '</td></tr>' +
-      '<tr><td class="muted"' + (agg.underlyingSummed ? ' title="' + esc(C.UNDERLYING_SUMMED) + '"' : '') + '>Underlying items among them' + (agg.underlyingSummed ? ' (summed day by day)' : '') + '</td><td class="num">' + k.uniqA + '</td><td></td><td></td><td></td></tr>' +
-      '<tr class="undetermined-row"><td>' + esc(UNDETERMINED_ROW) + '</td><td class="num">' + (k.U || 0) + '</td><td class="num"></td><td class="num">' + (k.U || 0) + '</td><td class="num"></td></tr>' +
+      '<tr><td>' + esc(clearerLabel("A", "State origin")) + '</td><td class="num">' + intComma(k.A) + '</td><td class="num">' + intComma(k.Ar) + '</td><td class="num">' + intComma(k.Al) + '</td><td class="num">' + intComma(rv.A) + '</td></tr>' +
+      '<tr><td class="muted"' + (agg.underlyingSummed ? ' title="' + esc(C.UNDERLYING_SUMMED) + '"' : '') + '>Underlying items among them' + (agg.underlyingSummed ? ' (summed day by day)' : '') + '</td><td class="num">' + intComma(k.uniqA) + '</td><td></td><td></td><td></td></tr>' +
+      '<tr class="undetermined-row"><td>' + esc(UNDETERMINED_ROW) + '</td><td class="num">' + intComma((k.U || 0)) + '</td><td class="num"></td><td class="num">' + intComma((k.U || 0)) + '</td><td class="num"></td></tr>' +
       '<tr><td>' + esc(clearerLabel("B", "Unchecked state sourcing")) + relayNote + '</td>' + relayCells + '</tr>' +
-      '<tr><td>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</td><td class="num">' + k.pending + '</td><td class="num">' + k.pending + '</td><td class="num"></td><td class="num"></td></tr>' +
-      '<tr><td>' + esc(clearerLabel("C", "Independent journalism")) + '</td><td class="num">' + k.C + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.C + '</td></tr>' +
-      '<tr><td>' + esc(clearerLabel("N", "Not relevant")) + '</td><td class="num">' + k.N + '</td><td class="num"></td><td class="num"></td><td class="num">' + rv.N + '</td></tr>' +
-      '<tr><td>Paywalled, unread and uncounted</td><td class="num">' + k.paywalled + '</td><td colspan="3"></td></tr>' +
-      gateRows(k).map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td class="num">' + r[1] + '</td><td colspan="3"></td></tr>'; }).join("") +
-      (relay.visible ? '<tr><td><strong>Passed the relevance gate</strong></td><td class="num"><strong>' + k.rel + '</strong></td><td colspan="3"></td></tr>' : '') +
+      '<tr><td>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</td><td class="num">' + intComma(k.pending) + '</td><td class="num">' + intComma(k.pending) + '</td><td class="num"></td><td class="num"></td></tr>' +
+      '<tr><td>' + esc(clearerLabel("C", "Independent journalism")) + '</td><td class="num">' + intComma(k.C) + '</td><td class="num"></td><td class="num"></td><td class="num">' + intComma(rv.C) + '</td></tr>' +
+      '<tr><td>' + esc(clearerLabel("N", "Not relevant")) + '</td><td class="num">' + intComma(k.N) + '</td><td class="num"></td><td class="num"></td><td class="num">' + intComma(rv.N) + '</td></tr>' +
+      '<tr><td>Paywalled, unread and uncounted</td><td class="num">' + intComma(k.paywalled) + '</td><td colspan="3"></td></tr>' +
+      gateRows(k).map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td class="num">' + intComma(r[1]) + '</td><td colspan="3"></td></tr>'; }).join("") +
+      (relay.visible ? '<tr><td><strong>Passed the relevance gate</strong></td><td class="num"><strong>' + intComma(k.rel) + '</strong></td><td colspan="3"></td></tr>' : '') +
       '<tr><td class="muted">Feed polls full with nothing seen before / estimated items missed' + (missedSince() ? ' (estimated since ' + esc(missedSince()) + ')' : '') + '</td><td class="num" colspan="4">' + k.sat + ' of ' + k.polls + ' / ' + (!missedSince() ? k.miss : !k.mpolls ? 'not estimated' : k.miss + (k.mpolls < k.polls ? ' over ' + k.mpolls + ' polls' : '')) + '</td></tr>' +
       '</table>';
     html += '<p class="panel-note">' + esc(gateSumText(k, relay, " (" + windowLabel() + ")", "Leaving out the underlying items row, which is part of state origin, and the feed polls row, ")) + '</p>';
@@ -2587,9 +2652,10 @@
       var editorial = o.feeds.filter(function (f) { return !f.kind || f.kind === "editorial"; });
       var okN = editorial.filter(function (f) { return f.ok; }).length;
       var feedCls = !o.active ? "muted" : (okN === editorial.length ? "ok" : (okN === 0 ? "fail" : "warn"));
-      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (C.collectorBadge(o.collector, relayRetiredOn()) ? ' <span class="badge" title="' + esc(C.collectorBadge(o.collector, relayRetiredOn()).title) + '">' + esc(C.collectorBadge(o.collector, relayRetiredOn()).label) + '</span>' : '') + stakeLines(o) + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.visible ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
+      html += '<tr><td>' + esc(o.name) + (o.active ? '' : ' <span class="badge">inactive</span>') + (C.collectorBadge(o.collector, relayRetiredOn()) ? ' <span class="badge" title="' + esc(C.collectorBadge(o.collector, relayRetiredOn()).title) + '">' + esc(C.collectorBadge(o.collector, relayRetiredOn()).label) + '</span>' : '') + stakeLines(o) + selectionLine(o) + '</td><td class="num">' + o.counts.A + '</td><td class="num">' + (relay.visible ? o.counts.B : '<span class="relay-state">' + esc(relay.measured ? "withheld" : "n/m") + '</span>') + '</td><td class="num">' + (o.counts.pending || 0) + '</td><td class="num">' + o.counts.C + '</td><td class="num">' + o.counts.paywalled + '</td><td class="' + feedCls + '" title="' + esc(o.inactive_reason || o.feeds.map(function (f) { return f.url + (f.kind && f.kind !== "editorial" ? " (" + f.kind + ")" : "") + (f.ok ? " ok" : " " + (f.last_error || "failing")); }).join("\n")) + '">' + (o.active ? okN + '/' + o.feeds.length : '') + '</td><td class="muted">' + esc(RELEASE_LABELS[o.release_sections || "not_searched"] || o.release_sections) + '</td></tr>';
     });
     html += '</table>';
+    html += stakeAbsenceNote(state.outlets.filter(function (o) { return o.country === iso; }));
     html += '<h3>State origin, unchecked state sourcing and unjudged candidates first, then the rest</h3><p class="muted">State placements, unchecked state sourcing, and pieces flagged for the model that still await its judgement (official Chinese sourcing, a weak signature, or a near copy of a credited state item), each with the sentence or match that flagged it. The unjudged candidates are listed for inspection only and are not a finding. Independent coverage follows.</p><div id="panel-articles"><p class="muted">Loading</p></div>';
     body.innerHTML = html;
     bindClose();
@@ -2998,6 +3064,12 @@
     }, 700);
   }
   /* The theme curve follows the counter's own subject: the selected country, or all of them. */
+  /* {theme id: label} in catalog order, for C.themesRetagNote. */
+  function themeLabels() {
+    var out = {};
+    ((state.meta && state.meta.themes) || []).forEach(function (c) { out[c.id] = c.label; });
+    return out;
+  }
   function renderThemeSpark() {
     var s = d3.select("#th-spark");
     if (s.empty()) return;
@@ -3014,7 +3086,8 @@
     var who = state.selected ? (state.names[state.selected] || state.selected) : "all monitored countries";
     var marks = C.themesChangeMarks(tlDays, state.meta && state.meta.themes_changes);
     el("th-hint").textContent = "Moves only the theme counter; the map keeps its own day and window. The curve is the daily number of " + noun + " in " + who + "." +
-      (marks.length ? " Green dash-dot lines are themes version changes, the days the theme terms or the part of each article read for them changed; hover one for what changed. Every change re-tags every stored article, so the counts on every day follow the current version, but figures taken before a change were made under the earlier one." : "");
+      (marks.length ? " Green dash-dot lines are themes version changes, the days the theme terms or the part of each article read for them changed; hover one for what changed. Every change re-tags every stored article, newest first over one or more exports, so once it is complete the counts on every day follow the current version; figures taken before a change were made under the earlier one." : "") +
+      (C.themesRetagNote(state.meta && state.meta.themes_progress, themeLabels()) ? " The latest version is still being applied; the note at the top of this section says how far." : "");
     if (!pts.length) return;
     var x = d3.scaleLinear().domain([0, Math.max(1, pts.length - 1)]).range([0, w]);
     var y = d3.scaleLinear().domain([0, d3.max(pts, function (p) { return p.v; }) || 1]).range([h - 1, 2]);
@@ -3039,29 +3112,29 @@
     var rs = m.release_sections, rc = m.relay_collector, fs = m.feed_saturation;
     var routeTotals = m.route_totals || {};
     var rows = [
-      ["Outlets monitored", m.outlets_active + " active of " + m.outlets_total + " registered, across " + m.countries_monitored + " countries"],
+      ["Outlets monitored", intComma(m.outlets_active) + " active of " + intComma(m.outlets_total) + " registered, across " + m.countries_monitored + " countries"],
       ["Population figures", (m.population_source || "not recorded") + ". No figure is divided by population; it is given only in the population column of the CSV of the current view"],
       ["% of all its news", (m.countries_with_audience_ranks && m.countries_with_audience_ranks.length ? m.countries_with_audience_ranks.length + " countries carry audience ranks and use their largest outlets; " : "no country carries audience ranks yet; ") + "elsewhere every active outlet counts, and no rate is shown below " + (m.min_outlets_for_output_share || C.MIN_OUTLETS_FOR_OUTPUT_SHARE) + " outlets"],
       ["Countries with zero coverage", (m.countries_in_gaps || 0) + " recorded in the gaps file with a reason; every unhatched country not listed there is simply unregistered"],
-      ["Articles", m.articles_discovered + " discovered, " + m.articles_gate_relevant + " passed the relevance gate, " + m.articles_classified + " classified" +
+      ["Articles", intComma(m.articles_discovered) + " discovered, " + intComma(m.articles_gate_relevant) + " passed the relevance gate, " + intComma(m.articles_classified) + " classified" +
         (C.rediscoveryOf(m) ? "; before " + C.rediscoveryOf(m).fixed_from + " the discovered count includes items a feed kept listing, counted again after a prune, an estimated " + C.rediscoveryPercent(m) + " percent of it" : "")],
       ["Paywall-blocked proportion", m.paywall_share === null || m.paywall_share === undefined ? "not measured" : pct(m.paywall_share) + " of gated articles" + (function (lt) { return lt && typeof lt.paywalled === "number" ? " (" + intComma(lt.paywalled) + " paywalled of the " + intComma(lt.fetched + lt.paywalled + lt.failed + lt.blocked) + " whose fetch was attempted, to the export)" : ""; })(state.latest && state.latest.totals && state.latest.totals.all_time) + ": missing from every count, but still counted in the share of monitored output denominator, so that share is a lower bound" + (m.paywall_flagged_countries && m.paywall_flagged_countries.length ? "; flagged: " + m.paywall_flagged_countries.join(", ") : "")],
       ["Unchecked state sourcing", !relay.measured ? "not yet measured: the verification stage has not run"
         : (relay.publishable ? "published, " + (m.relay_qualifier || "basis not recorded") : relay.provisional ? "provisional: shown and marked, " + humanStudyShort() : "withheld until hand coding settles it")
           + ((m.relay_withheld_languages || []).length ? " Withheld for " + m.relay_withheld_languages.join(", ") + "." : "")],
-      ["Labels that cannot be reclassified", (m.labels_unreclassifiable || 0) + " of " + (m.articles_classified || 0) + ", because the article can no longer be retrieved"],
+      ["Labels that cannot be reclassified", intComma(m.labels_unreclassifiable || 0) + " of " + intComma(m.articles_classified || 0) + ", because the article can no longer be retrieved"],
       ["Stability check (never publishes)", m.relay_reliability ? (m.relay_reliability.method === "model_vs_model" ? "second model " + m.relay_reliability.model_b + " against " + m.relay_reliability.model_a : m.relay_reliability.method === "same_model_rerun" ? "same model rerun, same prompt, " + m.relay_reliability.model_a : m.relay_reliability.method) + ", " + m.relay_reliability.n + " articles, kappa " + (m.relay_reliability.kappa_bc === null || m.relay_reliability.kappa_bc === undefined ? "n/a" : m.relay_reliability.kappa_bc.toFixed(2)) + " on unchecked sourcing versus independent: stability, not correctness" : C.stabilityStatusText(m) || "none run"],
       ["Hand coding", humanStudyShort() + "; publication needs kappa " + (m.kappa_warning_threshold || 0.7) + " or above on a fixed sample of about " + ((m.relay_human_study && m.relay_human_study.per_language) || 200) + " articles per language, stratified by language and by the model\u2019s category"],
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unchecked state sourcing versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return lowerLabel(r.label) + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
       ["Undetermined, excluded from the counts", undeterminedMethodText(m)],
-      ["Release sections searched", rs && rs.outlets_active ? (rs.outlets_active - (rs.not_searched || 0)) + " of " + rs.outlets_active + " active outlets; " + (rs.found || 0) + " found, " + (rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
-      ["Feed polls with nothing seen before", fs && fs.polls ? fs.saturated + " of " + fs.polls + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) : "not yet measured"],
+      ["Release sections searched", rs && rs.outlets_active ? intComma(rs.outlets_active - (rs.not_searched || 0)) + " of " + intComma(rs.outlets_active) + " active outlets; " + intComma(rs.found || 0) + " found, " + intComma(rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
+      ["Feed polls with nothing seen before", fs && fs.polls ? intComma(fs.saturated) + " of " + intComma(fs.polls) + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) : "not yet measured"],
       ["Relay on the owner's machine", rc ? C.relayOutletsSummary(rc) + "; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
       ["Human review coverage", pct(m.review_coverage) + " of classified articles (" + m.articles_reviewed + ")"],
       ["Relevance gate version", (m.gate_version || "not recorded") + (m.gate_applies_forward_only ? ", applying to items discovered after each gate change; earlier rejections are not re-examined and are pruned after three days, except a random 2 percent kept permanently for the gate audit" : "")],
       ["Ruleset version", m.ruleset_version + (m.reclassification_complete === false ? ", reclassification in progress (" + Object.keys(m.ruleset_mix || {}).sort().map(function (v) { return v + ": " + m.ruleset_mix[v]; }).join(", ") + ")" : "")],
-      ["Classifier model", m.llm_model + ", " + m.llm_calls_total + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", draw capped on " + m.llm_ceiling_days.map(function (d) { return d + " (" + ((m.llm_calls_by_day || {})[d] || 0) + " calls made)"; }).join(", ") : "") + ((m.llm_sampling_days || []).length ? "; stratified draws on " + m.llm_sampling_days.length + " days" : "") + (m.llm_budget ? "; estimated spend " + m.llm_budget.month + ": $" + m.llm_budget.estimated_usd + " of a $" + m.llm_budget.budget_usd + " monthly budget" + (m.llm_budget.calls_left_today !== null && m.llm_budget.calls_left_today !== undefined ? ", leaving " + m.llm_budget.calls_left_today + " batched calls for the rest of today" : "") : "")],
+      ["Classifier model", m.llm_model + ", " + intComma(m.llm_calls_total) + " calls to date, daily ceiling " + m.llm_daily_ceiling + (m.llm_ceiling_days && m.llm_ceiling_days.length ? ", draw capped on " + m.llm_ceiling_days.map(function (d) { return d + " (" + ((m.llm_calls_by_day || {})[d] || 0) + " calls made)"; }).join(", ") : "") + ((m.llm_sampling_days || []).length ? "; stratified draws on " + m.llm_sampling_days.length + " days" : "") + (m.llm_budget ? "; estimated spend " + m.llm_budget.month + ": $" + m.llm_budget.estimated_usd + " of a $" + m.llm_budget.budget_usd + " monthly budget" + (m.llm_budget.calls_left_today !== null && m.llm_budget.calls_left_today !== undefined ? ", leaving " + m.llm_budget.calls_left_today + " batched calls for the rest of today" : "") : "")],
       ["Last successful run", m.last_successful_run || "none"],
       ["Data generated", m.generated_at]
     ];
@@ -3398,14 +3471,14 @@
     helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
               monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes,
               showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings,
-              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION}};
+              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, navHidden: navHidden, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION, stakeLines: stakeLines, stakeAbsenceNote: stakeAbsenceNote, selectionLine: selectionLine}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
     openView(d);
     /* In one column the panel sits below the map and the list, so the country is brought into view there. */
     if (d.iso && window.matchMedia && window.matchMedia("(max-width: 1100px)").matches) { revealPanel(true); return; }
     var card = el("map-card");
-    if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+    if (card && card.scrollIntoView) card.scrollIntoView({behavior: scrollBehavior(), block: "start"});
   });
 
   /* The preliminary figures banner (in the page notes above the footer, for now). index.html carries its default text, so it shows
@@ -3436,6 +3509,37 @@
     window.TrackerCopiesMap.mount({topo: state.topo, numToIso: state.numToIso, names: state.names, monitored: mon, projection: robinson});
   }
 
+  /* The header's outlet count, from meta.outlets_active at the last export; without meta the static
+     "about 1,600" in index.html stays. */
+  function renderHeaderCount() {
+    var n = state.meta && state.meta.outlets_active, span = el("sub-outlets");
+    if (span && typeof n === "number" && n > 0) span.textContent = intComma(n);
+  }
+  /* The section links in the header, pure: for each href, whether its link is hidden, because its section
+     is missing or hidden (its data did not arrive, or its measure is off). isShown(id) says whether the
+     section with that id is on the page and not hidden. */
+  function navHidden(hrefs, isShown) {
+    return (hrefs || []).map(function (h) {
+      var id = /^#([A-Za-z][\w-]*)$/.exec(String(h || ""));
+      return !id || !isShown(id[1]);
+    });
+  }
+  /* Keeps every header link pointing at a section the reader can see: a link is hidden with its section
+     and shown again when the section is (the side files load on their own, so this watches the hidden
+     attribute rather than running once). */
+  function syncNav() {
+    var links = Array.prototype.slice.call(document.querySelectorAll(".top-nav a[href^='#']"));
+    if (!links.length) return;
+    var hrefs = links.map(function (a) { return a.getAttribute("href"); });
+    function shown(id) { var t = document.getElementById(id); return !!t && !t.hidden && !(t.closest && t.closest("[hidden]")); }
+    function apply() { navHidden(hrefs, shown).forEach(function (off, i) { if (links[i].hidden !== off) links[i].hidden = off; }); }
+    apply();
+    if (syncNav.watching || !window.MutationObserver) return;
+    syncNav.watching = true;
+    var obs = new MutationObserver(apply);
+    hrefs.forEach(function (h) { var t = document.getElementById(String(h).slice(1)); if (t) obs.observe(t, {attributes: true, attributeFilter: ["hidden"]}); });
+  }
+
   /* ------------------------------------------------------------------ init */
   function init() {
     checkFreshIndex();
@@ -3452,7 +3556,8 @@
         ["renderMap", renderMap], ["renderThemes", renderThemes], ["renderLeaning", renderLeaning], ["renderPanel", renderPanel],
         ["renderMethod", renderMethod], ["renderTechnicalNotes", renderTechnicalNotes], ["renderArchiveCheck", renderArchiveCheck], ["renderFindings", renderFindings],
         ["renderStartHere", renderStartHere], ["renderExamples", renderExamples], ["renderPlanted", renderPlanted], ["measures", renderMeasures], ["copiesMap", mountCopiesMap],
-        ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures], ["renderStaleNotice", renderStaleNotice]
+        ["renderFaq", renderFaq], ["renderCta", renderCta], ["renderLoadFailures", renderLoadFailures], ["renderStaleNotice", renderStaleNotice],
+        ["renderHeaderCount", renderHeaderCount], ["syncNav", syncNav]
       ];
       var failed = [];
       steps.forEach(function (step) {
@@ -3472,6 +3577,7 @@
       /* Draw what can be drawn from empty state. Nothing here binds a listener: the controls are
          bound only in the success path, so a failure can never attach them twice. */
       try { setupMap(); renderMap(); renderThemes(); renderLeaning(); renderPanel(); renderMethod(); } catch (e2) { console.error("fallback render failed", e2); }
+      try { syncNav(); } catch (e3) { /* the links stay as written */ }
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

@@ -410,7 +410,7 @@ def test_off_and_below_min_inputs_leave_no_side_file(db, tmp_path, monkeypatch):
 
 def test_methodology_text():
     t = syn.methodology_text({"status": "provisional", "summary": {"entries": 51, "predates_collection": 47}})
-    assert "timing, not cause" in t and "3 September 2026" in t and "Of the 51 entries" in t
+    assert "timing, not cause" in t and "3 September 2026" in t and "(47 of the 51 entries now listed)" in t
     assert "\u2014" not in t and "\u2013" not in t and "Category" not in t and " - " not in t
     assert len([p for p in t.split("\n\n") if p.strip()]) == 3
     assert "sources verified on 2026-10-28, not hand coded" in t and "Most of these deals were signed before collection began" in t
@@ -450,3 +450,199 @@ def test_the_hand_check_rereads_source_and_date(tmp_path, monkeypatch):
     assert syn.score_check(rows, key)["passed"] is False
     assert syn.date_agrees("2025-05-28", "2025-05") and syn.date_agrees("2025-05-28", "2025")
     assert not syn.date_agrees("2025-05", "2025-05-28") and not syn.date_agrees("", "2025") and not syn.date_agrees("May 2025", "2025-05")
+
+
+# ---------------------------------------------------------------------------
+# Stress test of 2026-10-29
+# ---------------------------------------------------------------------------
+
+def _add_model(conn, outlet_id, day, cat, n, route, method="llm"):
+    """n current model labels with a route, as the export reads them."""
+    ids = []
+    for i in range(n):
+        url = "https://x.example/%s/%s/%s/%s/%d" % (outlet_id, day, cat, route, i)
+        cur = conn.execute(
+            """INSERT INTO articles(url, url_hash, outlet_id, country, language, discovered_at, status, gate_relevant)
+               VALUES (?,?,?,?,?,?,?,1)""",
+            (url, hashlib.sha1(url.encode()).hexdigest(), outlet_id, "ITA", "it", day + "T10:00:00+00:00", "classified"))
+        conn.execute(
+            """INSERT INTO classifications(article_id, method, category, confidence, ruleset_version, classified_at,
+               is_current, route) VALUES (?,?,?,?,?,?,1,?)""",
+            (cur.lastrowid, method, cat, 0.9, config.RULESET_VERSION, day, route))
+        ids.append(cur.lastrowid)
+    return ids
+
+
+def test_side_counts_leave_out_undetermined_labels_and_shadowed_copies(db, monkeypatch):
+    """Standing definitions: an undetermined state origin label (pipeline/model_only.py) is in no count or
+    denominator, and a copy another row stands for (pipeline/placements.py) is not the outlet's placement."""
+    _add_model(db, "it_alpha", "2026-10-13", "A", 7, "unattributed")          # undetermined: out of both counts
+    _add_model(db, "it_alpha", "2026-10-13", "A", 4, "sponsored_disclosure")  # undetermined
+    _add_model(db, "it_alpha", "2026-10-13", "A", 5, "wire_credit")           # settled state origin
+    copies = _add_model(db, "it_alpha", "2026-10-14", "C", 3, None)           # copies another row stands for
+    db.commit()
+    monkeypatch.setattr(syn.placements, "shadowed", lambda conn: set(copies))
+    got = syn.side_counts(db, "it_alpha", "2026-10-05", "2026-11-01")
+    assert got["state_origin"] == 10 + 5 and got["china"] == 100 + 5
+    assert syn.side_counts(db, "it_alpha", "2026-10-05", "2026-11-01", set())["china"] == 108
+
+
+def test_the_fifty_article_minimum_is_inclusive(db, tmp_path, monkeypatch):
+    """49 China articles on a side give no share; 50 do. The rate is state origin over A + B + C."""
+    _add(db, "gb_beta", "2026-11-20", "A", 5, country="GBR")
+    _add(db, "gb_beta", "2026-11-21", "C", 44, country="GBR")       # before: 49
+    _add(db, "gb_beta", "2026-12-05", "A", 25, country="GBR")
+    _add(db, "gb_beta", "2026-12-06", "B", 25, country="GBR")       # after: 50
+    db.commit()
+    e = entry(id="gb_beta_cgtn", outlet_id="gb_beta", partner="cgtn", signed_on="2026-12-01")
+    _install_file(monkeypatch, tmp_path, [e])
+    out = syn.build_export(db, {"outlets": OUTLETS, "today": "2026-12-30"})       # last complete 29 Dec
+    row = out["comparisons"][0]
+    assert row["before"]["china"] == 49 and not row["before"]["sufficient"] and row["before"]["share"] is None
+    assert row["after"]["china"] == 50 and row["after"]["sufficient"] and row["after"]["share"] == 0.5
+    assert not row["sufficient"] and row["difference"] is None and row["reason"] == "fewer than 50 China articles before"
+    assert out["counts"]["eligible"] == 1 and out["counts"]["compared"] == 0
+    # One more before: both sides pass and the difference carries Newcombe's interval.
+    _add(db, "gb_beta", "2026-11-22", "B", 1, country="GBR")
+    db.commit()
+    row = syn.build_export(db, {"outlets": OUTLETS, "today": "2026-12-30"})["comparisons"][0]
+    d, lo, hi = syn.newcombe(25, 50, 5, 50)
+    assert row["sufficient"] and row["before"]["share"] == 0.1
+    assert row["difference"] == round(d, 4) and row["difference_ci"] == [round(lo, 4), round(hi, 4)]
+
+
+def test_deals_at_the_edges_of_collection_and_of_today():
+    """A deal on the first eligible day uses collection's first day; one whose after side would end on
+    the export's own partial day waits; month precision waits for the whole month."""
+    cs = "2026-09-03"
+    first = syn.window(entry(signed_on="2026-10-01"), dt.date(2026, 10, 29), cs)
+    assert first["eligible"] and first["before"][0] == cs and first["after"][1] == "2026-10-29"
+    assert syn.window(entry(signed_on="2026-10-01"), dt.date(2026, 10, 28), cs)["reason"] == "too_recent"
+    assert syn.last_complete_day({"today": "2026-10-30"}) == dt.date(2026, 10, 29)
+    # The committed RTHK memorandum of 9 October 2026 is the first deal collection can compare: from the
+    # export of 7 November 2026 (last complete day 6 November).
+    rthk = next(e for e in syn.load_file()["entries"] if e["id"] == "hk_rthk_szmg_2026")
+    assert syn.window(rthk, dt.date(2026, 11, 5))["reason"] == "too_recent"
+    assert syn.window(rthk, dt.date(2026, 11, 6))["eligible"]
+    for eid in ("hk_scmp_nanfang_2026", "id_antara_nanfang_2026"):     # 2 days after collection began
+        e = next(x for x in syn.load_file()["entries"] if x["id"] == eid)
+        assert not syn.predates_collection(e) and syn.window(e, dt.date(2027, 6, 1))["reason"] == "too_early"
+    # A month that starts before collection is never compared, though it does not predate it.
+    sept = entry(signed_on="2026-09", precision="month")
+    assert not syn.predates_collection(sept, cs) and syn.window(sept, dt.date(2027, 1, 1), cs)["reason"] == "too_early"
+
+
+def test_an_outlet_no_longer_collected_is_not_compared(db, tmp_path, monkeypatch):
+    stopped = dict(OUTLETS[0], active=False, inactive_reason="feed gone", inactive_since="2026-11-20")
+    later = dict(OUTLETS[0], active=False, inactive_reason="feed gone", inactive_since="2026-12-20")
+    unknown = dict(OUTLETS[0], active=False, inactive_reason="feed gone")
+    e = entry()
+    assert syn.window(e, LAST, "2026-09-03", outlet=stopped)["reason"] == "not_collected"
+    assert syn.window(e, LAST, "2026-09-03", outlet=unknown)["reason"] == "not_collected"
+    assert syn.window(e, LAST, "2026-09-03", outlet=later)["eligible"]        # stopped after the after side
+    assert syn.window(e, LAST, "2026-09-03", outlet=OUTLETS[0])["eligible"]
+    _install_file(monkeypatch, tmp_path, [e])
+    out = syn.build_export(db, {"outlets": [stopped, OUTLETS[1]], "today": "2026-12-31"})
+    assert out["comparisons"] == [] and out["timeline"][0]["comparison"] == "not_collected"
+
+
+def test_partner_other_names_the_body_and_the_timeline_uses_it(db, tmp_path, monkeypatch):
+    errs = errors_of(entry(partner="other"))
+    assert any("partner other needs partner_name" in m for m in errs), errs
+    assert errors_of(entry(partner="other", partner_name="Nanfang Media Group")) == []
+    assert errors_of(entry(partner="cmg", partner_name="")) and errors_of(entry(partner_name="  "))
+    assert syn.partner_label(entry(partner="other", partner_name="Hubei  Media Group")) == "Hubei Media Group"
+    assert syn.partner_label(entry(partner="cmg")) == "China Media Group"
+    _install_file(monkeypatch, tmp_path, [entry(partner="cmg", partner_name="CCTV (now part of China Media Group)")])
+    row = syn.build_export(db, {"outlets": OUTLETS, "today": "2026-12-31"})["timeline"][0]
+    assert row["partner"] == "cmg" and row["partner_label"] == "CCTV (now part of China Media Group)"
+
+
+def test_unquoted_verification_dates_and_a_file_that_is_not_utf8(tmp_path):
+    p = tmp_path / "s.yaml"
+    p.write_text("entries:\n  - id: it_a\n    outlet_id: it_alpha\n    partner: cmg\n    kind: mou\n"
+                 "    signed_on: 2025\n    precision: year\n    source_url: https://example.org/x\n"
+                 "    source_title: T\n    source_publisher: P\n    source_kind: primary\n    accessed_on: 2026-10-13\n"
+                 "    confidence: stated\n    verification:\n      status: verified\n      checked_on: 2026-10-28\n"
+                 "      page_date: 2025-05-28\n      note: ok\n", encoding="utf-8")
+    good, errs = syn.validate_file(p, OUTLETS)
+    assert errs == [] and good[0]["verification"]["checked_on"] == "2026-10-28" and good[0]["verification"]["page_date"] == "2025-05-28"
+    bad = tmp_path / "b.yaml"
+    bad.write_bytes(b"entries:\n  - id: \xff\xfe\n")
+    good, errs = syn.validate_file(bad, OUTLETS)
+    assert good == [] and errs and "not UTF-8" in errs[0]
+    assert syn.main(["validate", str(bad)]) == 1
+    broken = tmp_path / "c.yaml"
+    broken.write_text("entries:\n  - id: [unclosed\n", encoding="utf-8")
+    assert syn.validate_file(broken, OUTLETS)[0] == [] and "not valid YAML" in syn.validate_file(broken, OUTLETS)[1][0]
+
+
+def test_a_malformed_file_turns_the_measure_off_and_removes_the_side_file(db, tmp_path, monkeypatch):
+    p = tmp_path / "syndication.yaml"
+    p.write_text("entries:\n  - id: [unclosed\n", encoding="utf-8")
+    monkeypatch.setattr(syn, "SYNDICATION_PATH", p)
+    monkeypatch.setattr(syn.registry, "load_outlets", lambda *a, **k: OUTLETS)
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    (out_dir / "syndication.json").write_text("{}", encoding="utf-8")
+    cfg = tmp_path / "measures.yaml"
+    cfg.write_text(yaml.safe_dump([{"id": "syndication", "label": "Syndication deals", "module": "pipeline.syndication",
+                                    "enabled": True, "min_inputs": 10}]), encoding="utf-8")
+    blocks = measures.run_all_quietly(db, out_dir, {"outlets": OUTLETS, "today": "2026-12-31"}, write_json=lambda p, d: None,
+                                      config_path=cfg, reviews_dir=tmp_path / "reviews")
+    assert blocks["syndication"]["status"] == "off" and "0 of at least 10" in blocks["syndication"]["reason"]
+    assert not (out_dir / "syndication.json").exists()
+
+
+def test_entries_without_a_source_check_are_counted_and_said(db, tmp_path, monkeypatch):
+    ok = {"status": "verified", "checked_on": "2026-10-28", "page_date": "2026-11-02", "note": "The page states it."}
+    _install_file(monkeypatch, tmp_path, [entry(verification=ok), entry(id="new_one", partner="cgtn")])
+    out = syn.build_export(db, {"outlets": OUTLETS, "today": "2026-12-31"})
+    assert out["counts"]["verified"] == 1 and out["counts"]["unchecked"] == 1
+    t = syn.methodology_text({"summary": out["counts"]})
+    assert "1 entry added since has not been checked yet" in t and "each entry's page was reread" not in t
+    t = syn.methodology_text({"summary": {"entries": 4, "predates_collection": 2}})
+    assert "Most" not in t and "2 of the 4 entries now listed were signed before collection began" in t
+    assert "\u2014" not in t and "\u2013" not in t
+
+
+def test_the_committed_entries_after_the_stress_test():
+    """The 2026-10-29 rereading: names, kinds, confidence and precision follow the pages."""
+    by_id = {e["id"]: e for e in syn.load_file()["entries"]}
+    nan = by_id["ng_nan_xinhua_2019"]
+    assert nan["signed_on"] == "2019-05" and nan["precision"] == "month" and nan["verification"]["page_date"] == "2019-05"
+    assert by_id["za_iol_cctv_2014"]["confidence"] == "stated"          # the Cape Times is Independent Media's
+    mehr = by_id["ir_mehr_xinhua_2024"]
+    assert mehr["confidence"] == "stated" and mehr["source_kind"] == "primary"   # the Tehran Times is Mehr Media Group's
+    assert by_id["tl_tatoli_guangxi_2025"]["kind"] == "mou"            # a memorandum of cooperation
+    others = [e for e in by_id.values() if e["partner"] == "other"]
+    assert len(others) == 8 and all(e.get("partner_name") for e in others)
+    assert by_id["to_tbc_cctv_2006"]["partner_name"].startswith("CCTV") and by_id["za_iol_cctv_2014"]["partner_name"].startswith("CCTV")
+    # One agreement listed once per monitored outlet it covers: Fairfax (3 papers) and Nanfang with Antara (2 services).
+    keys = {(e["source_url"], syn.partner_label(e), e["kind"], e["signed_on"]) for e in by_id.values()}
+    assert len(by_id) == 51 and len(keys) == 48
+    # Every outlet id is a registry outlet that is collected; the one outlet outside the registry is marked.
+    from pipeline import registry
+    outlets = {o["id"]: o for o in registry.load_outlets()}
+    for e in by_id.values():
+        if e.get("unmonitored"):
+            assert e["outlet_name"] and not e.get("outlet_id")
+        else:
+            assert outlets[e["outlet_id"]]["active"], e["id"]
+            assert outlets[e["outlet_id"]]["country"] != "CHN", e["id"]
+
+
+def test_another_deal_of_the_outlet_inside_the_window_is_listed(db, tmp_path, monkeypatch):
+    """Two deals of one outlet in one window share its counts: each row says so."""
+    a = entry()
+    b = entry(id="it_alpha_cmg_2026", partner="cmg", kind="content_exchange", signed_on="2026-11", precision="month")
+    far = entry(id="it_alpha_cgtn_2025", partner="cgtn", signed_on="2025-11-02")
+    other_outlet = entry(id="gb_beta_x", outlet_id="gb_beta", signed_on="2026-11-02")
+    _install_file(monkeypatch, tmp_path, [a, b, far, other_outlet])
+    out = syn.build_export(db, {"outlets": OUTLETS, "today": "2027-01-31"})
+    rows = {c["entry_id"]: c for c in out["comparisons"]}
+    od = [x for x in rows["it_alpha_xinhua_2026"]["confounders"] if x["type"] == "other_deal"]
+    assert [x["entry_id"] for x in od] == ["it_alpha_cmg_2026"] and "November 2026" in od[0]["text"]
+    assert [x["entry_id"] for x in rows["it_alpha_cmg_2026"]["confounders"] if x["type"] == "other_deal"] == ["it_alpha_xinhua_2026"]
+    assert not [x for x in rows["gb_beta_x"]["confounders"] if x["type"] == "other_deal"]
+    assert rows["it_alpha_xinhua_2026"]["confounded"]

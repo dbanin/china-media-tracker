@@ -13,7 +13,7 @@
   "use strict";
   var ROWS = 20;
   var CLASS_LABELS = {state_host: "Chinese state host", unnamed_host: "host not named"};
-  var BASIS_LABELS = {self: "names the article or its author", label: "disclosure note", tail: "closing line"};
+  var BASIS_LABELS = {self: "names the article or its author", label: "disclosure note", bio: "author note at the end", tail: "closing line"};
 
   function esc(s) {
     return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -21,7 +21,8 @@
     });
   }
   function safeUrl(u) { return /^https?:\/\/[^\s"'<>]+$/.test(String(u || "")) ? String(u) : ""; }
-  function plural(n, word, words) { return n + " " + (n === 1 ? word : (words || word + "s")); }
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+  function plural(n, word, words) { return fmt(n) + " " + (n === 1 ? word : (words || word + "s")); }
   function classLabel(k) { return CLASS_LABELS[k] || String(k || "").replace(/_/g, " "); }
   function basisLabel(b) { return BASIS_LABELS[b] || String(b || "").replace(/_/g, " "); }
   function num(v) { var n = Number(v); return isFinite(n) && n > 0 ? n : 0; }
@@ -58,7 +59,11 @@
       by_country: byCountry,
       languages: Array.isArray(j.languages) ? j.languages.length : 0,
       patterns_version: j.patterns_version || null,
-      status: j.status || "provisional"
+      status: j.status || "provisional",
+      scan_complete: j.scan_complete === true,
+      bodies_left: j.bodies_left === undefined || j.bodies_left === null ? null : num(j.bodies_left),
+      bodies_stored: j.bodies_stored === undefined || j.bodies_stored === null ? null : num(j.bodies_stored),
+      bodies_read: j.bodies_read === undefined || j.bodies_read === null ? null : num(j.bodies_read)
     };
   }
 
@@ -66,14 +71,26 @@
     var s = summarise(json);
     return "A flag here means an article discloses that the reporting trip, the stay or a training programme behind it was paid for or hosted, " +
       "and that the host named is a Chinese state entity, embassy, state media outlet or Chinese government programme. " +
-      "It marks a disclosed hosted trip. It is not state origin: flagged articles keep whatever label they have and are never counted as state origin. " +
-      "Disclosures that name no host are a weaker class, shown apart. Most hosted trips are never disclosed, so the absence of a flag proves nothing. " +
+      "It marks a disclosed hosted trip. It is not state origin, and it does not say the host wrote, commissioned or approved the article: " +
+      "flagged articles keep whatever label they have and are never counted as state origin. " +
+      "Disclosures that name no host are a weaker class, shown apart. A hosted trip that is not disclosed, or disclosed in words the patterns do not know, is missed, so the absence of a flag proves nothing. " +
       "Provisional: the flagged lines have not yet been checked by hand." +
       (loaded && s.languages ? " Patterns in " + plural(s.languages, "language") + (s.patterns_version ? ", version " + s.patterns_version : "") + "." : "");
   }
 
   function emptyState() {
-    return "No article in the monitored outlets has disclosed a trip or programme hosted by a Chinese state body since this check began.";
+    return "The patterns have found no disclosure of a trip or programme hosted by a Chinese state body, or by a host not named, in the stored article bodies read so far.";
+  }
+
+  /* How much of the stored text has been read under the current patterns. */
+  function scanLine(s) {
+    if (s.bodies_stored === null) return "";
+    var read = s.bodies_read === null ? s.bodies_stored : s.bodies_read;
+    if (s.scan_complete) return "Read in " + plural(read, "article body", "article bodies") + " stored by the tracker" +
+      (read < s.bodies_stored ? " (" + fmt(s.bodies_stored - read) + " more could not be read)" : "") + ".";
+    var left = s.bodies_left === null ? null : Math.min(s.bodies_left, s.bodies_stored);
+    return "The check is still reading the stored article bodies under the current patterns" +
+      (left === null ? "" : ": " + fmt(left) + " of " + fmt(s.bodies_stored) + " left") + ", so these counts can still rise.";
   }
 
   function sortKey(a) { return String((a && (a.published_at || a.discovered_at)) || ""); }
@@ -88,28 +105,34 @@
       var ka = (a.klass === "state_host" ? "1" : "0") + sortKey(a), kb = (b.klass === "state_host" ? "1" : "0") + sortKey(b);
       return ka < kb ? 1 : ka > kb ? -1 : 0;
     });
+    var scan = scanLine(s);
     var counts = '<p class="pl-line">' + plural(s.state_host, "article") + " with a Chinese state host, " +
-      plural(s.unnamed_host, "article") + " with a host not named" + (s.outlets ? ", in " + plural(s.outlets, "outlet") : "") + ".</p>";
+      plural(s.unnamed_host, "article") + " with a host not named" + (s.outlets ? ", in " + plural(s.outlets, "outlet") : "") + "." +
+      (scan ? " " + esc(scan) : "") + "</p>";
     if (!arts.length && !s.total) return counts + '<p class="pl-empty">' + esc(emptyState()) + "</p>";
     var line = s.by_country.map(function (r) {
-      return esc(name(r.iso)) + " " + r.state_host + (r.unnamed_host ? " (" + r.unnamed_host + " unnamed)" : "");
+      return esc(name(r.iso)) + " " + fmt(r.state_host) + (r.unnamed_host ? " (" + fmt(r.unnamed_host) + " unnamed)" : "");
     }).join(", ");
     var shown = opts.showAll ? arts : arts.slice(0, ROWS);
     var rows = shown.map(function (a) {
       var href = safeUrl(a.url), title = esc(a.title || "");
       var hosts = Array.isArray(a.hosts) ? a.hosts.join("; ") : "";
       var bases = Array.isArray(a.bases) ? a.bases.map(basisLabel).join("; ") : "";
-      return '<tr><td class="pl-date">' + esc(sortKey(a).slice(0, 10)) + "</td>" +
-        '<td class="pl-outlet">' + esc(a.outlet || a.outlet_id || "") + (title ? '<span class="pl-title">' +
-          (href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>" : title) + "</span>" : "") + "</td>" +
-        "<td>" + esc(name(a.country || "")) + "</td>" +
-        "<td>" + esc(classLabel(a.klass)) + (hosts ? '<span class="pl-title">' + esc(hosts) + "</span>" : "") + "</td>" +
-        '<td class="pl-detector">' + esc(a.evidence || "") + (bases ? '<span class="pl-title">' + esc(bases) + "</span>" : "") + "</td></tr>";
+      return '<tr><td class="pl-date" data-label="Date">' + esc(sortKey(a).slice(0, 10)) + "</td>" +
+        '<td class="pl-outlet" data-label="Outlet">' + esc(a.outlet || a.outlet_id || "") + (title ? '<span class="pl-title" dir="auto">' +
+          (href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer">' + title + '<span class="ht-sr"> (opens in a new tab)</span></a>' : title) + "</span>" : "") + "</td>" +
+        '<td data-label="Country">' + esc(name(a.country || "")) + "</td>" +
+        '<td data-label="Host">' + esc(classLabel(a.klass)) + (hosts ? '<span class="pl-title" dir="auto">' + esc(hosts) + "</span>" : "") + "</td>" +
+        '<td class="pl-detector" data-label="Disclosure"><span dir="auto">' + esc(a.evidence || "") + "</span>" +
+          (bases ? '<span class="pl-title">why it counts: ' + esc(bases) + "</span>" : "") + "</td></tr>";
     }).join("");
     return counts + (line ? '<p class="pl-line">By country: ' + line + ".</p>" : "") +
-      '<div class="pl-table-wrap"><table class="pl-table"><thead><tr><th scope="col">Date</th><th scope="col">Outlet</th><th scope="col">Country</th>' +
+      '<div class="pl-table-wrap" id="hosted-travel-table" role="region" aria-label="Hosted travel disclosures, table" tabindex="0">' +
+      '<table class="pl-table"><caption class="ht-sr">Articles flagged for a hosted travel disclosure, state hosts first, newest first' +
+      (opts.showAll || arts.length <= ROWS ? "" : "; the first " + ROWS + " of " + arts.length + " shown") + '</caption>' +
+      '<thead><tr><th scope="col">Date</th><th scope="col">Outlet</th><th scope="col">Country</th>' +
       '<th scope="col">Host</th><th scope="col">Disclosure</th></tr></thead><tbody>' + rows + "</tbody></table></div>" +
-      (arts.length > ROWS ? '<p class="pl-toggle"><button type="button" id="hosted-travel-toggle">' +
+      (arts.length > ROWS ? '<p class="pl-toggle"><button type="button" id="hosted-travel-toggle" aria-controls="hosted-travel-table" aria-expanded="' + (opts.showAll ? "true" : "false") + '">' +
         (opts.showAll ? "Show the first " + ROWS : "Show all " + arts.length) + "</button></p>" : "");
   }
 
@@ -146,6 +169,6 @@
     else boot(document);
   }
 
-  return {summarise: summarise, intro: intro, emptyState: emptyState, bodyHtml: bodyHtml, classLabel: classLabel,
+  return {summarise: summarise, intro: intro, emptyState: emptyState, scanLine: scanLine, bodyHtml: bodyHtml, classLabel: classLabel,
           basisLabel: basisLabel, CLASS_LABELS: CLASS_LABELS, ROWS: ROWS};
 }));

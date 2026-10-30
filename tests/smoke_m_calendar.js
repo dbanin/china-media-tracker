@@ -52,6 +52,47 @@
   assert(h.indexOf("Too few days to test: 0 usable window days, 20 normal and 20 other comparison days") !== -1, "an untested window in one line");
   assert(!/[–—]/.test(h), "no dashes");
 
+  /* Stress test of 2026-10-29 */
+  assert(C.nextDay("2026-10-28") === "2026-10-29" && C.nextDay("2026-12-31") === "2027-01-01" && C.nextDay("2028-02-28") === "2028-02-29", "the next day in any time zone");
+  assert(h.indexOf("Windows beginning on or before 28 Oct 2026: retrospective") !== -1 && h.indexOf("Windows beginning from 29 Oct 2026: fixed in advance") !== -1, "the boundary is the compile day");
+  assert(h.indexOf("carry one of its keywords") !== -1 && h.indexOf("name it") === -1, "keywords, not naming");
+  assert(h.indexOf("conservative") === -1, "the other days are a check, not conservative");
+  assert(h.indexOf("1 of 1 ended windows with a test look raised") !== -1 && h.indexOf("about 1 in 40 tested windows would still look raised by chance, fewer than 1 of these 1") !== -1, "the chance line");
+  var many = {windows: []};
+  for (var i = 0; i < 80; i++) many.windows.push({state: "tested", comparisons: {normal: comp("tested", {ci_low: i < 3 ? 1.2 : 0.8, ci_high: 1.5})}});
+  assert(C.chanceText(many).indexOf("3 of 80 ended windows") === 0 && C.chanceText(many).indexOf("about 2 of these 80") !== -1, "chance with many windows");
+  assert(C.chanceText({windows: []}) === "", "no chance line without tests");
+  assert(/role="heading" aria-level="3"/.test(h), "the title is a heading for screen readers");
+  assert(h.indexOf('aria-label="Source for National Day &lt;b&gt;and&lt;/b&gt; Golden Week (opens in a new tab)"') !== -1, "source links say what they are");
+  assert(C.compText(comp("tested", {ratio: 0, ci_low: 0, ci_high: null}), "normal days").indexOf("no upper bound") !== -1, "an unbounded interval");
+  assert(C.verdict(comp("tested", {ratio: 0, ci_low: 0, ci_high: null})) === "no clear difference", "no verdict of lower without an upper bound");
+  var run = {id: "plenum", name: "Plenum", kind: "retrospective", state: "in_progress", start: "2026-10-26", end: "2026-10-29", window_start: "2026-10-23", window_end: "2026-11-01",
+             overlaps: ["golden"], normal_possible: 6, comparisons: {normal: comp("too_few_days", {window_days: 3, comparison_days: 3}), other: comp("tested", {ratio: 1.5, ci_low: 1.1, ci_high: 2})}};
+  assert(C.shownVerdict(run) === "raised so far", "a running window's verdict is interim");
+  var later = {id: "ts", name: "Two Sessions", kind: "added_later", state: "upcoming", added_on: "2026-10-29", start: "2027-03-04", end: "2027-03-12",
+               window_start: "2027-03-01", window_end: "2027-03-15", status: "expected", source_url: "https://example.org/t"};
+  var phase3 = {id: "cf3", name: "Canton Fair phase 3", kind: "retrospective", state: "upcoming", start: "2026-10-31", end: "2026-11-04",
+                window_start: "2026-10-28", window_end: "2026-11-07", status: "announced", source_url: "https://example.org/f"};
+  var d2 = JSON.parse(JSON.stringify(data));
+  d2.windows.push(run, later, phase3);
+  M.get("calendar").render(prov, d2, api);
+  var h2 = slot.innerHTML;
+  assert(h2.indexOf("Normal days can never be enough here: at most 6") !== -1, "a window the dense calendar starves of normal days");
+  assert(h2.indexOf("Shares days with National Day &lt;b&gt;and&lt;/b&gt; Golden Week") !== -1, "overlapping windows named");
+  assert(h2.indexOf("Window still running to 1 Nov") !== -1, "running window");
+  assert(h2.indexOf("Added or changed after the pre-registration") !== -1 && h2.indexOf("Added or changed on 29 Oct 2026, after the pre-registration.") !== -1, "added later shown apart");
+  assert(h2.split('<span class="cal-name">Two Sessions').length === 2, "an added later window is listed once");
+  assert(h2.indexOf("Canton Fair phase 3") !== -1 && h2.indexOf("Canton Fair phase 3") < h2.indexOf("fixed in advance</p>"), "a retrospective window not yet begun in the record stays with the retrospective ones");
+  assert(h2.indexOf("4 Mar 2027 to 12 Mar 2027") !== -1 && h2.indexOf("1 Oct to 7 Oct") !== -1, "years written out after the compile year");
+  assert(!/[–—]/.test(h2), "no dashes");
+  /* Schema 18 data: no calendar block at all */
+  M.get("calendar").render(undefined, null, api);
+  assert(slot.hidden === true && slot.innerHTML === "", "hidden without a block (schema 18 data)");
+  M.get("calendar").render(prov, {windows: "nonsense"}, api);
+  assert(slot.innerHTML.indexOf("Nothing to show yet") !== -1, "a malformed side file shows the empty state");
+  M.get("calendar").render(prov, {windows: [null, {}, {state: "tested"}], compiled_on: "2026-10-28"}, api);
+  assert(slot.hidden === false, "junk windows do not throw");
+
   M.get("calendar").render({status: "off"}, data, api);
   assert(slot.hidden === true && slot.innerHTML === "", "hidden when off");
   M.get("calendar").render(prov, null, api);

@@ -12,7 +12,7 @@
 #      named group (host: group, (?P<host>...)). The host stops at the end of the sentence or clause.
 #   2. The line has to be a disclosure about the article's own reporting, not news about someone
 #      else's trip. It counts when (a) the sentence names the article or its author as the subject
-#      (self), (b) the line opens with a disclosure label (label), or (c) the anchor allows it
+#      (self), (b) the line or the sentence opens with a disclosure label (label), or (c) the anchor allows it
 #      (tail_ok) and the line is a short line in the last part of the body whose subject is not a
 #      politician, delegation or team (tail). A line inside quotation marks never counts.
 #   3. The host decides the class. state_host: the host names a Chinese state entity, embassy, state
@@ -22,38 +22,57 @@
 #      company, a tourism board outside China) gives no flag.
 #   needs_travel: the anchor is a generic phrase ("supported by", "unterstützt von") and counts only
 #   in a sentence that also names a trip, a stay or a training programme (the language's travel).
+#   (d) An author note at the end (bio): a short last paragraph that names the author ("Jane Doe is a
+#   freelance journalist in Lagos. She travelled ...") counts for every anchor, by the language's
+#   self or bio regex over that paragraph. not_subject is read on the sentence without the host, so
+#   "at the invitation of the Chinese ambassador" does not make the ambassador the subject; it also
+#   lists reporting words ("said", "according to"), since a reported line is news about a trip.
+#   A host text that names only a subnational government ("the Provincial Government", "Government
+#   of X Province", "Department of Culture and Tourism") counts only next to a Chinese place name
+#   (china_places), because South Africa, Pakistan, Indonesia and the Gulf have bodies of those names.
 #
-# Fields per language: self, label, not_subject, travel, unnamed (regexes, case insensitive),
-# state_hosts (list of regexes added to has_state_entity), triggers (plain words, any one of which
-# must appear in the body before the anchors are tried; a cheap prefilter), anchors (id, regex,
+# Top level: version, china_places (a regex, see (d)), languages.
+# Fields per language: self, label, not_subject, travel, unnamed (regexes, case insensitive), bio
+# (optional regex, an author note such as "is a freelance journalist"), also (other language codes
+# the block reads), state_hosts (list of
+# regexes added to has_state_entity), triggers (plain words, any one of which must appear in the
+# body before the anchors are tried; a cheap prefilter), anchors (id, regex,
 # host, tail_ok, needs_travel, note). Ids are stable and never reused. Every regex is compiled with
 # re.IGNORECASE and re.UNICODE. Bump version on any change: a changed version rescans every body.
-version: "2026.10.1"
+version: "2026.10.2"
+
+# Chinese provinces, regions and the cities whose governments host press trips, in English and in the
+# forms the other languages use; a subnational government counts as a Chinese state host only next to
+# one of these (see the note above).
+china_places: '\b(?:Anhui|Beijing|Peking|Pékin|Pekín|Pequim|Pechino|Chongqing|Fujian|Gansu|Guangdong|Guangxi|Guizhou|Hainan|Hebei|Heilongjiang|Henan|Hubei|Hunan|Inner Mongolia|Jiangsu|Jiangxi|Jilin|Liaoning|Ningxia|Qinghai|Shaanxi|Shandong|Shanghai|Shanxi|Sichuan|Tianjin|Tibet|Xizang|Xinjiang|Yunnan|Zhejiang|Guangzhou|Shenzhen|Hangzhou|Chengdu|Xi''an|Wuhan|Nanjing|Kunming|Harbin|Lhasa|Urumqi|Kashgar|Xiamen|Qingdao|Dalian|Suzhou|Guilin|Sanya|Haikou|Changsha|Zhengzhou|Hefei|Fuzhou|Nanning|Guiyang|Lanzhou|Xining|Yinchuan|Hohhot|Shenyang|Changchun|Jinan|Taiyuan|Shijiazhuang|Ningbo|Yiwu|Hong Kong|Macao|Macau)\b'
 
 languages:
   en:
-    self: '\b(?:the|this|our) (?:writer|author|reporter|journalist|correspondent|columnist|photographer|contributor)s?\b|\bthis (?:article|story|report|piece|feature|reporting|series|podcast|episode)\b|\b(?:the )?(?:writer|author|reporter)(?:''s|’s)\b|(?<![\w"“])I (?:travel|was|went|visited|attended|flew|stayed|took|joined|spent)'
-    label: '(?:disclosure|disclaimer|editor(?:''s|’s)? note|note to readers|full disclosure|transparency note)\s*[:.]'
-    not_subject: '\b(?:president|prime minister|premier|minister|secretary|delegation|delegates|king|queen|prince|princess|team|squad|players?|officials?|governor|mayor|senator|ambassador|chancellor|lawmakers?|MPs?|legislators|students|athletes|leaders?|army|troops|band|orchestra|company|firm|executives?|(?:state|official|working) visit)\b'
+    self: '\b(?:the|this) (?:writer|author|reporter|journalist|correspondent|columnist|photographer|contributor)(?!s\b|s''|s’)\b|\bour (?:writer|author|reporter|journalist|correspondent|columnist|photographer|contributor)s?\b|\bthis (?:article|story|report|piece|feature|reporting|series|podcast|episode|dispatch)\b|\b(?:the )?(?:writer|author|reporter)(?:''s|’s)\b|(?<![\w"“])I (?:travel|was|went|visited|attended|flew|stayed|took|joined|spent)'
+    bio: '\b(?:is|was) (?:an? |the )?(?:[\w-]+ ){0,3}?(?:journalist|reporter|writer|correspondent|editor|columnist|photographer|producer|contributor)\b'
+    label: '(?:disclosure|disclaimer|editor(?:''s|’s)? note|note to readers|full disclosure|transparency note|transparency)\s*[:.]'
+    not_subject: '\b(?:president|prime minister|premier|minister|secretary|delegation|delegates|king|queen|prince|princess|team|squad|players?|officials?|governor|mayor|senator|ambassador|chancellor|lawmakers?|MPs?|legislators|students|athletes|leaders?|army|troops|band|orchestra|company|firm|executives?|(?:state|official|working) visit|said|says|told|according to|found|reported|alleged|claimed|denied|insisted)\b|\bIn (?:1[89]\d\d|20[01]\d)\b'
     travel: '\b(?:trip|travel|travelled|traveled|visit|visited|tour|journey|flights?|airfares?|accommodation|lodging|hotel|stay|reporting|press trip|study tour|training|programme|program|fellowship|course|seminar|workshop|exchange)\b'
     unnamed: '^(?:the |its |their |his |her |our |an? )?(?:hosts?|organi[sz]ers?|organi[sz]ing (?:committee|body|team)|host (?:government|country|organi[sz]ation|institution|city)|sponsors?|inviting (?:party|organi[sz]ation|government)|(?:foreign )?government(?! of\b)|government (?:agency|programme|program))\b'
     state_hosts:
       - '\b(?:Chinese|China''s|China’s) (?:government|authorities|state|foreign ministry|ministry of [a-z ]+|embassy|consulate|mission)\b'
       - '\b(?:government|state council|embassy|consulate|consulate[- ]general|mission) of (?:the )?(?:People''s Republic of |People’s Republic of |P\.?R\.? )?China\b'
-      - '\b(?:All[- ]China Journalists(?:''|’)? Association|ACJA|China International Press Communication Cent(?:er|re)|CIPCC|China[- ](?:Africa|Asia[- ]Pacific|Latin America|Arab|Central Asia|ASEAN|South Asia)(?: and Caribbean)? Press (?:Cent(?:er|re)|Center Program|Centre Programme)|China Public Diplomacy Association|Chinese Academy of Social Sciences|International Department of the (?:CPC|Communist Party of China|Central Committee)|Belt and Road News Network|China Scholarship Council|Chinese People(?:''|’)s Institute of Foreign Affairs|China Foreign Affairs University|MOFCOM)\b'
-      - '\b(?:[A-Z][a-z]+ )?(?:Provincial |Municipal )?(?:Department|Bureau|Commission) of Culture and Tourism\b'
-    triggers: [guest, invitation, invited, sponsored, "paid for", funded, financed, hosted, courtesy, "provided by", "covered by", "organised by", "organized by", "arranged by", "support", participant, fellow, "took part", attended, underwritten, subsidised, subsidized]
+      - '\b(?:All[- ]China Journalists(?:''|’)? Association|ACJA|China International Press Communication Cent(?:er|re)|CIPCC|China[- ](?:Africa|Asia[- ]Pacific|Latin America|Arab(?: States)?|Central Asia|ASEAN|South Asia|Pacific Island|Eurasia)(?: and Caribbean)? Press (?:Cent(?:er|re)|Center Program|Centre Programme)|China Public Diplomacy Association|Chinese Academy of Social Sciences|International Department of the (?:CPC|Communist Party of China|Central Committee)|Belt and Road News Network|China Scholarship Council|Chinese People(?:''|’)s Institute of Foreign Affairs|Chinese People(?:''|’)s Association for Friendship with Foreign Countries|China Foreign Affairs University|MOFCOM|China Global Television Network|State Council of (?:the People(?:''|’)s Republic of )?China|CPC Central Committee)\b'
+      # Chinese provincial and city bodies named in English; the place is required (china_places).
+      - '\b(?:Anhui|Beijing|Chongqing|Fujian|Gansu|Guangdong|Guangxi|Guizhou|Hainan|Hebei|Heilongjiang|Henan|Hubei|Hunan|Inner Mongolia|Jiangsu|Jiangxi|Jilin|Liaoning|Ningxia|Qinghai|Shaanxi|Shandong|Shanghai|Shanxi|Sichuan|Tianjin|Tibet|Xizang|Xinjiang|Yunnan|Zhejiang|Guangzhou|Shenzhen|Hangzhou|Chengdu|Wuhan|Nanjing|Kunming|Lhasa|Urumqi|Xiamen|Qingdao|Dalian|Suzhou|Guilin|Sanya|Haikou)(?: (?:Provincial|Municipal|City|Uygur|Uyghur|Zhuang|Hui|Autonomous|Region|Regional))*(?: People(?:''|’)s Government)?(?: (?:Foreign Affairs|Information|Publicity|Press|Media) Office| (?:Department|Bureau|Commission) of (?:Culture and Tourism|Foreign Affairs|Commerce)| Government| Party Committee)\b'
+      - '\b(?:Foreign Affairs|Information) Office of (?:the )?(?:Anhui|Beijing|Chongqing|Fujian|Gansu|Guangdong|Guangxi|Guizhou|Hainan|Hebei|Heilongjiang|Henan|Hubei|Hunan|Inner Mongolia|Jiangsu|Jiangxi|Jilin|Liaoning|Ningxia|Qinghai|Shaanxi|Shandong|Shanghai|Shanxi|Sichuan|Tianjin|Tibet|Xizang|Xinjiang|Yunnan|Zhejiang)\b'
+    triggers: [guest, invitation, invited, sponsored, "paid for", funded, financed, hosted, courtesy, "provided by", "covered by", "covered the", "organised by", "organized by", "arranged by", "run by", support, participant, fellow, "took part", attended, underwritten, subsidised, subsidized, expense, facilitat, provided, covered, arranged, "guest of", "guests of"]
     anchors:
       - id: en_guest_of
-        regex: '\b(?:as (?:a |the )?guests? of|at the (?:invitation|expense) of|on (?:an |a )?invitation (?:from|of))\s+'
+        regex: '\b(?:as (?:a |the )?guests? of|(?:was|were|is|are) (?:a |the )?guests? of|at the (?:invitation|expense) of|on (?:an |a )?invitation (?:from|of))\s+'
         host: after
         tail_ok: true
         note: The writer travelled to Shanghai as a guest of ..., the reporter visited at the invitation of ...
       - id: en_trip_paid_by
-        regex: '\b(?:trip|travel|travels|visit|tour|journey|flights?|airfares?|accommodation|lodging|hotel|stay|expenses|costs|reporting trip|press trip|press tour|media tour|study tour)(?:\s*(?:,|and)\s*[a-z]+){0,3}\s+(?:was|were|is|are|has been|have been|had been)\s+(?:(?:partly|partially|fully|wholly|generously|kindly)\s+)?(?:sponsored|paid for|funded|financed|covered|provided|organi[sz]ed|arranged|hosted|underwritten|subsidi[sz]ed|facilitated)\s+by\s+'
+        regex: '\b(?:trip|travel|travels|visit|tour|journey|flights?|airfares?|accommodation|lodging|hotel|stay|expenses|costs|reporting trip|press trip|press tour|media tour|study tour)(?:\s+(?:costs|expenses))?(?:\s*(?:,|and)\s*(?:the )?[a-z]+){0,3}(?:\s+(?:to|in|for|of|during|across|through)\s+(?:this |the |my |our )?[\w''’ -]{1,40}?)?\s+(?:was|were|is|are|has been|have been|had been)\s+(?:(?:partly|partially|fully|wholly|generously|kindly|entirely)\s+)?(?:sponsored|paid for|funded|financed|covered|provided|organi[sz]ed|arranged|hosted|underwritten|subsidi[sz]ed|facilitated)(?:\s+and\s+(?:sponsored|paid for|funded|financed|covered|provided|organi[sz]ed|arranged|hosted|underwritten|subsidi[sz]ed|facilitated))?\s+by\s+'
         host: after
         tail_ok: true
-        note: The trip was sponsored by ..., travel and accommodation were provided by ...
+        note: The trip was sponsored by ..., travel and accommodation for this article were provided by ..., the visit was arranged and paid for by ...
       - id: en_travelled_courtesy
         regex: '\b(?:travel(?:l)?ed|flew|stayed|visited|went|toured)\b[^.!?\n]{0,80}?\b(?:courtesy of|with (?:the )?(?:financial )?support (?:of|from)|on (?:an? )?[a-z -]{0,30}?(?:trip|visit|tour|programme|program) (?:sponsored|organi[sz]ed|hosted|funded|paid for|arranged) by|(?:sponsored|funded|hosted|paid for) by)\s+'
         host: after
@@ -63,82 +82,110 @@ languages:
         regex: '\b(?:training|programme|program|fellowship|course|seminar|workshop|exchange|scholarship|residency)\b[^.!?\n]{0,60}?\b(?:organi[sz]ed|hosted|run|funded|sponsored|paid for|offered|financed)\s+by\s+'
         host: after
         tail_ok: false
-        note: Training programmes; needs the author as subject or a disclosure label.
+        note: Training programmes; needs the author as subject, an author note or a disclosure label.
       - id: en_participant
         regex: '\b(?:(?:was|is|were|are) (?:a |an )?(?:participant|fellow|delegate|trainee|guest)s? (?:in|on|of|at)|(?:took|takes|taking) part in|participated in|(?:was|were) (?:attending|on))\s+(?=[^.!?\n]{0,100}?\b(?:programme|program|fellowship|training|course|seminar|workshop|exchange|press cent(?:re|er)|media (?:tour|exchange)|study tour|press tour)\b)'
         host: after
         tail_ok: false
         note: The author was a participant in the China-Africa Press Centre programme; the programme name is the host.
       - id: en_reverse_paid
-        regex: '\b(?:paid for|sponsored|funded|financed|covered|organi[sz]ed|arranged|hosted)\s+(?:the |this |my |our )?(?:writer|author|reporter|journalist|correspondent)(?:''s|’s|s''|s’)?\s+(?:trip|travel|visit|flights?|accommodation|stay|participation)\b'
+        regex: '\b(?:paid for|sponsored|funded|financed|covered|organi[sz]ed|arranged|hosted)\s+(?:the (?:full )?(?:costs?|expenses) of\s+)?(?:(?:my|our)\s+|(?:the |this )?(?:writer|author|reporter|journalist|correspondent)(?:''s|’s|s''|s’)\s+)(?:\w+\s+)?(?:trip|travel|visit|flights?|accommodation|stay|participation)\b'
         host: before
         tail_ok: true
-        note: The Chinese embassy paid for the writer's trip.
+        note: The Chinese Embassy paid for the writer's trip; the consulate covered the cost of my travel.
+      - id: en_on_trip_by
+        regex: '\b(?:during|on|as part of|through|in the course of) (?:an? |the )?[a-z -]{0,30}?(?:trip|tour|visit|programme|program|fellowship|exchange)\s+(?:(?:that|which) was\s+)?(?:organi[sz]ed|sponsored|hosted|funded|financed|paid for|arranged|run|offered|underwritten)(?:\s+and\s+(?:organi[sz]ed|sponsored|hosted|funded|financed|paid for|arranged|run))?\s+by\s+'
+        host: after
+        tail_ok: true
+        note: This story was reported during a press trip organised by ...; he visited as part of a programme hosted by ...
+      - id: en_support_from
+        regex: '\b(?:with|thanks to|through) (?:the )?(?:travel|financial|logistical|reporting)\s+(?:support|assistance|funding|grant|help)\s+(?:from|of|by)\s+'
+        host: after
+        tail_ok: true
+        note: This article was produced with travel support from ...
+      - id: en_hosted_by
+        regex: '\b(?:was|were) (?:hosted|invited|accommodated)\b[^.!?\n]{0,40}?\bby\s+'
+        host: after
+        tail_ok: false
+        note: The journalist was hosted in Beijing by ...; needs the author as subject, an author note or a label.
 
   fr:
     self: '\b(?:l[''’](?:auteur|autrice|auteure|envoyée? spéciale?)|(?:le|la|notre|cette|ce) (?:journaliste|reporter|envoyée? spéciale?|correspondante?|auteure?|autrice|photographe)|(?:cet article|ce reportage|cette enquête|ce papier|cette série))\b|\bnotre (?:envoyée?|correspondante?)\b'
+    bio: '\best (?:une? )?(?:[\w-]+ ){0,2}?(?:journaliste|reporter|correspondante?|rédact(?:eur|rice)|photographe|écrivaine?)\b'
     label: '(?:transparence|note de la rédaction|ndlr|précision|avertissement|à noter)\s*[:.)]'
-    not_subject: '\b(?:président|présidente|premier ministre|ministre|délégation|délégués|roi|reine|équipe|joueurs?|responsables|gouverneur|maire|sénateur|ambassadeur|chancelier|députés|étudiants|athlètes|dirigeants?|entreprise|société)\b'
+    not_subject: '\b(?:président|présidente|premier ministre|ministre|délégation|délégués|roi|reine|équipe|joueurs?|responsables|gouverneur|maire|sénateur|ambassadeur|chancelier|députés|étudiants|athlètes|dirigeants?|entreprise|société|selon|a déclaré|a affirmé|a dit|a indiqué)\b'
     travel: '\b(?:voyage|séjour|déplacement|visite|hébergement|vols?|billets?|frais|formation|stage|programme|reportage|tournée|bourse|séminaire|atelier)\b'
     unnamed: '^(?:les |l[''’]|leurs? |ses |des |du |de la |de l[''’]|d[''’]|un |une )?(?:hôtes?|organisat(?:eur|eurs|rice|rices)|comité d[''’]organisation|pays (?:hôte|d[''’]accueil)|gouvernement (?:hôte|d[''’]accueil)|autorités (?:locales|du pays)|sponsors?|un gouvernement)\b'
     state_hosts:
       - '\b(?:gouvernement|autorités|ambassade|consulat|ministère des affaires étrangères|État) (?:chinois(?:e|es)?|de (?:la )?(?:République populaire de )?Chine)\b'
-      - '\b(?:Association chinoise (?:de|pour la) diplomatie publique|Association des journalistes de Chine|Centre (?:de presse )?(?:Chine|sino)[- ]Afrique|Centre international de communication de (?:la )?presse de Chine)\b'
-    triggers: [invit, "frais", financ, "pris en charge", "prise en charge", organis, sponsoris, parrain, particip, offert]
+      - '\b(?:Association chinoise (?:de|pour la) diplomatie publique|Association des journalistes (?:de Chine|chinois)|Association nationale des journalistes de Chine|Centre (?:de presse )?(?:Chine|sino)[- ]Afrique|Centre international de communication de (?:la )?presse de Chine|Bureau (?:de l[''’])?information du Conseil des affaires d[''’]État|Conseil des affaires d[''’]État(?: chinois| de Chine)?|ministère chinois des Affaires étrangères|Parti communiste chinois|Groupe de médias de Chine|Agence Chine nouvelle)\b'
+    triggers: [invit, "frais", financ, "pris en charge", "prise en charge", organis, sponsoris, parrain, particip, offert, payé, assuré, couvert, "à la charge", "pris part", boursi, stagiaire]
     anchors:
       - id: fr_invitation
-        regex: '(?:\b(?:à|sur) l[''’]invitation|\bsur invitation|\baux frais|\bà la charge|\b(?:en tant qu[''’]|comme )invitée?s?|\binvitée?s? (?:par|de))\s*(?:d[''’]|de |du |des |par )?'
+        regex: '(?:\b(?:à|sur) l[''’]invitation|\b(?:grâce à|suite à|sur) une invitation|\bsur invitation|\baux frais|\bà la charge|\b(?:en tant qu[''’]|comme )invitée?s?|\binvitée?s? (?:par|de))\s*(?:d[''’]|de |du |des |par )?'
         host: after
         tail_ok: true
         note: L'auteur s'est rendu en Chine à l'invitation de ..., aux frais de ...
       - id: fr_voyage_finance
-        regex: '\b(?:voyage|séjour|déplacement|visite|hébergement|vols?|billets?|frais|tournée|reportage)\b[^.!?\n]{0,60}?\b(?:a|ont|avait|avaient|est|sont|était|étaient)\s+(?:(?:été|entièrement|partiellement|en partie)\s+){1,2}(?:pris(?:e|es)? en charge|financée?s?|payée?s?|organisée?s?|offerte?s?|sponsorisée?s?|parrainée?s?|assurée?s?|couverte?s?)\s+par\s+'
+        regex: '\b(?:voyage|séjour|déplacement|visite|hébergement|vols?|billets?|frais|tournée|reportage)\b[^.!?\n]{0,60}?\b(?:a|ont|avait|avaient|est|sont|était|étaient)\s+(?:(?:été|entièrement|partiellement|en partie|intégralement)\s+){1,2}(?:pris(?:e|es)? en charge|financée?s?|payée?s?|organisée?s?|offerte?s?|sponsorisée?s?|parrainée?s?|assurée?s?|couverte?s?)(?:\s+et\s+(?:pris(?:e|es)? en charge|financée?s?|payée?s?|organisée?s?|offerte?s?|sponsorisée?s?|parrainée?s?))?(?:\s+(?:entièrement|intégralement|en partie))?\s+par\s+'
         host: after
         tail_ok: true
-        note: Ce voyage a été financé par ..., les frais de séjour ont été pris en charge par ...
+        note: Ce voyage a été financé par ..., les frais de séjour ont été pris en charge par ..., organisé et financé par ...
       - id: fr_formation
         regex: '\b(?:a participé|participait|participe|a pris part|prenait part|était (?:boursier|boursière|stagiaire))\s+(?:à|au|aux)\s+(?=[^.!?\n]{0,100}?\b(?:programme|formation|stage|séminaire|atelier|bourse|échange|centre de presse)\b)'
         host: after
         tail_ok: false
         note: Le journaliste a participé au programme du Centre de presse Chine-Afrique.
+      - id: fr_voyage_organise
+        regex: '\b(?:voyage|séjour|déplacement|tournée|visite|programme|stage)\s+(?:de presse\s+|d[''’]étude\s+)?(?:organisée?s?|financée?s?|offerte?s?|parrainée?s?|sponsorisée?s?|pris(?:e|es)? en charge)\s+par\s+'
+        host: after
+        tail_ok: true
+        note: lors d'un voyage de presse organisé par ...
 
   es:
     self: '\b(?:el|la|este|esta|nuestr[oa]) (?:autor[a]?|periodista|reporter[oa]?|enviad[oa] especial|corresponsal|redactor[a]?|fotógraf[oa])\b|\b(?:este (?:artículo|reportaje|texto|trabajo)|esta (?:nota|crónica|serie|investigación))\b'
+    bio: '\bes (?:una? )?(?:[\w-]+ ){0,2}?(?:periodista|reporter[oa]?|corresponsal|redactor[a]?|fotógraf[oa]|escritor[a]?)\b'
     label: '(?:nota (?:del editor|de la redacción|de transparencia)|transparencia|aviso|aclaración)\s*[:.]'
-    not_subject: '\b(?:presidente|presidenta|primer ministro|ministr[oa]|delegación|delegados|rey|reina|equipo|selección|jugadores?|funcionarios|gobernador[a]?|alcalde(?:sa)?|senador[a]?|embajador[a]?|canciller|diputados|estudiantes|atletas|dirigentes?|líderes?|empresa|compañía)\b'
+    not_subject: '\b(?:presidente|presidenta|primer ministro|ministr[oa]|delegación|delegados|rey|reina|equipo|selección|jugadores?|funcionarios|gobernador[a]?|alcalde(?:sa)?|senador[a]?|embajador[a]?|canciller|diputados|estudiantes|atletas|dirigentes?|líderes?|empresa|compañía|según|dijo|afirmó|declaró|aseguró)\b'
     travel: '\b(?:viaje|visita|estancia|estadía|alojamiento|vuelos?|pasajes?|boletos?|gastos|formación|capacitación|programa|curso|gira|beca|seminario|taller|intercambio)\b'
     unnamed: '^(?:los |las |el |la |sus |del |de los |de las |de la |un |una )?(?:anfitrion(?:es|a)?|organizador(?:es|a|as)?|comité organizador|país anfitrión|gobierno anfitrión|patrocinador(?:es)?|un gobierno)\b'
     state_hosts:
-      - '\b(?:gobierno|autoridades|embajada|consulado|cancillería|ministerio de relaciones exteriores|Estado) (?:chin[oa]s?|de (?:la )?(?:República Popular (?:de )?)?China)\b'
-      - '\b(?:Asociación (?:de Diplomacia Pública de China|China de Diplomacia Pública)|Asociación de Periodistas de (?:toda )?China|Centro de Prensa China[- ](?:América Latina|Latinoamérica|África)(?: y (?:el )?Caribe)?|Centro Internacional de Comunicación de Prensa de China)\b'
-    triggers: [invit, financiad, pagad, costead, patrocinad, auspiciad, cubiert, "a cargo", "a costa", particip, organizad, ofrecid]
+      - '\b(?:gobierno|autoridades|embajada|consulado|cancillería|ministerio de relaciones exteriores|ministerio de asuntos exteriores|Estado) (?:chin[oa]s?|de (?:la )?(?:República Popular (?:de )?)?China)\b'
+      - '\b(?:Asociación (?:de Diplomacia Pública de China|China de Diplomacia Pública)|Asociación de Periodistas de (?:toda )?China|Asociación Nacional de Periodistas de China|Centro de Prensa China[- ](?:América Latina|Latinoamérica|África)(?: y (?:el )?Caribe)?|Centro Internacional de Comunicación de Prensa de China|Oficina de Información del Consejo de Estado|Consejo de Estado (?:de China|chino)|Partido Comunista (?:de )?China|Grupo de Medios de China|Agencia (?:de noticias )?Xinhua)\b'
+    triggers: [invit, financiad, pagad, costead, patrocinad, auspiciad, cubiert, "a cargo", "a costa", particip, organizad, ofrecid, sufragad, becari, "tomó parte", "con cargo"]
     anchors:
       - id: es_invitacion
-        regex: '\b(?:(?:por|a) invitación|(?:como|en calidad de) invitad[oa]s?|invitad[oa]s? por|a costa)\s+(?:de(?:l)?\s+)?|\bcon cargo al?\s+'
+        regex: '\b(?:(?:por|a|tras|gracias a) (?:una )?invitación|(?:como|en calidad de) invitad[oa]s?|invitad[oa]s? por)\s+(?:de(?:l)?\s+)?|\ba costa del?\s+|\bcon cargo al?\s+'
         host: after
         tail_ok: true
-        note: El periodista viajó a China invitado por ..., por invitación de ...
+        note: El periodista viajó a China invitado por ..., por invitación de ..., gracias a una invitación de ...
       - id: es_viaje_financiado
-        regex: '\b(?:viaje|visita|estancia|estadía|alojamiento|vuelos?|pasajes?|boletos?|gastos|gira)\b[^.!?\n]{0,60}?\b(?:fue|fueron|ha sido|han sido|había sido|era|eran|es|son|estuvo|estuvieron)\s+(?:(?:totalmente|parcialmente|íntegramente|enteramente)\s+)?(?:financiad[oa]s?|pagad[oa]s?|costead[oa]s?|organizad[oa]s?|patrocinad[oa]s?|cubiert[oa]s?|ofrecid[oa]s?|auspiciad[oa]s?|sufragad[oa]s?)\s+por\s+'
+        regex: '\b(?:viaje|visita|estancia|estadía|alojamiento|vuelos?|pasajes?|boletos?|gastos|gira)\b[^.!?\n]{0,60}?\b(?:fue|fueron|ha sido|han sido|había sido|era|eran|es|son|estuvo|estuvieron)\s+(?:(?:totalmente|parcialmente|íntegramente|enteramente)\s+)?(?:financiad[oa]s?|pagad[oa]s?|costead[oa]s?|organizad[oa]s?|patrocinad[oa]s?|cubiert[oa]s?|ofrecid[oa]s?|auspiciad[oa]s?|sufragad[oa]s?)(?:\s+y\s+(?:financiad[oa]s?|pagad[oa]s?|costead[oa]s?|organizad[oa]s?|patrocinad[oa]s?))?(?:\s+(?:totalmente|parcialmente|íntegramente|enteramente))?\s+por\s+'
         host: after
         tail_ok: true
-        note: El viaje fue financiado por ..., los gastos fueron cubiertos por ...
+        note: El viaje fue financiado por ..., los gastos fueron cubiertos por ..., financiado íntegramente por ...
       - id: es_capacitacion
         regex: '\b(?:participó|participa|participaba|tomó parte|fue becari[oa])\s+(?:en|del|de)\s+(?=[^.!?\n]{0,100}?\b(?:programa|curso|capacitación|seminario|taller|beca|intercambio|centro de prensa)\b)'
         host: after
         tail_ok: false
         note: La autora participó en el programa del Centro de Prensa China-América Latina.
+      - id: es_gira_organizada
+        regex: '\b(?:viaje|gira|visita|programa|recorrido)\s+(?:de prensa\s+|periodístic[oa]\s+|informativ[oa]\s+)?(?:organizad[oa]|financiad[oa]|patrocinad[oa]|pagad[oa]|costead[oa]|auspiciad[oa])\s+por\s+'
+        host: after
+        tail_ok: true
+        note: en una gira de prensa organizada por ...
 
   pt:
     self: '\b(?:o|a|este|esta|noss[oa]) (?:autor[a]?|jornalista|repórter|enviad[oa] especial|correspondente|fotógraf[oa])\b|\b(?:esta (?:reportagem|matéria|série)|este (?:artigo|texto|trabalho))\b'
+    bio: '\bé (?:uma? )?(?:[\w-]+ ){0,2}?(?:jornalista|repórter|correspondente|redator[a]?|fotógraf[oa]|escritor[a]?)\b'
     label: '(?:nota (?:do editor|da redação|de transparência)|transparência|aviso|esclarecimento)\s*[:.]'
-    not_subject: '\b(?:presidente|primeiro-ministro|ministr[oa]|delegação|delegados|rei|rainha|equipe|equipa|seleção|jogadores?|funcionários|governador[a]?|prefeit[oa]|senador[a]?|embaixador[a]?|chanceler|deputados|estudantes|atletas|dirigentes?|líderes?|empresa|companhia)\b'
+    not_subject: '\b(?:presidente|primeiro-ministro|ministr[oa]|delegação|delegados|rei|rainha|equipe|equipa|seleção|jogadores?|funcionários|governador[a]?|prefeit[oa]|senador[a]?|embaixador[a]?|chanceler|deputados|estudantes|atletas|dirigentes?|líderes?|empresa|companhia|segundo|disse|afirmou|declarou)\b'
     travel: '\b(?:viagem|visita|estadia|estada|hospedagem|alojamento|voos?|passagens?|despesas|formação|capacitação|programa|curso|bolsa|seminário|oficina|intercâmbio)\b'
     unnamed: '^(?:os |as |o |a |seus |suas |d[oa]s? |pel[oa]s? |um |uma )?(?:anfitri(?:ões|ão|ã|ãs)|organizador(?:es|a|as)?|comitê organizador|comissão organizadora|país anfitrião|governo anfitrião|patrocinador(?:es)?|um governo)\b'
     state_hosts:
-      - '\b(?:governo|autoridades|embaixada|consulado|chancelaria|ministério das relações exteriores|Estado) (?:chin(?:ês|esa|eses|esas)|d[ae] (?:República Popular d[ae] )?China)\b'
-      - '\b(?:Associação (?:de Diplomacia Pública da China|Chinesa de Diplomacia Pública)|Associação de Jornalistas (?:de toda a )?(?:da )?China|Centro de Imprensa China[- ](?:América Latina|África)(?: e Caribe)?|Centro Internacional de Comunicação de Imprensa da China)\b'
-    triggers: [convit, "a expensas", financiad, pag, custead, patrocinad, cobert, bancad, oferecid, particip, organizad]
+      - '\b(?:governo|autoridades|embaixada|consulado|chancelaria|ministério das relações exteriores|ministério dos negócios estrangeiros|Estado) (?:chin(?:ês|esa|eses|esas)|d[ae] (?:República Popular d[ae] )?China)\b'
+      - '\b(?:Associação (?:de Diplomacia Pública da China|Chinesa de Diplomacia Pública)|Associação (?:Nacional )?de Jornalistas (?:de toda a )?(?:da )?China|Centro de Imprensa China[- ](?:América Latina|África)(?: e Caribe)?|Centro Internacional de Comunicação de Imprensa da China|Conselho de Estado (?:da China|chinês)|Partido Comunista (?:da )?China|Grupo de Mídia da China|Agência (?:de notícias )?Xinhua)\b'
+    triggers: [convit, "a expensas", financiad, pag, custead, patrocinad, cobert, bancad, oferecid, particip, organizad, bolsista]
     anchors:
       - id: pt_convite
         regex: '\b(?:(?:a|por|sob) convite|(?:como|na qualidade de) convidad[oa]s?|convidad[oa]s?|a expensas)\s+(?:d[aoe]s?\s+|pel[ao]s?\s+|por\s+)'
@@ -146,7 +193,7 @@ languages:
         tail_ok: true
         note: A jornalista viajou à China a convite de ..., o repórter viajou a convite da ...
       - id: pt_viagem_paga
-        regex: '\b(?:viagem|visita|estadia|estada|hospedagem|alojamento|voos?|passagens?|despesas)\b[^.!?\n]{0,60}?\b(?:foi|foram|é|são|tem sido|era|eram)\s+(?:(?:totalmente|parcialmente|integralmente)\s+)?(?:financiad[oa]s?|pag[ao]s?|custead[oa]s?|organizad[oa]s?|patrocinad[oa]s?|cobert[oa]s?|oferecid[oa]s?|bancad[oa]s?)\s+(?:pel[ao]s?|por)\s+'
+        regex: '\b(?:viagem|visita|estadia|estada|hospedagem|alojamento|voos?|passagens?|despesas)\b[^.!?\n]{0,60}?\b(?:foi|foram|é|são|tem sido|era|eram)\s+(?:(?:totalmente|parcialmente|integralmente)\s+)?(?:financiad[oa]s?|pag[ao]s?|custead[oa]s?|organizad[oa]s?|patrocinad[oa]s?|cobert[oa]s?|oferecid[oa]s?|bancad[oa]s?)(?:\s+e\s+(?:financiad[oa]s?|pag[ao]s?|custead[oa]s?|organizad[oa]s?|patrocinad[oa]s?))?(?:\s+(?:totalmente|parcialmente|integralmente))?\s+(?:pel[ao]s?|por)\s+'
         host: after
         tail_ok: true
         note: A viagem foi custeada pela ..., as despesas foram pagas por ...
@@ -155,17 +202,23 @@ languages:
         host: after
         tail_ok: false
         note: O autor participou do programa do Centro de Imprensa China-América Latina.
+      - id: pt_viagem_organizada
+        regex: '\b(?:viagem|visita|programa|missão)\s+(?:de imprensa\s+|jornalística\s+)?(?:organizad[oa]|financiad[oa]|patrocinad[oa]|pag[ao]|custead[oa]|oferecid[oa])\s+(?:pel[ao]s?|por)\s+'
+        host: after
+        tail_ok: true
+        note: durante uma viagem organizada pela ...
 
   it:
     self: '\b(?:l[''’](?:autore|autrice|inviat[oa])|(?:il|la|questo|questa|nostr[oa]) (?:giornalista|cronista|inviat[oa]|corrispondente|reporter|fotografo)|(?:questo articolo|questo reportage|questa inchiesta|questo servizio))\b'
+    bio: '\bè (?:una? |un[''’])?(?:[\w-]+ ){0,2}?(?:giornalista|reporter|corrispondente|scrittore|scrittrice|fotografo|fotografa)\b'
     label: '(?:nota della redazione|trasparenza|ndr|avvertenza|precisazione)\s*[:.)]'
-    not_subject: '\b(?:presidente|premier|primo ministro|ministr[oa]|delegazione|delegati|re|regina|squadra|nazionale|giocatori|funzionari|governatore|sindac[oa]|senatore|ambasciatore|cancelliere|deputati|studenti|atleti|dirigenti|leader|azienda|società)\b'
+    not_subject: '\b(?:presidente|premier|primo ministro|ministr[oa]|delegazione|delegati|re|regina|squadra|nazionale|giocatori|funzionari|governatore|sindac[oa]|senatore|ambasciatore|cancelliere|deputati|studenti|atleti|dirigenti|leader|azienda|società|secondo|ha detto|ha dichiarato|ha affermato)\b'
     travel: '\b(?:viaggio|visita|soggiorno|trasferta|alloggio|voli?|spese|formazione|corso|programma|borsa|seminario|scambio)\b'
     unnamed: '^(?:gli |i |il |la |l[''’]|degli |dei |del |della |dell[''’]|dagli |dai |dal |dalla |dall[''’]|un |una )?(?:organizzator[ie]|padron[ei] di casa|ospit[ei]|comitato organizzatore|paese ospitante|governo ospitante|sponsor|un governo)\b'
     state_hosts:
       - '\b(?:governo|autorità|ambasciata|consolato|ministero degli (?:affari )?esteri|Stato) (?:cines[ei]|della (?:Repubblica Popolare )?Cinese|della Cina)\b'
-      - '\b(?:Associazione (?:cinese per la diplomazia pubblica|dei giornalisti cinesi)|Centro internazionale di comunicazione stampa (?:della )?Cina)\b'
-    triggers: [invito, ospit, "a spese", finanziat, pagat, offert, organizzat, sponsorizzat, sostenut, partecip]
+      - '\b(?:Associazione (?:cinese per la diplomazia pubblica|dei giornalisti cinesi)|Centro internazionale di comunicazione stampa (?:della )?Cina|Ufficio (?:informazioni|stampa) del Consiglio di Stato|Consiglio di Stato cinese|Partito comunista cinese|China Media Group|Gruppo dei media cinese)\b'
+    triggers: [invito, ospit, "a spese", finanziat, pagat, offert, organizzat, sponsorizzat, sostenut, partecip, copert, "preso parte", borsista]
     anchors:
       - id: it_invito
         regex: '\b(?:(?:su|dietro) invito|(?:come|in qualità di) ospit[ei]|ospit[ei]|a spese)\s+(?:d(?:i|el|ella|ello|ell[''’]|egli|ei|elle)\b\s*)'
@@ -173,10 +226,15 @@ languages:
         tail_ok: true
         note: L'inviato ha viaggiato in Cina su invito di ..., ospite della ...
       - id: it_viaggio_pagato
-        regex: '\b(?:viaggio|visita|soggiorno|trasferta|alloggio|voli?|spese)\b[^.!?\n]{0,60}?\b(?:è stat[oa]|sono stat[ie]|era|erano|è|sono)\s+(?:(?:interamente|parzialmente|in parte)\s+)?(?:finanziat[oaie]|pagat[oaie]|offert[oaie]|organizzat[oaie]|sponsorizzat[oaie]|sostenut[oaie]|copert[oaie])\s+(?:d(?:a|al|alla|allo|all[''’]|agli|ai|alle)\b\s*)'
+        regex: '\b(?:viaggio|visita|soggiorno|trasferta|alloggio|voli?|spese)\b[^.!?\n]{0,60}?\b(?:è stat[oa]|sono stat[ie]|era|erano|è|sono)\s+(?:(?:interamente|parzialmente|in parte)\s+)?(?:finanziat[oaie]|pagat[oaie]|offert[oaie]|organizzat[oaie]|sponsorizzat[oaie]|sostenut[oaie]|copert[oaie])(?:\s+e\s+(?:finanziat[oaie]|pagat[oaie]|offert[oaie]|organizzat[oaie]|sponsorizzat[oaie]|sostenut[oaie]))?(?:\s+(?:interamente|parzialmente|in parte))?\s+(?:d(?:a|al|alla|allo|all[''’]|agli|ai|alle)\b\s*)'
         host: after
         tail_ok: true
-        note: Il viaggio è stato organizzato dall'...; le spese sono state sostenute da ...
+        note: Il viaggio è stato organizzato dall'...; le spese sono state sostenute da ...; organizzata e pagata dal ...
+      - id: it_viaggio_organizzato
+        regex: '\b(?:viaggio|visita|soggiorno|trasferta|programma)(?:\s+stampa)?\s*,?\s+(?:organizzat[oa]|finanziat[oa]|pagat[oa]|offert[oa]|sponsorizzat[oa])\s+(?:d(?:a|al|alla|allo|all[''’]|agli|ai|alle)\b\s*)'
+        host: after
+        tail_ok: true
+        note: Il viaggio, organizzato dall'ambasciata ..., durante un viaggio stampa offerto da ...
       - id: it_formazione
         regex: '\b(?:ha partecipato|partecipava|partecipa|ha preso parte|era borsista)\s+(?:a|al|alla|allo|all[''’]|ai|agli|alle)\s*(?=[^.!?\n]{0,100}?\b(?:programma|corso|formazione|seminario|borsa|scambio|centro stampa)\b)'
         host: after
@@ -185,23 +243,24 @@ languages:
 
   de:
     self: '\b(?:der|die|des|unser\w*) (?:Autor\w*|Reporter\w*|Journalist\w*|Korrespondent\w*|Fotograf\w*)\b|\bdiese[rsn]? (?:Artikel|Beitrag|Bericht|Reportage|Recherche|Text|Serie)\b'
+    bio: '\bist (?:eine? )?(?:[\w-]+ ){0,2}?(?:Journalist\w*|Reporter\w*|Korrespondent\w*|Autor\w*|Fotograf\w*|Redakteur\w*)\b'
     label: '(?:Transparenzhinweis|Hinweis der Redaktion|Offenlegung|Hinweis in eigener Sache|Hinweis|Anmerkung der Redaktion)\s*[:.]'
-    not_subject: '\b(?:Präsident\w*|Kanzler\w*|Minister\w*|Premier\w*|Delegation|Delegierte\w*|König\w*|Mannschaft|Team|Spieler\w*|Beamte\w*|Gouverneur\w*|Bürgermeister\w*|Senator\w*|Botschafter\w*|Abgeordnete\w*|Studierende\w*|Studenten|Athlet\w*|Unternehmen|Firma)\b'
+    not_subject: '\b(?:\w*präsident\w*|\w*kanzler\w*|Minister(?!ium)\w*|Premier\w*|Delegation|Delegierte\w*|König\w*|Mannschaft|Team|Spieler\w*|Beamte\w*|Gouverneur\w*|Bürgermeister\w*|Senator\w*|Botschafter\w*|Abgeordnete\w*|Studierende\w*|Studenten|Athlet\w*|Unternehmen|Firma|sagte|laut|zufolge|erklärte)\b'
     travel: '\b(?:Reise\w*|Pressereise|Recherchereise|Aufenthalt\w*|Unterkunft|Übernachtung\w*|Flüge?|Flug\w*|Kosten|Teilnahme|Fortbildung|Schulung|Programm\w*|Seminar\w*|Stipendium|Austausch\w*|Besuch\w*)\b'
     unnamed: '^(?:de[rmns] |die |seine[mnrs]? |ihre[mnrs]? |eine[mnrs]? )?(?:Gastgeber\w*|Veranstalter\w*|Organisator\w*|Sponsor\w*|Gastland\w*|Ausrichter\w*|einladenden \w+|Regierung)\b'
     state_hosts:
       - '\b(?:chinesische[nmrs]?|Chinas) (?:Regierung|Botschaft|Generalkonsulat\w*|Konsulat\w*|Außenministerium\w*|Staat\w*|Behörden)\b'
-      - '\b(?:Regierung|Botschaft|Generalkonsulat\w*|Konsulat\w*) (?:der )?(?:Volksrepublik China|VR China|Chinas)\b'
-      - '\b(?:Chinesische[nr]? Journalistenverband\w*|Allchinesische[nr]? Journalistenverband\w*|Chinesische[nr]? Gesellschaft für Public Diplomacy)\b'
-    triggers: [Einladung, Gast, Gäste, Kosten, bezahlt, finanziert, organisiert, unterstützt, übernommen, ermöglicht, gesponsert, getragen, Teilnehmer, teilgenommen, Transparenzhinweis]
+      - '\b(?:Regierung|Botschaft|Generalkonsulat\w*|Konsulat\w*|Außenministerium\w*|Staatsrat\w*) (?:der )?(?:Volksrepublik China|VR China|Chinas)\b'
+      - '\b(?:Chinesische[nr]? Journalistenverband\w*|Allchinesische[nr]? Journalistenverband\w*|Chinesische[nr]? Gesellschaft für Public Diplomacy|Informationsbüro\w* des (?:chinesischen )?Staatsrat\w*|chinesischen Staatsrat\w*|Kommunistische\w* Partei Chinas|KP Chinas|Chinesische\w* Medienkonzern\w*)\b'
+    triggers: [Einladung, Gast, Gäste, Kosten, bezahlt, finanziert, organisiert, unterstützt, übernommen, übernahm, ermöglicht, gesponsert, getragen, trug, Teilnehmer, teilgenommen, Stipendiat, nahm, nimmt, Transparenzhinweis]
     anchors:
       - id: de_einladung
-        regex: '\b(?:auf|nach) Einladung\s+|\bals Gäste?\s+(?=de[rsmn]\b|eine[rsmn]?\b|Chinas\b)|\bauf Kosten\s+'
+        regex: '\b(?:auf|nach) Einladung\s+|\bals (?:Gast|Gäste)\s+(?=de[rsmn]\b|eine[rsmn]?\b|Chinas\b)|\bauf Kosten\s+'
         host: after
         tail_ok: true
         note: Der Autor reiste auf Einladung der chinesischen Botschaft, auf Kosten der ...
       - id: de_reise_bezahlt
-        regex: '\b(?:Reise\w*|Pressereise|Recherchereise|Aufenthalt\w*|Unterkunft|Übernachtung\w*|Flüge?|Kosten|Teilnahme)\b[^.!?\n]{0,40}?\b(?:wurden?|wird|werden|war|waren)\s+(?:\w+\s+){0,2}?(?:von|vom|durch)\s+(?=[^.!?\n]{0,120}?\b(?:bezahlt|finanziert|organisiert|unterstützt|übernommen|ermöglicht|gesponsert|getragen)\b)'
+        regex: '\b(?:Reise\w*|Pressereise|Recherchereise|Aufenthalt\w*|Unterkunft|Übernachtung\w*|Flüge?|Flug\w*|Hotel\w*|Kosten|Teilnahme)\b[^.!?\n]{0,40}?\b(?:wurden?|wird|werden|war|waren)\s+(?:\w+\s+){0,2}?(?:von|vom|durch)\s+(?=[^.!?\n]{0,120}?\b(?:bezahlt|finanziert|organisiert|unterstützt|übernommen|ermöglicht|gesponsert|getragen)\b)'
         host: after
         tail_ok: true
         note: Die Reise wurde von der chinesischen Botschaft bezahlt.
@@ -216,16 +275,27 @@ languages:
         host: after
         tail_ok: false
         note: Die Autorin nahm an einem Programm des ... teil.
+      - id: de_reise_relativ
+        regex: '\b(?:Reise\w*|Pressereise|Recherchereise|Aufenthalt\w*|Programm\w*|Besuch\w*),?\s+(?:die|der|das|den)\s+(?:von|vom|durch)\s+(?=[^.!?\n]{0,120}?\b(?:bezahlt|finanziert|organisiert|unterstützt|übernommen|ermöglicht|gesponsert|getragen)\b)'
+        host: after
+        tail_ok: true
+        note: während einer Pressereise, die von der Botschaft ... organisiert wurde.
+      - id: de_kosten_uebernahm
+        regex: '\b(?:Kosten|Reisekosten|Flug|Flüge|Unterkunft|Übernachtung\w*)\b[^.!?\n]{0,40}?\b(?:übernahm|übernahmen|bezahlte|bezahlten|trug|trugen|finanzierte|finanzierten)\s+'
+        host: after
+        tail_ok: true
+        note: Kosten für Flug und Unterkunft übernahm die ...
 
   ar:
     self: '(?:الكاتب|الكاتبة|المراسل|المراسلة|الصحفي|الصحفية|الصحافي|الصحافية|كاتب المقال|كاتبة المقال|كاتب هذه السطور|معد التقرير|معدة التقرير|هذا التقرير|هذا المقال|هذه المادة|موفد|موفدة)'
+    bio: '(?:^|\s)(?:صحفي|صحفية|صحافي|صحافية|كاتب|كاتبة|مراسل|مراسلة)\s'
     label: '(?:إفصاح|إخلاء مسؤولية|ملاحظة المحرر|ملاحظة|تنويه|توضيح)\s*[:.]'
-    not_subject: '(?:الرئيس|رئيس الوزراء|رئيس الحكومة|الوزير|وزير|الوفد|وفد|الملك|الأمير|الفريق|المنتخب|اللاعبين|المسؤولين|المحافظ|السفير|النواب|الطلاب|الشركة)'
+    not_subject: '(?:الرئيس|رئيس الوزراء|رئيس الحكومة|الوزير|وزير|الوفد|وفد|الملك|الأمير|الفريق|المنتخب|اللاعبين|المسؤولين|المحافظ|السفير|النواب|الطلاب|الشركة|بحسب|وفقا|قال|وقال)'
     travel: '(?:رحلة|الرحلة|زيارة|الزيارة|السفر|سفر|الإقامة|إقامة|تذاكر|نفقات|تكاليف|دورة|الدورة|برنامج|البرنامج|تدريب|التدريب|منحة|ورشة)'
     unnamed: '^(?:من )?(?:الجهة المنظمة|الجهات المنظمة|المنظمين|المنظمون|الجهة المضيفة|الدولة المضيفة|المضيفين|الحكومة المضيفة|الجهة الداعية|الجهات الداعية|الحكومة)'
     state_hosts:
-      - '(?:السفارة الصينية|سفارة الصين|سفارة جمهورية الصين الشعبية|القنصلية الصينية|الحكومة الصينية|حكومة الصين|حكومة جمهورية الصين الشعبية|وزارة الخارجية الصينية|الخارجية الصينية|الحزب الشيوعي الصيني|جمعية الدبلوماسية العامة الصينية|رابطة الصحفيين الصينيين|جمعية الصحفيين الصينيين|مركز الصحافة الصيني[ -]الأفريقي|مركز الصحافة الصيني[ -]العربي|المركز الدولي للتواصل الصحفي الصيني)'
-    triggers: [بدعوة, ضيف, نفقة, بتمويل, برعاية, بتنظيم, بتكفل, شارك, ممول, دعوة]
+      - '(?:السفارة الصينية|سفارة الصين|سفارة جمهورية الصين الشعبية|القنصلية الصينية|الحكومة الصينية|حكومة الصين|حكومة جمهورية الصين الشعبية|وزارة الخارجية الصينية|الخارجية الصينية|الحزب الشيوعي الصيني|جمعية الدبلوماسية العامة الصينية|رابطة الصحفيين الصينيين|جمعية الصحفيين الصينيين|مركز الصحافة الصيني[ -]الأفريقي|مركز الصحافة الصيني[ -]العربي|المركز الدولي للتواصل الصحفي الصيني|مجلس الدولة الصيني|مكتب الإعلام التابع لمجلس الدولة|مجموعة الصين للإعلام)'
+    triggers: [بدعوة, ضيف, نفقة, حساب, بتمويل, برعاية, بتنظيم, بتكفل, شارك, ممول, مدفوعة, دعوة, تحمل, تكفل, دفعت, غطت, تغطية]
     anchors:
       - id: ar_dawa
         regex: '(?:بدعوة(?: كريمة)? من|بناء على دعوة من|تلبية لدعوة(?: من)?|ضيفا على|ضيفًا على|ضيفة على|كضيف على|كضيوف على|على نفقة|على حساب)\s*'
@@ -233,10 +303,15 @@ languages:
         tail_ok: true
         note: زار الكاتب الصين بدعوة من ...
       - id: ar_rihla_mumawwala
-        regex: '(?:الرحلة|الزيارة|السفر|الإقامة|تذاكر الطيران|نفقات|تكاليف)[^.!؟\n]{0,60}?(?:تمت|تم|كانت|كان|جاءت)?\s*(?:بتمويل|على نفقة|بدعوة|برعاية|بتنظيم|بتكفل|ممولة|مدفوعة)\s*(?:كاملة\s*)?(?:من(?: قبل)?\s*)?'
+        regex: '(?:الرحلة|الزيارة|السفر|الإقامة|تذاكر الطيران|نفقات|تكاليف)[^.!؟\n]{0,60}?(?:تمت|تم|كانت|كان|جاءت)?\s*(?:بتمويل|على نفقة|بدعوة|برعاية|بتنظيم|بتكفل|ممولة|مدفوعة|تحملتها|تحملت|تكفلت بها|تكفلت|دفعتها|دفعت|غطتها|غطت)\s*(?:كاملة\s*)?(?:من(?: قبل)?\s*)?'
         host: after
         tail_ok: true
-        note: الرحلة تمت بتمويل من ...
+        note: الرحلة تمت بتمويل من ...، تكاليف السفر تحملتها ...
+      - id: ar_taghtiya
+        regex: '(?:تمت تغطية|تم تغطية|جرت تغطية)\s+(?:تكاليف|نفقات|مصاريف)[^.!؟\n]{0,60}?من قبل\s*'
+        host: after
+        tail_ok: true
+        note: تمت تغطية تكاليف رحلة الكاتب من قبل ...
       - id: ar_barnamaj
         regex: '(?:شارك|شاركت|يشارك|تشارك)\s+(?:الكاتب\s+|الكاتبة\s+|المراسل\s+|الصحفي\s+|الصحفية\s+)?(?:في)\s+(?=[^.!؟\n]{0,100}?(?:برنامج|دورة|ورشة|منحة|تدريب|مركز الصحافة))'
         host: after
@@ -246,47 +321,54 @@ languages:
   ru:
     self: '(?:автор(?:а|у|ом)?(?: (?:статьи|материала|текста))?|корреспондент(?:а|у|ом)?|журналист(?:а|у|ом|ка|ки)?|наш(?:его|ему|им)? (?:корреспондент\w*|журналист\w*|спецкор\w*)|этот материал|эта статья|этот репортаж)\b'
     label: '(?:раскрытие информации|примечание редакции|от редакции|прим\. ред)\s*[:.]'
-    not_subject: '(?:президент\w*|премьер\w*|министр\w*|делегаци\w*|корол\w*|команд\w*|сборн\w*|игрок\w*|чиновник\w*|губернатор\w*|мэр\w*|сенатор\w*|посол\b|депутат\w*|студент\w*|спортсмен\w*|компани\w*)'
+    not_subject: '(?:президент\w*|премьер\w*|министр\w*|делегаци\w*|корол\w*|команд\w*|сборн\w*|игрок\w*|чиновник\w*|губернатор\w*|мэр\w*|сенатор\w*|посол\b|депутат\w*|студент\w*|спортсмен\w*|компани\w*|по данным|сказал\w*|заявил\w*|сообщил\w*|по словам)'
     travel: '(?:поездк\w*|визит\w*|командировк\w*|проживани\w*|перел[её]т\w*|расход\w*|стажировк\w*|обучени\w*|программ\w*|курс\w*|семинар\w*|пресс-тур\w*)'
     unnamed: '^(?:организатор\w*|принимающ\w+ сторон\w*|приглашающ\w+ сторон\w*|спонсор\w*|хозя\w+|правительств\w*)'
     state_hosts:
-      - '(?:посольств\w*|консульств\w*|генконсульств\w*|правительств\w*|МИД|министерств\w* иностранных дел) (?:КНР|Китая|Китайской Народной Республики)'
+      - '(?:посольств\w*|консульств\w*|генконсульств\w*|правительств\w*|МИД|министерств\w* иностранных дел|Госсовет\w*|Государственн\w* совет\w*) (?:КНР|Китая|Китайской Народной Республики)'
       - '(?:китайск\w*) (?:посольств\w*|правительств\w*|МИД\w*|власт\w*|сторон\w*)'
-      - '(?:Компарти\w* Китая|КПК|Ассоциаци\w* публичной дипломатии Китая|Всекитайск\w* ассоциаци\w* журналистов)'
-    triggers: [приглашени, гост, счет, счёт, поддержк, содействи, оплачен, организован, профинансирован, спонсир, предоставлен, участ]
+      - '(?:Компарти\w* Китая|КПК|Ассоциаци\w* публичной дипломатии Китая|Всекитайск\w* ассоциаци\w* журналистов|Медиакорпораци\w* Китая|Канцеляри\w* по информации Госсовета|Китайск\w* международн\w* пресс-центр\w*|Китайск\w* международн\w* центр\w* (?:по )?(?:связ|коммуникац)\w* (?:с )?(?:прессой|прессы|СМИ)|Синьхуа)'
+    triggers: [приглашени, гост, счет, счёт, поддержк, содействи, оплачен, оплатил, организован, организовал, профинансирова, спонсир, предоставлен, обеспеч, "на себя", участ, участник]
     anchors:
       - id: ru_priglashenie
-        regex: '(?:по приглашению|в качестве гост(?:я|ей)|за сч[её]т|при (?:финансовой )?поддержке|при содействии)\s+'
+        regex: '(?:по приглашению|в качестве гост(?:я|ей)|за сч[её]т)\s+'
         host: after
         tail_ok: true
         note: Корреспондент побывал в Китае по приглашению ...
       - id: ru_poezdka_oplachena
-        regex: '(?:поездк\w*|визит\w*|командировк\w*|проживани\w*|перел[её]т\w*|расход\w*|пресс-тур\w*)[^.!?\n]{0,60}?(?:был\w*\s+)?(?:оплачен\w*|организован\w*|профинансирован\w*|спонсирован\w*|предоставлен\w*|обеспечен\w*)\s+'
+        regex: '(?:поездк\w*|визит\w*|командировк\w*|проживани\w*|перел[её]т\w*|расход\w*|пресс-тур\w*)[^.!?\n]{0,60}?(?:был\w*\s+)?(?:оплачен\w*|организован\w*|профинансирован\w*|спонсирован\w*|предоставлен\w*|обеспечен\w*|оплатил\w*|организовал\w*|профинансировал\w*|обеспечил\w*|взял\w* на себя)\s+'
         host: after
         tail_ok: true
-        note: Поездка была организована посольством КНР.
+        note: Поездка была организована посольством КНР; перелет оплатило посольство.
       - id: ru_programma
         regex: '(?:участвовал\w*|принимал\w* участие|был\w* участник\w*)\s+(?:в\s+)?(?=[^.!?\n]{0,100}?(?:программ\w*|стажировк\w*|обучени\w*|курс\w*|семинар\w*|пресс-центр\w*))'
         host: after
         tail_ok: false
         note: Автор участвовал в программе ...
+      - id: ru_podderzhka
+        regex: '(?:при (?:финансовой )?поддержке|при содействии)\s+'
+        host: after
+        tail_ok: true
+        needs_travel: true
+        note: Командировка прошла при поддержке ... (a material prepared with someone's support, with no trip, is not a hosted trip)
 
   id:
+    also: [ms]                      # the block reads Malay too
     self: '\b(?:penulis|wartawan|jurnalis|reporter|koresponden|kontributor|pewarta)\b|\b(?:artikel|liputan|tulisan|laporan|berita) ini\b'
     label: '(?:catatan redaksi|pengungkapan|keterbukaan|penafian|catatan|nota pengarang)\s*[:.]'
-    not_subject: '\b(?:presiden|perdana menteri|menteri|delegasi|rombongan|raja|ratu|tim|pemain|pejabat|gubernur|wali kota|walikota|senator|duta besar|dubes|anggota dewan|mahasiswa|atlet|pemimpin|perusahaan|syarikat)\b'
+    not_subject: '\b(?:presiden|perdana menteri|menteri|delegasi|rombongan|raja|ratu|tim|pemain|pejabat|gubernur|wali kota|walikota|senator|duta besar|dubes|anggota dewan|ahli parlimen|ahli politik|mahasiswa|atlet|pemimpin|perusahaan|syarikat|menurut|kata|ujar)\b'
     travel: '\b(?:perjalanan|kunjungan|lawatan|akomodasi|penginapan|tiket|biaya|kos|pelatihan|latihan|program|kursus|liputan|beasiswa|biasiswa|seminar|lokakarya|pertukaran)\b'
     unnamed: '^(?:pihak )?(?:penyelenggara|panitia|tuan rumah|pengundang|sponsor|penaja|penganjur|pemerintah)\b'
     state_hosts:
-      - '\b(?:Kedutaan Besar|Kedubes|Kedutaan|Konsulat(?: Jenderal)?|Pemerintah|Kerajaan|Kementerian Luar Negeri) (?:Republik Rakyat )?(?:China|Tiongkok|Cina|RRT|RRC)\b'
-      - '\b(?:Partai Komunis (?:China|Tiongkok|Cina)|Asosiasi Diplomasi Publik (?:China|Tiongkok)|Asosiasi Wartawan (?:Seluruh )?(?:China|Tiongkok))\b'
-    triggers: [undangan, tamu, biaya, dibiayai, disponsori, ditanggung, difasilitasi, diundang, ditaja, dibayar, peserta, mengikuti]
+      - '\b(?:Kedutaan Besar|Kedubes|Kedutaan|Konsulat(?: Jenderal)?|Pemerintah|Kerajaan|Kementerian Luar Negeri|Dewan Negara) (?:Republik Rakyat )?(?:China|Tiongkok|Cina|RRT|RRC)\b'
+      - '\b(?:Partai Komunis (?:China|Tiongkok|Cina)|Parti Komunis China|Asosiasi Diplomasi Publik (?:China|Tiongkok)|Asosiasi Wartawan (?:Seluruh )?(?:China|Tiongkok)|Persatuan Wartawan Seluruh China|Persatuan Diplomasi Awam China|Kantor Informasi Dewan Negara|Pusat Komunikasi Pers Internasional (?:China|Tiongkok)|Pusat (?:Pers|Akhbar) China[- ](?:ASEAN|Asia Pasifik|Afrika)|Kumpulan Media China|Grup Media (?:China|Tiongkok)|Kantor Berita Xinhua|Agensi Berita Xinhua)\b'
+    triggers: [undangan, jemputan, tamu, biaya, dibiaya, disponsori, ditanggung, difasilitasi, diundang, ditaja, dibayar, peserta, mengikuti, menyertai, anjur, kendalian, diselenggarakan, diatur, "mengambil bahagian"]
     anchors:
       - id: id_undangan
-        regex: '\b(?:atas undangan|undangan dari|sebagai tamu|dengan biaya|diundang oleh|dibiayai(?: sepenuhnya)? oleh|disponsori oleh|ditanggung oleh|ditaja oleh|dibayar oleh|atas jemputan)\s+'
+        regex: '\b(?:atas undangan|undangan dari|sebagai tamu|diundang oleh|atas jemputan)\s+'
         host: after
         tail_ok: true
-        note: Penulis berkunjung ke Tiongkok atas undangan ...; (ms) atas jemputan ..., ditaja oleh ...
+        note: Penulis berkunjung ke Tiongkok atas undangan ...; (ms) atas jemputan ...
       - id: id_perjalanan_dibiayai
         regex: '\b(?:perjalanan|kunjungan|lawatan|akomodasi|penginapan|tiket|biaya|kos)\b[^.!?\n]{0,60}?\b(?:dibiayai|disponsori|ditanggung|difasilitasi|diselenggarakan|diatur|ditaja|dibayar|dibiayakan|dianjurkan)\s+(?:sepenuhnya\s+)?(?:oleh\s+)?'
         host: after
@@ -297,36 +379,60 @@ languages:
         host: after
         tail_ok: false
         note: Penulis adalah peserta program ...
+      - id: id_dibiayai_oleh
+        regex: '\b(?:dengan biaya|dibiayai(?: sepenuhnya)? oleh|disponsori oleh|ditanggung oleh|ditaja(?: sepenuhnya)? oleh|dibayar oleh)\s+'
+        host: after
+        tail_ok: true
+        needs_travel: true
+        note: Lawatan wartawan ini ditaja oleh ...; sponsored content with no trip ("Konten ini disponsori oleh") is not a hosted trip.
+      - id: id_anjuran
+        regex: '\b(?:anjuran|dianjurkan oleh|kendalian)\s+'
+        host: after
+        tail_ok: false
+        needs_travel: true
+        note: (ms) lawatan media anjuran ...; needs the author or the article as subject.
 
   nl:
     self: '\b(?:de|deze|onze) (?:auteur|schrijver|verslaggever|journalist|correspondent|fotograaf)e?\b|\b(?:dit (?:artikel|verhaal|stuk)|deze (?:reportage|serie))\b'
+    bio: '\bis (?:een )?(?:[\w-]+ ){0,2}?(?:journalist\w*|verslaggever\w*|correspondent\w*|schrijver|fotograaf)\b'
     label: '(?:transparantie|noot van de redactie|verantwoording|disclaimer)\s*[:.]'
-    not_subject: '\b(?:president|premier|minister|delegatie|koning|koningin|ploeg|team|spelers|ambtenaren|gouverneur|burgemeester|ambassadeur|kamerleden|studenten|atleten|leiders?|bedrijf)\b'
-    travel: '\b(?:reis|reizen|bezoek|verblijf|vlucht(?:en)?|accommodatie|kosten|training|opleiding|programma|cursus|beurs|uitwisseling)\b'
+    not_subject: '\b(?:president|premier|minister|delegatie|koning|koningin|ploeg|team|spelers|ambtenaren|gouverneur|burgemeester|ambassadeur|kamerleden|studenten|atleten|leiders?|bedrijf|volgens|zei|zegt|verklaarde)\b'
+    travel: '\b(?:reis|reizen|persreis|bezoek|verblijf|vlucht(?:en)?|accommodatie|kosten|training|opleiding|programma|uitwisselingsprogramma|cursus|beurs|uitwisseling)\b'
     unnamed: '^(?:de |het |hun |een )?(?:gastheer\w*|gastvrouw\w*|organisator\w*|organisatie|sponsor\w*|gastland|uitnodigende \w+|regering)\b'
     state_hosts:
-      - '\b(?:Chinese (?:regering|ambassade|overheid|staat|autoriteiten)|(?:regering|ambassade) van (?:de Volksrepubliek )?China)\b'
-    triggers: [uitnodiging, gast, kosten, betaald, gefinancierd, georganiseerd, gesponsord, vergoed, aangeboden, "mogelijk gemaakt", deelnemer, deelgenomen]
+      - '\b(?:Chinese (?:regering|ambassade|overheid|staat|autoriteiten|Staatsraad)|(?:regering|ambassade) van (?:de Volksrepubliek )?China)\b'
+      - '\b(?:Informatiebureau van de (?:Chinese )?Staatsraad|Chinese ministerie van Buitenlandse Zaken|ministerie van Buitenlandse Zaken van (?:de Volksrepubliek )?China|Communistische Partij van China)\b'
+    triggers: [uitnodiging, gast, kosten, betaald, gefinancierd, georganiseerd, gesponsord, vergoed, aangeboden, "mogelijk gemaakt", deelnemer, deelgenomen, "nam deel"]
     anchors:
       - id: nl_uitnodiging
-        regex: '\b(?:op uitnodiging van|als gasten? van|op kosten van)\s+'
+        regex: '\b(?:op uitnodiging van|als gast(?:en)? van|op kosten van)\s+'
         host: after
         tail_ok: true
-        note: De verslaggever reisde op uitnodiging van ...
+        note: De verslaggever reisde op uitnodiging van ..., verbleef als gast van ...
       - id: nl_reis_betaald
         regex: '\b(?:reis|bezoek|verblijf|vlucht(?:en)?|accommodatie|kosten)\b[^.!?\n]{0,60}?\b(?:werd|werden|is|zijn|was|waren)\s+(?:\w+\s+){0,2}?(?:betaald|gefinancierd|georganiseerd|gesponsord|vergoed|aangeboden|mogelijk gemaakt)\s+(?:door\s+)'
         host: after
         tail_ok: true
         note: De reis werd betaald door ...
+      - id: nl_reis_door
+        regex: '\b(?:reis|persreis|studiereis|bezoek|programma)\s+(?:georganiseerd|betaald|gefinancierd|gesponsord|aangeboden)\s+door\s+'
+        host: after
+        tail_ok: true
+        note: tijdens een persreis georganiseerd door ...
+      - id: nl_deelnemer
+        regex: '\b(?:nam|neemt|namen) deel aan\s+(?=[^.!?\n]{0,100}?(?:programma|opleiding|cursus|training|uitwisseling|beurs))'
+        host: after
+        tail_ok: false
+        note: Hij nam deel aan een uitwisselingsprogramma van ...
 
   tr:
     self: '\b(?:yazar\w*|muhabir\w*|gazeteci\w*|editör\w*)\b|\bbu (?:haber|yazı|makale|röportaj|dosya)\w*\b'
     label: '(?:açıklama|editörün notu|editör notu|bilgilendirme)\s*[:.]'
-    not_subject: '\b(?:cumhurbaşkan\w*|başbakan\w*|bakan\w*|heyet\w*|kral\w*|takım\w*|oyuncu\w*|yetkili\w*|vali\w*|belediye başkan\w*|büyükelçi\w*|milletvekil\w*|öğrenci\w*|sporcu\w*|şirket\w*)\b'
+    not_subject: '\b(?:cumhurbaşkan\w*|başbakan\w*|bakan(?!lığ)\w*|heyet\w*|kral\w*|takım\w*|oyuncu\w*|yetkili\w*|vali\w*|belediye başkan\w*|büyükelçi(?!liğ)\w*|milletvekil\w*|öğrenci\w*|sporcu\w*|şirket\w*|göre|dedi|açıkladı)\b'
     travel: '\b(?:gezi\w*|ziyaret\w*|seyahat\w*|konaklama\w*|uçuş\w*|masraf\w*|eğitim\w*|program\w*|kurs\w*|burs\w*)\b'
     unnamed: '(?:organizatör\w*|düzenleyen\w*|ev sahibi\w*|sponsor\w*|davet eden\w*)\s*$'
     state_hosts:
-      - '(?:Çin (?:Büyükelçiliği|Başkonsolosluğu|Konsolosluğu|hükümeti|Hükümeti|Dışişleri Bakanlığı|Komünist Partisi)\w*|Çin Halk Cumhuriyeti(?:\w*)? (?:Büyükelçiliği|hükümeti|Hükümeti)\w*)'
+      - '(?:Çin(?:''in|’in)? (?:[A-ZÇĞİÖŞÜ]\w+ )?(?:Büyükelçiliği|Başkonsolosluğu|Konsolosluğu)\w*|Çin (?:hükümeti|Hükümeti|Dışişleri Bakanlığı|Komünist Partisi|Devlet Konseyi|Medya Grubu)\w*|Çin Halk Cumhuriyeti(?:\w*)? (?:[A-ZÇĞİÖŞÜ]\w+ )?(?:Büyükelçiliği|Başkonsolosluğu|hükümeti|Hükümeti|Dışişleri Bakanlığı)\w*|Devlet Konseyi Enformasyon Ofisi\w*)'
     triggers: [davet, konuğu, misafiri, tarafından]
     anchors:
       - id: tr_davet
@@ -344,85 +450,142 @@ languages:
   zh:
     self: '(?:作者|记者|記者|本报记者|本報記者|本文作者|笔者|筆者|本文|本报道|本報道|本台记者|本台記者)'
     label: '(?:声明|聲明|编者按|編者按|编注|編註|披露)\s*[:：]'
-    not_subject: '(?:主席|总统|總統|总理|總理|部长|部長|代表团|代表團|国王|國王|球队|球隊|官员|官員|议员|議員|学生|學生|运动员|運動員|公司)'
+    not_subject: '(?:主席|总统|總統|总理|總理|部长|部長|代表团|代表團|国王|國王|球队|球隊|国家队|國家隊|官员|官員|议员|議員|学生|學生|运动员|運動員|公司|据报道|據報道|据悉|據悉|表示)'
     travel: '(?:行程|访问|訪問|访华|訪華|采访|採訪|旅行|旅费|旅費|食宿|机票|機票|培训|培訓|研修|项目|項目|课程|課程|交流)'
     unnamed: '(?:主办方|主辦方|主办单位|主辦單位|东道主|東道主|邀请方|邀請方|组委会|組委會)'
     state_hosts:
-      - '(?:中国政府|中國政府|中华人民共和国|中華人民共和國|中国外交部|中國外交部|外交部|国务院|國務院|中共中央|中联部|中聯部|国务院新闻办公室|國務院新聞辦公室|国新办|國新辦|中国驻\S{1,12}?大使馆|中國駐\S{1,12}?大使館|驻\S{1,12}?中国大使馆|中国大使馆|中國大使館|中国公共外交协会|中國公共外交協會|中华全国新闻工作者协会|中華全國新聞工作者協會|中国记协|中國記協|中国外文局|中國外文局|中国国际新闻交流中心|中國國際新聞交流中心)'
-    triggers: [应, 應, 邀请, 邀請, 资助, 資助, 赞助, 贊助, 安排, 提供]
+      - '(?:中国政府|中國政府|中华人民共和国|中華人民共和國|中国外交部|中國外交部|中华人民共和国外交部|国务院|國務院|中共中央|中联部|中聯部|国务院新闻办公室|國務院新聞辦公室|国新办|國新辦|中国驻\S{1,12}?大使馆|中國駐\S{1,12}?大使館|驻\S{1,12}?中国大使馆|中国大使馆|中國大使館|中国公共外交协会|中國公共外交協會|中华全国新闻工作者协会|中華全國新聞工作者協會|中国记协|中國記協|中国外文局|中國外文局|中国国际新闻交流中心|中國國際新聞交流中心|人民政府|外事办公室|外事辦公室|外事办|外事辦)'
+    triggers: [应, 應, 邀请, 邀請, 之邀, 资助, 資助, 赞助, 贊助, 安排, 提供, 承担, 承擔, 主办, 主辦, 组织, 組織]
     anchors:
       - id: zh_ying_yaoqing
-        regex: '(?:应|應)(?P<host>[^。！？\n，,；;]{1,40}?)(?:之)?(?:邀请|邀請)'
+        regex: '(?:应|應)(?P<host>[^。！？\n，,；;]{1,40}?)(?:之邀|之?(?:邀请|邀請))'
         host: group
         tail_ok: true
         note: 记者应中国外交部邀请赴华采访。
       - id: zh_you_zizhu
-        regex: '(?:由|获|獲|得到)(?P<host>[^。！？\n，,；;]{1,40}?)(?:全额|全額)?(?:资助|資助|赞助|贊助|安排|提供|承担|承擔)'
+        regex: '(?:由|获|獲|得到)(?P<host>[^。！？\n，,；;]{1,40}?)(?:全额|全額)?(?:资助|資助|赞助|贊助|安排|提供|承担|承擔|主办|主辦|组织|組織)'
         host: group
         tail_ok: true
         needs_travel: true
-        note: 本次行程由中国驻某国大使馆安排。
+        note: 本次行程由中国驻某国大使馆安排；由中国国际新闻交流中心主办的研修项目。
 
   uk:
     self: '(?:автор(?:а|ка|ки)?|кореспондент\w*|журналіст\w*|наш\w* кореспондент\w*|цей матеріал|ця стаття)\b'
     label: '(?:від редакції|примітка редакції)\s*[:.]'
-    not_subject: '(?:президент\w*|прем.єр\w*|міністр\w*|делегаці\w*|команд\w*|посадов\w*|посол\b|депутат\w*|студент\w*|компані\w*)'
+    not_subject: '(?:президент\w*|прем.єр\w*|міністр\w*|делегаці\w*|команд\w*|збірн\w*|посадов\w*|посол\b|депутат\w*|студент\w*|компані\w*|за даними|сказав|заявив|повідомив)'
     travel: '(?:поїздк\w*|візит\w*|відрядженн\w*|проживанн\w*|переліт\w*|витрат\w*|стажуванн\w*|навчанн\w*|програм\w*|курс\w*)'
     unnamed: '^(?:організатор\w*|приймаюч\w+ сторон\w*|спонсор\w*|уряд\w*)'
     state_hosts:
-      - '(?:посольств\w*|консульств\w*|уряд\w*|МЗС) (?:КНР|Китаю|Китайської Народної Республіки)|китайськ\w* (?:посольств\w*|уряд\w*|влад\w*)'
-    triggers: [запрошенн, рахунок, підтримк, оплачен, організован, профінансован]
+      - '(?:посольств\w*|консульств\w*|уряд\w*|МЗС|Міністерств\w* закордонних справ) (?:КНР|Китаю|Китайської Народної Республіки)|китайськ\w* (?:посольств\w*|уряд\w*|влад\w*|сторон\w*)'
+      - '(?:Всекитайськ\w* асоціаці\w* журналістів|Китайськ\w* міжнародн\w* (?:центр\w*|прес-центр\w*)|Комуністичн\w* парті\w* Китаю|Медіакорпораці\w* Китаю|Сіньхуа)'
+    triggers: [запрошенн, рахунок, підтримк, сприян, гост, гість, оплачен, оплатив, оплатил, організован, організувал, організував, профінансова, профінансува, забезпеч, покрил, покрив, участь]
     anchors:
       - id: uk_zaproshennia
-        regex: '(?:на запрошення|як гост(?:я|ей)|за рахунок|за (?:фінансової )?підтримки)\s+'
+        regex: '(?:на запрошення|як гост(?:я|ей|і)|як гість|за рахунок)\s+'
         host: after
         tail_ok: true
         note: Кореспондент відвідав Китай на запрошення ...
-
-  hr:
-    self: '\b(?:autor(?:ica)?|novinar(?:ka)?|izvjestitelj(?:ica)?|izveštač|dopisni(?:k|ca)) (?:je|su|teksta|članka)\b|\b(?:ovaj (?:članak|tekst|prilog)|ova (?:reportaža|serija))\b'
-    label: '(?:napomena uredništva|napomena|transparentnost)\s*[:.]'
-    not_subject: '\b(?:predsjedni\w*|predsedni\w*|premijer\w*|ministr?\w*|delegacij\w*|reprezentacij\w*|igrač\w*|dužnosni\w*|veleposlani\w*|ambasador\w*|zastupni\w*|studen\w*|tvrtk\w*)\b'
-    travel: '\b(?:putovanj\w*|posjet\w*|poset\w*|boravak|smještaj\w*|smeštaj\w*|let\w*|troškov\w*|obuk\w*|edukacij\w*|program\w*|tečaj\w*|kurs\w*)\b'
-    unnamed: '^(?:organizator\w*|domaćin\w*|pokrovitelj\w*|sponzor\w*|vlad\w*)\b'
-    state_hosts:
-      - '\b(?:veleposlanstv\w*|ambasad\w*|vlad\w*|konzulat\w*) (?:(?:Narodne Republike |NR )?Kine)\b|\bkinesk\w* (?:veleposlanstv\w*|ambasad\w*|vlad\w*|konzulat\w*)\b'
-    triggers: [poziv, gost, trošak, troškov, financ, organizir, organizova, plaćen]
-    anchors:
-      - id: hr_poziv
-        regex: '\b(?:na poziv|kao gost(?:i|ovi|a)?|o trošku|na trošak|uz potporu|uz podršku)\s+'
+      - id: uk_pidtrymka
+        regex: '(?:за (?:фінансової )?підтримки|за сприяння)\s+'
         host: after
         tail_ok: true
-        note: Novinar je boravio u Kini na poziv ...
+        needs_travel: true
+        note: Поїздку здійснено за підтримки ...
+      - id: uk_poizdka
+        regex: '(?:поїздк\w*|візит\w*|відрядженн\w*|переліт\w*|проживанн\w*|витрат\w*)[^.!?\n]{0,60}?(?:оплатил\w*|оплатив|оплачен\w*|організован\w*|організувал\w*|організував|профінансован\w*|профінансувал\w*|профінансував|забезпечил\w*|забезпечив|покрил\w*|покрив)\s+'
+        host: after
+        tail_ok: true
+        note: Поїздку оплатив уряд ...; витрати покрило посольство ...
+      - id: uk_programa
+        regex: '(?:брав|брала|брали) участь у\s+(?=[^.!?\n]{0,100}?(?:програм\w*|стажуванн\w*|навчанн\w*|курс\w*))'
+        host: after
+        tail_ok: false
+        note: Автор брав участь у програмі ...
+
+  hr:
+    also: [sr]                      # the block reads Serbian too, in Latin and Cyrillic script
+    self: '\b(?:autor(?:ica)?|novinar(?:ka)?|izvjestitelj(?:ica)?|izveštač|dopisni(?:k|ca)) (?:je|su|teksta|članka)\b|\b(?:ovaj (?:članak|tekst|prilog)|ova (?:reportaža|serija))\b|(?:новинар\w*|аутор\w*|извештач\w*|дописни\w*) (?:је|су)'
+    bio: '\bje (?:[\w-]+ ){0,2}?(?:novinar\w*|izvjestitelj\w*|dopisni\w*|kolumnist\w*)\b'
+    label: '(?:napomena uredništva|napomena|transparentnost|напомена уредништва|напомена)\s*[:.]'
+    not_subject: '\b(?:predsjedni\w*|predsedni\w*|premijer\w*|ministr?\w*|delegacij\w*|reprezentacij\w*|igrač\w*|dužnosni\w*|veleposlani(?!stv)\w*|ambasador\w*|zastupni\w*|studen\w*|tvrtk\w*|prema|rekao|rekla|izjavio)\b|(?:председни\w*|премијер\w*|министр?\w*|делегациј\w*|репрезентациј\w*)'
+    travel: '\b(?:putovanj\w*|posjet\w*|poset\w*|boravak|smještaj\w*|smeštaj\w*|let\w*|troškov\w*|obuk\w*|edukacij\w*|program\w*|tečaj\w*|kurs\w*)\b|(?:путовањ\w*|посет\w*|боравак|смештај\w*|трошков\w*|програм\w*)'
+    unnamed: '^(?:organizator\w*|domaćin\w*|pokrovitelj\w*|sponzor\w*|vlad\w*|организатор\w*|домаћин\w*)\b'
+    state_hosts:
+      - '\b(?:veleposlanstv\w*|ambasad\w*|vlad\w*|konzulat\w*|Ministarstv\w* vanjskih poslova|Ministarstv\w* spoljnih poslova|Državn\w* vijeć\w*|Državn\w* savet\w*) (?:(?:Narodne Republike |NR )?Kine)\b|\bkinesk\w* (?:veleposlanstv\w*|ambasad\w*|vlad\w*|konzulat\w*)\b'
+      - '\b(?:Ured\w* za informir\w* Državnog vijeća|Komunističk\w* partij\w* Kine|Kinesk\w* medijsk\w* grup\w*|Kinesk\w* međunarodn\w* centr\w*|Svekinesk\w* udruženj\w* novinara)\b'
+      - '(?:амбасад\w*|влад\w*|конзулат\w*|Министарств\w* спољних послова) (?:(?:Народне Републике |НР )?Кине)|кинеск\w* (?:амбасад\w*|влад\w*)'
+    triggers: [poziv, gost, trošak, trošk, troškov, financ, finans, organizir, organizova, plaćen, platil, platio, pokri, omogući, sudjelova, učestvova, potpor, podršk, позив, гост]
+    anchors:
+      - id: hr_poziv
+        regex: '\b(?:na poziv|kao gost(?:i|ovi|a)?|o trošku|na trošak)\s+|(?:на позив|као гост(?:и|а)?)\s+'
+        host: after
+        tail_ok: true
+        note: Novinar je boravio u Kini na poziv ...; (sr) на позив ...
+      - id: hr_potpora
+        regex: '\b(?:uz potporu|uz podršku|uz finansijsku podršku|uz financijsku potporu)\s+'
+        host: after
+        tail_ok: true
+        needs_travel: true
+        note: Putovanje je ostvareno uz potporu ...
+      - id: hr_putovanje
+        regex: '\b(?:putovanj\w*|posjet\w*|poset\w*|boravak|smještaj\w*|smeštaj\w*|troškov\w*)\b[^.!?\n]{0,60}?\b(?:(?:je|su|bio|bila|bili|bilo)\s+)?(?:platil\w*|platio|financiral\w*|financirao|finansiral\w*|finansirao|organiziral\w*|organizirao|organizoval\w*|organizovao|pokril\w*|pokrio|plaćen\w*|financiran\w*|finansiran\w*|organiziran\w*|organizovan\w*|omogućil\w*|omogućio)\s+(?:(?:je|su)\s+)?'
+        host: after
+        tail_ok: true
+        note: putovanje je platilo kinesko veleposlanstvo; smještaj financiralo je Ministarstvo ...
+      - id: hr_program
+        regex: '\b(?:(?:je|su)\s+)?(?:sudjelova\w*|učestvova\w*)\s+(?:je\s+)?u\s+(?=[^.!?\n]{0,100}?\b(?:program\w*|obuk\w*|edukacij\w*|tečaj\w*|kurs\w*|seminar\w*)\b)'
+        host: after
+        tail_ok: false
+        note: Autorica je sudjelovala u programu ...
 
   ko:
-    self: '(?:기자는|기자가|필자는|필자가|본지 기자|이 기사는|이 기사)'
+    self: '(?:기자는|기자가|필자는|필자가|필자의|본지 기자|이 기사는|이 기사)'
     label: '(?:알림|밝힘|공개)\s*[:：]'
-    not_subject: '(?:대통령|총리|장관|대표단|국왕|대표팀|선수|관계자|의원|학생|기업)'
+    not_subject: '(?:대통령|총리|장관|대표단|국왕|대표팀|선수|관계자|의원|학생|기업|따르면|말했다)'
     travel: '(?:취재|방문|여행|출장|숙박|항공|체류|연수|교육|프로그램|과정)'
     unnamed: '(?:주최 측|주최측|초청 측|초청측|주최사)'
     state_hosts:
-      - '(?:주한 중국대사관|주한중국대사관|중국 ?대사관|중국 ?정부|중국 ?외교부|중국공산당|중국 국무원)'
-    triggers: [초청, 지원, 후원]
+      - '(?:주한 중국대사관|주한중국대사관|중국 ?대사관|중국 ?정부|중국 ?외교부|중국 ?공산당|중국 국무원|중국 ?국무원 ?신문판공실|중국 ?공공외교협회|중화전국신문공작자협회|중국 ?기자협회|중국 ?국제 ?신문 ?교류 ?센터|중국중앙텔레비전)'
+    triggers: [초청, 지원, 후원, 부담, 제공]
     anchors:
       - id: ko_chocheong
-        regex: '(?P<host>[^.!?。\n,]{1,40}?)(?:의 )?(?:초청으로|초청을 받아|지원으로|지원을 받아|후원으로|후원을 받아)'
-        host: group
+        regex: '(?:의 )?(?:초청으로|초청을 받아)'
+        host: before
         tail_ok: true
         note: 이 기사는 중국 외교부의 초청으로 이뤄진 취재를 바탕으로 작성됐다.
+      - id: ko_jiwon
+        regex: '(?:의 )?(?:지원으로|지원을 받아|후원으로|후원을 받아)'
+        host: before
+        tail_ok: true
+        needs_travel: true
+        note: 본 취재는 주한 중국대사관의 지원을 받아 진행됐다; sponsored content with no trip is not a hosted trip.
+      - id: ko_budam
+        regex: '(?:측이|측에서|이|가) (?:부담했다|부담했습니다|부담했으며|지원했다|제공했다)'
+        host: before
+        tail_ok: true
+        needs_travel: true
+        note: 필자의 항공료와 숙박비는 중국 정부가 부담했다.
 
   vi:
     self: '\b(?:phóng viên|tác giả|người viết|bài viết này|bài báo này)\b'
+    bio: '\blà (?:một )?(?:[\w-]+ ){0,2}?(?:phóng viên|nhà báo|tác giả|biên tập viên)\b'
     label: '(?:ghi chú|lưu ý của tòa soạn|công bố)\s*[:.]'
-    not_subject: '\b(?:chủ tịch|tổng thống|thủ tướng|bộ trưởng|đoàn đại biểu|đội tuyển|cầu thủ|quan chức|đại sứ|đại biểu|sinh viên|công ty)\b'
+    not_subject: '\b(?:chủ tịch|tổng thống|thủ tướng|bộ trưởng|đoàn đại biểu|đội tuyển|cầu thủ|quan chức|đại sứ|đại biểu|sinh viên|công ty|theo báo chí|theo nguồn tin|cho biết|phát biểu)\b'
     travel: '\b(?:chuyến đi|chuyến thăm|chuyến công tác|lưu trú|vé máy bay|chi phí|đào tạo|tập huấn|chương trình|khóa học)\b'
     unnamed: '^(?:ban tổ chức|nước chủ nhà|phía chủ nhà|nhà tài trợ|phía mời)\b'
     state_hosts:
-      - '\b(?:Đại sứ quán|Tổng Lãnh sự quán|Chính phủ|Bộ Ngoại giao) (?:nước Cộng hòa Nhân dân )?(?:Trung Quốc|Trung Hoa)\b|\bĐảng Cộng sản Trung Quốc\b'
-    triggers: [lời mời, tài trợ, chi trả]
+      - '\b(?:Đại sứ quán|Tổng Lãnh sự quán|Chính phủ|Bộ Ngoại giao|Quốc vụ viện) (?:nước Cộng hòa Nhân dân )?(?:Trung Quốc|Trung Hoa)\b|\bĐảng Cộng sản Trung Quốc\b'
+      - '\b(?:Văn phòng Thông tin Quốc vụ viện|Hội Nhà báo Toàn Trung Quốc|Hiệp hội Nhà báo Trung Quốc|Hiệp hội Ngoại giao Nhân dân Trung Quốc|Hiệp hội Ngoại giao Công chúng Trung Quốc|Trung tâm Giao lưu Báo chí Quốc tế Trung Quốc|Tổng đài Phát thanh Truyền hình Trung ương Trung Quốc)\b'
+    triggers: [lời mời, tài trợ, chi trả, tổ chức, bảo trợ]
     anchors:
       - id: vi_loi_moi
-        regex: '\b(?:theo lời mời của|với sự tài trợ của|do\s+(?=[^.!?\n]{1,60}?\b(?:tài trợ|chi trả)\b))\s*'
+        regex: '\b(?:theo lời mời của)\s*'
         host: after
         tail_ok: true
         note: Phóng viên đến Trung Quốc theo lời mời của ...
+      - id: vi_tai_tro
+        regex: '\b(?:với sự tài trợ của|với sự bảo trợ của|do\s+(?=[^.!?\n]{1,60}?\b(?:tài trợ|chi trả|tổ chức|bảo trợ)\b))\s*'
+        host: after
+        tail_ok: true
+        needs_travel: true
+        note: Chuyến đi do ... tài trợ; chương trình đào tạo do ... tổ chức. Sponsored content with no trip is not a hosted trip.

@@ -301,6 +301,7 @@
             "holder": {
               "type": "string",
               "minLength": 1,
+              "pattern": "\\S",
               "description": "The holder or holders as the source names them, with the vehicle the stake is held through."
             },
             "holder_type": {
@@ -313,11 +314,13 @@
             "state_link": {
               "type": "string",
               "minLength": 1,
+              "pattern": "\\S",
               "description": "How each holder is tied to the state, as the sources describe it."
             },
             "held_in": {
               "type": "string",
               "minLength": 1,
+              "pattern": "\\S",
               "description": "The company the stake is held in: the outlet itself or the group that owns it."
             },
             "share_percent": {
@@ -340,7 +343,7 @@
             "status": {
               "type": "string",
               "enum": ["current", "ended", "disputed"],
-              "description": "current: a source dated as_of still describes the stake. ended: a source dates its end (to). disputed: the stake itself is documented, but sources conflict on whether it still reaches the outlet; the note says how."
+              "description": "current: a source dated as_of still describes the stake. ended: a source dates its end (to), or the date it stopped reaching the outlet because the outlet moved to another owner or publisher (held_in then says so). disputed: the stake itself is documented, but sources conflict on whether it still reaches the outlet; the note says how."
             },
             "as_of": {
               "type": "string",
@@ -349,21 +352,23 @@
             },
             "source_url": {
               "type": "string",
-              "pattern": "^https?://",
-              "description": "The source for the holder, the share and the start."
+              "pattern": "^https://[^\\s/?#]+\\.[^\\s/?#]+([/?#]\\S*)?$",
+              "description": "The source for the holder, the share and the start: an https link."
             },
             "source_title": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "\\S"
             },
             "status_source_url": {
               "type": "string",
-              "pattern": "^https?://",
-              "description": "The source for the status: the latest description of the stake (as_of), or its end."
+              "pattern": "^https://[^\\s/?#]+\\.[^\\s/?#]+([/?#]\\S*)?$",
+              "description": "The source for the status: the latest description of the stake (as_of), or its end: an https link."
             },
             "status_source_title": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "pattern": "\\S"
             },
             "note": {
               "type": "string",
@@ -393,7 +398,7 @@
         "type": "string",
         "minLength": 1,
         "pattern": "not reach; evidence: https?://\\S+",
-        "description": "Why the outlet is monitored, set only when it was not chosen for its audience. Unset means the usual selection by reach (the largest outlets of a country, from readership sources). Set on outlets added for their China coverage or documented pro-China content, such as small outlets that run Xinhua or CGTN partner content or have a content agreement with Chinese state media: \"selected for China coverage or documented pro-China content, not reach; evidence: <url>\", the URL of published research or reporting that documents it. Such outlets raise a country's counts because of how they were chosen, so analyses that compare countries by reach exclude or flag them (outlets.json reach_selected, meta.selection_basis)."
+        "description": "Why the outlet is monitored, set only when it was not chosen for its audience. Unset means the usual selection by reach (the largest outlets of a country, from readership sources). Set on outlets added for their China coverage or documented pro-China content, such as small outlets that run Xinhua or CGTN partner content or have a content agreement with Chinese state media: \"selected for <what the source documents>, not reach; evidence: <url>\", naming exactly what the source documents (an outlet whose source documents neither pro-China content nor China coverage it published is not kept active), and the URL of published research or reporting that documents it. Such outlets raise a country's counts because of how they were chosen, so analyses that compare countries by reach exclude or flag them (outlets.json reach_selected, meta.selection_basis)."
       }
     }
   }

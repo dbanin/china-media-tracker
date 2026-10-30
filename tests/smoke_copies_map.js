@@ -78,4 +78,19 @@ assert(sr[0].iso === "ITA" && sr[1].iso === "USA" && sr[2].iso === "AUS", "summa
 assert(JSON.stringify(CM.offMap(["SGP", "WLD", "AUS", "BHR"], {AUS: true})) === '["BHR","SGP"]', "off map");
 assert(CM.offMap(["SGP"], {}).length === 0 && CM.offMap(["SGP"], null).length === 0, "nothing before the map is drawn");
 
+
+
+// Ties: equal countries and outlets share a rank; the count line states ties left off the list
+var tl = [{countries: 3, outlets: 5}, {countries: 3, outlets: 4}, {countries: 3, outlets: 4}, {countries: 2, outlets: 3}];
+assert(JSON.stringify(CM.rankNumbers(tl)) === "[1,2,2,4]", "rank numbers: " + JSON.stringify(CM.rankNumbers(tl)));
+assert(CM.countText({shared_texts: 30, texts: 400, tied_beyond: 2}, 25) ===
+  "30 state texts ran in two or more countries, of 400 state texts in all. The 25 run in the most countries are listed; 2 more texts tie with the last one listed and are not shown.",
+  "count text with ties: " + CM.countText({shared_texts: 30, texts: 400, tied_beyond: 2}, 25));
+assert(/1 more text ties with the last one listed and is not shown/.test(CM.countText({shared_texts: 26, texts: 40, tied_beyond: 1}, 25)), "one tie");
+assert(CM.countText({shared_texts: 3, texts: 9}, 3) === "3 state texts ran in two or more countries, of 9 state texts in all.", "no cut");
+
+// Malformed shapes read as nothing, never a throw
+assert(CM.ranked({scopes: {all_time: {ranked: {x: 1}}}, texts: {}}, "all_time").length === 0, "ranked not a list");
+assert(CM.scopeEntries({placements: null}, "all_time", {}).length === 0 && CM.scopeEntries({placements: {}}, "all_time", {}).length === 0, "placements not a list");
+assert(CM.byCountry({placements: "x"}, "all_time", {}).length === 0, "byCountry on bad placements");
 console.log("copies_map smoke: ok");

@@ -130,16 +130,39 @@ def validate_outlets(outlets: List[Dict]) -> None:
                              "%s on %s" % (u, ", ".join(ids)) for u, ids in sorted(shared.items())))
 
 
-def validate_stakes(outlet: Dict) -> None:
+def _stake_date(value: str, where: str, field: str):
+    """A stake date as precise as its source: YYYY, YYYY-MM or YYYY-MM-DD, a real calendar date."""
+    import datetime
+    parts = value.split("-")
+    try:
+        datetime.date(int(parts[0]), int(parts[1]) if len(parts) > 1 else 1, int(parts[2]) if len(parts) > 2 else 1)
+    except ValueError:
+        raise ValueError("%s: %s %s is not a calendar date" % (where, field, value))
+    return value
+
+
+def validate_stakes(outlet: Dict, today: str = None) -> None:
     """The checks on foreign_state_stake the schema cannot make (decision D11: a stake is recorded only
-    from a public source, never inferred). The state is foreign to the outlet; a stake that ended has
-    its end date and one still held or disputed has none and carries the date of the latest source
-    that describes it; no date runs backwards. Dates are compared as text, which orders a year, a
-    month and a day correctly whatever their precision."""
+    from a public source, never inferred). The state is a real ISO code foreign to the outlet; a stake
+    that ended has its end date and one still held or disputed has none and carries the date of the
+    latest source that describes it; every date is a calendar date, none is after today and none runs
+    backwards; the same stake is not recorded twice. Dates are compared as text, which orders a year,
+    a month and a day correctly whatever their precision."""
+    import datetime
+    today = today or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+    alpha2 = _alpha2_map()
+    seen = set()
     for i, s in enumerate(outlet.get("foreign_state_stake") or []):
         where = "outlet %s foreign_state_stake %d" % (outlet["id"], i + 1)
         if s["state"] == outlet["country"]:
             raise ValueError("%s: the state %s is the outlet's own country, not a foreign state" % (where, s["state"]))
+        if len(alpha2) > 1 and s["state"] not in alpha2:
+            raise ValueError("%s: %s is not an ISO 3166 alpha-3 code" % (where, s["state"]))
+        for field in ("from", "to", "as_of"):
+            if s.get(field):
+                _stake_date(s[field], where, field)
+                if s[field][:len(today)] > today[:len(s[field])]:
+                    raise ValueError("%s: %s %s is after today (%s)" % (where, field, s[field], today))
         if s["status"] == "ended":
             if not s.get("to"):
                 raise ValueError("%s: an ended stake needs to, the date its source gives for the end" % where)
@@ -152,6 +175,10 @@ def validate_stakes(outlet: Dict) -> None:
                 raise ValueError("%s: a %s stake needs as_of, the date of the latest source describing it" % (where, s["status"]))
         if s.get("as_of") and s["as_of"] < s["from"]:
             raise ValueError("%s: as_of comes before from" % where)
+        key = (s["state"], " ".join(s["holder"].lower().split()), " ".join(s["held_in"].lower().split()), s["from"])
+        if key in seen:
+            raise ValueError("%s: the same stake (state, holder, held_in, from) is recorded twice" % where)
+        seen.add(key)
 
 
 # Selection basis (RULES D12). The registry's outlets were chosen by reach, the largest of each country
@@ -187,6 +214,30 @@ def selection_summary(outlets: List[Dict]) -> Dict:
         by_country[o["country"]] = by_country.get(o["country"], 0) + 1
     return {"china_selected_active": len(sel), "by_country": dict(sorted(by_country.items())),
             "ids": sorted(o["id"] for o in sel)}
+
+
+def _and(names: List[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def selection_warning(names: List[str], active_n: int, ranked: bool) -> str:
+    """The coverage warning of a country with active outlets selected for China coverage, not reach (export
+    warning type china_selected, shown in the country panel, the ranked list, the map tooltip and the CSV).
+    names: those outlets' names; active_n: the country's active outlets; ranked: the country has audience
+    ranks, so the share of published items (its ranked outlets only) leaves them out."""
+    names = sorted(names, key=lambda s: s.lower())
+    n = len(names)
+    one = n == 1
+    text = ("%d of the %d active outlets monitored here (%s) %s added for %s China coverage or documented pro-China "
+            "content, not for %s reach, so %s this country's counts because of how %s chosen and can move its per "
+            "outlet figure and its share of China coverage; compare it with countries monitored by reach alone with "
+            "that in mind" % (n, active_n, _and(names), "was" if one else "were", "its" if one else "their",
+                              "its" if one else "their", "it adds to" if one else "they add to", "it was" if one else "they were"))
+    if ranked:
+        text += "; %s no audience rank, so %% of all its news leaves %s out" % ("it carries" if one else "they carry", "it" if one else "them")
+    else:
+        text += "; this country has no audience ranks, so %% of all its news counts %s too" % ("it" if one else "them")
+    return text
 
 
 def feed_key(url: str) -> str:

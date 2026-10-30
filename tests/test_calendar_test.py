@@ -111,7 +111,9 @@ def test_window_kinds_follow_the_compile_day():
                 known_before_compiled=False, expected_period="2027")])
     by = {w["id"]: w for w in ct.windows(cal)}
     assert by["a"]["kind"] == "retrospective" and by["a"]["window_start"] == "2026-09-28" and by["a"]["window_end"] == "2026-10-04"
-    assert by["b"]["kind"] == "forward" and by["b"]["window_start"] == "2026-10-28"
+    # a window that begins on the compile day is retrospective: the file was committed that evening, after
+    # the day's data had been published
+    assert by["b"]["kind"] == "retrospective" and by["b"]["window_start"] == "2026-10-28"
     assert by["c"]["kind"] == "retrospective"    # 29 October less 3 days begins before the compile day
     assert by["d"]["kind"] == "added_later"
     assert "e" not in by and [u["id"] for u in ct.undated(cal)] == ["e"]
@@ -262,3 +264,202 @@ def test_site_slot_sits_under_the_unusual_days():
     assert html.index('src="measures.js') < html.index('src="m_calendar.js') < html.index('src="app.js')
     js = (ROOT / "docs" / "measures.js").read_text(encoding="utf-8")
     assert '{id: "findings-calendar-wrap", measures: ["calendar"]}' in js and 'calendar: "findings-calendar"' in js
+
+
+# ---------------------------------------------------------------------------
+# Stress test of 2026-10-29: the interval on synthetic data with known answers, zero counts, the
+# pre-registration boundary, overlaps, the normal days the dense autumn allows, broken files, speed
+# ---------------------------------------------------------------------------
+
+def _counts(rng, days, mean, rise=1.0, rise_days=(), k=None, weekday=None):
+    out = {}
+    for d in days:
+        m = mean * (weekday[ct._weekday(d)] if weekday else 1.0) * (rise if d in rise_days else 1.0)
+        lam = rng.gammavariate(k, m / k) if k else m
+        out[d] = _poisson(rng, lam) if lam < 60 else max(0, int(round(rng.gauss(lam, math.sqrt(lam)))))
+    return out
+
+
+_DAYS = _span("2027-01-01", "2027-05-20")
+_WIN = _DAYS[60:67]
+_POOL = _DAYS[4:56] + _DAYS[71:123]
+
+
+@pytest.mark.parametrize("mean, rise, k, weekday, min_cover", [
+    (20, 1.0, None, None, 0.92),                                   # no effect
+    (20, 1.5, None, None, 0.92),                                   # a known rise
+    (2, 1.0, None, None, 0.92),                                    # small counts
+    (20, 1.5, None, (1.0, 1.05, 1.1, 1.0, 0.95, 0.6, 0.5), 0.92),  # a weekday rhythm
+    (20, 2.0, 2, None, 0.9),                                       # overdispersed with a rise (0.85 before)
+])
+def test_interval_covers_the_known_ratio(mean, rise, k, weekday, min_cover):
+    rng = random.Random(11)
+    n = cover = raised = 0
+    for _ in range(150):
+        c = _counts(rng, _DAYS, mean, rise, set(_WIN), k, weekday)
+        t = ct.rate_test(c, _WIN, _POOL, _WIN)
+        assert t["state"] == "tested"
+        hi = t["ci_high"] if t["ci_high"] is not None else float("inf")
+        n += 1
+        cover += t["ci_low"] <= rise <= hi
+        raised += t["ci_low"] > 1.0
+    assert cover / float(n) >= min_cover, (cover, n)
+    if rise == 1.0:
+        assert raised / float(n) <= 0.06, raised
+
+
+def test_weekday_rhythm_is_not_spread():
+    rng = random.Random(3)
+    wk = (1.0, 1.05, 1.1, 1.0, 0.95, 0.6, 0.5)
+    phis = [ct.dispersion(_counts(rng, _DAYS, 30, weekday=wk), _POOL) for _ in range(40)]
+    assert sum(phis) / len(phis) < 1.25, phis   # the raw variance to mean ratio is about 2.6 here
+
+
+def test_zero_counts_keep_an_upper_bound():
+    c = {d: 5 for d in _POOL}
+    t = ct.rate_test(c, _WIN, _POOL, _WIN)
+    assert t["observed"] == 0 and t["ratio"] == 0.0 and t["ci_low"] == 0.0
+    assert t["ci_high"] is not None and 0.0 < t["ci_high"] < 0.3, t   # was 0 to 0
+    nothing = ct.rate_test({}, _WIN, _POOL, _WIN)
+    assert nothing["state"] == "no_comparison_volume" and nothing["ratio"] is None
+    sparse = ct.rate_test({_POOL[0]: 1}, _WIN, _POOL, _WIN)
+    assert sparse["ratio"] == 0.0 and sparse["ci_high"] is None       # too little to bound
+
+
+def test_few_days_say_too_few_and_no_figure():
+    c = {d: 9 for d in _DAYS}
+    for wdays, pool in ((_WIN[:2], _POOL), (_WIN, _POOL[:13])):
+        t = ct.rate_test(c, wdays, pool, _WIN)
+        assert t["state"] == "too_few_days" and t["ratio"] is None and t["ci_low"] is None and t["p_shift"] is None
+    t = ct.rate_test(c, _WIN[:3], _POOL[:14], _WIN)
+    assert t["state"] == "tested" and t["p_shift"] is None   # too few shifted windows fit for a p value
+
+
+def test_t_quantile():
+    assert abs(ct.t975(7) - 2.365) < 0.01 and abs(ct.t975(30) - 2.042) < 0.002 and abs(ct.t975(10 ** 6) - 1.96) < 0.001
+
+
+def test_shifted_windows_match_their_definition():
+    rng = random.Random(5)
+    days = _span("2026-09-01", "2027-02-01")
+    wr = _span("2026-11-01", "2026-11-09")
+    for _ in range(10):
+        c = {d: rng.randint(0, 9) for d in days}
+        pool = [d for d in days if rng.random() > 0.3 and d not in wr]
+        wd = [d for d in wr if rng.random() > 0.3] or wr[:3]
+        t = ct.rate_test(c, wd, pool, wr)
+        ratios, pset = [], set(pool)
+        for s in range(-ct.NORMAL_SPAN_DAYS - len(wr), ct.NORMAL_SPAN_DAYS + len(wr) + 1):
+            if abs(s) < len(wr):
+                continue
+            pseudo = [ct._shift(d, s) for d in wr]
+            use = [d for d in pseudo if d in pset]
+            rest = [d for d in pool if d not in set(pseudo)]
+            if len(use) < ct.MIN_WINDOW_DAYS or len(use) < len(wd) or len(rest) < ct.MIN_COMPARISON_DAYS:
+                continue
+            r = ct.ratio_of(c, use[:len(wd)], rest)
+            if r is not None:
+                ratios.append(r)
+        assert t["shifts"] == len(ratios)
+
+
+def test_the_compile_day_is_retrospective_and_the_next_day_forward():
+    cal = _cal([_event("on", "2026-10-31"), _event("after", "2026-11-01")])
+    by = {w["id"]: w for w in ct.windows(cal)}
+    assert by["on"]["window_start"] == "2026-10-28" and by["on"]["kind"] == "retrospective"
+    assert by["after"]["window_start"] == "2026-10-29" and by["after"]["kind"] == "forward"
+    for w in ct.windows(ct.load_calendar()):
+        if w["kind"] == "forward":
+            assert w["window_start"] > "2026-10-28", w["id"]
+    assert by["on"]["overlaps"] == ["after"] and by["after"]["overlaps"] == ["on"]
+
+
+def test_committed_calendar_after_the_stress_test():
+    cal = ct.load_calendar()
+    by = {w["id"]: w for w in ct.windows(cal)}
+    # the Two Sessions end with the NPC (5 to 12 March in 2026); changed after the pre-registration
+    assert by["two_sessions_2027"]["end"] == "2027-03-12" and by["two_sessions_2027"]["kind"] == "added_later"
+    assert by["canton_fair_140_phase3"]["kind"] == "retrospective"     # its window begins on 28 October
+    assert by["wic_wuzhen_2026"]["kind"] == "forward" and by["wic_wuzhen_2026"]["window_start"] == "2026-10-30"
+    for k, (a, b) in {"fifth_plenum_20th_cc": ("2026-10-26", "2026-10-29"), "apec_2026_shenzhen": ("2026-11-17", "2026-11-19"),
+                      "ciie_2026": ("2026-11-05", "2026-11-10"), "wic_wuzhen_2026": ("2026-11-02", "2026-11-05"),
+                      "canton_fair_140_phase1": ("2026-10-15", "2026-10-19"), "canton_fair_140_phase2": ("2026-10-23", "2026-10-27"),
+                      "canton_fair_140_phase3": ("2026-10-31", "2026-11-04"), "spring_festival_2027": ("2027-02-06", "2027-02-06"),
+                      "mid_autumn_2027": ("2027-09-15", "2027-09-15")}.items():
+        assert (by[k]["start"], by[k]["end"]) == (a, b), k
+    head = (ROOT / "sources" / "political_calendar.yaml").read_text(encoding="utf-8").split("compiled_on:")[0]
+    assert "02:31 UTC on 29 October" in head and "on or before 28 October 2026" in head and "UTC day of record" in head
+
+
+def test_normal_days_the_dense_autumn_allows():
+    daily = _daily("2026-09-03", 480)
+    res = ct.analyse(daily, "2027-12-31", ct.load_calendar(), {}, None)
+    by = {w["id"]: w for w in res["windows"]}
+    for k in ("victory_day_2026", "xiangshan_forum_2026", "caexpo_2026", "mid_autumn_2026", "martyrs_day_2026"):
+        assert by[k]["normal_possible"] < ct.MIN_COMPARISON_DAYS, k
+        assert by[k]["comparisons"]["normal"]["state"] == "too_few_days"
+    assert by["cpc_founding_2027"]["normal_possible"] >= ct.MIN_COMPARISON_DAYS
+    assert by["cpc_founding_2027"]["comparisons"]["normal"]["state"] == "tested"
+
+
+def test_a_running_window_is_not_counted_until_it_ends():
+    daily = _daily("2026-09-01", 75)        # to 14 November
+    res = ct.analyse(daily, "2026-11-15", _cal([_event("x", "2026-11-14", "2026-11-17")]), {}, None)
+    w = res["windows"][0]
+    assert w["state"] == "in_progress" and w["comparisons"]["normal"]["state"] == "tested"
+    s = ct.summarise(res)["forward"]
+    assert s["in_progress"] == 1 and s["tested_normal"] == 0 and s["raised_normal"] == 0
+
+
+def test_absent_or_broken_calendar_files(tmp_path):
+    assert ct.validate_file(tmp_path / "missing.yaml")[0].startswith("the calendar file cannot be read")
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("events: [unclosed\n", encoding="utf-8")
+    assert ct.validate_file(bad)[0].startswith("the calendar file cannot be read")
+    with pytest.raises(OSError):
+        ct.load_calendar(tmp_path / "missing.yaml")
+    wrong = tmp_path / "wrong.yaml"
+    wrong.write_text("compiled_on: 2026-10-28\nwindow: {lead_days: 3, lag_days: 3}\nevents: []\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        ct.load_calendar(wrong)
+    empty = tmp_path / "empty.yaml"
+    empty.write_text("", encoding="utf-8")
+    with pytest.raises(ValueError):
+        ct.load_calendar(empty)
+
+
+def test_old_daily_files_without_label_fields():
+    # schema 18 daily files may lack labels_on_older_ruleset / prompt: no label mix, no failure
+    daily = _daily("2026-09-01", 150)
+    for m in daily.values():
+        for e in m["days"].values():
+            e.pop("labels_on_older_ruleset")
+            e.pop("labels_on_older_prompt")
+    res = ct.analyse(daily, "2026-12-31", _cal([_event("x", "2026-11-10")]), {}, None)
+    assert res["windows"][0]["comparisons"]["normal"]["state"] == "tested"
+    assert res["windows"][0]["comparisons"]["normal"]["label_mix_days"] == 0
+
+
+def test_the_full_calendar_runs_well_inside_its_budget():
+    import time
+    rng = random.Random(1)
+    daily, rows = {}, {}
+    for d in _span("2026-09-03", "2027-12-31"):
+        e = {"countries": {}}
+        for i in range(20):
+            c = "C%02d" % i
+            a = rng.randint(0, 6)
+            e["countries"][c] = {"A": a, "disc": 500, "rel": 100, "cls": 100}
+            rows[(d, c)] = [{"id": "%s%s%d" % (d, c, j), "title": "canton fair %d" % j, "outlet_id": "o"} for j in range(a)]
+        daily.setdefault(d[:7], {"days": {}})["days"][d] = e
+    t = time.monotonic()
+    res = ct.analyse(daily, "2028-01-01", ct.load_calendar(), {}, rows)
+    assert time.monotonic() - t < 30            # about 7 seconds with building the data on the Mac; the budget is 60
+    assert all(len(w["comparisons"]["other"]["countries"]) <= ct.COUNTRY_MAX for w in res["windows"])
+
+
+def test_methodology_states_chance_and_the_boundary():
+    res = ct.analyse(_daily("2026-09-01", 150), "2026-12-31", ct.load_calendar(), {}, None)
+    text = ct.methodology_text({"summary": ct.summarise(res)})
+    assert "1 in 40" in text and "on or before 28 October" in text and "not cause" in text
+    assert "conservative" not in text and "name the event" not in text

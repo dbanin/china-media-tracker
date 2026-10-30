@@ -814,16 +814,32 @@ assert(acTok.not_china === "1,022" && acTok.records === "1,039" && acTok.titles 
 assert(C.archiveCheck.fill("{short_name} check, {period}: {signatures} in {china}; {nope}", acTok) === "ProQuest TDM check, September to October 2026: 0 in 17; {nope}", "archive fill");
 assert(C.archiveCheck.countryLine({checks: [Object.assign({}, acData.checks[0], {state_origin_signatures: 2})]}, "CAN", "Canada", acTpl) === "covers two titles", "signatures found: no zero claim");
 assert(C.archiveCheck.list({checks: [{id: "x", titles: []}]}).length === 0, "an empty check is skipped");
-/* Foreign state ownership stakes (decision D11): one line per sourced stake, nothing when none is recorded. */
-assert(C.stakeNotes(null).length === 0 && C.stakeNotes(undefined).length === 0, "no stake recorded, no line");
+/* Foreign state ownership stakes (decision D11): one line per sourced stake, nothing when none is recorded; the
+   status in words (never only a tooltip), and the caveat that a stake is ownership, not editorial control. */
+assert(C.stakeNotes(null).length === 0 && C.stakeNotes(undefined).length === 0 && C.stakeNotes([]).length === 0, "no stake recorded, no line");
+assert(C.stakeNotes("x").length === 0 && C.stakeNotes({}).length === 0 && C.stakeNotes([null, 3]).length === 0, "a malformed field shows nothing and does not throw");
 assert(C.stakeDate("2013-08") === "August 2013" && C.stakeDate("2013") === "2013" && C.stakeDate("2026-07-22") === "22 July 2026", "stake dates");
+assert(C.stakeDate("2013-13") === "2013-13" && C.stakeDate("") === "an unrecorded date" && C.stakeDate(null) === "an unrecorded date" && C.stakeDate("August") === "August", "a bad date is shown as given, never as undefined");
 var stk = {state: "CHN", holder: "H", holder_type: ["state_fund"], state_link: "L", held_in: "Owner Co", share_percent: 20, from: "2013-08", to: null,
            status: "disputed", as_of: "2026-07-22", source_url: "https://a.example/1", source_title: "A", status_source_url: "https://b.example/2", status_source_title: "B", note: "N"};
 var stkLine = C.stakeNotes([stk])[0];
-assert(stkLine.text.indexOf("Chinese state-linked stake: 20% of Owner Co, held by H, since August 2013") === 0 && /disagree/.test(stkLine.text), "disputed stake line");
-assert(stkLine.source_url === "https://a.example/1" && stkLine.status_url === "https://b.example/2" && stkLine.note === "N", "stake sources carried");
-assert(C.stakeNotes([Object.assign({}, stk, {status: "ended", to: "2018", share_percent: "undisclosed"})])[0].text === "Chinese state-linked stake: an undisclosed share of Owner Co, held by H, August 2013 to 2018", "ended stake line");
-assert(/still described on 22 July 2026$/.test(C.stakeNotes([Object.assign({}, stk, {status: "current"})])[0].text), "current stake line");
+assert(stkLine.text === "Chinese state-linked stake: 20% of Owner Co, held by H, since August 2013; sources disagree on whether it still reaches this outlet.", "disputed stake line: " + stkLine.text);
+assert(stkLine.status_label === "Disputed" && stkLine.status === "disputed", "the disputed status is a visible label");
+assert(stkLine.source_url === "https://a.example/1" && stkLine.status_url === "https://b.example/2" && stkLine.note === "N" && stkLine.source_title === "A" && stkLine.status_title === "B", "stake sources carried");
+assert(/ownership/.test(C.STAKE_CAVEAT) && /says nothing about editorial control/.test(C.STAKE_CAVEAT) && stkLine.caveat === C.STAKE_CAVEAT, "ownership, not editorial control");
+var stkEnded = C.stakeNotes([Object.assign({}, stk, {status: "ended", to: "2018", share_percent: "undisclosed"})])[0];
+assert(stkEnded.text === "Chinese state-linked stake: an undisclosed share of Owner Co, held by H, from August 2013, ended for this outlet in 2018." && stkEnded.status_label === "Ended", "ended stake line: " + stkEnded.text);
+assert(/ended for this outlet on 3 May 2018\.$/.test(C.stakeNotes([Object.assign({}, stk, {status: "ended", to: "2018-05-03"})])[0].text), "an end day reads on, not in");
+var stkCur = C.stakeNotes([Object.assign({}, stk, {status: "current"})])[0];
+assert(/since August 2013, still held according to a source dated 22 July 2026\.$/.test(stkCur.text) && stkCur.status_label === "Current", "current stake line: " + stkCur.text);
+assert(C.stakeNotes([Object.assign({}, stk, {status: "probable"})])[0].status_label === "Status unstated", "an unknown status is never shown as current");
+var stkRus = C.stakeNotes([Object.assign({}, stk, {state: "RUS"})], function (iso) { return iso === "RUS" ? "Russia" : null; })[0];
+assert(stkRus.text.indexOf("Foreign state-linked stake (Russia): ") === 0, "another state is named, not given China's adjective: " + stkRus.text);
+assert(C.stakeNotes([Object.assign({}, stk, {state: "A"})])[0].text.indexOf("Foreign state-linked stake (A): ") === 0, "a state code is never read as a category name");
+var many = C.stakeNotes([stk, Object.assign({}, stk, {holder: "Société d'État مؤسسة " + new Array(400).join("x"), share_percent: 4.1})]);
+assert(many.length === 2 && /4\.1% of Owner Co, held by Société d'État مؤسسة x+,/.test(many[1].text), "several stakes, Unicode and a long holder name");
+assert(!/\u2013|\u2014/.test([stkLine.text, stkEnded.text, stkCur.text, C.STAKE_CAVEAT].join(" ")), "no dashes");
+assert(/\bnone\b/.test(stkLine.text + stkEnded.text + stkCur.text) === false, "a stake line never says none");
 /* Three themes crossed with outlet leaning (C.themeCross): shares with their denominators, wires and inactive
    outlets left out, too few below 20, and partial while the themes version is still being applied. */
 var xo = [
@@ -834,7 +850,7 @@ var xo = [
   {id: "i1", active: false, tier: "national", country: "ITA", political_leaning: "left", theme_cross: {china: 50, A: 50, cur: 50, t: {ov: [50, 50], eu: [0, 0]}}},
   {id: "u1", active: true, tier: "national", country: "ITA", theme_cross: {china: 10, A: 1, cur: 10, t: {ov: [2, 1], eu: [0, 0]}}}];
 var xg = [["left", "Left"], ["right", "Right"], ["unassessed", "Not assessed"]];
-var xc = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"]);
+var xc = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"], {minOutlets: 1});
 var xl = xc.rows[0], xr = xc.rows[1], xu = xc.rows[2];
 assert(xl.outlets === 2 && xl.china === 160 && xl.t.ov.n === 60 && xl.t.ov.a === 10, "cross sums active non-wire outlets");
 assert(Math.abs(xl.t.ov.share - 60 / 160) < 1e-12 && Math.abs(xl.t.ov.soShare - 10 / 60) < 1e-12, "cross shares");
@@ -842,8 +858,19 @@ assert(xl.t.eu.n === 5 && xl.t.eu.soShare === null && xl.t.eu.share !== null, "s
 assert(xr.outlets === 1 && xr.china === 0 && xr.t.ov.share === null, "a group without China coverage has no share");
 assert(xu.outlets === 1 && xu.china === 10 && xu.t.ov.share === null, "unassessed outlets fall in Not assessed; too few");
 assert(xc.total.china === 170 && xc.total.outlets === 4 && xc.complete === false && xl.complete === false, "partial while cur < china");
-var xi = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"], {iso: "ITA"});
+var xi = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"], {iso: "ITA", minOutlets: 1});
 assert(xi.rows[0].china === 100 && xi.complete === true && xi.rows[0].t.ov.share === 0.4, "one country");
 assert(C.themeCross([], xg, "political_leaning", ["ov"]).total.t.ov.share === null, "empty crossing");
+var xf = C.themeCross(xo, xg, "political_leaning", ["ov", "eu"]);   /* default: 5 outlets with China coverage */
+assert(xf.minOutlets === 5 && xf.rows[0].fewOutlets === true && xf.rows[0].t.ov.share === null && xf.rows[0].t.ov.soShare === null && xf.rows[0].t.ov.n === 60, "few outlets: counts kept, no share");
+assert(xf.rows[1].fewOutlets === false && xf.rows[1].chinaOutlets === 0, "a group with no China coverage is too few, not few outlets");
+/* While a themes version is still being applied (C.themesRetagNote): the progress, the themes it added or
+   changed in catalog order, nothing once complete or without a record, never a dash. */
+var rl = {bri_withdrawal: "Leaving the Belt and Road", overcapacity: "Chinese overcapacity and dumping", eu_china_trade: "EU and China trade war"};
+var rn = C.themesRetagNote({version: "2026.10.2", complete: false, relevant: 98095, current: 41200, added: [], changed: ["overcapacity", "eu_china_trade", "bri_withdrawal"]}, rl);
+assert(/41,200 of 98,095 relevant articles/.test(rn) && /Leaving the Belt and Road, Chinese overcapacity and dumping, and EU and China trade war are undercounted/.test(rn), "retag note: progress and themes in catalog order");
+assert(/so Chinese overcapacity and dumping is undercounted/.test(C.themesRetagNote({version: "v", complete: false, relevant: 3, current: 0, added: ["overcapacity"]}, rl)), "retag note: one theme");
+assert(C.themesRetagNote({version: "v", complete: true, relevant: 3, current: 3}, rl) === "" && C.themesRetagNote(null, rl) === "" && C.themesRetagNote({complete: false, relevant: 0}, rl) === "", "retag note: empty when complete or unknown");
+assert(!/–|—/.test(rn), "retag note: no dashes");
 console.log("frontend smoke ok");
 

@@ -377,10 +377,13 @@ foreign_state_stake): the holder, its tie to the state, the company the stake
 is held in, the share or undisclosed, the dates, a public source for each, and
 a source for its present status. Nothing is inferred, and a stake held through
 a private company with reported state ties is not recorded. A stake whose
-sources conflict on whether it still reaches the outlet is marked disputed.
+sources conflict on whether it still reaches the outlet is marked disputed;
+one that stopped reaching it, sold or with the outlet moved to another owner
+or publisher, is marked ended on the date its source gives.
 An outlet without the field has no stake recorded, which does not mean it has
 none. The stakes are exported in outlets.json and shown in the country panel;
-they enter no count.
+they enter no count. A stake records ownership; it is not a finding about
+editorial control.
 
 Themes. Every article that concerns China is tagged with each theme whose
 terms appear in its headline, its feed summary or anywhere in its body
@@ -397,7 +400,14 @@ war (EU tariffs or probes on electric vehicles, China's measures on brandy,
 pork, dairy and rare earths, or a trade war beside an EU name and away from any
 United States word). These three use exclusions and proximity rules, and each
 of their terms was read in its own language in the tracked outlets' China
-coverage of 28 October 2026; the earlier themes keep plain terms.
+coverage of 28 October 2026; the earlier themes keep plain terms. Themes
+version 2026.10.2 corrected the three after every one of their hits in that
+coverage was read: overcapacity no longer counts Volkswagen's or Stellantis's
+own plants, anti-dumping cases China opens, or other countries' dumping cases,
+and counts the China shock and the dumping word in the languages that borrow
+it; the EU and China trade war also counts a tariff, duty, quota, safeguard,
+anti-dumping case or retaliation within 100 characters of an EU name and a
+China word, away from any United States word.
 Until themes version 2026.09.4 only the first 800 characters of the body were
 read, which favored whatever an article names early.
 {themes_changes_text} An article can carry
@@ -411,9 +421,9 @@ Three themes by leaning. Under the leaning chart, a table gives for each
 group of outlets (by political leaning, ownership or stance, as the chart is
 grouped) the share of its China coverage that carries each of the three themes
 added in 2026.10.1, and the share of those articles that are state origin, with
-both denominators. China coverage there is the theme counter's: state origin,
-unchecked state sourcing, independent journalism and candidates waiting for the
-model, copies counted through another row left out. A share over fewer than 20
+both denominators. China coverage there is state origin, unchecked state
+sourcing and independent journalism; candidates still waiting for the model are
+left out, and so are copies counted through another row. A share over fewer than 20
 articles is shown as too few. The table is always marked provisional: the term
 lists have not been checked by hand, older articles are re-tagged for the new
 themes newest first over several exports ({themes_progress_text}), and China
@@ -984,19 +994,25 @@ def selection_text(meta: Dict) -> str:
     sel = meta.get("selection_basis") or {}
     n = sel.get("china_selected_active") or 0
     by_country = sel.get("by_country") or {}
-    head = ("Outlets are chosen by reach: the largest outlets of each country, from readership sources. Some "
-            "were added instead for their China coverage or documented pro-China content, such as small outlets "
+    head = ("Most outlets are chosen as each country's main outlets, ranked by audience where a readership "
+            "source gives a rank, and kept only where a feed works, so they are not a sample of each country's press "
+            "(see Known limits). Some were added instead for their China coverage or documented pro-China content, "
+            "such as small outlets "
             "that run Xinhua or CGTN partner content or have a content agreement with Chinese state media, as "
             "published research or reporting documents. Each of these carries a selection_basis in "
-            "sources/outlets.yaml with its evidence URL, and reach_selected false in outlets.json. ")
+            "sources/outlets.yaml naming what its source documents, with the source's URL, and reach_selected false "
+            "in outlets.json; an outlet whose source documents neither pro-China content nor China coverage it "
+            "published is taken out of monitoring. ")
     if not n:
         return head + "No active outlet was selected this way at export time."
     countries = ", ".join("%s %d" % (registry.country_name(c), k) for c, k in sorted(by_country.items(), key=lambda kv: (-kv[1], kv[0])))
     return head + (
         "At export time %d active %s in %d %s were selected this way (%s). They are monitored to see a route "
         "that the selection by reach misses, and they raise their countries' counts because of how they were "
-        "chosen, so a comparison of countries by reach leaves them out (outlets with reach_selected true only) "
-        "or flags the countries that have them; the site's figures still include them. None carries an "
+        "chosen. The site's figures still include them, so each country that has one carries a warning saying so "
+        "in its country panel, the ranked list, the map tooltip and the CSV of the current view, the top 10 marks "
+        "it, and the panel's outlet table tags each such outlet with a link to its evidence; a comparison of "
+        "countries by reach can leave them out with reach_selected. None carries an "
         "audience rank, so in a country with ranks none is among the largest outlets behind the share of "
         "published items; in a country without ranks every active outlet is, these included." % (
             n, "outlet" if n == 1 else "outlets", len(by_country), "country" if len(by_country) == 1 else "countries", countries))
@@ -1037,7 +1053,8 @@ def themes_changes_text(meta: Dict) -> str:
     retag = ("Every export re-tags, newest first and within its time budget, the relevant articles whose tags were made "
              "under another version; until an article is re-read its older tag counts as it stands, so a version that only "
              "adds themes leaves the earlier themes' series without a break and fills the new themes in from the newest "
-             "articles back")
+             "articles back, and a version that changes a theme's terms counts that theme's older articles under the "
+             "earlier terms until they are re-read")
     if not hist:
         return ("This export carries no record of earlier themes versions, so the theme timeline shows no version mark. "
                 + retag + ".")

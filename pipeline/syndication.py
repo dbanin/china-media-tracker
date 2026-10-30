@@ -11,7 +11,8 @@ of the measure. The status stays provisional until the hand check (draw_sample, 
 The file is sources/syndication.yaml, shaped by sources/syndication_schema.json: a top level
 `entries:` list. Each entry names a monitored outlet (outlet_id, an id in sources/outlets.yaml) or an
 outlet the tracker does not monitor (unmonitored: true with outlet_name), the partner, the kind of
-deal, signed_on with its precision, a public https source and confidence. Validation also checks
+deal (partner other names the body in partner_name), signed_on with its precision, a public https
+source and confidence. Validation also checks
 that precision matches the form of signed_on, that no two entries share (outlet, partner, kind,
 signed_on) or an id, and that ended_on does not come before signed_on. An entry's verification block,
 when present, needs a status (verified, source_moved, unverified), checked_on and a note; a moved
@@ -26,8 +27,9 @@ record, over the 28 days before the span and the 28 days after it. A side with f
 articles has no share. The difference (after minus before) carries a 95 percent Newcombe interval
 built from two Wilson intervals (Newcombe 1998, method 10). Confounders are listed with each row:
 ruleset or gate changes inside the window, the share of days the relay collected incompletely (for
-an outlet only the owner's machine collects), days on which the outlet discovered nothing, and the
-share of saturated feed polls. It shows timing, not cause.
+an outlet only the owner's machine collects), days on which the outlet discovered nothing, the
+share of saturated feed polls, and another deal of the same outlet dated inside the window. It
+shows timing, not cause.
 
 Command line:
   python -m pipeline.syndication validate [path]   check a file (default sources/syndication.yaml)
@@ -45,7 +47,7 @@ from typing import Dict, List, Optional, Tuple
 import jsonschema
 import yaml
 
-from pipeline import config, measures, registry
+from pipeline import config, measures, model_only, placements, registry
 
 MEASURE_ID = "syndication"
 VERSION = "1"
@@ -82,15 +84,27 @@ SIDE_KEYS = ("before", "after")
 # Loading and validation
 # ---------------------------------------------------------------------------
 
+def _date_str(v):
+    if isinstance(v, (dt.date, dt.datetime)):
+        return v.isoformat()[:10]
+    if isinstance(v, int) and not isinstance(v, bool):
+        return str(v)
+    return v
+
+
 def _norm_dates(e: Dict) -> Dict:
-    """YAML reads an unquoted 2025-12-17 as a date and 2025 as a number: both become strings."""
+    """YAML reads an unquoted 2025-12-17 as a date and 2025 as a number: both become strings, in the
+    entry and in its verification block."""
     out = dict(e)
     for k in ("signed_on", "effective_from", "ended_on", "accessed_on"):
-        v = out.get(k)
-        if isinstance(v, (dt.date, dt.datetime)):
-            out[k] = v.isoformat()[:10]
-        elif isinstance(v, int) and not isinstance(v, bool):
-            out[k] = str(v)
+        if k in out:
+            out[k] = _date_str(out[k])
+    if isinstance(out.get("verification"), dict):
+        v = dict(out["verification"])
+        for k in ("checked_on", "page_date"):
+            if k in v:
+                v[k] = _date_str(v[k])
+        out["verification"] = v
     return out
 
 
@@ -188,6 +202,8 @@ def validate(data, outlet_ids) -> Tuple[List[Dict], List[str]]:
         elif e["outlet_id"] not in outlet_ids:
             errs.append("outlet_id %s is not in sources/outlets.yaml (mark it unmonitored: true with outlet_name)"
                         % e["outlet_id"])
+        if e.get("partner") == "other" and not str(e.get("partner_name") or "").strip():
+            errs.append("partner other needs partner_name, the state body that signed")
         s, prec = e.get("signed_on"), e.get("precision")
         if isinstance(s, str) and len(s) in PRECISION_OF_LEN:
             if not _valid_date(s):
@@ -272,6 +288,8 @@ def validate_file(path: Optional[Path] = None, outlets=None) -> Tuple[List[Dict]
         data = load_file(path)
     except yaml.YAMLError as exc:
         return [], ["the file is not valid YAML: %s" % exc]
+    except UnicodeDecodeError as exc:
+        return [], ["the file is not UTF-8 text: %s" % exc]
     return validate(data, {o["id"] for o in _outlets(outlets)})
 
 
@@ -304,10 +322,24 @@ def predates_collection(e: Dict, collection_start=None) -> bool:
     return span(e["signed_on"])[1] < _d(collection_start or config.COLLECTION_START)
 
 
-def window(e: Dict, last_complete, collection_start=None) -> Dict:
+def not_collected(outlet: Optional[Dict], through: dt.date) -> bool:
+    """The outlet is inactive in the registry and was not collected through the given day: it stopped
+    on or before it (inactive_since), or the registry gives no day it stopped."""
+    if not outlet or outlet.get("active", True):
+        return False
+    since = str(outlet.get("inactive_since") or "")[:10]
+    try:
+        return not since or dt.date.fromisoformat(since) <= through
+    except ValueError:
+        return True
+
+
+def window(e: Dict, last_complete, collection_start=None, outlet: Optional[Dict] = None) -> Dict:
     """{eligible, reason, before: [first, last], after: [first, last]}. reason is one of eligible,
-    unmonitored, predates_collection, imprecise (year precision), too_early, too_recent. The sides are
-    the 28 days before the first day the date can mean and the 28 days after the last."""
+    unmonitored, predates_collection, imprecise (year precision), too_early, too_recent, not_collected
+    (an outlet no longer collected before the after side ends: inactive in the registry with no
+    inactive_since, or one on or before that day). The sides are the 28 days before the first day the
+    date can mean and the 28 days after the last."""
     first, last = span(e["signed_on"])
     out = {"eligible": False, "reason": "eligible",
            "before": [(first - dt.timedelta(days=WINDOW_DAYS)).isoformat(), (first - dt.timedelta(days=1)).isoformat()],
@@ -323,6 +355,8 @@ def window(e: Dict, last_complete, collection_start=None) -> Dict:
         out["reason"] = "too_early"
     elif last > hi:
         out["reason"] = "too_recent"
+    elif not_collected(outlet, _d(out["after"][1])):
+        out["reason"] = "not_collected"
     else:
         out["eligible"] = True
     return out
@@ -360,19 +394,30 @@ def newcombe(x1: int, n1: int, x2: int, n2: int, z: float = Z95) -> Optional[Tup
 # Counts and confounders
 # ---------------------------------------------------------------------------
 
-def side_counts(conn: sqlite3.Connection, outlet_id: str, first: str, last: str) -> Dict:
+def side_counts(conn: sqlite3.Connection, outlet_id: str, first: str, last: str,
+                shadow: Optional[set] = None) -> Dict:
     """State origin and China coverage (state origin, unchecked state sourcing, independent journalism)
-    of one outlet on its current labels, by day of record, first to last inclusive."""
+    of one outlet on its current labels, by day of record, first to last inclusive, on the basis of
+    every other figure: an undetermined state origin label (pipeline/model_only.py) is in neither count,
+    and a stored row that another row stands for (pipeline/placements.py, `shadow`; read from the
+    database when None) is not this outlet's placement."""
+    if shadow is None:
+        shadow = placements.shadowed(conn)
     a = china = 0
     for r in conn.execute(
-        """SELECT c.category cat, COUNT(*) n FROM articles a
+        """SELECT a.id aid, c.category cat, c.method method, %s AS route FROM articles a
            JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.outlet_id=? AND a.gate_relevant=1 AND c.category IN ('A','B','C')
-             AND COALESCE(NULLIF(a.day_of_record, ''), substr(a.discovered_at, 1, 10)) BETWEEN ? AND ?
-           GROUP BY c.category""", (outlet_id, first, last)):
-        china += r[1]
-        if r[0] == "A":
-            a += r[1]
+             AND COALESCE(NULLIF(a.day_of_record, ''), substr(a.discovered_at, 1, 10)) BETWEEN ? AND ?"""
+            % model_only.route_sql("c"), (outlet_id, first, last)):
+        if r[0] in shadow:
+            continue
+        cat = model_only.headline_category(r[1], r[3], r[2])
+        if cat not in ("A", "B", "C"):
+            continue
+        china += 1
+        if cat == "A":
+            a += 1
     return {"start": first, "end": last, "state_origin": a, "china": china}
 
 
@@ -416,7 +461,7 @@ def confounders(checks: Dict[str, Dict], first: str, last: str, changes: Dict[st
     """What else changed in the window, first to last: each {type, text, ...}."""
     out = []
     for kind, word in (("ruleset", "signature ruleset"), ("gate", "relevance gate")):
-        for c in changes.get(kind) or []:
+        for c in sorted(changes.get(kind) or [], key=lambda x: (x["date"], str(x["version"]))):
             if first <= c["date"] <= last:
                 out.append({"type": "%s_change" % kind, "date": c["date"], "version": c["version"],
                             "text": "the %s changed to %s on %s, inside the window" % (word, c["version"], c["date"])})
@@ -437,15 +482,34 @@ def confounders(checks: Dict[str, Dict], first: str, last: str, changes: Dict[st
     return out
 
 
+def other_deals(e: Dict, w: Dict, entries: List[Dict]) -> List[Dict]:
+    """Another deal of the same outlet whose date, at its precision, touches the window: the comparison
+    cannot tell the two apart, so it is listed with what else changed."""
+    lo, hi = _d(w["before"][0]), _d(w["after"][1])
+    out = []
+    for o in entries:
+        if o is e or o.get("id") == e.get("id") or o.get("unmonitored") or o.get("outlet_id") != e.get("outlet_id"):
+            continue
+        first, last = span(o["signed_on"])
+        if first <= hi and last >= lo:
+            out.append({"type": "other_deal", "entry_id": o["id"], "date": o["signed_on"],
+                        "text": "another deal of this outlet, with %s, is dated %s, inside the window"
+                                % (partner_label(o), _at_precision(o["signed_on"]))})
+    return out
+
+
 def _r(v, k=4):
     return None if v is None else round(v, k)
 
 
-def compare(conn, e: Dict, w: Dict, outlet: Optional[Dict], relay_incomplete: set, changes: Dict) -> Dict:
+def compare(conn, e: Dict, w: Dict, outlet: Optional[Dict], relay_incomplete: set, changes: Dict,
+            shadow: Optional[set] = None) -> Dict:
     """One deal's before and after row."""
     sides, checks = {}, {}
+    if shadow is None:
+        shadow = placements.shadowed(conn)
     for side in SIDE_KEYS:
-        c = side_counts(conn, e["outlet_id"], w[side][0], w[side][1])
+        c = side_counts(conn, e["outlet_id"], w[side][0], w[side][1], shadow)
         c["sufficient"] = c["china"] >= MIN_CHINA_PER_SIDE
         ci = wilson(c["state_origin"], c["china"]) if c["sufficient"] else None
         c["share"] = _r(c["state_origin"] / c["china"]) if c["sufficient"] else None
@@ -490,6 +554,14 @@ def compute(conn, ctx, deadline) -> Dict:
     return {"entries": len(entries), "invalid": len(errors)}
 
 
+def partner_label(e: Dict) -> str:
+    """The state body as the timeline names it: partner_name where the entry gives one (the body that
+    signed, such as Nanfang Media Group, or CCTV before it became part of China Media Group), else the
+    partner's label."""
+    name = " ".join(str(e.get("partner_name") or "").split())
+    return name or PARTNER_LABELS.get(e.get("partner"), e.get("partner") or "")
+
+
 def _entry_row(e: Dict, w: Dict, outlet: Optional[Dict]) -> Dict:
     monitored_ = not e.get("unmonitored") and bool(e.get("outlet_id"))
     source = {"url": e["source_url"], "title": e.get("source_title"), "publisher": e.get("source_publisher"),
@@ -505,7 +577,7 @@ def _entry_row(e: Dict, w: Dict, outlet: Optional[Dict]) -> Dict:
     return {"id": e["id"], "outlet_id": e.get("outlet_id") if monitored_ else None,
             "outlet_name": (outlet or {}).get("name") or e.get("outlet_name") or e.get("outlet_id"),
             "country": registry.export_country(outlet) if outlet else None, "monitored": monitored_,
-            "partner": e["partner"], "partner_label": PARTNER_LABELS.get(e["partner"], e["partner"]),
+            "partner": e["partner"], "partner_label": partner_label(e),
             "kind": e["kind"], "kind_label": KIND_LABELS.get(e["kind"], e["kind"]),
             "signed_on": e["signed_on"], "precision": e["precision"],
             "effective_from": e.get("effective_from"), "ended_on": e.get("ended_on"),
@@ -524,13 +596,18 @@ def build_export(conn, ctx) -> Dict:
     lo, hi = eligible_range(last)
     relay_inc = _relay_incomplete(conn, last)
     changes = _changes()
-    timeline, comparisons = [], []
+    timeline, comparisons, shadow = [], [], None
     for e in sorted(entries, key=lambda x: (x["signed_on"], x["id"]), reverse=True):
-        w = window(e, last)
         outlet = by_id.get(e.get("outlet_id")) if not e.get("unmonitored") else None
+        w = window(e, last, outlet=outlet)
         timeline.append(_entry_row(e, w, outlet))
         if w["eligible"]:
-            comparisons.append(compare(conn, e, w, outlet, relay_inc, changes))
+            if shadow is None:
+                shadow = placements.shadowed(conn)
+            row = compare(conn, e, w, outlet, relay_inc, changes, shadow)
+            row["confounders"].extend(other_deals(e, w, entries))
+            row["confounded"] = bool(row["confounders"])
+            comparisons.append(row)
     counts = {"entries": len(timeline), "monitored": sum(1 for t in timeline if t["monitored"]),
               "unmonitored": sum(1 for t in timeline if not t["monitored"]),
               "predates_collection": sum(1 for t in timeline if t["predates_collection"]),
@@ -558,6 +635,15 @@ def meta_summary(conn, ctx) -> Dict:
     return dict(counts)
 
 
+def _at_precision(s: str) -> str:
+    """17 December 2025, December 2025 or 2025."""
+    if len(s) == 10:
+        return _long_date(s)
+    if len(s) == 7:
+        return "%s %s" % (dt.date(int(s[:4]), int(s[5:7]), 1).strftime("%B"), s[:4])
+    return s
+
+
 def _long_date(s: str) -> str:
     d = _d(s)
     return "%d %s %d" % (d.day, d.strftime("%B"), d.year)
@@ -566,19 +652,35 @@ def _long_date(s: str) -> str:
 def methodology_text(block) -> str:
     start = _long_date(config.COLLECTION_START)
     s = (block or {}).get("summary") or {}
-    tally = ""
-    if s.get("entries"):
-        tally = (" Of the %d entries now listed, %d were signed before collection began."
-                 % (s["entries"], s.get("predates_collection", 0)))
-    return (
+    n, pre = int(s.get("entries") or 0), int(s.get("predates_collection") or 0)
+    if n and 2 * pre > n:
+        before = ("Most of these deals were signed before collection began on %s (%d of the %d entries now "
+                  "listed), so they appear on the timeline only, with no figure beside them." % ("%s", pre, n))
+    elif n:
+        before = ("%d of the %d entries now listed were signed before collection began on %s; those appear on "
+                  "the timeline only, with no figure beside them." % (pre, n, "%s"))
+    else:
+        before = ("A deal signed before collection began on %s appears on the timeline only, with no figure "
+                  "beside it.")
+    unchecked = int(s.get("unchecked") or 0)
+    if unchecked:
+        reread = ("on %s each entry then listed had its page reread to confirm that it states the parties, "
+                  "the kind of deal and the date, and an entry whose page had gone now cites a page that "
+                  "states it; %d entr%s added since %s not been checked yet. No hand check of the measure has "
+                  "been coded yet." % ("%s", unchecked, "y" if unchecked == 1 else "ies",
+                                       "has" if unchecked == 1 else "have"))
+    else:
+        reread = ("on %s each entry's page was reread to confirm that it states the parties, the kind of deal "
+                  "and the date, and an entry whose page had gone now cites a page that states it, but no hand "
+                  "check of the measure has been coded yet.")
+    first = (
         "This measure lists publicly announced agreements between outlets and Chinese state media, such as "
         "content exchanges, memorandums and supplements, each with the public page that states the deal and "
         "the date it gives. An entry goes in only when such a page exists; an entry whose page is a third "
-        "party's report is marked reported rather than stated. Most of these deals were signed before "
-        "collection began on %s, so they appear on the timeline only, with no figure beside them.%s"
-        " The measure is provisional, %s: on %s each entry's page was reread to confirm that it states the "
-        "parties, the kind of deal and the date, and an entry whose page had gone now cites a page that "
-        "states it, but no hand check of the measure has been coded yet."
+        "party's report is marked reported rather than stated. An agreement that covers several monitored "
+        "outlets is listed once for each. " + (before % start) +
+        " The measure is provisional, " + VERIFICATION_WORDING + ": " + (reread % _long_date(VERIFIED_ON)))
+    return first + (
         "\n\n"
         "Where a deal was signed on a known day or month at least %d days after collection began and at "
         "least %d days before the last complete day, the outlet's state origin share of its China coverage is "
@@ -587,14 +689,14 @@ def methodology_text(block) -> str:
         "percent interval by Newcombe's method, built from two Wilson intervals. A comparison is flagged when "
         "a change to the signature ruleset or the relevance gate falls inside its window, when the owner's "
         "machine collected the outlet incompletely on at least a tenth of the days of a side, when the outlet "
-        "discovered nothing on %d or more days of a side, or when at least a tenth of its feed polls on a side "
-        "were saturated. The comparison shows timing, not cause: a change after a deal may come from the news, "
+        "discovered nothing on %d or more days of a side, when at least a tenth of its feed polls on a side "
+        "were saturated, or when another deal of the same outlet is dated inside the window. The comparison shows timing, not cause: a change after a deal may come from the news, "
         "from other agreements or from the instrument, and no change does not show that a deal had no effect."
         "\n\n"
         "The hand check rereads the source page of %d entries drawn at random, without the recorded date, and "
         "notes whether the page states the deal and what date it gives. It passes when at least %s of the "
         "entries checked agree with their page at the precision recorded."
-        % (start, tally, VERIFICATION_WORDING, _long_date(VERIFIED_ON), WINDOW_DAYS, WINDOW_DAYS,
+        % (WINDOW_DAYS, WINDOW_DAYS,
            WINDOW_DAYS, WINDOW_DAYS, MIN_CHINA_PER_SIDE, ZERO_DAY_LIMIT, SAMPLE_N, CHECK_THRESHOLD))
 
 
@@ -620,7 +722,7 @@ def draw_sample(conn, n, seed, out_dir, path: Optional[Path] = None, outlets=Non
         sid = "s%02d" % i
         name = e.get("outlet_name") if e.get("unmonitored") else (by_id.get(e["outlet_id"], {}).get("name") or e["outlet_id"])
         rows.append({"sample_id": sid, "entry_id": e["id"], "outlet": name,
-                     "partner": PARTNER_LABELS.get(e["partner"], e["partner"]),
+                     "partner": partner_label(e),
                      "kind": KIND_LABELS.get(e["kind"], e["kind"]), "source_url": e["source_url"],
                      "source_title": e.get("source_title") or "", "page_states_deal": "", "page_date": "",
                      "coder_notes": ""})
@@ -669,16 +771,18 @@ def main(argv=None) -> int:
         ap.print_help()
         return 2
     path = Path(args.path) if args.path else SYNDICATION_PATH
-    entries, errors = validate_file(path)
+    outlets = _outlets()
+    entries, errors = validate_file(path, outlets)
     for e in errors:
         print(e)
     try:
         raw = load_file(path)
         total = len(raw.get("entries") or []) if isinstance(raw, dict) else 0
-    except yaml.YAMLError:
+    except (yaml.YAMLError, UnicodeDecodeError):
         total = 0
     last = last_complete_day()
-    elig = sum(1 for e in monitored(entries) if window(e, last)["eligible"])
+    by_id = {o["id"]: o for o in outlets}
+    elig = sum(1 for e in monitored(entries) if window(e, last, outlet=by_id.get(e["outlet_id"]))["eligible"])
     print("%s: %d entries, %d pass (%d monitored, %d predate collection, %d eligible for a comparison now), %d errors"
           % (path, total, len(entries), len(monitored(entries)), sum(1 for e in entries if predates_collection(e)),
              elig, len(errors)))

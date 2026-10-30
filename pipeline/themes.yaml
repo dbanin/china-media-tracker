@@ -1,7 +1,10 @@
 # 2026.10.1 (2026-10-28): three themes added at the end, crossed with outlet leaning on the site (leaning_cross).
 # The eleven earlier themes are unchanged, so their tags do not change; history is re-tagged newest first
 # within each export's time budget (pipeline/themes.py BODY_RETAG_SECONDS).
-version: 2026.10.1
+# 2026.10.2 (2026-10-29): the three themes' terms corrected after a check of every hit in the snapshot and the
+# runner's audit files (misfires and misses listed in the comments of each theme); the eleven earlier themes
+# unchanged again. History is re-tagged newest first as for 2026.10.1.
+version: 2026.10.2
 note: Theme terms for the theme counter. An article carries every theme whose terms appear in its title, feed summary or anywhere in its body (only the first 800 characters before 2026.09.4); an article with none is Other. Terms are matched on word boundaries, case-insensitively, except all-capital acronyms, which are case sensitive. A trailing or inner asterisk matches any word characters. Languages under substring_languages match terms anywhere, because words there are not separated by spaces or carry attached particles. Every language also uses the all and en lists, as the relevance gate does. Changing any term bumps version, and every article is re-tagged, newest first, over the next exports within each export's time budget; until then an article keeps its older tag. Since 2026.10.1 a theme may also carry exclude and near rules (see the three themes at the end).
 language_aliases:
   ms: id
@@ -3551,29 +3554,23 @@ themes:
   label: Chinese overcapacity and dumping
   short: Overcapacity
   terms:
-    en: [overcapacity, overcapacities, excess capacity, excess industrial capacity, overproduction]
-    es: [sobrecapacidad*, exceso de capacidad, sobreproducción, exceso de producción]
-    fr: [surcapacité*, surproduction*]
-    pt: [sobrecapacidade*, excesso de capacidade, excesso de produção, superprodução]
-    it: [sovraccapacità, sovrapproduzione]
-    de: [Überkapazität*, Überproduktion*]
-    ar: [فائض الطاقة الإنتاجية, الطاقة الإنتاجية الفائضة, فائض القدرة الإنتاجية, فائض الإنتاج, إغراق السوق, إغراق
-        الأسواق, مكافحة الإغراق]
-    ko: [과잉생산, 과잉 생산, 과잉설비, 저가 공세]
-    ja: [過剰生産]
-    vi: [bán phá giá]
-    id: [kelebihan kapasitas, lambakan]
-    tr: [aşırı kapasite*, kapasite fazla*, aşırı üretim*, üretim fazlası]
-    nl: [overcapaciteit]
-    pl: [nadprodukcj*]
-    fa: [ظرفیت مازاد, تولید مازاد, مازاد تولید]
-    th: [ทุ่มตลาด]
+    en: [China shock]
+    es: [shock chino]
+    fr: [choc chinois]
+    pt: [choque chinês]
+    it: [shock cinese]
+    de: [China-Schock*]
+    nl: [China-schok]
+    pl: [chiński szok]
+    ko: [차이나 쇼크]
+  exclude:
+    ar: [السوق الصينية, الأسواق الصينية]
   near:
   - window: 120
     terms:
       en: [dumping]
     exclude:
-      en: [dumping ground*, illegal dumping]
+      en: [dumping ground*, illegal dumping, industrial dumping]
     context:
     - en: [Chinese, from China, China-made, Chinese-made, made in China]
       es: [chinos, chinas, chino, procedentes de China, de origen chino, made in China]
@@ -3599,19 +3596,25 @@ themes:
     avoid:
       all: [Fukushima]
       en: [nuclear, radioactive, wastewater, waste water, treated water, contaminated water, sewage, waste, garbage,
-        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM]
-      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza]
+        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM, environment*,
+        China launches, China launched, China opens, China imposes, China imposed, China's commerce ministry, imports
+        from the EU, imports from the European Union, imports from Japan]
+      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza, China abre, Ministerio de
+        Comercio chino, importado de la UE, Japón]
       fr: [nucléaire*, déchets, eaux usées, porc, laiti*, canola]
-      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola]
+      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola, impostas pela China, Japão]
       it: [nucleare, radioattiv*, acque reflue]
-      de: [nuklear*, Atom*, Abfall*]
-      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*]
-      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라]
+      de: [nuklear*, Atom*, Abfall*, China leitet, aus der EU]
+      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*, Пекин продлил, в отношении США]
+      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라, EU산]
       ja: [原発]
       tr: [nükleer, atık*]
       pl: [jądrow*, odpad*]
       fa: [هسته‌ای]
       hi: [परमाणु, डेयरी]
+      ro: [China deschide, China a lansat, din UE, din Uniunea Europeană]
+      id: [China Buka, dari Uni Eropa]
+      ar: [بكين تفتح, الصين تفتح, أطلقت بكين, أطلقت الصين]
   - window: 120
     terms:
       en: [anti-dumping, antidumping]
@@ -3620,11 +3623,12 @@ themes:
       ru: [демпинг*, антидемпинг*]
       ko: [덤핑, 반덤핑]
       ja: [ダンピング, 反ダンピング]
-      vi: [chống bán phá giá]
+      vi: [chống bán phá giá, bán phá giá]
       id: [anti-dumping, antidumping]
       tr: [damping*]
       pl: [dumping*, antydumping*]
       fa: [دامپینگ]
+      ar: [إغراق السوق, إغراق الأسواق, مكافحة الإغراق]
     context:
     - en: [Chinese, from China, China-made, Chinese-made, made in China]
       es: [chinos, chinas, chino, procedentes de China, de origen chino, made in China]
@@ -3633,7 +3637,7 @@ themes:
       it: [cinesi, cinese, dalla Cina, made in China]
       de: [chinesisch*, aus China, Made in China]
       ru: [китайск*, из Китая, из КНР]
-      ar: [الصينية, الصيني, صينية, من الصين]
+      ar: [الصينية, الصيني, صينية, من الصين, ضد الصين]
       ko: [중국산, 중국발, 중국 제품, 중국 철강, 中철강]
       ja: [中国製, 中国からの]
       vi: [từ Trung Quốc, của Trung Quốc]
@@ -3648,19 +3652,25 @@ themes:
     avoid:
       all: [Fukushima]
       en: [nuclear, radioactive, wastewater, waste water, treated water, contaminated water, sewage, waste, garbage,
-        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM]
-      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza]
+        trash, toxic, sludge, ocean, into the sea, brandy, cognac, pork, dairy, canola, rapeseed, POM, environment*,
+        China launches, China launched, China opens, China imposes, China imposed, China's commerce ministry, imports
+        from the EU, imports from the European Union, imports from Japan]
+      es: [nuclear, residuos, aguas residuales, brandy, cerdo, porcino*, lácteo*, colza, China abre, Ministerio de
+        Comercio chino, importado de la UE, Japón]
       fr: [nucléaire*, déchets, eaux usées, porc, laiti*, canola]
-      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola]
+      pt: [nuclear, radioativ*, resíduos, suín*, porco, laticínio*, canola, impostas pela China, Japão]
       it: [nucleare, radioattiv*, acque reflue]
-      de: [nuklear*, Atom*, Abfall*]
-      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*]
-      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라]
+      de: [nuklear*, Atom*, Abfall*, China leitet, aus der EU]
+      ru: [ядерн*, радиоактивн*, отход*, свинин*, молочн*, Пекин продлил, в отношении США]
+      ko: [핵, 방사능, 브랜디, 돼지고기, 유제품, 카놀라, EU산]
       ja: [原発]
       tr: [nükleer, atık*]
       pl: [jądrow*, odpad*]
       fa: [هسته‌ای]
       hi: [परमाणु, डेयरी]
+      ro: [China deschide, China a lansat, din UE, din Uniunea Europeană]
+      id: [China Buka, dari Uni Eropa]
+      ar: [بكين تفتح, الصين تفتح, أطلقت بكين, أطلقت الصين]
   - window: 60
     terms:
       en: [flood*, influx, deluge, glut, surge of, wave of, swamp*, inundat*]
@@ -3674,7 +3684,7 @@ themes:
       ko: [물량 공세, 쏟아지, 범람, 공세]
       ja: [流入, 攻勢, あふれ]
       vi: [tràn ngập, ồ ạt, tràn vào, đổ bộ]
-      id: [banjir*, membanjiri, serbuan, gempuran]
+      id: [banjir*, membanjiri, serbuan, gempuran, lambakan]
       tr: [akın*, sel*, istila*]
       nl: [stroom, overspoel*, golf]
       ro: [invazi*, val*, inund*]
@@ -3682,6 +3692,11 @@ themes:
       fa: [سیل, هجوم]
       hi: [बाढ़]
       th: [ทะลัก, ทุ่ม, ไหลบ่า]
+    exclude:
+      en: [wave of demand, wave of cheap money]
+    avoid:
+      all: [AI, DeepSeek]
+      ko: [인공지능, 딥시크]
     context:
     - en: [cheap*, low-cost, low-priced, underpriced, cut-price, subsidised, subsidized]
       es: [barat*, bajo costo, bajo coste, a bajo precio, subvencionad*, subsidiad*]
@@ -3727,6 +3742,69 @@ themes:
       ko: [공급과잉, 공급 과잉]
     context:
     - ko: [중국, 中]
+  # The overcapacity and overproduction words, which until 2026.10.1 counted anywhere: not within 200 characters
+  # of Volkswagen or Stellantis, whose own European plants carry the word (the two carmakers' own plants were 14 of the
+  # 43 misfires found in the 2026.10.1 hits). Portuguese superprodução left out (a lavish show), Vietnamese bán
+  # phá giá and the Arabic dumping words moved to the anti-dumping rule above, which wants a Chinese origin word,
+  # and Malay lambakan to the flood rule (lambakan pilihan, a plethora of choices).
+  - window: 200
+    terms:
+      en: [overcapacity, overcapacities, excess capacity, excess industrial capacity, overproduction]
+      es: [sobrecapacidad*, exceso de capacidad, sobreproducción, exceso de producción]
+      fr: [surcapacité*, surproduction*]
+      pt: [sobrecapacidade*, excesso de capacidade, excesso de produção]
+      it: [sovraccapacità, sovrapproduzione]
+      de: [Überkapazität*, Überproduktion*]
+      ar: [فائض الطاقة الإنتاجية, الطاقة الإنتاجية الفائضة, فائض القدرة الإنتاجية, فائض الإنتاج]
+      ko: [과잉생산, 과잉 생산, 과잉설비]
+      ja: [過剰生産]
+      id: [kelebihan kapasitas]
+      tr: [aşırı kapasite*, kapasite fazla*, aşırı üretim*, üretim fazlası]
+      nl: [overcapaciteit]
+      pl: [nadprodukcj*]
+      fa: [ظرفیت مازاد, تولید مازاد, مازاد تولید]
+      th: [ทุ่มตลาด]
+    context: []
+    avoid:
+      all: [Volkswagen, VW, Stellantis]
+      ko: [폭스바겐]
+  # The Korean low price offensive, but not the price of Chinese AI models (DeepSeek against American big tech).
+  - window: 40
+    terms:
+      ko: [저가 공세]
+    context: []
+    avoid:
+      all: [AI]
+      ko: [인공지능, 딥시크]
+  # Dumping in the languages that borrow the word, beside a China word within 80 characters ("lonas chinas para
+  # toldos y carpas por dumping", "dumping Cina", "dumping en spionage door China", "Chinas Dumpingpreise"),
+  # with the anti-dumping rule's exclusions.
+  - window: 80
+    terms:
+      es: [dumping]
+      pt: [dumping]
+      it: [dumping]
+      nl: [dumping]
+      id: [dumping]
+      de: [Dumping*]
+    exclude:
+      en: [dumping ground*, illegal dumping, industrial dumping]
+    context:
+    - es: [chinos, chinas, chino, China, Pekín]
+      pt: [chinês, chinesa, chineses, chinesas, China, Pequim]
+      it: [cinesi, cinese, Cina, Pechino]
+      nl: [Chinese, China, Peking]
+      id: [China, Tiongkok, Beijing]
+      de: [chinesisch*, China, Chinas, Peking]
+    avoid:
+      all: [Fukushima]
+      en: [nuclear, radioactive, wastewater, waste water, sewage, waste, garbage, brandy, cognac, pork, dairy, canola]
+      es: [nuclear, residuos, aguas residuales, cerdo, porcino*, lácteo*, China abre, Ministerio de Comercio chino,
+        importado de la UE, Japón]
+      pt: [nuclear, resíduos, suín*, porco, laticínio*, impostas pela China, Japão]
+      it: [nucleare, acque reflue]
+      de: [nuklear*, Atom*, Abfall*, China leitet, aus der EU]
+      id: [China Buka, dari Uni Eropa]
 # EU and China trade war: an electric vehicle word with an EU name and a tariff, duty or probe word within 120
 # characters; brandy, cognac, pork or dairy with an EU, European, French or Spanish word and an anti-dumping,
 # duty, probe or retaliation word within 150; rare earths with an EU name and an export control, licence or
@@ -3864,6 +3942,9 @@ themes:
       fa: [تعرفه, عوارض, تحقیق, تلافی]
       hi: [टैरिफ, शुल्क, जांच, जवाबी]
       th: [ทุ่มตลาด, ภาษี, ไต่สวน, ตอบโต้]
+    avoid:
+      all: [Trump]
+      en: [Canada, Canadian]
   - window: 150
     terms:
       en: [rare earth*, rare-earth*]
@@ -3982,7 +4063,100 @@ themes:
       vi: [Mỹ, Hoa Kỳ]
       id: [Amerika Serikat, AS]
       tr: [ABD, Amerika]
-      nl: [Verenigde Staten, Amerikaans*]
+      nl: [Verenigde Staten, VS, Amerikaans*]
+      ro: [SUA, Statele Unite, american*]
+      pl: [USA, Stany Zjednoczone, Stanów Zjednoczonych, amerykańsk*]
+      fa: [آمریکا, ایالات متحده, ترامپ]
+      hi: [अमेरिका, ट्रंप]
+      th: [สหรัฐ, ทรัมป์]
+  # Since 2026.10.2: a trade measure (tariff, duty, anti-dumping or anti-subsidy case, safeguard, quota,
+  # retaliation) with an EU name and a China word within 100 characters, and no United States word that close.
+  # The four rules above missed the hybrid car quotas and safeguards, the tariffs on Chinese cars the EU urged on
+  # Britain, the EU's planned market access tool and China's anti-dumping case on EU p-nitrotoluene (October 2026).
+  # The English quota* is not read in Italian (quota, quote: a share) nor in the Portuguese quota de mercado.
+  - window: 100
+    terms:
+      en: [anti-dumping, antidumping, anti-subsidy, countervailing, tariff*, duties, levy, levies, safeguard*, quota*,
+        import cap*, trade curbs, trade restrictions, trade barriers, trade defence, trade defense, retaliat*,
+        countermeasure*]
+      es: [antidumping, arancel*, derechos compensatorios, represalia*, contramedida*]
+      fr: [droits de douane, surtaxe*, représailles, contre-mesure*]
+      pt: [antidumping, antissubsídio*, tarifa*, sobretaxa*, retaliaç*, represália*]
+      it: [antidumping, dazi, dazio, ritorsion*, contromisur*]
+      de: [Antidumping*, Zoll, Zölle, Zöllen, Strafzölle*, Zusatzzölle*, Ausgleichszoll*, Ausgleichszölle*, EU-Zölle*,
+        Vergeltung*, Gegenmaßnahme*]
+      ru: [антидемпинг*, пошлин*, антисубсид*, ответн* мер*, контрмер*]
+      ar: [مكافحة الإغراق, رسوم, الرسوم, تعريفات, التعريفات, رسوم جمركية, الرسوم الجمركية]
+      ko: [반덤핑, 관세, 상계관세, 보복, 맞대응]
+      ja: [反ダンピング, 関税, 対抗措置]
+      vi: [chống bán phá giá, thuế quan, chống trợ cấp, trả đũa]
+      id: [antidumping, anti-dumping, tarif, bea masuk, anti-subsidi, balasan, pembalasan]
+      tr: [gümrük vergi*, tarife*, misilleme*]
+      nl: [heffing*, invoerheffing*, importheffing*, vergelding*]
+      ro: [antidumping, tarife, taxe vamale, represalii]
+      pl: [antydumping*, cła, cło, ceł, cłach, antysubsyd*, odwet*]
+      fa: [تعرفه, تلافی]
+      hi: [टैरिफ, जवाबी]
+      th: [ทุ่มตลาด, ตอบโต้]
+    exclude:
+      it: [quota, quote]
+      pt: [quota de mercado]
+    context:
+    - all: [EU]
+      en: [European Union, European Commission, Brussels]
+      es: [Unión Europea, UE, Bruselas, Comisión Europea]
+      fr: [Union européenne, UE, Bruxelles, Commission européenne]
+      pt: [União Europeia, UE, Bruxelas, Comissão Europeia]
+      it: [Unione europea, UE, Ue, Bruxelles, Commissione europea]
+      de: [Europäische Union, Europäischen Union, Brüssel, EU-Kommission, Europäischen Kommission]
+      ru: [ЕС, Евросоюз*, Европейск* союз*, Брюссел*, Еврокомисси*]
+      ar: [الاتحاد الأوروبي, بروكسل, المفوضية الأوروبية, للاتحاد الأوروبي]
+      ko: [유럽연합, 브뤼셀, 집행위]
+      ja: [欧州]
+      vi: [Liên minh châu Âu, Ủy ban châu Âu, châu Âu, Brussels]
+      id: [Uni Eropa, UE, Komisi Eropa, Brussel, Kesatuan Eropah]
+      tr: [Avrupa Birliği, AB, Avrupa Komisyonu, Brüksel]
+      nl: [Europese Unie, Brussel, Europese Commissie]
+      ro: [Uniunea Europeană, UE, Bruxelles, Comisia Europeană]
+      pl: [Unia Europejska, Unii Europejskiej, UE, Bruksel*, Komisja Europejska, Komisji Europejskiej]
+      fa: [اتحادیه اروپا, بروکسل, کمیسیون اروپا]
+      hi: [यूरोपीय संघ]
+      th: [สหภาพยุโรป, อียู]
+    - en: [Chinese, China, Beijing]
+      es: [chinos, chinas, chino, China, Pekín, Beijing]
+      fr: [chinois, chinoises, chinoise, Chine, Pékin]
+      pt: [chineses, chinesas, chinês, chinesa, China, Pequim]
+      it: [cinesi, cinese, Cina, Pechino]
+      de: [chinesisch*, China, Chinas, Peking]
+      ru: [китайск*, Китай*, Пекин*, КНР]
+      ar: [الصينية, الصيني, صينية, الصين, بكين]
+      ko: [중국산, 중국, 中]
+      ja: [中国]
+      vi: [Trung Quốc, Bắc Kinh]
+      id: [China, Tiongkok, Beijing]
+      tr: [Çin, Pekin]
+      nl: [Chinese, China, Peking]
+      ro: [chinezești, chinezesc, China, Beijing]
+      pl: [chińsk*, Chiny, Chin, Chinach, Pekin]
+      fa: [چینی, چین, پکن]
+      hi: [चीन]
+      th: [จีน]
+    avoid:
+      all: [Trump, Washington, USTR]
+      en: [US, U.S., United States, American]
+      es: [Estados Unidos, EE.UU., EEUU, estadounidense*]
+      fr: [États-Unis, Etats-Unis, américain*]
+      pt: [Estados Unidos, EUA, norte-american*]
+      it: [Stati Uniti, USA, american*]
+      de: [USA, Vereinigten Staaten, US-amerikanisch*, amerikanisch*]
+      ru: [США, Соединенн* Штат*, американск*]
+      ar: [الولايات المتحدة, أمريكا, واشنطن, ترامب, الأمريكي*]
+      ko: [미국, 트럼프, 美, 무역대표부]
+      ja: [米国, アメリカ, トランプ, 米中]
+      vi: [Mỹ, Hoa Kỳ]
+      id: [Amerika Serikat, AS]
+      tr: [ABD, Amerika]
+      nl: [Verenigde Staten, VS, Amerikaans*]
       ro: [SUA, Statele Unite, american*]
       pl: [USA, Stany Zjednoczone, Stanów Zjednoczonych, amerykańsk*]
       fa: [آمریکا, ایالات متحده, ترامپ]

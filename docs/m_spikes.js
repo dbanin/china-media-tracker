@@ -301,7 +301,8 @@
     var row = doc.querySelector ? doc.querySelector('#bars .bar-row[data-iso="' + String(iso).replace(/[^A-Za-z0-9:_-]/g, "") + '"]') : null;
     if (row && typeof row.click === "function") { row.click(); done.country = true; }
     var card = doc.getElementById ? doc.getElementById("map-card") : null;
-    if (card && card.scrollIntoView) card.scrollIntoView({behavior: "smooth", block: "start"});
+    var still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (card && card.scrollIntoView) card.scrollIntoView({behavior: still ? "auto" : "smooth", block: "start"});
     return done;
   }
 

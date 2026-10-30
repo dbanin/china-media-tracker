@@ -82,9 +82,10 @@ def test_the_new_themes_are_read_in_the_body_and_the_summary_too():
 
 
 def test_the_version_bump():
-    assert themes.version() == "2026.10.1"
-    last = themes.changes()[-1]
-    assert last["version"] == "2026.10.1" and last["date"] == "2026-10-28" and last["added"] == NEW
+    # 2026.10.2 (2026-10-29) corrected the three themes' terms; tests/test_themes_2026_10_29.py covers it.
+    assert themes.version() == "2026.10.2"
+    added = [c for c in themes.changes() if c["version"] == "2026.10.1"][0]
+    assert added["date"] == "2026-10-28" and added["added"] == NEW
     ids = [c["id"] for c in themes.catalog()]
     assert ids[-4:] == NEW + ["other"]
     assert themes.cross_themes() == NEW
@@ -124,10 +125,11 @@ def test_a_version_retag_stops_at_the_deadline_and_resumes_newest_first(tmp_path
     stats = {}
     assert themes.ensure(conn, body_deadline=time.monotonic() - 1, stats=stats) == 1
     assert stats["version_retags_left"] == 2 and stats["complete"] is False
-    assert json.loads(store.get_article(conn, fresh)["themes"])["v"] == "2026.10.1"
+    assert json.loads(store.get_article(conn, fresh)["themes"])["v"] == themes.version()
     assert themes.themes_of(store.get_article(conn, old_id)["themes"]) == ["other"], "the older tag counts as it stands"
     p = themes.progress(conn)
-    assert p == {"version": "2026.10.1", "since": "2026-10-28", "added": NEW, "relevant": 3, "current": 1, "complete": False}
+    assert p == {"version": "2026.10.2", "since": "2026-10-29", "added": [], "changed": ["overcapacity", "eu_china_trade", "bri_withdrawal"],
+                 "relevant": 3, "current": 1, "complete": False}
     stats = {}
     assert themes.ensure(conn, stats=stats) == 2 and stats["retagged_version"] == 2 and stats["complete"] is True
     assert "overcapacity" in themes.themes_of(store.get_article(conn, old_id)["themes"])
@@ -143,12 +145,12 @@ def test_the_crossing_counts_china_coverage_per_outlet(tmp_path, monkeypatch):
     _article(conn, "https://x.test/b", "EU tariffs on Chinese electric vehicles and overcapacity", cat="C")
     _article(conn, "https://x.test/c", "Summit in Lima", cat="B")
     _article(conn, "https://x.test/d", "Overcapacity, but not about China", cat="not_relevant")   # not China coverage
-    _article(conn, "https://x.test/e", "Panama left the Belt and Road", status="awaiting_llm")     # a candidate counts
+    _article(conn, "https://x.test/e", "Panama left the Belt and Road", status="awaiting_llm")     # no category: not counted
     _article(conn, "https://x.test/f", "Overcapacity at the other outlet", outlet="o2", cat="A")
     themes.ensure(conn)
     cross = themes.cross_counts(export.article_rows(conn))
-    assert cross["o1"] == {"china": 4, "A": 1, "cur": 4,
-                           "t": {"bri_withdrawal": [1, 0], "overcapacity": [2, 1], "eu_china_trade": [1, 0]}}
+    assert cross["o1"] == {"china": 3, "A": 1, "cur": 3,
+                           "t": {"bri_withdrawal": [0, 0], "overcapacity": [2, 1], "eu_china_trade": [1, 0]}}
     assert cross["o2"]["t"]["overcapacity"] == [1, 1]
     outlets = [{"id": "o1", "name": "One", "country": "ITA", "language": "en", "tier": "national", "active": True},
                {"id": "o3", "name": "Three", "country": "ITA", "language": "en", "tier": "national", "active": True}]

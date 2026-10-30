@@ -13,7 +13,8 @@
   "use strict";
   var ID = "syndication";
   var WORDING = "sources verified on 2026-10-28, not hand coded";   /* fallback for data.verification.wording */
-  var VERIFY_TAGS = {verified: "source checked", source_moved: "source moved, new page checked", unverified: "source not verified"};
+  var VERIFY_TAGS = {verified: "source checked", source_moved: "source moved, new page checked", unverified: "source not verified",
+                     unchecked: "source not checked yet"};
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
                 "October", "November", "December"];
 
@@ -37,7 +38,30 @@
   function safeUrl(u) { return /^https:\/\/[^\s"'<>]+$/.test(String(u || "")) ? String(u) : ""; }
   function link(url, text) {
     var u = safeUrl(url);
-    return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(text || u) + '</a>' : esc(text || "");
+    return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(text || u) +
+      '<span class="syn-sr"> (opens in a new tab)</span></a>' : esc(text || "");
+  }
+
+  /* Entries that are one agreement: the same source page, partner, kind and date (a deal that covers
+     several monitored outlets is listed once for each). */
+  function agreementCount(timeline) {
+    var seen = {};
+    (timeline || []).forEach(function (e) {
+      var src = (e.source && e.source.url) || e.id;
+      seen[[src, e.partner_label || e.partner, e.kind, e.signed_on].join("|")] = true;
+    });
+    return Object.keys(seen).length;
+  }
+
+  /* "Most deals (47 of the 51 entries) were signed before ..." only above half; otherwise the count. */
+  function predateLine(data) {
+    var c = data.counts || {}, n = (data.timeline || []).length, p = c.predates_collection || 0;
+    var start = esc(fmtDate(data.collection_start));
+    if (!n || !p) return "";
+    if (2 * p > n) return 'Most deals were signed before collection began on ' + start + ' (' + esc(String(p)) + ' of the ' +
+      esc(String(n)) + ' entries), so they appear on the timeline only, with no comparison.';
+    return esc(String(p)) + ' of the ' + esc(String(n)) + ' entries were signed before collection began on ' + start +
+      ' and appear on the timeline only, with no comparison.';
   }
   function outletLabel(e, api) {
     var c = e.country && api && typeof api.countryName === "function" ? api.countryName(e.country) : e.country;
@@ -53,8 +77,8 @@
     if (!e.monitored) tags.push("outlet not monitored");
     if (e.ended_on) tags.push("ended " + fmtDate(e.ended_on));
     if (e.effective_from) tags.push("in force from " + fmtDate(e.effective_from));
-    var v = e.verification || {};
-    if (VERIFY_TAGS[v.status]) tags.push(VERIFY_TAGS[v.status] + (v.status !== "unverified" && v.checked_on ? " " + fmtDate(v.checked_on) : ""));
+    var v = e.verification || {status: "unchecked"};
+    if (VERIFY_TAGS[v.status]) tags.push(VERIFY_TAGS[v.status] + (v.status !== "unverified" && v.status !== "unchecked" && v.checked_on ? " " + fmtDate(v.checked_on) : ""));
     var links = (e.links && e.links.length ? e.links : [{url: src.url, label: src.title, publisher: src.publisher}]).map(function (l) {
       return link(l.url, l.label || l.url) + (l.publisher ? ' <span class="syn-pub">(' + esc(l.publisher) + ')</span>' : "");
     }).join("; ");
@@ -67,6 +91,17 @@
       '<div class="syn-src">Source: ' + links + '</div></li>';
   }
 
+  /* The newest SHOWN entries, then the rest behind a native disclosure, so 51 deals do not fill a phone screen. */
+  var SHOWN = 6;
+  function timelineHtml(timeline, api) {
+    var head = timeline.slice(0, SHOWN), rest = timeline.slice(SHOWN);
+    var html = '<ol class="syn-timeline">' + head.map(function (e) { return entryHtml(e, api); }).join("") + '</ol>';
+    if (rest.length) html += '<details class="syn-more"><summary>Show the other ' + esc(String(rest.length)) +
+      (rest.length === 1 ? ' entry' : ' entries') + '</summary><ol class="syn-timeline" start="' + (SHOWN + 1) + '">' +
+      rest.map(function (e) { return entryHtml(e, api); }).join("") + '</ol></details>';
+    return html;
+  }
+
   function sideCell(s) {
     if (!s) return '<td class="num">n/a</td>';
     if (!s.sufficient) return '<td class="num">' + esc(String(s.china || 0)) + ' China articles, too few</td>';
@@ -74,12 +109,37 @@
     return '<td class="num">' + pct(s.share) + ci + '<br><span class="syn-n">' + esc(String(s.state_origin)) + " of " + esc(String(s.china)) + '</span></td>';
   }
 
+  /* What else changed in a window. Several ruleset or gate changes read as one line each (how many, first
+     and last day); the full list stays one click away. */
+  function confounderHtml(list) {
+    list = list || [];
+    if (!list.length) return "";
+    var groups = {ruleset_change: [], gate_change: []}, rest = [];
+    list.forEach(function (x) { if (groups[x.type]) groups[x.type].push(x); else rest.push(x); });
+    var lines = [];
+    [["ruleset_change", "signature ruleset"], ["gate_change", "relevance gate"]].forEach(function (g) {
+      var xs = groups[g[0]];
+      if (xs.length === 1) lines.push(esc(xs[0].text));
+      else if (xs.length > 1) {
+        var days = xs.map(function (x) { return String(x.date || ""); }).sort();
+        lines.push("the " + g[1] + " changed " + xs.length + " times inside the window, from " + esc(fmtDate(days[0])) +
+          " to " + esc(fmtDate(days[days.length - 1])));
+      }
+    });
+    rest.forEach(function (x) { lines.push(esc(x.text)); });
+    var html = lines.join("; ");
+    if (lines.length < list.length) {
+      html += '<details class="syn-all"><summary>All ' + list.length + '</summary><ul>' +
+        list.map(function (x) { return "<li>" + esc(x.text) + "</li>"; }).join("") + '</ul></details>';
+    }
+    return html;
+  }
+
   /* The before and after table, or a line saying why there is none. */
   function compareHtml(block, data, api) {
     var rows = data.comparisons || [];
     var head = '<h3>Before and after' + M.provisionalSuffix(block) + '</h3>';
-    var predate = 'Most deals were signed before collection began on ' + esc(fmtDate(data.collection_start)) +
-      ', so they appear on the timeline only, with no comparison.';
+    var predate = predateLine(data);
     var intro = '<p class="m-empty">State origin share of each outlet\'s China coverage over the ' + esc(String(data.window_days || 28)) +
       ' days before and after a deal. It shows timing, not cause. ' + predate + '</p>';
     if (!rows.length) {
@@ -96,7 +156,7 @@
     var body = rows.map(function (c) {
       var change = c.sufficient ? pts(c.difference) + (c.difference_ci ? ' <span class="syn-ci">(' + pts(c.difference_ci[0]) + " to " + pts(c.difference_ci[1]) + ')</span>' : "")
                                 : esc(c.reason || "too few articles");
-      var conf = (c.confounders || []).map(function (x) { return esc(x.text); }).join("; ");
+      var conf = confounderHtml(c.confounders);
       return '<tr' + (c.confounded ? ' class="syn-confounded"' : "") + '><td>' + outletLabel(c, api) + '</td><td>' + esc(fmtDate(c.signed_on)) + '</td>' +
         sideCell(c.before) + sideCell(c.after) + '<td class="num">' + change + '</td><td>' + (conf || "none found") + '</td></tr>';
     }).join("");
@@ -114,21 +174,29 @@
       return;
     }
     var counts = data.counts || {};
-    var lead = '<p class="m-empty">' + esc(String(data.timeline.length)) + ' agreements, each with the public page that states it' +
-      (counts.predates_collection ? '; ' + esc(String(counts.predates_collection)) + ' were signed before collection began on ' + esc(fmtDate(data.collection_start)) + ' and appear here only' : '') + '.</p>';
+    var n = data.timeline.length, deals = agreementCount(data.timeline);
+    var lead = '<p class="m-empty">' + esc(String(n)) + (n === 1 ? ' entry' : ' entries') +
+      (deals !== n ? ' for ' + esc(String(deals)) + ' agreements (an agreement that covers several outlets is listed once for each)' : '') +
+      ', each with the public page that states it' +
+      (counts.predates_collection ? '; ' + esc(String(counts.predates_collection)) + ' of the ' + esc(String(n)) + ' were signed before collection began on ' + esc(fmtDate(data.collection_start)) + ' and appear here only' : '') + '.</p>';
     var wording = (data.verification && data.verification.wording) || WORDING;
-    var verified = M.statusOf(block) === "provisional"
-      ? '<p class="m-empty syn-verified">Provisional: ' + esc(wording) + '.' +
+    /* A side file from before the source checks has no unchecked count: count the entries without a check. */
+    var unchecked = typeof counts.unchecked === "number" ? counts.unchecked
+      : data.timeline.filter(function (e) { return !e.verification || !VERIFY_TAGS[e.verification.status] || e.verification.status === "unchecked"; }).length;
+    var verified = M.statusOf(block) !== "provisional" ? ''
+      : unchecked >= n ? '<p class="m-empty syn-verified">Provisional: not hand coded, and the sources have not been checked yet.</p>'
+      : '<p class="m-empty syn-verified">Provisional: ' + esc(wording) + '.' +
         (counts.source_moved ? ' ' + esc(String(counts.source_moved)) + ' source' + (counts.source_moved === 1 ? ' has' : 's have') + ' moved and now cite' + (counts.source_moved === 1 ? 's' : '') + ' a page that states the deal.' : '') +
-        (counts.unverified ? ' ' + esc(String(counts.unverified)) + ' could not be verified and ' + (counts.unverified === 1 ? 'is' : 'are') + ' marked.' : '') + '</p>'
-      : '';
+        (counts.unverified ? ' ' + esc(String(counts.unverified)) + ' could not be verified and ' + (counts.unverified === 1 ? 'is' : 'are') + ' marked.' : '') +
+        (unchecked ? ' ' + esc(String(unchecked)) + (unchecked === 1 ? ' entry has' : ' entries have') + ' not been checked yet and ' + (unchecked === 1 ? 'is' : 'are') + ' marked.' : '') + '</p>';
     slot.innerHTML =
       '<div class="m-panel syn-panel"><h3>Timeline ' + M.statusChip(block) + '</h3>' + verified + lead +
-      '<ol class="syn-timeline">' + data.timeline.map(function (e) { return entryHtml(e, api); }).join("") + '</ol></div>' +
+      timelineHtml(data.timeline, api) + '</div>' +
       '<div class="m-panel syn-panel">' + compareHtml(block, data, api) + '</div>';
   }
 
   var spec = {render: render};
   if (M) M.register(ID, spec);
-  return {ID: ID, WORDING: WORDING, render: render, fmtDate: fmtDate, safeUrl: safeUrl, pts: pts};
+  return {ID: ID, WORDING: WORDING, SHOWN: SHOWN, render: render, timelineHtml: timelineHtml, fmtDate: fmtDate, safeUrl: safeUrl, pts: pts, agreementCount: agreementCount,
+          confounderHtml: confounderHtml};
 }));

@@ -47,7 +47,9 @@
 #   peoples_daily   the "Photos" and "Related Stories" link list at the tail and the copyright line.
 #   china_daily     the "Most Popular" link list and footer at the tail, the share and menu lines.
 #   xinhua_fr       the two lines of the French newsroom's contact box under the article.
-#   The CGTN cleaner also drops a video page's clip duration, section label and "CGTN Now" line.
+#   The CGTN cleaner also drops a video page's clip duration, section label and "CGTN Now" line, and
+#   (since 2026-10-29) a lone ", Updated ..." time line, the newsletter box and a line repeating the one
+#   before it (CGTN Africa prints each photo caption twice).
 #
 # Left out: Xinhua Italian (no such edition: italian.news.cn, italian.xinhuanet.com and it.news.cn do not
 # resolve, and Xinhua's language menu has no Italian; Italpress's Xinhua copy is translated from Xinhua
@@ -278,8 +280,9 @@
   feeds:
     # Xinhua English's Africa channel, its own address space (/africa/YYYYMMDD/<32 hex>/c.html): none of its
     # stories was on the lists ref_xinhua_en reads. Same list markup as the other Xinhua list pages.
-    - {url: "https://english.news.cn/africa/latest/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
-    - {url: "https://english.news.cn/africa/china_africa/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
+    # link_pattern keeps the lists on their own host (the list parser takes any address in the Xinhua shape).
+    - {url: "https://english.news.cn/africa/latest/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://english\\.news\\.cn/(africa/)?\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://english.news.cn/africa/china_africa/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://english\\.news\\.cn/(africa/)?\\d{8}/[0-9a-f]{32}/c\\.html$"}
   news_sitemaps: []
   credits: [xinhua_, source_xinhua]
   collector: hosted
@@ -300,7 +303,8 @@
   feeds:
     # Xinhua French's Afrique channel. Its stories are Xinhua French wire stories (/YYYYMMDD/<32 hex>/c.html);
     # no other French Xinhua edition is read, so French copies can now pair with a French original.
-    - {url: "https://french.news.cn/afrique/index.htm", type: xinhua_list, time_rule: bjt_url_checked}
+    # link_pattern keeps the list on its own host: a link to another Xinhua edition would be filed as French.
+    - {url: "https://french.news.cn/afrique/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://french\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
   news_sitemaps: []
   credits: [xinhua_, source_xinhua]
   collector: hosted

@@ -109,7 +109,9 @@ def test_not_about_china_matches_the_codebook():
 
 
 def test_over_claims_are_softened():
-    assert "the world's newspapers" not in INDEX and "about 1,700 monitored outlets" in INDEX
+    assert "the world's newspapers" not in INDEX and "about 1,700" not in INDEX
+    # The header's count is meta.outlets_active, filled by app.js (renderHeaderCount); the static fallback stays true.
+    assert '<span id="sub-outlets">about 1,600</span> monitored outlets' in INDEX and "function renderHeaderCount" in APP
     assert "Text placed by the Chinese state" not in APP and "run unaltered" not in APP
     assert "Every item the monitored feeds and wires published" not in APP
     assert "Every item the tracker saw in the monitored feeds and wires since" in APP

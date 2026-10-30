@@ -123,7 +123,7 @@ def test_contrast_tokens():
     css = (DOCS / "style.css").read_text(encoding="utf-8")
     m = re.search(r"--ash-faint:\s*#([0-9a-fA-F]{6})", css)
     assert m and int(m.group(1)[:2], 16) >= 0x8d, "--ash-faint at least #8d877c"
-    assert "d3.lab(color).l > 55" in _app()
+    assert "contrastOf(color, best) >= 4.5" in _app(), "shaded cells pick ink by WCAG contrast, white where neither ink reaches 4.5:1"
 
 
 def test_new_human_study_states_have_their_own_words():

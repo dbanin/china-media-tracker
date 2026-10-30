@@ -30641,11 +30641,11 @@
   notes: Feed returns HTTP 403 to the identified crawler. Kept so the block is visible; contact the outlet before retrying.
   foreign_state_stake:
   - state: CHN
-    holder: Interacom Investment Holdings, the vehicle of China International Television Corporation (CITVC) and the China-Africa Development Fund (CADFund)
+    holder: Interacom Holdings, the Chinese consortium of China International Television Corporation (CITVC) and the China-Africa Development Fund (CADF)
     holder_type:
     - state_media_group
     - state_fund
-    state_link: CITVC is wholly owned by China Central Television (CCTV), the state broadcaster, and Freedom House calls it a state media company; Freedom House calls the China-Africa Development Fund a state policy bank, and the Mail & Guardian calls it state owned.
+    state_link: Freedom House calls CITVC a state media company and the China-Africa Development Fund a state policy bank; the Mail & Guardian calls both state owned, and amaBhungane calls CITVC state owned.
     held_in: Independent News & Media South Africa (Independent Media), which owned IOL when the stake was bought
     share_percent: 20
     from: '2013-08'
@@ -30656,7 +30656,7 @@
     source_title: 'Iqbal Survé threatens to ''expose'' M&G, Mail & Guardian, 23 August 2013'
     status_source_url: 'https://www.dailymaverick.co.za/article/2026-07-21-sekunjalo-pulls-plug-on-independent-media-amid-murky-r52bn-investment-claim/'
     status_source_title: Sekunjalo pulls plug on Independent Media amid murky R5.2bn investment claim, Daily Maverick, 22 July 2026
-    note: 'In August 2013 Sekunjalo Independent Media bought 55 percent of Independent News & Media South Africa, the Public Investment Corporation 25 percent and two Chinese state owned companies, CADFund and CITVC, 20 percent (Mail & Guardian). amaBhungane named Interacom as the 20 percent shareholder in 2019 (https://www.dailymaverick.co.za/article/2019-11-14-pic-wants-to-investigate-sekunjalo-directors-after-liquidation/), and Daily Maverick still described Interacom as a minority shareholder backed by Chinese investors in July 2026; no source found reports a sale. Disputed for IOL itself: amaBhungane reported in 2018 that Independent transferred IOL to Sagarmatha Technologies, majority owned by Iqbal Survé''s family trust (https://amabhungane.org/iqbal-surves-mythical-beast/), and IOL says it has been a standalone company with its own ownership structure since 2014 (Daily Maverick, 7 June 2026, https://www.dailymaverick.co.za/article/2026-06-07-iols-r200m-expansion-plan-marks-another-turn-in-the-sekunjalo-media-saga/), while Freedom House still described IOL as Independent Media''s digital version in 2022 (https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022). No source found documents a Chinese state stake in the company that owns IOL now.'
+    note: 'In August 2013 Sekunjalo Independent Media bought 55 percent of Independent News & Media South Africa, the Public Investment Corporation 25 percent and two Chinese state owned companies, CADF and CITVC, 20 percent (Mail & Guardian). amaBhungane named Interacom Holdings, made up of CADF and CITVC, as the 20 percent shareholder in 2019 (https://www.dailymaverick.co.za/article/2019-11-14-pic-wants-to-investigate-sekunjalo-directors-after-liquidation/), and in July 2026 Daily Maverick still described Interacom as a minority shareholder backed by Chinese investors; no source found reports a sale. Disputed for IOL itself: amaBhungane reported in 2018 that Independent transferred Independent Online to Sagarmatha Technologies, majority owned by Iqbal Survé''s family trust, in which Independent held 4.1 percent after a share issue on 31 December 2016 (https://amabhungane.org/iqbal-surves-mythical-beast/); IOL says it has operated as an independent digital publisher, with its own ownership structure, since 2014 (Daily Maverick, 7 June 2026, https://www.dailymaverick.co.za/article/2026-06-07-iols-r200m-expansion-plan-marks-another-turn-in-the-sekunjalo-media-saga/); Freedom House still described IOL as Independent Media''s digital version in 2022 (https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022). No source found gives Independent''s holding in Sagarmatha after 2016 or documents a Chinese state stake in the company that owns IOL now. The record is about ownership; it is not a finding that the shareholders direct what IOL publishes.'
   active: false
   inactive_reason: feed returned HTTP 403 to identified crawler on 2026-09-02
   inactive_since: '2026-09-02'
@@ -30680,11 +30680,11 @@
   ownership_source: https://mediabiasfactcheck.com/independent-online-iol-bias/
   foreign_state_stake:
   - state: CHN
-    holder: Interacom Investment Holdings, the vehicle of China International Television Corporation (CITVC) and the China-Africa Development Fund (CADFund)
+    holder: Interacom Holdings, the Chinese consortium of China International Television Corporation (CITVC) and the China-Africa Development Fund (CADF)
     holder_type:
     - state_media_group
     - state_fund
-    state_link: CITVC is wholly owned by China Central Television (CCTV), the state broadcaster, and Freedom House calls it a state media company; Freedom House calls the China-Africa Development Fund a state policy bank, and the Mail & Guardian calls it state owned.
+    state_link: Freedom House calls CITVC a state media company and the China-Africa Development Fund a state policy bank; the Mail & Guardian calls both state owned, and amaBhungane calls CITVC state owned.
     held_in: Independent News & Media South Africa (Independent Media), which owned IOL when the stake was bought
     share_percent: 20
     from: '2013-08'
@@ -30695,7 +30695,7 @@
     source_title: 'Iqbal Survé threatens to ''expose'' M&G, Mail & Guardian, 23 August 2013'
     status_source_url: 'https://www.dailymaverick.co.za/article/2026-07-21-sekunjalo-pulls-plug-on-independent-media-amid-murky-r52bn-investment-claim/'
     status_source_title: Sekunjalo pulls plug on Independent Media amid murky R5.2bn investment claim, Daily Maverick, 22 July 2026
-    note: 'In August 2013 Sekunjalo Independent Media bought 55 percent of Independent News & Media South Africa, the Public Investment Corporation 25 percent and two Chinese state owned companies, CADFund and CITVC, 20 percent (Mail & Guardian). amaBhungane named Interacom as the 20 percent shareholder in 2019 (https://www.dailymaverick.co.za/article/2019-11-14-pic-wants-to-investigate-sekunjalo-directors-after-liquidation/), and Daily Maverick still described Interacom as a minority shareholder backed by Chinese investors in July 2026; no source found reports a sale. Disputed for IOL itself: amaBhungane reported in 2018 that Independent transferred IOL to Sagarmatha Technologies, majority owned by Iqbal Survé''s family trust (https://amabhungane.org/iqbal-surves-mythical-beast/), and IOL says it has been a standalone company with its own ownership structure since 2014 (Daily Maverick, 7 June 2026, https://www.dailymaverick.co.za/article/2026-06-07-iols-r200m-expansion-plan-marks-another-turn-in-the-sekunjalo-media-saga/), while Freedom House still described IOL as Independent Media''s digital version in 2022 (https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022). No source found documents a Chinese state stake in the company that owns IOL now.'
+    note: 'In August 2013 Sekunjalo Independent Media bought 55 percent of Independent News & Media South Africa, the Public Investment Corporation 25 percent and two Chinese state owned companies, CADF and CITVC, 20 percent (Mail & Guardian). amaBhungane named Interacom Holdings, made up of CADF and CITVC, as the 20 percent shareholder in 2019 (https://www.dailymaverick.co.za/article/2019-11-14-pic-wants-to-investigate-sekunjalo-directors-after-liquidation/), and in July 2026 Daily Maverick still described Interacom as a minority shareholder backed by Chinese investors; no source found reports a sale. Disputed for IOL itself: amaBhungane reported in 2018 that Independent transferred Independent Online to Sagarmatha Technologies, majority owned by Iqbal Survé''s family trust, in which Independent held 4.1 percent after a share issue on 31 December 2016 (https://amabhungane.org/iqbal-surves-mythical-beast/); IOL says it has operated as an independent digital publisher, with its own ownership structure, since 2014 (Daily Maverick, 7 June 2026, https://www.dailymaverick.co.za/article/2026-06-07-iols-r200m-expansion-plan-marks-another-turn-in-the-sekunjalo-media-saga/); Freedom House still described IOL as Independent Media''s digital version in 2022 (https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022). No source found gives Independent''s holding in Sagarmatha after 2016 or documents a Chinese state stake in the company that owns IOL now. The record is about ownership; it is not a finding that the shareholders direct what IOL publishes.'
   active: true
 - id: za_maroelamedia
   name: Maroela Media
@@ -37208,10 +37208,12 @@
   notes: Lagos weekly and news site. Freedom House (Beijing's Global Media Influence 2022, Nigeria) quotes its editor saying Xinhua content supplied through the News Agency of Nigeria was becoming more
     useful to the outlet. Added 2026-10-28 for China coverage, not reach. Verified 2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current
     items) and two sample articles read without a paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://freedomhouse.org/country/nigeria/beijings-global-media-influence/2022'
+  selection_basis: 'selected because a news editor at the outlet told Freedom House in January 2022 that Xinhua content supplied through the News Agency of Nigeria was becoming useful, a view of that content rather than documented pro-China content or China coverage, not reach; evidence: https://freedomhouse.org/country/nigeria/beijings-global-media-influence/2022'
   collector: hosted
   collector_since: '2026-10-28'
-  active: true
+  active: false
+  inactive_reason: 'taken out of monitoring on 2026-10-29 because its evidence does not hold: the evidence, a news editor''s interview with Freedom House (2022), documents a view of the Xinhua content the News Agency of Nigeria supplies, not pro-China content or China coverage the outlet published; its feed carried no China item in a live check on 2026-10-29 (0 of 10), and the two China articles its own site search lists for Xinhua since 2025 are AFP and South China Morning Post copy that mention Xinhua'
+  inactive_since: '2026-10-29'
 - id: ng_authority
   name: The Authority
   country: NGA
@@ -37222,7 +37224,7 @@
   notes: Abuja daily. Freedom House (Beijing's Global Media Influence 2022, Nigeria) reports it republished a People's Daily Zhong Sheng editorial with only a small disclaimer and no mention of Communist
     Party ownership. Added 2026-10-28 for China coverage, not reach. Verified 2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current items)
     and two sample articles read without a paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://freedomhouse.org/country/nigeria/beijings-global-media-influence/2022'
+  selection_basis: 'selected for documented pro-China content: it republished a People''s Daily Zhong Sheng commentary in May 2021 with only a small disclaimer, not reach; evidence: https://freedomhouse.org/country/nigeria/beijings-global-media-influence/2022'
   collector: hosted
   collector_since: '2026-10-28'
   active: true
@@ -37236,7 +37238,7 @@
   notes: Online news site. China Digital Times (7 July 2022) found a staff reporter article copied word for word from CGTN, Xinhua sourced items and a long Chinese embassy interview. Added 2026-10-28 for
     China coverage, not reach. Verified 2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current items) and two sample articles read without
     a paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://chinadigitaltimes.net/?p=241660'
+  selection_basis: 'selected for documented Chinese state media content (China Digital Times, July 2022), not reach; evidence: https://chinadigitaltimes.net/?p=241660'
   collector: hosted
   collector_since: '2026-10-28'
   active: true
@@ -37249,7 +37251,7 @@
   tier: broadcaster
   notes: State broadcaster. Lingua Sinica (China Media Project) records media cooperation with China Daily and placement of PRC party-state content. Added 2026-10-28 for China coverage, not reach. Verified
     2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current items) and two sample articles read without a paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://lingua-sinica.org/dispatch/uganda-broadcasting-corporation/'
+  selection_basis: 'selected for documented media cooperation with Chinese state media, China Daily among them (Lingua Sinica, China Media Project), not reach; evidence: https://lingua-sinica.org/dispatch/uganda-broadcasting-corporation/'
   collector: hosted
   collector_since: '2026-10-28'
   active: true
@@ -37263,7 +37265,7 @@
   notes: National news agency (Portuguese service). Signed a news exchange agreement with Xinhua and a memorandum with China Media Group in April 2026, announced on its own site. Added 2026-10-28 for China
     coverage, not reach. Verified 2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current items) and two sample articles read without a
     paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://aimnews.org/2026/04/23/aim-assina-acordos-de-cooperacao-com-xinhua-e-china-media-group/'
+  selection_basis: 'selected for its news exchange agreement with Xinhua and memorandum with China Media Group, signed in April 2026, not reach; evidence: https://aimnews.org/2026/04/23/aim-assina-acordos-de-cooperacao-com-xinhua-e-china-media-group/'
   collector: hosted
   collector_since: '2026-10-28'
   active: true
@@ -37274,11 +37276,28 @@
   feeds:
   - https://isolezwe.co.za/rss
   tier: regional
-  notes: isiZulu daily of Independent Media (KwaZulu-Natal). Freedom House (Beijing's Global Media Influence 2022, South Africa) names it among the Independent Media titles whose shareholders include Chinese
-    state owned companies and whose syndication service republished Xinhua. Independent Media's IOL (za_iol) is monitored under reach; no network is recorded because za_iol carries none. Added 2026-10-28
+  notes: isiZulu daily (KwaZulu-Natal), an Independent Media title until July 2026 and published by National Media Group since August 2026 (Daily Maverick, 5 August 2026). Freedom House (Beijing's Global Media Influence 2022, South Africa) names it among the Independent Media titles whose shareholders include Chinese
+    state owned companies and whose syndication service republished Xinhua. IOL (za_iol) is monitored under reach; no network is recorded because za_iol carries none. Added 2026-10-28
     for China coverage, not reach. Verified 2026-10-28 with pipeline/validate_sources.check_outlet (tracker user agent, robots.txt allows the feed, 10 or more current items) and two sample articles read
     without a paywall.
-  selection_basis: 'selected for China coverage or documented pro-China content, not reach; evidence: https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022'
+  selection_basis: 'selected for its former publisher''s documented pro-China content: Freedom House (2022) reports that the titles of Independent Media, which published Isolezwe until July 2026, regularly published Chinese state perspectives, not reach; evidence: https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022'
+  foreign_state_stake:
+  - state: CHN
+    holder: Interacom Holdings, the Chinese consortium of China International Television Corporation (CITVC) and the China-Africa Development Fund (CADF)
+    holder_type:
+    - state_media_group
+    - state_fund
+    state_link: Freedom House calls CITVC a state media company and the China-Africa Development Fund a state policy bank; the Mail & Guardian calls both state owned, and amaBhungane calls CITVC state owned.
+    held_in: Independent News & Media South Africa (Independent Media), which published Isolezwe until the end of July 2026
+    share_percent: 20
+    from: '2013-08'
+    to: '2026-07'
+    status: ended
+    source_url: 'https://freedomhouse.org/country/south-africa/beijings-global-media-influence/2022'
+    source_title: 'South Africa: Beijing''s Global Media Influence 2022 Country Report, Freedom House'
+    status_source_url: 'https://www.dailymaverick.co.za/article/2026-08-04-different-name-same-network-the-truth-about-independent-medias-new-newspaper-publisher/'
+    status_source_title: 'Different name, same network: the truth about Independent Media''s ''new'' newspaper publisher, Daily Maverick, 5 August 2026'
+    note: 'Freedom House (2022) names Isolezwe among the papers Independent Media publishes and reports that a Chinese consortium whose shareholders include CITVC and CADF acquired 20 percent of Independent Media in August 2013; the Mail & Guardian reported the same purchase (https://mg.co.za/article/2013-08-23-00-iqbal-surve-threatens-to-expose-mg) and amaBhungane named Interacom Holdings as the shareholder in 2019 (https://www.dailymaverick.co.za/article/2019-11-14-pic-wants-to-investigate-sekunjalo-directors-after-liquidation/). Sekunjalo said Independent Media''s licence to use its mastheads would end on 31 July 2026 (Daily Maverick, 22 July 2026, https://www.dailymaverick.co.za/article/2026-07-21-sekunjalo-pulls-plug-on-independent-media-amid-murky-r52bn-investment-claim/), and National Media Group, unveiled on 31 July 2026, says it publishes Isolezwe and the other former Independent Media titles under licences from Sagarmatha Technologies (Daily Maverick, 5 August 2026). Ended for Isolezwe, not for Independent Media: Daily Maverick still described Interacom as a minority shareholder of Independent Media in July 2026, and no source found reports a sale. National Media Group''s ownership is undisclosed; Sekunjalo says it has a financial stake in it, and no source found documents a Chinese state stake in it. amaBhungane reported in 2018 that Independent held 4.1 percent of Sagarmatha after a share issue on 31 December 2016 (https://amabhungane.org/iqbal-surves-mythical-beast/); no later figure was found. The record is about ownership; it is not a finding that the shareholders directed what Isolezwe published.'
   collector: hosted
   collector_since: '2026-10-28'
   active: true

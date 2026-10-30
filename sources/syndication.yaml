@@ -7,7 +7,9 @@
 #   id                 a unique slug
 #   outlet_id          an id in sources/outlets.yaml, or unmonitored: true with outlet_name
 #   partner            xinhua, cgtn, china_daily, global_times, peoples_daily, cri, cns, cmg or other
-#                      (other: provincial or municipal state media, or another central body, named in notes)
+#                      (other: provincial or municipal state media, or another central body)
+#   partner_name       the body that signed, as the timeline names it: required for partner other,
+#                      optional otherwise (CCTV before China Media Group, CCTV+)
 #   kind               content_exchange, news_exchange, mou, cooperation_agreement, supplement,
 #                      paid_placement, joint_venture, training_partnership or other
 #   signed_on          YYYY-MM-DD, YYYY-MM or YYYY, with precision day, month or year to match
@@ -44,6 +46,7 @@ entries:
   - id: it_italpress_cctvplus_2025
     outlet_id: it_italpress
     partner: cmg
+    partner_name: CCTV+ (China Media Group)
     kind: content_exchange
     signed_on: "2025-05"
     precision: month
@@ -140,6 +143,7 @@ entries:
   - id: it_sole24ore_economicdaily_2019
     outlet_id: it_sole24ore
     partner: other
+    partner_name: Economic Daily
     kind: supplement
     signed_on: "2019-03-20"
     precision: day
@@ -197,6 +201,7 @@ entries:
   - id: id_antara_nanfang_2026
     outlet_id: id_antara
     partner: other
+    partner_name: Nanfang Media Group
     kind: mou
     signed_on: "2026-09-05"
     precision: day
@@ -216,6 +221,7 @@ entries:
   - id: hk_scmp_nanfang_2026
     outlet_id: hk_scmp
     partner: other
+    partner_name: Nanfang Media Group
     kind: mou
     signed_on: "2026-09-05"
     precision: day
@@ -235,6 +241,7 @@ entries:
   - id: hk_rthk_szmg_2026
     outlet_id: hk_rthk
     partner: other
+    partner_name: Shenzhen Media Group
     kind: mou
     signed_on: "2026-10-09"
     precision: day
@@ -260,10 +267,10 @@ entries:
     source_url: https://www.tehrantimes.com/news/505051/Mehr-Media-Group-signs-MoU-with-Xinhua-News-Agency
     source_title: "Mehr Media Group signs MoU with Xinhua News Agency"
     source_publisher: Tehran Times
-    source_kind: news_report
+    source_kind: primary
     accessed_on: "2026-10-13"
-    confidence: reported
-    notes: Mehr Media Group and Xinhua signed a memorandum on news exchange and media technology at the World Media Summit in Urumqi, and it also covers Mehr News English.
+    confidence: stated
+    notes: Mehr Media Group and Xinhua signed a memorandum on news exchange and media technology at the World Media Summit in Urumqi, and it also covers Mehr News English. The Tehran Times, which reported it, belongs to Mehr Media Group, so the deal is stated by a party.
     verification:
       status: verified
       checked_on: "2026-10-28"
@@ -388,6 +395,7 @@ entries:
   - id: ke_kbc_hubei_2026
     outlet_id: ke_kbc
     partner: other
+    partner_name: Hubei Media Group
     kind: cooperation_agreement
     signed_on: "2026-06-26"
     precision: day
@@ -713,6 +721,7 @@ entries:
   - id: pe_andina_cctvplus_2025
     outlet_id: pe_andina
     partner: cmg
+    partner_name: CCTV+ (China Media Group)
     kind: mou
     signed_on: "2025-06"
     precision: month
@@ -789,6 +798,7 @@ entries:
   - id: to_tbc_cctv_2006
     outlet_id: to_tbc
     partner: cmg
+    partner_name: CCTV (now part of China Media Group)
     kind: content_exchange
     signed_on: "2006-05"
     precision: month
@@ -808,6 +818,7 @@ entries:
   - id: sb_tavuli_guizhou_2026
     outlet_id: sb_tavuli
     partner: other
+    partner_name: Guizhou Today Convergent Media Group
     kind: mou
     signed_on: "2026-06-27"
     precision: day
@@ -827,7 +838,8 @@ entries:
   - id: tl_tatoli_guangxi_2025
     outlet_id: tl_tatoli
     partner: other
-    kind: cooperation_agreement
+    partner_name: Guangxi International Communication Center
+    kind: mou
     signed_on: "2025-12"
     precision: month
     source_url: https://en.tatoli.tl/?p=67036
@@ -847,8 +859,8 @@ entries:
     outlet_id: ng_nan
     partner: xinhua
     kind: mou
-    signed_on: "2019-05-09"
-    precision: day
+    signed_on: "2019-05"
+    precision: month
     source_url: https://lingua-sinica.org/?p=5764
     source_title: "NAN and Xinhua Sign Information Partnership Agreement"
     source_publisher: Lingua Sinica (China Media Project)
@@ -859,8 +871,8 @@ entries:
     verification:
       status: verified
       checked_on: "2026-10-28"
-      page_date: "2019-05-09"
-      note: "The page states that NAN signed a memorandum with Xinhua in May 2019, and its event date field gives 9 May 2019."
+      page_date: "2019-05"
+      note: "The page states that NAN signed a memorandum with Xinhua in May 2019, and its event date field gives 9 May 2019. The notes date the NAN report to 9 May, and the same site's event date field also carries 1 March 2018 for a deal its text dates only to March 2018 (au_sbs_cmg_2018), so the field does not settle the day of signing: the precision was lowered from day (2019-05-09) to month on 2026-10-29."
 
   - id: au_sbs_cmg_2018
     outlet_id: au_sbs
@@ -942,6 +954,7 @@ entries:
   - id: za_iol_cctv_2014
     outlet_id: za_iol
     partner: cmg
+    partner_name: CCTV (now part of China Media Group)
     kind: cooperation_agreement
     signed_on: "2014-12"
     precision: month
@@ -950,7 +963,7 @@ entries:
     source_publisher: Cape Times (Independent Media)
     source_kind: primary
     accessed_on: "2026-10-13"
-    confidence: reported
+    confidence: stated
     notes: Independent Media, owner of IOL, signed a partnership with CCTV in Beijing during President Zuma's state visit to build an African news platform.
     verification:
       status: verified
@@ -981,6 +994,7 @@ entries:
   - id: id_antara_en_nanfang_2026
     outlet_id: id_antara_en
     partner: other
+    partner_name: Nanfang Media Group
     kind: mou
     signed_on: "2026-09-05"
     precision: day

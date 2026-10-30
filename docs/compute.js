@@ -1107,11 +1107,34 @@
      under the current themes version: until it equals china the theme counts are partial (provisional).
      Active outlets only, without the worldwide distribution wires, in one country when iso is given. */
   var THEME_CROSS_MIN_N = 20;
+
+  /* While a themes version is still being applied to older articles (meta.themes_progress complete false),
+     the counts of the themes it added or whose terms it changed are partial on older days: an older article
+     keeps the tags of the version it was last tagged under, which may lack the theme or read it with other
+     terms. The sentence the theme counter and the leaning table show then; "" once complete or with no
+     progress record. labels: {theme id: label}. */
+  function themesRetagNote(prog, labels) {
+    if (!prog || prog.complete !== false || !prog.relevant) return "";
+    labels = labels || {};
+    var ids = [];
+    var want = (prog.added || []).concat(prog.changed || []);
+    Object.keys(labels).forEach(function (id) { if (want.indexOf(id) !== -1) ids.push(id); });   /* catalog order */
+    var names = ids.map(function (id) { return labels[id]; });
+    var list = names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + (names.length > 2 ? ", and " : " and ") + names[names.length - 1];
+    return "Themes version " + prog.version + " is still being applied to older articles, newest first: " +
+      (prog.current || 0).toLocaleString("en-US") + " of " + prog.relevant.toLocaleString("en-US") + " relevant articles carry its tags so far. " +
+      "Until it is complete an older article keeps the tags of the version it was last tagged under" +
+      (list ? ", so " + list + " " + (names.length > 1 ? "are" : "is") + " undercounted or counted with earlier terms on older days." : ".");
+  }
   function themeCross(outlets, groups, key, themeIds, opts) {
     opts = opts || {};
     var minN = opts.minN || THEME_CROSS_MIN_N, iso = opts.iso || null;
+    /* As for the share of monitored output, a group whose China coverage comes from fewer than
+       MIN_OUTLETS_FOR_OUTPUT_SHARE outlets gets no share (fewOutlets): it would describe a handful of
+       feeds, not a kind of outlet. */
+    var minOutlets = opts.minOutlets || MIN_OUTLETS_FOR_OUTPUT_SHARE;
     function blank(g) {
-      var r = {id: g[0], label: g[1], color: g[2] || null, outlets: 0, china: 0, A: 0, cur: 0, t: {}};
+      var r = {id: g[0], label: g[1], color: g[2] || null, outlets: 0, chinaOutlets: 0, china: 0, A: 0, cur: 0, t: {}};
       (themeIds || []).forEach(function (tid) { r.t[tid] = {n: 0, a: 0}; });
       return r;
     }
@@ -1127,6 +1150,7 @@
         g.outlets += 1;
         if (!x) return;
         g.china += x.china || 0; g.A += x.A || 0; g.cur += x.cur || 0;
+        if (x.china) g.chinaOutlets += 1;
         (themeIds || []).forEach(function (tid) {
           var v = (x.t || {})[tid] || [0, 0];
           g.t[tid].n += v[0] || 0; g.t[tid].a += v[1] || 0;
@@ -1135,15 +1159,16 @@
     });
     function finish(g) {
       g.complete = g.cur >= g.china;
+      g.fewOutlets = g.chinaOutlets > 0 && g.chinaOutlets < minOutlets;
       (themeIds || []).forEach(function (tid) {
         var c = g.t[tid];
-        c.share = g.china >= minN ? c.n / g.china : null;
-        c.soShare = c.n >= minN ? c.a / c.n : null;
+        c.share = g.china >= minN && !g.fewOutlets ? c.n / g.china : null;
+        c.soShare = c.n >= minN && !g.fewOutlets ? c.a / c.n : null;
       });
       return g;
     }
     rows.forEach(finish); finish(total);
-    return {rows: rows, total: total, minN: minN, complete: total.complete};
+    return {rows: rows, total: total, minN: minN, minOutlets: minOutlets, complete: total.complete};
   }
 
   /* Where an outlet's political leaning comes from. Media Bias/Fact Check is a US based rater that
@@ -1392,26 +1417,58 @@
   var planted = {summarise: plantedSummarise, emptyState: plantedEmptyState, detectorLabel: plantedDetectorLabel, DETECTOR_LABELS: PLANTED_DETECTOR_LABELS};
 
   /* The country panel's line for each sourced foreign state stake on an outlet (outlets.json foreign_state_stake,
-     decision D11). No field means no stake is recorded, never that the outlet has none, so nothing is shown then. */
+     decision D11). No field means no stake is recorded, never that the outlet has none, so nothing is shown then.
+     The status is said in words in the line itself (status_label is the visible tag), never only in a tooltip,
+     which a touch screen never shows; STAKE_CAVEAT says the record is about ownership, not editorial control. */
   var STAKE_STATE_ADJ = {CHN: "Chinese"};
   var STAKE_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var STAKE_STATUS_LABELS = {current: "Current", ended: "Ended", disputed: "Disputed"};
+  var STAKE_CAVEAT = "A stake records ownership; it says nothing about editorial control.";
   function stakeDate(d) {
-    var p = String(d || "").split("-");
-    if (p.length === 3) return Number(p[2]) + " " + STAKE_MONTHS[Number(p[1]) - 1] + " " + p[0];
-    if (p.length === 2) return STAKE_MONTHS[Number(p[1]) - 1] + " " + p[0];
+    var s = String(d || "");
+    if (!/^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$/.test(s)) return s || "an unrecorded date";
+    var p = s.split("-"), m = p.length > 1 ? STAKE_MONTHS[Number(p[1]) - 1] : null;
+    if (p.length > 1 && !m) return s;
+    if (p.length === 3) return Number(p[2]) + " " + m + " " + p[0];
+    if (p.length === 2) return m + " " + p[0];
     return p[0];
   }
-  function stakeNotes(stakes) {
-    return (stakes || []).map(function (s) {
-      var who = STAKE_STATE_ADJ[s.state] ? STAKE_STATE_ADJ[s.state] + " state-linked stake" : "Foreign state-linked stake (" + s.state + ")";
-      var share = typeof s.share_percent === "number" ? s.share_percent + "% of " : "an undisclosed share of ";
-      var when = s.status === "ended" ? stakeDate(s.from) + " to " + stakeDate(s.to)
+  function stakeOn(d) { return (/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(d || "")) ? "on " : "in ") + stakeDate(d); }
+  function stakeNotes(stakes, countryName) {
+    return (Array.isArray(stakes) ? stakes : []).filter(function (s) { return s && typeof s === "object"; }).map(function (s) {
+      var who = STAKE_STATE_ADJ[s.state] ? STAKE_STATE_ADJ[s.state] + " state-linked stake" : "Foreign state-linked stake (" + ((countryName && countryName(s.state)) || s.state) + ")";
+      var share = typeof s.share_percent === "number" && isFinite(s.share_percent) ? s.share_percent + "% of " : "an undisclosed share of ";
+      var when = s.status === "ended" ? "from " + stakeDate(s.from) + ", ended for this outlet " + stakeOn(s.to)
         : s.status === "disputed" ? "since " + stakeDate(s.from) + "; sources disagree on whether it still reaches this outlet"
-        : "since " + stakeDate(s.from) + ", still described on " + stakeDate(s.as_of);
-      return {text: who + ": " + share + s.held_in + ", held by " + s.holder + ", " + when,
-              source_url: s.source_url, source_title: s.source_title,
-              status_url: s.status_source_url, status_title: s.status_source_title, note: s.note || ""};
+        : "since " + stakeDate(s.from) + ", still held according to a source dated " + stakeDate(s.as_of);
+      return {text: who + ": " + share + (s.held_in || "an unnamed company") + ", held by " + (s.holder || "an unnamed holder") + ", " + when + ".",
+              status: s.status, status_label: STAKE_STATUS_LABELS[s.status] || "Status unstated", caveat: STAKE_CAVEAT,
+              source_url: s.source_url, source_title: s.source_title || "",
+              status_url: s.status_source_url, status_title: s.status_source_title || "", note: s.note || ""};
     });
+  }
+
+  /* Outlets added for their China coverage or documented pro-China content, not for reach (outlets.json
+     reach_selected false, RULES D12). They add to their country's counts because of how they were chosen, so the
+     export warns on every country that has one (warning type china_selected), the country panel tags each such
+     outlet with what its source documents and a link to it, and the top 10 marks its country. Data from before
+     the field (schema 18 and older) reads as no outlet selected this way. */
+  var SELECTION_LABEL = "selected for China coverage";
+  var SELECTION_MARK = "\u2020";
+  function selectionBadge(o) {
+    if (!o || o.reach_selected !== false) return null;
+    var basis = String(o.selection_basis || "").replace(/;\s*evidence:\s*\S+\s*$/, "").trim();
+    var text = basis ? basis.charAt(0).toUpperCase() + basis.slice(1) + "." : "Selected for its China coverage, not reach.";
+    return {label: SELECTION_LABEL, text: text, url: typeof o.selection_evidence === "string" ? o.selection_evidence : ""};
+  }
+  function chinaSelectedCountry(entry) {
+    return !!(entry && Array.isArray(entry.warnings) && entry.warnings.some(function (w) { return w && w.type === "china_selected"; }));
+  }
+  function selectionTop10Note(names) {
+    if (!names || !names.length) return "";
+    var list = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+    return SELECTION_MARK + " Figures for " + list + " include outlets added for their China coverage or documented pro-China content, not for their reach; they add to " +
+      (names.length === 1 ? "its" : "those countries'") + " counts because of how they were chosen, and the country view names them.";
   }
 
   return {EMPTY: EMPTY, UNDETERMINED_LAYER: UNDETERMINED_LAYER, UNDETERMINED_NO_SHARE: UNDETERMINED_NO_SHARE, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
@@ -1424,8 +1481,9 @@
           formatValue: formatValue, percentile: percentile, themeScaleCap: themeScaleCap, themeGridRows: themeGridRows, CAP_UPDATE_NOTE: CAP_UPDATE_NOTE,
           KEY_STEPS: KEY_STEPS, MEASURE_NAMES: MEASURE_NAMES, BASIS_NAMES: BASIS_NAMES, metricParts: metricParts, lowerFirst: lowerFirst, PROPER_OPENERS: PROPER_OPENERS, WHOLE_UNIT: WHOLE_UNIT, keyUnit: keyUnit,
           stepEdges: stepEdges, roundSig: roundSig, formatKeyNumber: formatKeyNumber, keyIndex: keyIndex, keyTiers: keyTiers, toCSV: toCSV, rankCountries: rankCountries, citation: citation, NAMES: NAMES, nameOf: nameOf,
-          fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, themeCross: themeCross, THEME_CROSS_MIN_N: THEME_CROSS_MIN_N, planted: planted,
-          stakeNotes: stakeNotes, stakeDate: stakeDate, leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
+          fillFindingsTemplate: fillFindingsTemplate, findingsCarrierClause: findingsCarrierClause, findingsRouteSentence: findingsRouteSentence, carrierTooltipLine: carrierTooltipLine, routeTooltipLine: routeTooltipLine, wholeWordSnippet: wholeWordSnippet, translateLinks: translateLinks, contentRouteName: contentRouteName, ROUTE_FALLBACK_LABELS: ROUTE_FALLBACK_LABELS, withRouteFallbacks: withRouteFallbacks, themesChangeMarks: themesChangeMarks, themeCross: themeCross, THEME_CROSS_MIN_N: THEME_CROSS_MIN_N, themesRetagNote: themesRetagNote, planted: planted,
+          stakeNotes: stakeNotes, stakeDate: stakeDate, STAKE_CAVEAT: STAKE_CAVEAT, leaningSourceWeak: leaningSourceWeak, leaningSourceKind: leaningSourceKind, leaningSources: leaningSources, leaningSourcesSentence: leaningSourcesSentence, leaningWeakCaveat: leaningWeakCaveat, isUsRater: isUsRater,
           collectorBadge: collectorBadge, relayOutletsSummary: relayOutletsSummary, relayCollectorNotes: relayCollectorNotes,
+          selectionBadge: selectionBadge, chinaSelectedCountry: chinaSelectedCountry, selectionTop10Note: selectionTop10Note, SELECTION_MARK: SELECTION_MARK, SELECTION_LABEL: SELECTION_LABEL,
           stabilityStatusText: stabilityStatusText, rediscoveryOf: rediscoveryOf, rediscoveryPercent: rediscoveryPercent, rediscoveryNote: rediscoveryNote, rediscoveryShareNote: rediscoveryShareNote, archiveCheck: archiveCheck};
 }));

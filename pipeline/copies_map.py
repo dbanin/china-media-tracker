@@ -9,8 +9,9 @@ numbered series are left out, and an undetermined label, pipeline/model_only.py,
 to its underlying item: its title group joined through body links and language editions
 (body_dups.item_groups), and joined again through the original the alteration measure paired it with
 (copies.attach_items: copies paired with one reference item, or with one earlier monitored copy, are one
-text). A translation shares no original with the text it translates (pairing never crosses languages), so
-it counts as a text of its own.
+text). The language editions of one release on a release wire are one text (placements.edition_links);
+any other translation shares no original with the text it translates (pairing never crosses languages),
+so it counts as a text of its own.
 
 Counting. A text counts each outlet once, at the day of record of its earliest copy there (a shared
 widget is one carrier, so it counts once per country, as everywhere on the site), and each country once.
@@ -18,16 +19,20 @@ Release wires are the worldwide distribution stratum (WLD): listed with the outl
 a country, never drawn on the map. A text is shared when outlets in at least MIN_COUNTRIES countries ran
 it. The ranked lists hold the TOP_N shared texts by number of countries, then outlets, then the earliest
 first seen day, over the 30 complete days the site's map opens on (export.complete_window_30d: copies whose
-day is in the window) and over all time.
+day is in the window) and over all time; tied_beyond is how many texts left off a list tie with its last
+entry on countries and outlets, so the site can say so.
 
 Agency. The state publishers the copies' labels name (copies.credits_of over signatures, cited sources,
 the model's triggers and a release headline's issuer; an uncredited copy takes the credit of the credited
 item it repeats), and the publisher of the reference original a copy was paired with. The text's agency is
-the one named by most of its copies, the reference original's publisher on a tie. A text no copy credits
-is "not named", unless its route names the kind of author: a diplomat's signed article is "Chinese diplomat", a
-release a distribution stamp shows is "release by a Chinese state body". A Xinhua Silk Road release is shown
-as Xinhua Silk Road, Xinhua's commercial release service, not as Xinhua; a "Xinhua" that only the name of
-Jiangsu's Xinhua Daily Media Group gave is dropped (refine_credits).
+the one named by most of its copies, the reference original's publisher on a tie. A copy that names no
+publisher casts no vote. A text no copy credits is "not named", unless its route names the kind of author: a
+diplomat's signed article is "Chinese diplomat", a release a distribution stamp shows is "release by a
+Chinese state body". A Xinhua Silk Road release (its headline or cited source names Xinhua Silk Road) is
+shown as Xinhua Silk Road, Xinhua's commercial release service, not as Xinhua, and a Xinhua Finance release
+likewise; a "Xinhua" that only the name of Jiangsu's Xinhua Daily Media Group, or only a citation of Xinhua
+in the text, gave is dropped (refine_credits). The Africa services (CGTN Africa, China Daily Africa, Xinhua's
+Africa pages) are their publisher's, as in sources/reference.yaml.
 
 Alteration bands. Where a copy was scored (state_copies.band, pipeline/copies.py) its band is listed with
 it, only while the alteration measure is provisional or checked, and the file carries the measure's status
@@ -53,7 +58,8 @@ SHOW_BANDS = ("provisional", "checked")
 AGENCY_NAMES = {
     "xinhua": "Xinhua", "cgtn": "CGTN", "cmg": "China Media Group (CCTV, CRI)", "china_daily": "China Daily",
     "global_times": "Global Times", "peoples_daily": "People's Daily", "china_news_service": "China News Service",
-    "xinhua_silk_road": "Xinhua Silk Road (Xinhua's release service)", "diplomat": "Chinese diplomat",
+    "xinhua_silk_road": "Xinhua Silk Road (Xinhua's release service)",
+    "xinhua_finance": "Xinhua Finance (Xinhua's financial information service)", "diplomat": "Chinese diplomat",
     "release": "Release by a Chinese state body", "unnamed": "Not named",
 }
 # Routes that name the kind of state author when no publisher is named.
@@ -73,28 +79,44 @@ def _warn(msg: str) -> None:
 
 def empty(alteration_status: Optional[str] = None) -> Dict:
     """The file's structure with nothing in it: no state text, or a failed export."""
-    scope = {"ranked": [], "shared_texts": 0, "texts": 0, "countries": {}}
+    scope = {"ranked": [], "shared_texts": 0, "texts": 0, "tied_beyond": 0, "countries": {}}
     return {"version": VERSION, "min_countries": MIN_COUNTRIES, "top_n": TOP_N, "window": None,
             "alteration": {"status": alteration_status or "off", "shown": False, "bands": list(copies.BANDS)},
             "agencies": dict(AGENCY_NAMES), "outlets": {}, "texts": {},
             "scopes": {"last_30d": dict(scope), "all_time": dict(scope)}}
 
 
-_XINHUA_NEWSROOM = re.compile(r"\bxinhua\b(?!\s+(?:silk\s+road|daily|finance))", re.IGNORECASE)
+# "Xinhua" as Xinhua's newsroom: the agency, its site (xinhuanet, news.cn) or its own Xinhua Daily Telegraph,
+# never Xinhua Silk Road or Xinhua Finance (its release and financial information services, named apart) and
+# never Jiangsu's Xinhua Daily Media Group.
+_XINHUA_NEWSROOM = re.compile(r"\bxinhua(?:net)?\b(?!\s+(?:silk\s+road|daily(?!\s+telegraph)|finance))|\bnews\.cn\b", re.IGNORECASE)
+# The issuer of a release, anywhere in its headline: release wires and their pickups print it after a prefix
+# glued to a prefix ("Press releaseXinhua Silk Road: ...", so no word boundary before it) or with a space
+# before the colon ("Xinhua Silk Road : ...").
+_SILK_ROAD = re.compile(r"xinhua\s+silk\s+road\b", re.IGNORECASE)
+_XINHUA_FINANCE = re.compile(r"xinhua\s+finance\b", re.IGNORECASE)
 
 
 def refine_credits(credits: Set[str], sources: Iterable = (), title: Optional[str] = None, sigs: Iterable = ()) -> Set[str]:
     """credits_of read for display: a Xinhua Silk Road release (Xinhua's commercial release service, whose
-    releases are not on Xinhua's own pages) is shown as such, and a "xinhua" that only a provincial group's name
-    gave (Xinhua Daily Media Group, Jiangsu's party paper group) is not Xinhua."""
+    releases are not on Xinhua's own pages) is shown as such, whether or not a Xinhua credit was read, and so is
+    a Xinhua Finance release; a "xinhua" that only a provincial group's name gave (Xinhua Daily Media Group,
+    Jiangsu's party paper group), or only a citation of Xinhua in the text (a story citing Xinhua is not
+    Xinhua's text), is not Xinhua."""
     out = set(credits or ())
+    srcs = [str(x or "") for x in (sources or [])]
+    service = None
+    if _SILK_ROAD.search(title or "") or any(_SILK_ROAD.search(x) for x in srcs):
+        service = "xinhua_silk_road"
+    elif _XINHUA_FINANCE.search(title or "") or any(_XINHUA_FINANCE.search(x) for x in srcs):
+        service = "xinhua_finance"
+    if service:
+        out.discard("xinhua")
+        out.add(service)
+        return out
     if "xinhua" not in out:
         return out
-    srcs = [str(x or "") for x in (sources or [])]
-    if re.match(r"\s*xinhua\s+silk\s+road", title or "", re.IGNORECASE) or any(re.search(r"xinhua\s+silk\s+road", x, re.IGNORECASE) for x in srcs):
-        out.discard("xinhua")
-        out.add("xinhua_silk_road")
-    elif not any(_XINHUA_NEWSROOM.search(x) for x in srcs) and not any(str(g).startswith(("xinhua_", "source_xinhua")) for g in sigs or ()) \
+    if not any(_XINHUA_NEWSROOM.search(x) for x in srcs) and not any(str(g).startswith(("xinhua_", "source_xinhua")) for g in sigs or ()) \
             and not _XINHUA_NEWSROOM.search(title or ""):
         out.discard("xinhua")
     return out
@@ -105,8 +127,11 @@ def _credits(conn) -> Dict[int, Set[str]]:
     the credit of the credited item it repeats (as copies._current_copies does)."""
     out, trig = {}, {}
     for r in conn.execute(_CREDIT_SQL):
+        t = copies._json(r["llm_trigger"], {})
+        # The signatures that sent a model label to the model (a_candidate) are credits as the fired ones are.
+        sigs = list(copies._json(r["signatures_fired"], []) or []) + list((t.get("a_candidate") if isinstance(t, dict) else None) or [])
         out[r["id"]] = refine_credits(copies.credits_of(r["signatures_fired"], r["china_sources_cited"], r["llm_trigger"], r["title"]),
-                                      copies._json(r["china_sources_cited"], []), r["title"], copies._json(r["signatures_fired"], []))
+                                      copies._json(r["china_sources_cited"], []), r["title"], sigs)
         trig[r["id"]] = r["llm_trigger"]
     for aid, cr in out.items():
         if not cr:
@@ -127,8 +152,13 @@ def _day_in(day: str, window: Optional[Tuple[str, str]]) -> bool:
     return window is None or (window[0] <= day < window[1])
 
 
-def agency_of(counts: Counter, reference: Counter) -> str:
-    """The publisher most copies name; on a tie the reference original's publisher, then the site's order."""
+def agency_of(counts: Counter, reference: Counter, kinds: Optional[Counter] = None) -> str:
+    """The publisher most copies name; on a tie the reference original's publisher, then the site's order.
+    Only when no copy and no original names a publisher, the kind of author the routes name (kinds: a
+    diplomat's byline, a distribution stamp), else "unnamed": a copy that names no publisher is no vote
+    against the one its sibling copies name."""
+    if not counts and not reference:
+        counts = kinds or Counter()
     if not counts and not reference:
         return "unnamed"
     keys = set(counts) | set(reference)
@@ -180,7 +210,7 @@ def build(conn, outlets: Optional[List[Dict]] = None, window: Optional[Tuple[str
     texts = []
     for key, members in by_item.items():
         per_outlet: Dict[Tuple[str, str], Dict] = {}
-        named, refpub, routes = Counter(), Counter(), Counter()
+        named, refpub, routes, kinds = Counter(), Counter(), Counter(), Counter()
         originals = Counter()
         for r, s in sorted(members, key=lambda m: (export._day(m[0]), m[0]["id"])):
             day = export._day(r)
@@ -194,7 +224,7 @@ def build(conn, outlets: Optional[List[Dict]] = None, window: Optional[Tuple[str
             if s.get("original_kind") in ("reference", "monitored") and s.get("original_source"):
                 originals[(s["original_kind"], s["original_source"], (s.get("original_published_at") or "")[:10] or None)] += 1
             if not cr and r.get("route") in ROUTE_AGENCY:
-                cr = {ROUTE_AGENCY[r["route"]]}
+                kinds[ROUTE_AGENCY[r["route"]]] += 1
             named.update(cr)
             routes[r.get("route") or "unknown"] += 1
             k = (carrier, country)
@@ -204,17 +234,19 @@ def build(conn, outlets: Optional[List[Dict]] = None, window: Optional[Tuple[str
             elif per_outlet[k]["b"] is None and band:
                 per_outlet[k]["b"] = band
         entries = sorted(per_outlet.values(), key=lambda e: (e["d"], e["c"], e["o"]))
-        shown = [e for e in entries if shown_ids and e["id"] in shown_ids]
+        # The headline of the earliest copy the country article files list (any copy, not only an
+        # outlet's first one).
+        shown = sorted((m for m in members if shown_ids and m[0]["id"] in shown_ids), key=lambda m: (export._day(m[0]), m[0]["id"]))
         title = lang = None
         if shown:
-            hit = next(r for r, _s in members if r["id"] == shown[0]["id"])
-            title, lang = hit.get("title"), hit.get("language")
+            title, lang = shown[0][0].get("title"), shown[0][0].get("language")
         orig = None
         if originals:
             (kind, src, pub_day), _n = max(originals.items(), key=lambda kv: (kv[1], kv[0][0] == "reference", kv[0][1]))
             orig = {"kind": kind, "source": src, "published": pub_day}
         texts.append({"id": "t%d" % min(r["id"] for r, _s in members), "key": key, "first_seen": entries[0]["d"],
-                      "agency": agency_of(named, refpub), "agencies": sorted(named, key=lambda a: (-named[a], AGENCY_RANK.get(a, 99))),
+                      "agency": agency_of(named, refpub, kinds),
+                      "agencies": sorted(named or kinds, key=lambda a: (-(named or kinds)[a], AGENCY_RANK.get(a, 99))),
                       "routes": dict(routes), "headline": title, "headline_lang": lang, "original": orig, "entries": entries})
     scopes = {"last_30d": window, "all_time": None}
     keep: Set[str] = set()
@@ -240,8 +272,11 @@ def build(conn, outlets: Optional[List[Dict]] = None, window: Optional[Tuple[str
         ranked.sort(key=rank_key)
         top = ranked[:top_n]
         keep.update(t["id"] for t in top)
+        # Texts left off the list that tie with the last one listed on countries and outlets (the site
+        # says so: the earlier first seen day decides only who is listed, never who ran it more widely).
+        tied = sum(1 for t in ranked[top_n:] if (t["countries"], t["outlets"]) == (top[-1]["countries"], top[-1]["outlets"])) if top else 0
         out["scopes"][name] = {"ranked": [{k: v for k, v in t.items() if k != "first_seen"} for t in top],
-                               "shared_texts": len(ranked), "texts": n_texts,
+                               "shared_texts": len(ranked), "texts": n_texts, "tied_beyond": tied,
                                "countries": {c: dict(v) for c, v in sorted(countries.items())}}
     used = set()
     for t in texts:
@@ -299,14 +334,18 @@ def methodology_text(data: Optional[Dict] = None) -> str:
         "A display of copying, not a new count: the state texts run by outlets in the most "
         "countries, and the outlets and days on which each ran (docs/data/copies_map.json, pipeline/copies_map.py). One "
         "state text is the underlying item of its state origin placements (title groups joined through body links and "
-        "language editions, as in the distinct item counts), joined again through the original the alteration measure "
+        "the language editions of one release on a release wire, as in the distinct item counts), joined again through the original the alteration measure "
         "paired the copies with, so copies of one Xinhua or CGTN text at different outlets are one text. The placement "
         "rules apply as everywhere else: a shared widget counts once per country, one page at two addresses once, and an "
-        "undetermined label is left out. Each outlet counts once per text, at the day of its earliest copy, and each "
+        "undetermined label, a copy of an undetermined item among them, is left out. Each outlet counts once per text, at the day of its earliest copy, and each "
         "country once; release wires are listed but are never a country. A text is shared when it ran in at least %d "
         "countries, and the lists rank the top %d by countries, then outlets, over the 30 complete days the map opens on "
-        "and over all time. The agency is the state publisher most of the copies' labels name, or the publisher of the "
-        "reference original; a Xinhua Silk Road release is shown as Xinhua's commercial release service, not as Xinhua, "
-        "and a release with no named publisher as a release by a Chinese state body. Translations are never paired across languages, so a translated copy is a text of its own "
-        "and the spread of one text across languages is undercounted. Alteration bands, where a copy was scored, are "
+        "and over all time; texts left off a list that tie with its last entry are counted on the page. The agency is the state publisher most of the copies' labels name, or the publisher of the "
+        "reference original (a copy naming none casts no vote); a Xinhua Silk Road release is shown as Xinhua's commercial "
+        "release service and a Xinhua Finance release as Xinhua's financial information service, not as Xinhua, and a release "
+        "with no named publisher as a release by a Chinese state body. Apart from the language editions of one release on a "
+        "release wire, translations are never paired across languages, so a translated copy is a text of its own and the "
+        "spread of one text across languages is undercounted. Copying here means an outlet ran the text under a state "
+        "credit, a release stamp, a Chinese diplomat's byline or a disclosure, or as a close copy of credited state text; it does not say who placed it, "
+        "whether anyone paid for it or what the outlet thinks of it, and countries without a monitored outlet cannot show it. Alteration bands, where a copy was scored, are "
         "provisional as long as the alteration measure is.%s" % (MIN_COUNTRIES, TOP_N, s))

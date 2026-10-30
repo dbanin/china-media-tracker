@@ -11,8 +11,8 @@ hosted trip or programme. It does not say the article was written, commissioned 
 host, and it is not state origin: no flag is ever folded into the categories (state origin,
 unchecked state sourcing, independent journalism, undetermined), nothing here changes a count, a
 label, the ruleset (RULESET_VERSION) or the China gate (GATE_VERSION). Absence of a flag proves
-nothing: most hosted trips are never disclosed, and a disclosure worded in a way the patterns do not
-know is missed. The counts are provisional until a hand check of the flagged lines.
+nothing: a hosted trip that is not disclosed, or disclosed in words the patterns do not know, is
+missed. The counts are provisional until a hand check of the flagged lines.
 
 Classes (the klass field of a flag):
   state_host    the host named in the disclosure is a Chinese state entity, embassy or consulate,
@@ -43,6 +43,7 @@ import re
 import sqlite3
 import sys
 import time
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -54,7 +55,7 @@ from pipeline import classify_rules, store
 PATTERNS_PATH = Path(__file__).with_name("hosted_travel.yaml")
 CLASSES = ("state_host", "unnamed_host")
 HOST_MODES = ("after", "before", "group")
-BASES = ("self", "label", "tail")
+BASES = ("self", "label", "bio", "tail")
 TAIL_CHARS = 600          # a disclosure line set at the end of the body sits within this many characters of it
 LINE_MAX = 320            # and is no longer than this
 HOST_CHARS = 140          # the host is read from at most this many characters
@@ -62,6 +63,17 @@ UNNAMED_HEAD = 40         # an unnamed host phrase starts within this many chara
 EVIDENCE_MAX = 280        # the disclosure sentence as exported
 FLAGS_EXPORT_CAP = 500
 COMMIT_EVERY = 2000
+# Cost. Anchors are run only near a trigger word of their own language (WINDOW characters either side),
+# so a body is read once for the triggers and the regexes see a few hundred characters around each.
+# A body longer than BODY_MAX (extraction gone wrong; the longest stored body on 2026-10-12 had 166,619
+# characters) is read in its first BODY_HEAD and last BODY_TAIL characters, where disclosures sit.
+WINDOW = 400
+BODY_MAX = 200_000
+BODY_HEAD = 150_000
+BODY_TAIL = 50_000
+# The export finishes what the rules stage left within this many seconds and carries on next run; the
+# side file and meta say when the scan is not complete (bodies_left).
+EXPORT_SCAN_SECONDS = 240
 STATUS = "provisional"    # until a hand check of the flagged lines; see methodology_text
 
 SCHEMA = """
@@ -79,6 +91,11 @@ CREATE TABLE IF NOT EXISTS hosted_travel_flags (
     UNIQUE(article_id, klass, pattern_id)
 );
 CREATE INDEX IF NOT EXISTS idx_hosted_travel_article ON hosted_travel_flags(article_id);
+CREATE TABLE IF NOT EXISTS hosted_travel_read (
+    article_id INTEGER PRIMARY KEY,   -- every row the scan looked at, so the page can say how many bodies were read
+    patterns_version TEXT NOT NULL,
+    has_body INTEGER NOT NULL         -- 0: the row has a body hash but its file could not be read
+);
 CREATE TABLE IF NOT EXISTS hosted_travel_state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -92,6 +109,21 @@ _CLAUSE_CUT_RE = re.compile(
     r"|\s(?:che|dove|per (?:seguire|partecipare))\b|\s(?:die|der|das|um (?:an|über))\s(?=\w+\s(?:zu|teilzunehmen))")
 _QUOTES_OPEN = "“«„"
 _QUOTES_CLOSE = "”»“"
+# An acronym in brackets after a name ("China Global Television Network (CGTN)") belongs to the host;
+# it is read as a word, so a bracket does not end the host there.
+_ACRONYM_RE = re.compile(r"\(([A-Z]{2,8})\)")
+# has_state_entity's subnational forms name no country: "Western Cape Provincial Government",
+# "Government of Punjab Province", "Information Office of the Punjab Provincial ...". In a host text they
+# count only next to a Chinese place name (the yaml's china_places). "People's Government" is the
+# Chinese form and counts as it is.
+_GENERIC_SUBNATIONAL_RE = re.compile(
+    r"(?i)^(?:(?:municipal|provincial) government|government of .+|information office of the (?!state council\b).+)$")
+_CMG_RE = re.compile(r"\bCMG\b")
+# Format characters that split a phrase without showing (zero width spaces and joiners, bidirectional
+# marks and isolates, the soft hyphen) are dropped, and the other Unicode spaces read as a space, so that
+# "as a\u00a0guest of" and a right to left line wrapped in marks read like plain text.
+_DROP_CHARS = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u200e\u200f\u2060\u2066\u2067\u2068\u2069\u202a\u202b\u202c\u202d\u202e\ufeff\u00ad"))
+_DROP_CHARS.update(dict.fromkeys(map(ord, "\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"), " "))
 
 
 def _warn(msg: str) -> None:
@@ -117,22 +149,27 @@ def load_patterns(path: Optional[Path] = None) -> Dict:
     version = str(data.get("version") or "")
     if not version:
         raise ValueError("hosted_travel.yaml: version is required")
-    langs, anchors, seen, state_res, triggers = {}, [], set(), [], set()
+    langs, anchors, seen, state_res, triggers, codes = {}, [], set(), [], set(), set()
     for lang, block in (data.get("languages") or {}).items():
         if not isinstance(block, dict):
             raise ValueError("hosted_travel.yaml: language %s is not a mapping" % lang)
         lb = {"lang": lang}
+        codes.add(str(lang))
+        codes.update(str(c) for c in (block.get("also") or []))
         for key in ("self", "label", "not_subject", "travel", "unnamed"):
             if not block.get(key):
                 raise ValueError("hosted_travel.yaml: %s needs %s" % (lang, key))
             lb[key] = _compile(block[key], "%s.%s" % (lang, key))
         lb["label"] = _compile(r"^[\W_]{0,4}(?:%s)" % block["label"], "%s.label" % lang)
+        lb["bio"] = _compile(block["bio"], "%s.bio" % lang) if block.get("bio") else None
         for i, rx in enumerate(block.get("state_hosts") or []):
             state_res.append(_compile(rx, "%s.state_hosts[%d]" % (lang, i)))
         words = [str(w) for w in (block.get("triggers") or []) if str(w).strip()]
         if not words:
             raise ValueError("hosted_travel.yaml: %s needs triggers" % lang)
         triggers.update(words)
+        lb["triggers"] = sorted({w.lower() for w in words}, key=len, reverse=True)
+        lb["trigger_re"] = re.compile("|".join(re.escape(w) for w in lb["triggers"]), re.IGNORECASE | re.UNICODE)
         for a in block.get("anchors") or []:
             aid = a.get("id")
             if not aid or aid in seen:
@@ -151,7 +188,9 @@ def load_patterns(path: Optional[Path] = None) -> Dict:
         raise ValueError("hosted_travel.yaml: no anchors")
     trigger_re = re.compile("|".join(re.escape(w) for w in sorted(triggers, key=len, reverse=True)),
                             re.IGNORECASE | re.UNICODE)
-    return {"version": version, "languages": langs, "anchors": anchors, "state_hosts": state_res, "trigger_re": trigger_re}
+    places = _compile(data["china_places"], "china_places") if data.get("china_places") else None
+    return {"version": version, "languages": langs, "anchors": anchors, "state_hosts": state_res, "trigger_re": trigger_re,
+            "china_places": places, "language_codes": sorted(codes)}
 
 
 _PATTERNS_CACHE: Dict[str, Tuple[float, Dict]] = {}
@@ -199,32 +238,48 @@ def _inside_quote(prefix: str) -> bool:
     return prefix.count("“") > prefix.count("”")
 
 
-def _host_text(text: str, m: "re.Match", anchor: Dict, s: int, e: int) -> str:
+def _host_span(text: str, m: "re.Match", anchor: Dict, s: int, e: int) -> Tuple[str, int, int]:
+    """The host text and where it sits in text. A bracketed acronym after a name is kept with it."""
     if anchor["host"] == "group":
-        return (m.group("host") or "").strip()
+        return (m.group("host") or "").strip(), m.start("host"), m.end("host")
     if anchor["host"] == "before":
-        seg = text[max(s, m.start() - HOST_CHARS):m.start()]
+        start = max(s, m.start() - HOST_CHARS)
+        seg = _ACRONYM_RE.sub(r" \1 ", text[start:m.start()])
         cuts = list(_CLAUSE_CUT_RE.finditer(seg))
-        return (seg[cuts[-1].end():] if cuts else seg).strip()
-    seg = text[m.end():min(e, m.end() + HOST_CHARS)]
+        off = cuts[-1].end() if cuts else 0
+        return seg[off:].strip(), start + off, m.start()
+    end = min(e, m.end() + HOST_CHARS)
+    seg = _ACRONYM_RE.sub(r" \1 ", text[m.end():end])
     cut = _CLAUSE_CUT_RE.search(seg)
     seg = seg[:cut.start()] if cut else seg
-    return seg.strip().rstrip(".!?。！？؟ ")
+    return seg.strip().rstrip(".!?。！？؟*_ "), m.end(), m.end() + len(seg)
 
 
-def state_entity(host: str, pat: Dict) -> Optional[str]:
+def _host_text(text: str, m: "re.Match", anchor: Dict, s: int, e: int) -> str:
+    return _host_span(text, m, anchor, s, e)[0]
+
+
+def state_entity(host: str, pat: Dict, context: str = "") -> Optional[str]:
     """The Chinese state entity the host text names, or None. has_state_entity first, then the
-    state_hosts patterns of every language (a French article may name the host in English)."""
+    state_hosts patterns of every language (a French article may name the host in English). A
+    subnational government with no country in its name counts only next to a Chinese place name, and
+    "CMG" on its own only in a sentence (context) that places it in China."""
     if not host:
         return None
+    places = pat.get("china_places")
     for rx in (classify_rules.STATE_ENTITY_RE, classify_rules.STATE_ENTITY_NATIVE_RE, classify_rules.CMG_WITH_CHINA_RE):
-        m = rx.search(host)
-        if m:
-            return m.group(0).strip()
+        for m in rx.finditer(host):
+            name = m.group(0).strip()
+            if _GENERIC_SUBNATIONAL_RE.match(name) and not (places is not None and places.search(host)):
+                continue
+            return name
     for rx in pat["state_hosts"]:
         m = rx.search(host)
         if m:
             return m.group(0).strip()
+    if context and _CMG_RE.search(host) and (classify_rules.CMG_WITH_CHINA_RE.search(context)
+                                             or (places is not None and places.search(context))):
+        return "CMG"
     return None
 
 
@@ -242,41 +297,109 @@ def _unnamed(host: str, lb: Dict, mode: str) -> Optional[str]:
     return m.group(0).strip() if m else None
 
 
-def _basis(text: str, m: "re.Match", anchor: Dict, lb: Dict, s: int, e: int) -> Optional[str]:
-    """Why the line reads as a disclosure of the article's own reporting, or None when it does not."""
+def _basis(text: str, m: "re.Match", anchor: Dict, lb: Dict, s: int, e: int, host: str = "") -> Optional[str]:
+    """Why the line reads as a disclosure of the article's own reporting, or None when it does not.
+    label: the line or the sentence opens with a disclosure label ("(Disclosure: ..." mid paragraph).
+    self: the sentence names the article or its author. bio: a short last paragraph that names the
+    author (an author note), whatever the anchor. tail: a short closing line, for tail_ok anchors.
+    bio and tail need a sentence whose subject (read without the host) is not a politician, a team or
+    a reported claim; the host's own name is left out of that check, so "the Embassy" in a host does
+    not read as "an ambassador" in the subject."""
     prefix = text[s:m.start()]
     if _inside_quote(prefix):
         return None
     ls, le = _line(text, m.start(), m.end())
-    if lb["label"].search(text[ls:le]):
+    if lb["label"].search(text[ls:le]) or lb["label"].search(text[s:e]):
         return "label"
     if lb["self"].search(text[s:m.end()]) or lb["self"].search(text[m.end():e][:60]):
         return "self"
-    if anchor["tail_ok"] and ls >= len(text) - TAIL_CHARS and (le - ls) <= LINE_MAX and not lb["not_subject"].search(text[s:e]):
+    rest = text[s:e]
+    at = rest.lower().find(host.lower()) if host else -1
+    if at >= 0:
+        rest = rest[:at] + " " + rest[at + len(host):]
+    if lb["not_subject"].search(rest):
+        return None
+    line = text[ls:le]
+    if le >= len(text.rstrip()) - TAIL_CHARS and (le - ls) <= 2 * LINE_MAX and (
+            lb["self"].search(line) or (lb.get("bio") is not None and lb["bio"].search(line))):
+        return "bio"
+    if anchor["tail_ok"] and ls >= len(text) - TAIL_CHARS and (le - ls) <= LINE_MAX:
         return "tail"
     return None
 
 
-def detect(text: Optional[str], pat: Optional[Dict] = None, china_coverage: bool = True) -> List[Dict]:
+def normalize(text: str) -> str:
+    """NFC, format characters dropped, Unicode spaces read as spaces; a body over BODY_MAX is cut to
+    its head and tail. detect reads this text, and the evidence it returns is from it."""
+    text = unicodedata.normalize("NFC", text).translate(_DROP_CHARS)
+    if len(text) > BODY_MAX:
+        text = text[:BODY_HEAD] + "\n\n" + text[-BODY_TAIL:]
+    return text
+
+
+def _windows(text: str, pat: Dict) -> Dict[str, List[Tuple[int, int]]]:
+    """Per language block, the stretches of text within WINDOW characters of one of its trigger words,
+    merged. A language none of whose triggers appears gets none, so its anchors are never run."""
+    low = text.lower()
+    same = len(low) == len(text)          # lower() can change the length (a dotted capital I); then the regex
+    out: Dict[str, List[Tuple[int, int]]] = {}
+    for lang, lb in pat["languages"].items():
+        hits: List[int] = []
+        if same:
+            for w in lb["triggers"]:
+                i = low.find(w)
+                while i != -1 and len(hits) < 5000:
+                    hits.append(i)
+                    i = low.find(w, i + len(w))
+        else:
+            hits = [m.start() for m in lb["trigger_re"].finditer(text)]
+        if not hits:
+            continue
+        hits.sort()
+        spans: List[Tuple[int, int]] = []
+        for h in hits:
+            a, b = max(0, h - WINDOW), min(len(text), h + WINDOW)
+            if spans and a <= spans[-1][1]:
+                spans[-1] = (spans[-1][0], max(spans[-1][1], b))
+            else:
+                spans.append((a, b))
+        out[lang] = spans
+    return out
+
+
+def _matches(anchor: Dict, text: str, spans: List[Tuple[int, int]]):
+    if spans is None:                     # windows off (tests compare both ways)
+        yield from anchor["re"].finditer(text)
+        return
+    for a, b in spans:
+        yield from anchor["re"].finditer(text, a, b)
+
+
+def detect(text: Optional[str], pat: Optional[Dict] = None, china_coverage: bool = True, windows: bool = True) -> List[Dict]:
     """Every hosted travel disclosure in the text, one entry per anchor match that qualifies, with its
-    class. Pure: no database. unnamed_host entries are returned only when china_coverage is True."""
+    class. Pure: no database. unnamed_host entries are returned only when china_coverage is True.
+    windows=False runs every anchor over the whole text (slow; the tests check that it finds the same)."""
     if not text:
         return []
     pat = pat or patterns()
-    if not pat["trigger_re"].search(text):
+    text = normalize(text)
+    if windows:
+        wins = _windows(text, pat)
+        if not wins:
+            return []
+    elif not pat["trigger_re"].search(text):
         return []
     out, seen = [], set()
     for anchor in pat["anchors"]:
         lb = pat["languages"][anchor["lang"]]
-        for m in anchor["re"].finditer(text):
+        if windows and anchor["lang"] not in wins:
+            continue
+        for m in _matches(anchor, text, wins[anchor["lang"]] if windows else None):
             s, e = _sentence(text, m.start(), m.end())
             if anchor["needs_travel"] and not lb["travel"].search(text[s:e]):
                 continue
-            basis = _basis(text, m, anchor, lb, s, e)
-            if basis is None:
-                continue
             host = _host_text(text, m, anchor, s, e)
-            ent = state_entity(host, pat)
+            ent = state_entity(host, pat, text[s:e])
             if ent:
                 klass, host_out = "state_host", ent
             else:
@@ -284,11 +407,14 @@ def detect(text: Optional[str], pat: Optional[Dict] = None, china_coverage: bool
                 if not un or not china_coverage:
                     continue
                 klass, host_out = "unnamed_host", un
+            basis = _basis(text, m, anchor, lb, s, e, ent or "")
+            if basis is None:
+                continue
             key = (klass, anchor["id"])
             if key in seen:
                 continue
             seen.add(key)
-            sentence = re.sub(r"\s+", " ", text[s:e]).strip()
+            sentence = re.sub(r"\s+", " ", text[s:e]).strip().strip("*_ ")   # an italic footer's markers are not text
             if len(sentence) > EVIDENCE_MAX:
                 sentence = sentence[:EVIDENCE_MAX - 3].rstrip() + "..."
             out.append({"klass": klass, "pattern_id": anchor["id"], "language": anchor["lang"], "basis": basis,
@@ -323,8 +449,11 @@ def _set_state(conn: sqlite3.Connection, **values) -> None:
 def scan(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float] = None, pat: Optional[Dict] = None) -> Dict:
     """Flag articles with a body. Incremental by default, rescanning everything when the patterns
     version changed or full is True; a rescan replaces an article's flags with what the current
-    patterns find, so a pattern taken out takes its flags with it. Commits every COMMIT_EVERY rows and
-    stops cleanly once time.monotonic() passes the deadline; the next call carries on."""
+    patterns find, so a pattern taken out takes its flags with it, and drops the flags of articles whose
+    body is gone (they can no longer be read under the new patterns). Commits every COMMIT_EVERY rows and
+    stops cleanly once time.monotonic() passes the deadline; the next call carries on. Rows come in id
+    order: first the older rows whose body arrived again since the last scan, then the rows added since.
+    The state moves past the re-fetched rows only once all of them are done, so a stop never skips one."""
     ensure_schema(conn)
     pat = pat or patterns()
     version = pat["version"]
@@ -337,11 +466,21 @@ def scan(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float]
               "patterns_version": version, "stopped_at_deadline": False}
     max_id = conn.execute("SELECT COALESCE(MAX(id), 0) FROM articles").fetchone()[0]
     max_fetched = conn.execute("SELECT COALESCE(MAX(fetched_at), '') FROM articles").fetchone()[0]
+    if rescan:
+        conn.execute("""DELETE FROM hosted_travel_flags WHERE article_id NOT IN
+                        (SELECT id FROM articles WHERE body_hash IS NOT NULL)""")
     rows = conn.execute(
         """SELECT id, url_hash, body_hash, fetched_at, gate_relevant FROM articles
            WHERE body_hash IS NOT NULL AND (id > ? OR (fetched_at IS NOT NULL AND fetched_at > ?)) ORDER BY id""",
         (last_id, last_fetched)).fetchall()
     done_id = last_id
+
+    def progress() -> Dict[str, object]:
+        # done_id <= last_id: still among the re-fetched older rows, so nothing moves yet.
+        if done_id <= last_id:
+            return {"last_scanned_id": last_id, "last_fetched_at": last_fetched, "patterns_version": version}
+        return {"last_scanned_id": done_id, "last_fetched_at": max_fetched, "patterns_version": version}
+
     for r in rows:
         if deadline is not None and time.monotonic() > deadline:
             counts["stopped_at_deadline"] = True
@@ -361,14 +500,19 @@ def scan(conn: sqlite3.Connection, full: bool = False, deadline: Optional[float]
             if k:
                 counts["flagged"] += 1
                 counts[k] += 1
+        elif rescan:
+            conn.execute("DELETE FROM hosted_travel_flags WHERE article_id=?", (r[0],))
+        conn.execute("INSERT OR REPLACE INTO hosted_travel_read(article_id, patterns_version, has_body) VALUES (?,?,?)",
+                     (r[0], version, 1 if body else 0))
         done_id = r[0]
         if counts["scanned"] % COMMIT_EVERY == 0:
             # Rows up to done_id are done under this version; a run that stops here resumes after it.
-            _set_state(conn, last_scanned_id=done_id, last_fetched_at=max_fetched, patterns_version=version)
+            _set_state(conn, **progress())
             conn.commit()
     if counts["stopped_at_deadline"]:
         # Rows up to done_id are done; rows after it are caught next time by id.
-        _set_state(conn, last_scanned_id=done_id, last_fetched_at=max_fetched, patterns_version=version)
+        _set_state(conn, **progress())
+        counts["bodies_left"] = len(rows) - counts["scanned"]
     else:
         _set_state(conn, last_scanned_id=max_id, last_fetched_at=max_fetched, patterns_version=version, scanned_at=now)
     conn.commit()
@@ -386,6 +530,31 @@ def scan_quietly(conn: sqlite3.Connection, full: bool = False, deadline: Optiona
             pass
         _warn("hosted travel scan failed: %s: %s" % (type(exc).__name__, exc))
         return {"error": "%s: %s" % (type(exc).__name__, exc)}
+
+
+def export_scan(conn: sqlite3.Connection) -> Dict:
+    """For pipeline/export.py: scan_quietly within EXPORT_SCAN_SECONDS, so that a full rescan (a new
+    patterns version, a first run on a large database) can never hold up the export; what is left is
+    read in the next runs, and scan_status says how much."""
+    return scan_quietly(conn, deadline=time.monotonic() + EXPORT_SCAN_SECONDS)
+
+
+def scan_status(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
+    """Whether every stored body has been read under the current patterns, and how many are left."""
+    ensure_schema(conn)
+    pat = pat or patterns()
+    state = _state(conn)
+    if state.get("patterns_version") != pat["version"]:
+        left = conn.execute("SELECT COUNT(*) FROM articles WHERE body_hash IS NOT NULL").fetchone()[0]
+    else:
+        left = conn.execute(
+            """SELECT COUNT(*) FROM articles WHERE body_hash IS NOT NULL
+               AND (id > ? OR (fetched_at IS NOT NULL AND fetched_at > ?))""",
+            (int(state.get("last_scanned_id") or 0), state.get("last_fetched_at") or "")).fetchone()[0]
+    stored = conn.execute("SELECT COUNT(*) FROM articles WHERE body_hash IS NOT NULL").fetchone()[0]
+    read = conn.execute("""SELECT COUNT(*) FROM hosted_travel_read r JOIN articles a ON a.id=r.article_id
+                           WHERE r.patterns_version=? AND r.has_body=1""", (pat["version"],)).fetchone()[0]
+    return {"scan_complete": left == 0, "bodies_left": int(left), "bodies_stored": int(stored), "bodies_read": int(read)}
 
 
 def stage_scan(conn: sqlite3.Connection, counts: Dict, deadline: Optional[float] = None) -> None:
@@ -451,14 +620,18 @@ def _tally(rows: List[Dict], key: str) -> Dict[str, Dict[str, int]]:
 
 def empty_export() -> Dict:
     return {"generated": store.utcnow(), "status": STATUS, "patterns_version": "", "languages": [], "articles_total": 0,
-            "state_host": 0, "unnamed_host": 0, "by_country": {}, "by_outlet": {}, "articles": [], "error": None}
+            "state_host": 0, "unnamed_host": 0, "by_country": {}, "by_outlet": {}, "articles": [], "error": None,
+            "scan_complete": False, "bodies_left": None, "bodies_stored": None, "bodies_read": None}
 
 
 def build_export(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
     """The docs/data/hosted_travel.json structure: counts per class over every flagged article, by
-    country and by outlet, and the articles newest first, capped at FLAGS_EXPORT_CAP."""
+    country and by outlet, and the articles newest first, capped at FLAGS_EXPORT_CAP; with the scan's
+    status (scan_complete, bodies_left, bodies_stored: rows with a body, bodies_read: bodies actually read
+    under the current patterns; a body file that cannot be read is not read)."""
     pat = pat or patterns()
     rows = _article_rows(conn)
+    status = scan_status(conn, pat)
     outlet_names = {r["outlet_id"]: r["outlet"] for r in rows}
     by_outlet = _tally(rows, "outlet_id")
     for oid, v in by_outlet.items():
@@ -467,19 +640,24 @@ def build_export(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
         "generated": store.utcnow(),
         "status": STATUS,
         "patterns_version": pat["version"],
-        "languages": sorted(pat["languages"]),
+        "languages": pat["language_codes"],
         "articles_total": len(rows),
         "state_host": sum(1 for r in rows if r["klass"] == "state_host"),
         "unnamed_host": sum(1 for r in rows if r["klass"] == "unnamed_host"),
         "by_country": _tally(rows, "country"),
         "by_outlet": by_outlet,
         "articles": rows[:FLAGS_EXPORT_CAP],
+        "scan_complete": status["scan_complete"],
+        "bodies_left": status["bodies_left"],
+        "bodies_stored": status["bodies_stored"],
+        "bodies_read": status["bodies_read"],
     }
 
 
 def empty_meta_block() -> Dict:
     return {"status": STATUS, "articles_total": 0, "state_host": 0, "unnamed_host": 0, "state_host_30d": 0,
-            "unnamed_host_30d": 0, "countries": 0, "outlets": 0, "patterns_version": "", "languages": 0}
+            "unnamed_host_30d": 0, "countries": 0, "outlets": 0, "patterns_version": "", "languages": 0,
+            "scan_complete": False, "bodies_left": None, "bodies_stored": None, "bodies_read": None}
 
 
 def meta_block(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
@@ -487,6 +665,7 @@ def meta_block(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
     last 30 days, as elsewhere on the site. No clock value, so two exports of one database agree."""
     pat = pat or patterns()
     rows = _article_rows(conn)
+    status = scan_status(conn, pat)
     since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).replace(microsecond=0).isoformat()
     recent = [r for r in rows if (r["discovered_at"] or "") >= since]
     return {"status": STATUS, "articles_total": len(rows),
@@ -495,7 +674,9 @@ def meta_block(conn: sqlite3.Connection, pat: Optional[Dict] = None) -> Dict:
             "state_host_30d": sum(1 for r in recent if r["klass"] == "state_host"),
             "unnamed_host_30d": sum(1 for r in recent if r["klass"] == "unnamed_host"),
             "countries": len({r["country"] for r in rows}), "outlets": len({r["outlet_id"] for r in rows}),
-            "patterns_version": pat["version"], "languages": len(pat["languages"])}
+            "patterns_version": pat["version"], "languages": len(pat["language_codes"]),
+            "scan_complete": status["scan_complete"], "bodies_left": status["bodies_left"],
+            "bodies_stored": status["bodies_stored"], "bodies_read": status["bodies_read"]}
 
 
 def build_export_quietly(conn: sqlite3.Connection) -> Dict:
@@ -519,31 +700,41 @@ def meta_block_quietly(conn: sqlite3.Connection) -> Dict:
 def methodology_text(meta: Dict) -> str:
     """The methodology paragraph (pipeline/methodology.py, under Hosted travel disclosures)."""
     h = meta.get("hosted_travel") or {}
-    head = ("Since 28 October 2026 the pipeline also looks in every stored article body for a disclosure that the "
+    head = ("Since 28 October 2026 the pipeline also reads the stored article bodies for a disclosure that the "
             "reporting trip, the stay or a training programme behind the article was paid for or hosted by someone, "
             "such as \"the writer travelled as a guest of\", \"the trip was sponsored by\", \"à l'invitation de\", "
             "\"auf Einladung der\" or \"atas undangan\" (pipeline/hosted_travel.yaml, with patterns in English, French, "
             "Spanish, Portuguese, Italian, German, Arabic, Russian, Indonesian and Malay, Dutch, Turkish, Chinese, "
             "Ukrainian, Croatian and Serbian, Korean and Vietnamese). A line counts only when it is about the article's "
-            "own reporting: it names the article or its author, opens with a disclosure label, or is a short line at the "
-            "end of the body whose subject is not a politician, delegation or team; a quoted line never counts. The "
+            "own reporting: it names the article or its author, opens with a disclosure label, sits in a short author note "
+            "at the end, or is a short line at the end of the body whose subject is not a politician, delegation or team "
+            "and which reports no one else's claim; a quoted line never counts. The "
             "host is then checked. A disclosure whose host is a Chinese state entity, embassy, state media outlet, party "
             "body or Chinese government programme (the organisation list the rules use, plus forms such as \"the Chinese "
             "government\" and the China press centre programmes) is flagged as a state host; one that names no host "
             "(\"the organisers\", \"the host government\") is flagged apart as an unnamed host, on China coverage only, "
-            "and is the weaker of the two; a host that is named and is not a Chinese state body gives no flag. A flag "
+            "and is the weaker of the two; a host that is named and is not a Chinese state body gives no flag, and a "
+            "provincial or city government counts only when a Chinese place is named with it. A flag "
             "marks a disclosed hosted trip. It is not state origin and never becomes it: flags never enter the "
             "categories, never change a label or a count, and the ruleset and gate versions are unchanged by them. "
-            "Most hosted trips are never disclosed, and a disclosure worded in a way the patterns do not know is "
-            "missed, so the absence of a flag proves nothing. The counts are provisional until the flagged lines have "
-            "been checked by hand.")
+            "A hosted trip that is not disclosed, or disclosed in words the patterns do not know, is missed, so the "
+            "absence of a flag proves nothing; a body longer than %s characters is read in its first %s and last %s. "
+            "The counts are provisional until the flagged lines have been checked by hand." % (
+                format(BODY_MAX, ","), format(BODY_HEAD, ","), format(BODY_TAIL, ",")))
     if not h:
         return head
-    return head + (" At export time %d articles carried a disclosure with a state host and %d with an unnamed host, "
-                   "in %d countries and %d outlets (%d and %d of them discovered in the last thirty days; patterns "
-                   "version %s)." % (h.get("state_host", 0), h.get("unnamed_host", 0), h.get("countries", 0),
-                                     h.get("outlets", 0), h.get("state_host_30d", 0), h.get("unnamed_host_30d", 0),
-                                     h.get("patterns_version") or "none"))
+    def n(v, one, many):
+        return "%d %s" % (v, one if v == 1 else many)
+    return head + (" At export time %s a disclosure with a state host and %d with an unnamed host, "
+                   "in %s and %s (%d and %d of them discovered in the last thirty days; patterns "
+                   "version %s)." % (n(h.get("state_host", 0), "article carried", "articles carried"), h.get("unnamed_host", 0),
+                                     n(h.get("countries", 0), "country", "countries"), n(h.get("outlets", 0), "outlet", "outlets"),
+                                     h.get("state_host_30d", 0), h.get("unnamed_host_30d", 0),
+                                     h.get("patterns_version") or "none")) + (
+        "" if h.get("scan_complete") or h.get("bodies_left") is None else
+        " The scan had not yet read %d of the %d stored bodies under that version, so these counts can still rise."
+        % (h.get("bodies_left") or 0, h.get("bodies_stored") or 0)) + (
+        "" if h.get("bodies_read") is None else " %d article bodies had been read under it." % h["bodies_read"])
 
 
 # ---------------------------------------------------------------------------

@@ -226,3 +226,112 @@ def test_page_wiring():
     assert 'src="copies_map.js?v=%s"' % v in html and 'href="copies_map.css?v=%s"' % v in html
     assert html.index("copies_map.js") < html.index("app.js?v=")
     assert "TrackerCopiesMap.mount(" in (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Stress test of 2026-10-29: cases from the runner's data (CGTN's News Pal release, Xinhua Silk Road
+# releases printed "Press releaseXinhua Silk Road: ..." or "Xinhua Silk Road : ..."), copies of undetermined
+# items, ties at the list cut, and the agency vote.
+# ---------------------------------------------------------------------------
+
+def _group(conn, ids):
+    g = min(ids)
+    for i in ids:
+        conn.execute("UPDATE articles SET dup_group_id=? WHERE id=?", (g, i))
+    conn.commit()
+    return g
+
+
+def test_a_copy_naming_no_publisher_casts_no_vote(conn):
+    """CGTN launches News Pal: two copies credit CGTN, three carry only a distribution stamp. The text is
+    CGTN's, not a release by an unnamed state body."""
+    ids = [_article(conn, "https://us.example/np%d" % i, o, c, sigs=(), route="distribution_stamp",
+                    title="CGTN launches News Pal, an AI-powered news companion")
+           for i, (o, c) in enumerate((("us_paper", "USA"), ("it_paper", "ITA"), ("gb_paper", "GBR")))]
+    ids += [_article(conn, "https://us.example/npc%d" % i, o, c, sigs=("cgtn_credit_line",), route="wire_credit",
+                     title="CGTN launches News Pal, an AI-powered news companion")
+            for i, (o, c) in enumerate((("us_paper", "USA"), ("it_paper", "ITA")))]
+    _group(conn, ids)
+    d = copies_map.build(conn, OUTLETS, window=_window())
+    t = d["texts"][d["scopes"]["all_time"]["ranked"][0]["id"]]
+    assert t["agency"] == "cgtn" and t["agencies"] == ["cgtn"], t
+
+
+def test_xinhua_silk_road_named_anywhere_in_the_headline():
+    for title in ("Xinhua Silk Road: forum opens", "Press releaseXinhua Silk Road: forum opensBy PR Newswire",
+                  "Xinhua Silk Road : la régate de Shenyang", "١١:٣٠ AST Xinhua Silk Road: يجذب مؤتمر"):
+        # No Xinhua credit read at all (a stamp alone), or one from the source_xinhua signature.
+        assert copies_map.refine_credits(set(), [], title, ["wire_stamp_alone"]) == {"xinhua_silk_road"}, title
+        assert copies_map.refine_credits({"xinhua"}, [], title, ["source_xinhua"]) == {"xinhua_silk_road"}, title
+    assert copies_map.refine_credits({"xinhua"}, ["Xinhua Finance"], "Robotics contest in Chongqing") == {"xinhua_finance"}
+    assert copies_map.refine_credits(set(), [], "Press releaseXinhua Finance: Robotics contest") == {"xinhua_finance"}
+    # Xinhua's own site and paper are Xinhua; Jiangsu's group is not; a release silent on Xinhua stays as read.
+    assert copies_map.refine_credits({"xinhua"}, ["Xinhuanet"], "t") == {"xinhua"}
+    assert copies_map.refine_credits({"xinhua"}, ["news.cn"], "t") == {"xinhua"}
+    assert copies_map.refine_credits({"xinhua"}, ["Xinhua Daily Telegraph"], "t") == {"xinhua"}
+    assert copies_map.refine_credits({"xinhua"}, ["JiangsuNow", "Xinhua Daily Media Group"], "Forum opens in Nanjing") == set()
+    assert copies_map.refine_credits({"cgtn"}, [], "CGTN Africa: Kenya trade fair") == {"cgtn"}
+    for a in ("xinhua_silk_road", "xinhua_finance"):
+        assert a in copies_map.AGENCY_NAMES and "Xinhua's" in copies_map.AGENCY_NAMES[a]
+
+
+def test_a_signature_that_sent_a_model_label_counts_as_a_credit(conn):
+    """A model label whose Xinhua dateline only sent it to the model (llm_trigger a_candidate) is Xinhua's."""
+    aid = _article(conn, "https://us.example/m", "us_paper", "USA", sigs=(), method="llm", title="Premier meets envoys")
+    conn.execute("UPDATE articles SET llm_trigger=? WHERE id=?", (json.dumps({"a_candidate": ["xinhua_dateline"]}), aid))
+    conn.commit()
+    assert copies_map._credits(conn)[aid] == {"xinhua"}
+
+
+def test_a_copy_of_an_undetermined_item_is_left_out(conn):
+    """A model uncredited copy whose lookalike reference is itself undetermined (model_only.route_sql reads
+    it as copy_of_undetermined) is in no count, so it does not make the text shared."""
+    ref = _article(conn, "https://wire.example/u", "us_wire", "USA", sigs=(), method="llm", route="unattributed",
+                   title="Canton Fair amplifies product debuts")
+    cp = _article(conn, "https://it.example/u", "it_paper", "ITA", sigs=(), method="llm", route="uncredited_copy",
+                  title="Canton Fair amplifies product debuts")
+    us = _article(conn, "https://us.example/u", "us_paper", "USA", title="Canton Fair amplifies product debuts")
+    conn.execute("UPDATE articles SET llm_trigger=? WHERE id=?",
+                 (json.dumps({"lookalike": {"article_id": ref, "title": "Canton Fair amplifies product debuts"}}), cp))
+    conn.execute("INSERT INTO body_links(a, b, similarity, version, created_at) VALUES (?,?,0.9,1,?)", (cp, us, store.utcnow()))
+    conn.commit()
+    d = copies_map.build(conn, OUTLETS, window=_window())
+    assert d["scopes"]["all_time"]["ranked"] == [] and d["scopes"]["all_time"]["texts"] == 1
+
+
+def test_ties_at_the_cut_are_counted(conn):
+    """Three texts each in two countries with two outlets: a list of two leaves one out that ties."""
+    for k in range(3):
+        a = _article(conn, "https://us.example/tie%d" % k, "us_paper", "USA", title="Tie text %d" % k, days_ago=1 + k)
+        b = _article(conn, "https://it.example/tie%d" % k, "it_paper", "ITA", title="Tie text %d" % k, days_ago=1 + k)
+        _group(conn, [a, b])
+    d = copies_map.build(conn, OUTLETS, window=_window(), top_n=2)
+    s = d["scopes"]["all_time"]
+    assert len(s["ranked"]) == 2 and s["shared_texts"] == 3 and s["tied_beyond"] == 1
+    # The earlier first seen day decides who is listed.
+    assert [d["texts"][r["id"]]["first_seen"] for r in s["ranked"]] == sorted(d["texts"][r["id"]]["first_seen"] for r in s["ranked"])
+    assert copies_map.empty()["scopes"]["all_time"]["tied_beyond"] == 0
+
+
+def test_the_headline_comes_from_any_listed_copy(conn):
+    ids = _text(conn)
+    d = copies_map.build(conn, OUTLETS, window=_window(), shown_ids={ids["us_again"]})
+    assert d["texts"]["t%d" % ids["us"]]["headline"] == TITLE
+
+
+def test_empty_and_failed_exports_differ_by_the_stamp(conn):
+    """The site hides the section for a failed export (no generated_at) and shows its empty state only for a
+    real export with nothing shared."""
+    assert "generated_at" not in copies_map.build_export_quietly(conn, OUTLETS, latest={"window_start_30d": "boom"})
+    assert "generated_at" in copies_map.build_export(conn, OUTLETS, latest=None)
+
+
+def test_page_says_what_copying_means_and_what_it_does_not():
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    sec = html[html.index('<section id="copies-map"'):html.index("</section>", html.index('<section id="copies-map"'))]
+    assert "does not say who placed it" in sec and "paid for it" in sec
+    assert "language editions of one release on a release wire are one text" in sec
+    assert "A text translated into another language counts as a text of its own" not in sec
+    text = copies_map.methodology_text()
+    assert "language editions of one release on a release wire" in text and "does not say who placed it" in text
+    assert "\u2013" not in text and "\u2014" not in text

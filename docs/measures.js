@@ -107,12 +107,15 @@
 
   function label(id, block) { return (block && block.label) || id; }
 
+  /* Measures whose provisional basis is not a pending hand check (syndication: sources verified, not hand coded). */
+  var PROVISIONAL_BASIS = {syndication: "its sources were verified, but it is not hand coded"};
+
   /* One full-notes line per provisional or withheld measure, never for the short strip. */
   function noticeLines(blocks) {
     var out = [];
     Object.keys(blocks || {}).forEach(function (id) {
       var b = blocks[id], s = statusOf(b), name = label(id, b), p = checkProgress(b);
-      if (s === "provisional") out.push(name + " is provisional: it is a new measure, report only, and no hand check of it has passed yet" + (p ? " (" + p + ")" : "") + ". Its figures may change, and none of them changes a count on the map.");
+      if (s === "provisional") out.push(name + " is provisional: it is a new measure, report only, and " + (PROVISIONAL_BASIS[id] || "no hand check of it has passed yet") + (p ? " (" + p + ")" : "") + ". Its figures may change, and none of them changes a count on the map.");
       else if (s === "withheld") out.push(name + " is withheld: " + statusTitle(b).replace(/^Withheld: /, "") + " Its figures are not shown until a new hand check passes.");
     });
     return out;
@@ -137,6 +140,20 @@
         if (!para.trim()) return;
         out.push('<p>' + (i === 0 ? '<strong>' + esc(label(id, b)) + '.</strong> ' + statusChip(b) + ' ' : '') + esc(para.trim()) + '</p>');
       });
+    });
+    return out;
+  }
+
+  /* The same paragraphs, one closed disclosure per measure named in its summary, so the methodology lists the
+     measures without their full method text filling the page; find in page still opens a closed one. */
+  function methodBlocks(blocks) {
+    var out = [];
+    Object.keys(blocks || {}).forEach(function (id) {
+      var b = blocks[id];
+      if (isOff(b) || !b.method_text) return;
+      var paras = String(b.method_text).split(/\n\s*\n/).filter(function (p) { return p.trim(); })
+        .map(function (p) { return '<p>' + esc(p.trim()) + '</p>'; });
+      if (paras.length) out.push('<details class="m-method"><summary><strong>' + esc(label(id, b)) + '</strong> ' + statusChip(b) + '</summary>' + paras.join("") + '</details>');
     });
     return out;
   }
@@ -179,6 +196,6 @@
   return {STATUSES: STATUSES, STATUS_LABELS: STATUS_LABELS, SECTIONS: SECTIONS, SLOTS: SLOTS,
           register: register, get: get, ids: ids, esc: esc, statusOf: statusOf, isOff: isOff, isWithheld: isWithheld,
           checkProgress: checkProgress, statusTitle: statusTitle, statusChip: statusChip, provisionalSuffix: provisionalSuffix,
-          hideIfOff: hideIfOff, sectionVisible: sectionVisible, noticeLines: noticeLines, emptyState: emptyState,
+          hideIfOff: hideIfOff, sectionVisible: sectionVisible, noticeLines: noticeLines, emptyState: emptyState, methodBlocks: methodBlocks,
           methodParagraphs: methodParagraphs, renderAll: renderAll, findingsHtml: findingsHtml, sparkAll: sparkAll};
 }));

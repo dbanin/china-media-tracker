@@ -40,6 +40,9 @@ assert(lines.length === 2 && lines[0].indexOf("Alteration score is provisional")
 assert(M.noticeLines(undefined).length === 0, "no notes without measures");
 var paras = M.methodParagraphs({alteration: Object.assign({method_text: "First.\n\nSecond."}, prov), spikes: {status: "off", method_text: "x"}});
 assert(paras.length === 2 && paras[0].indexOf("Alteration score") !== -1 && paras[1].indexOf("Second.") !== -1, "method paragraphs skip off measures");
+var mb = M.methodBlocks({alteration: Object.assign({method_text: "First.\n\nSecond."}, prov), spikes: {status: "off", method_text: "x"}});
+assert(mb.length === 1 && mb[0].indexOf("<details") === 0 && mb[0].indexOf("Alteration score") !== -1 && (mb[0].match(/<p>/g) || []).length === 2, "one closed block per measure, off measures skipped");
+assert(M.methodBlocks({}).length === 0, "no blocks without measures");
 assert(M.emptyState(wh, {}, "x").indexOf("withheld") !== -1 && M.emptyState(prov, null, "the alteration").indexOf("did not load") !== -1, "empty states");
 
 /* Every stub registers and renders off, provisional with no data, and provisional with an empty file. */

@@ -4,6 +4,82 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Stress test of the eight new features (2026-10-29)
+
+Every feature added on 2026-10-28 was tested against synthetic edge cases, the local database and the page at
+375, 768, 1280 and 1920 px, one agent per feature plus a whole-site check. No count, denominator, share, top 10
+or finding changes; RULESET_VERSION, GATE_VERSION and PROMPT_VERSION unchanged. Data schema 20 (see below);
+ASSET_VERSION 94.
+
+- Same text, many countries (copies map): nine defects fixed. Agencies come from the copies' own credits, with
+  Xinhua Silk Road and Xinhua Finance shown as Xinhua's commercial services, not Xinhua's newsroom; translated
+  copies are worded as translations; ties at the end of the ranked list are reported (tied_beyond) instead of cut
+  at random; a failed export shows its own message; the map and list are reachable by keyboard and labelled.
+  Schema change: copies_map.json gains tied_beyond and agencies.xinhua_finance.
+- Propaganda calendar (calendar_test VERSION 2): the pre-registration boundary is enforced. Only windows that
+  open after 2026-10-28 count as fixed in advance (the first is the World Internet Conference from 30 October);
+  Canton Fair phase 3 and every earlier window are retrospective. The interval for each window is rebuilt as a
+  negative binomial score interval (about 95 percent coverage in simulation), the page states how many windows
+  were tested and that some will look unusual by chance, and overlapping windows are marked. The 2027 Two
+  Sessions now end on 12 March and are marked as added after the pre-registration. Schema change: overlaps,
+  normal_possible and in_progress.
+- Small African outlets: ng_theniche deactivated, because the evidence for its selection did not hold on a
+  reread. Every outlet chosen for its China ties now carries a visible disclosure, and an export warning of type
+  china_selected says when a country's figures include one. An isiZulu relevance gate defect was found and held
+  by a strict expected failure test; fixing it needs a GATE_VERSION bump, which is the owner's decision.
+- African reference sources: five defects fixed in pipeline/reference.py (URL cleaning, the CGTN link cleaner,
+  link patterns in sources/reference.yaml) and pipeline/copies.py (credit suffixes of state services). A gap in
+  the ruleset's African credit signatures was checked and has no observed case; a change would need a
+  RULESET_VERSION bump, left to the owner.
+- Syndication deals: the before and after comparison counted undetermined and shadowed labels; it now uses the
+  same route and headline category rules as every other count (syndication.side_counts). Four entries corrected
+  against their sources, partner_name added where the state body differs from the brand (12 entries; schema
+  change), and the wording now reads "51 entries for 48 agreements" and "47 of 51 predate collection". The
+  timeline shows the six newest entries and the rest behind one "Show the other N entries" control, and the
+  provisional note reads "its sources were verified, but it is not hand coded" (decision D7).
+- Ownership stakes: twelve defects fixed. Two claims no source supported were removed, so the record uses only
+  the sources' words: the holder is Interacom Holdings, and nothing says CITVC is wholly owned by CCTV. The
+  Sagarmatha stake carries its 4.1 percent caveat. Isolezwe moved to National Media Group in July 2026, so its
+  stake is marked ended (Daily Maverick, 5 August 2026). Each stake shows a status tag (current, disputed or
+  ended), caveats open in place instead of a hover tooltip, and every stake notes that ownership says nothing
+  about editorial control. The validator (registry.validate_stakes) is stricter, and the outlet column no
+  longer collapses at 375 px.
+- Hosted travel disclosures (patterns 2026.10.2): the first live run would have read about 80,000 stored bodies
+  at about 60 ms each with no time limit. Anchors now run only near a trigger word of their own language, very
+  long bodies are read in their first 150,000 and last 50,000 characters, and the export scan
+  (hosted_travel.export_scan) stops after 240 s and resumes on the next run. A resumption bug that skipped
+  re-fetched rows is fixed, flags whose body is gone are dropped, and text is normalised (NFC, zero-width and
+  bidirectional marks removed). On a held-out synthetic set the old patterns found 39 of 71 disclosures with 5
+  false flags; the new patterns found every one with none. Fixed: Dutch and German phrases that could never
+  match, reported speech read as the author's own disclosure, Taiwan's foreign ministry and non-Chinese
+  provincial governments read as Chinese hosts. The claim "Most hosted trips are never disclosed" is removed,
+  as no source supports it. A test exports two identical databases, one with the detector disabled, and finds
+  every other data file and count identical (D8). Schema change: scan_complete, bodies_left, bodies_stored,
+  bodies_read, languages as a list of codes, basis bio; hosted_travel.json now carries the export stamp.
+- New themes (themes version 2026.10.2): every hit of the three new themes in 140,657 relevant articles was
+  read. Chinese overcapacity and dumping went from 281 of 324 hits right (86.7 percent) to 343 of 356 (96.3
+  percent): the words no longer count near Volkswagen, VW or Stellantis, nor for anti-dumping cases China itself
+  opens or goods from the EU, the US or Japan, and the China shock and borrowed "dumping" forms are added. The EU
+  and China trade war went from 226 of 234 to 369 of 387 (95.3 percent), with a new rule for a tariff, duty,
+  quota, safeguard, anti-dumping case or retaliation near both an EU name and a China word and no US word that
+  close. No true hit was lost. Leaving the Belt and Road stays at 4 of 5. The eleven older themes are untouched:
+  their definitions hash the same as in 2026.09.4 and all 140,657 articles get identical tags for them. The
+  leaning table now counts China coverage as state origin, unchecked state sourcing and independent journalism
+  only (candidates waiting for the model were included before), gives no share for a group drawn from fewer
+  than 5 outlets, shows "<0.1%" instead of 0.0%, uses thousands separators, fits 375 px, and keeps keyboard
+  focus on the pressed theme button. While a version is still being applied, the theme counter and timeline say
+  how far it has come; the timeline no longer says every change re-tags every article at once. The re-tag of a
+  version runs newest first in budgeted slices, about three exports. Schema change: meta.themes_progress gains
+  changed; outlets.json theme_cross keeps its shape with the narrower count.
+- Whole site: the header reads the live outlet count (meta.outlets_active) instead of "about 1,700"; header links
+  hide while their section is hidden; scrolling and the map zoom respect reduced motion; tables use thousands
+  separators; decorative curves are hidden from screen readers; an empty favicon link stops a 404 on every load;
+  theme grid text picks its ink by WCAG contrast, with white on the middle red where neither page ink reaches
+  4.5:1. The methodology lists each new measure as one closed block named with its status
+  (measures.methodBlocks), which shortens the page at 375 px from about 91,000 px to about 66,000. Checked: 36 missing or malformed file cases, the deploy self heal paths, no horizontal scroll at four
+  widths, one h1 with no skipped levels, every keyboard stop visible, and the headline numbers identical across
+  the cards, the panel, the findings box and scripts/numbers_sheet.py.
+
 ## Site: same text, many countries: a world map of shared state texts (2026-10-28)
 
 Display only. No label, count, denominator, share, top 10, finding or monitored outlet changes; RULESET_VERSION and

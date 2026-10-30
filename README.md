@@ -250,7 +250,9 @@ dumping, and the EU and China trade war. Each of their terms was read in its own
 language in the tracked outlets' China coverage of that day's snapshot; forms
 not seen were left out rather than translated in. The eleven earlier themes are
 unchanged. Re-tagging the whole history under the new version takes about three
-exports. The three are crossed with outlet leaning (`leaning_cross`): each
+exports. Themes version 2026.10.2 (29 October 2026) corrects the three themes' terms
+after every hit of 2026.10.1 was read; `meta.themes_progress.changed` lists them,
+and the site marks their counts partial until the re-tagging is complete. The three are crossed with outlet leaning (`leaning_cross`): each
 outlet in `outlets.json` carries `theme_cross` (its China coverage, state origin,
 articles on the current version, and per theme the articles and state origin
 among them), and the "Who publishes it" section shows per group the share of

@@ -203,14 +203,18 @@ def collectable(sources: List[Dict], collector: Optional[str] = None) -> List[Di
 # ---------------------------------------------------------------------------
 
 def clean_url(url: str) -> str:
-    """The address without its fragment and tracking parameters (CGTN's RSS adds UTM_Source and so on).
-    Unlike store.canonical_url it keeps the host and scheme as written, so the page is fetched as listed."""
+    """The address without its fragment, its tracking parameters (CGTN's RSS adds UTM_Source and so on)
+    and its parameters without a value (CGTN's tech-sci feed links its stories as ".../p.html?Sci=", the
+    same page as ".../p.html" in its other feeds and sitemap, which the live check of 2026-10-29 stored
+    twice for 7 of 605 items). Unlike store.canonical_url it keeps the host and scheme as written, so the
+    page is fetched as listed."""
     u = (url or "").strip()
     try:
         parts = urlsplit(u)
     except ValueError:
         return u
-    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not k.lower().startswith("utm_")]
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if v != "" and not k.lower().startswith("utm_")]
     return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ""))
 
 
@@ -838,6 +842,11 @@ _CGTN_TAIL = {"search trends", "choose your language", "download our app"}
 _CGTN_DROP = {"breaking news", "subscribe", "get timely updates on major events from around the globe with cgtn breaking news."}
 _CGTN_DURATION = re.compile(r"^\d{1,2}:\d{2}(:\d{2})?$")
 _CGTN_LABELS = re.compile(r"^[A-Za-z&' ]+(;[A-Za-z&' ]*)+$")
+# A CGTN Africa photo page keeps only the update half of its time line (", Updated 16:46, 27-Oct-2026"), and
+# a feature can end in the newsletter box ("CHINA NEWS" over "Keep up to date with all the top trends,
+# insights and developments from China."); both seen on the live check of 2026-10-29.
+_CGTN_UPDATED_LINE = re.compile(r"^,?\s*Updated\s+\d{1,2}:\d{2}, \d{1,2}-[A-Z][a-z]{2}-\d{4}$")
+_CGTN_NEWSLETTER = "keep up to date with all the top trends"
 _CD_DROP = {"share - wechat", "- search", "photo", "top"}
 # The CGTN head: the language menu (each language in English and in its own script) and the cookie
 # notice. Its accept line has been "I agree"; other wordings are taken too, and when there is no accept
@@ -860,6 +869,9 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
                      bare "CGTN" credit line and "Source(s): ..." lines are kept.
                      Video pages: the clip duration line ("02:58"), a section label line such as
                      "Asia;China", and the "For more, check out our exclusive content on CGTN Now" line.
+                     Since 2026-10-29 also a lone ", Updated 16:46, 27-Oct-2026" line, the newsletter box
+                     ("Keep up to date with all the top trends ..." and its heading in capitals), and a
+                     line that repeats the line before it (CGTN Africa prints each photo caption twice).
       peoples_daily  everything from the "Related Stories" link list on (with the "Photos" line before
                      it) and the "Copyright ... People's Daily Online" line.
       china_daily    everything from the "Most Popular" link list or the "Copyright 1994" footer on, the
@@ -889,7 +901,20 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
                 break
         lines = [line for line in lines if line.strip().lower() not in _CGTN_DROP
                  and not _CGTN_DURATION.match(line.strip()) and not _CGTN_LABELS.match(line.strip())
+                 and not _CGTN_UPDATED_LINE.match(line.strip())
                  and not line.strip().startswith("For more, check out our exclusive content on CGTN")]
+        kept: List[str] = []
+        for line in lines:
+            s = line.strip()
+            if s.lower().startswith(_CGTN_NEWSLETTER):
+                # the box and its heading in capitals just above it
+                if kept and kept[-1].strip().isupper() and len(kept[-1].split()) <= 3:
+                    kept.pop()
+                continue
+            if s and kept and s == kept[-1].strip():
+                continue       # a photo caption printed twice (17 of 20 CGTN Africa pages on 2026-10-29)
+            kept.append(line)
+        lines = kept
     elif cleaner == "peoples_daily":
         for i, line in enumerate(lines):
             if line.strip() == "Related Stories":

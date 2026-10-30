@@ -4,12 +4,20 @@
 #   python -m pipeline.calendar_test validate [path]
 #
 # This file is the pre-registration (owner decision D9). It was compiled on 28 October 2026 from public
-# sources, before the tracker's data for any date after that day existed. Windows that begin before 28
-# October 2026 are a retrospective test: their dates were chosen while the data for them could already
-# be seen, and the site says so. Windows that begin on or after 28 October 2026 are a forward test fixed
-# in advance: the dates, the window, the keywords and the method were committed before the data. An entry
-# added or changed later carries a later added_on and is reported as added after the pre-registration,
-# never as part of it. Git history shows what was committed when.
+# sources and first committed at 19:31 Pacific time that day (02:31 UTC on 29 October), after the export
+# of 22:18 UTC on 28 October had been published, so 28 October itself had been seen almost whole and no
+# day after it had been exported. Windows that begin on or before 28 October 2026 are a retrospective
+# test: their dates were chosen while the data for them could already be seen, and the site says so.
+# Windows that begin on or after 29 October 2026 are a forward test fixed in advance: the dates, the
+# window, the keywords and the method were committed before the data. An entry added or changed later
+# carries a later added_on and is reported as added after the pre-registration, never as part of it; its
+# note says what changed. A note that only adds a source, leaving the dates, the window and the keywords
+# as they were, keeps the entry's added_on and says when it was added. The method's interval was revised
+# on 29 October 2026 (pipeline/calendar_test.py VERSION 2), before any forward window had begun: the first,
+# the World Internet Conference's, begins on 30 October. Git history shows what was committed when.
+#
+# Days. The tracker counts an item on its UTC day of record; the dates here are Beijing dates. A Beijing
+# day begins at 16:00 UTC the day before, inside the 3 lead days, so a window covers its event in both.
 #
 # window        lead_days before an event's first day and lag_days after its last day belong to its
 #               window. The same lead and lag for every event, fixed here before the data.
@@ -226,6 +234,7 @@ events:
     keywords: [apec, asia-pacific economic cooperation, 亚太经合, shenzhen, 深圳, asia-pacífico, asie-pacifique]
     source_url: https://www.lg.gov.cn/english/news/latestnews/content/post_12588327.html
     source_title: The 33rd APEC Economic Leaders' Meeting to occur in Shenzhen, 18 to 19 November 2026 (Longgang district government)
+    note: "Note added on 29 October 2026: the CEO Summit dates, 17 to 18 November, were announced by CCPIT on 10 September 2026: https://news.cgtn.com/news/2026-09-10/2026-APEC-CEO-Summit-to-be-held-on-Nov-17-18-in-China-s-Shenzhen-1QkpMIz9M2s/p.html"
   - id: nanjing_memorial_2026
     name: National Memorial Day for the Nanjing Massacre victims
     start: 2026-12-13
@@ -267,16 +276,16 @@ events:
   - id: two_sessions_2027
     name: The Two Sessions (CPPCC National Committee and National People's Congress annual sessions)
     start: 2027-03-04
-    end: 2027-03-11
+    end: 2027-03-12
     category: state
     recurrence: annual_announced
     status: expected
     known_before_compiled: false
-    added_on: 2026-10-28
+    added_on: 2026-10-29
     keywords: [two sessions, 两会, national people's congress, 全国人大, cppcc, 政协, government work report, 政府工作报告, dos sesiones, deux sessions]
     source_url: https://regional.chinadaily.com.cn/cppcc/2026-03/03/c_1163972.htm
     source_title: Annual session of CPPCC National Committee to run from March 4 to 11 (China Daily, 2026 pattern)
-    note: Expected from the 2026 pattern (CPPCC from 4 March, NPC from 5 March); the 2027 dates are set later by the NPC Standing Committee.
+    note: Expected from the 2026 pattern (CPPCC 4 to 11 March, NPC 5 to 12 March); the 2027 dates are set later by the NPC Standing Committee. Changed on 29 October 2026, after the pre-registration and before any 2027 data, to end on 12 March with the NPC; it first ended on 11 March, the CPPCC's last day.
   - id: canton_fair_141_phase1
     name: 141st Canton Fair, phase 1
     start: 2027-04-15

@@ -8,10 +8,12 @@ the date. This measure asks the opposite question: given a list of dates fixed i
 is state origin volume higher around them than on normal days?
 
 Pre-registration (owner decision D9). The calendar was compiled on 28 October 2026 (compiled_on in the
-file) from public sources. A window that begins before that day is a retrospective test, since its
-dates were chosen while its data could already be seen; a window that begins on or after it is a
-forward test, fixed in advance with this method. An entry added later (added_on after compiled_on) is
-reported as added after the pre-registration. The two kinds are reported apart, never pooled.
+file) from public sources and committed at 19:31 Pacific time that day (02:31 UTC on 29 October), after
+the export of 22:18 UTC on 28 October had been published. A window that begins on or before the compile
+day is a retrospective test, since its data could already be seen (28 October itself was seen almost
+whole); a window that begins after it is a forward test, fixed in advance with this method. An entry
+added or changed later (added_on after compiled_on) is reported as added after the pre-registration.
+The kinds are reported apart, never pooled.
 
 The series. Evidence settled state origin placements per day of record, exactly as the daily files
 count them (export.build_daily, "A"): undetermined labels (pipeline/model_only.py) are in no count, and
@@ -20,6 +22,10 @@ monitored and never has a series. Only complete days are used: the export day is
 
 Windows. Every dated event's days plus lead_days before its first day and lag_days after its last
 (both 3, stated in the calendar file, the same for every event). An event without dates makes no window.
+Days are the tracker's days of record, UTC days; an event's dates are Beijing dates, and a Beijing day
+begins at 16:00 UTC the day before, which the lead days cover. Windows of nearby events overlap (207 of
+the calendar's 487 days, 43 percent, are in some window), so their results share days and are not independent:
+each window lists the windows it overlaps.
 
 Days left out (confounded), on both sides:
   first_day             the first day of record, which is partial
@@ -38,19 +44,30 @@ Days left out (confounded), on both sides:
 Two comparisons for every window:
   normal  complete, unconfounded days outside every window of the calendar, within NORMAL_SPAN_DAYS of
           the window on either side: the test the owner asked for
-  other   the same, but outside this window only. Other events' windows can raise these days, which can
-          only pull the ratio towards 1, so it is the conservative check, shown beside the first while
-          normal days are scarce (the autumn calendar is dense)
+  other   the same, but outside this window only, shown beside the first while normal days are scarce
+          (the autumn calendar is dense: the windows of September 2026 can never have 14 normal days
+          within 56 days). Other events' windows are among these days: where those events raise state
+          text the ratio is pulled towards 1, where they lower it (a holiday week can) it is pushed away,
+          so it is a check, not a cleaner test
 
 Rate ratio. Observed placements on the window's usable days over expected, the expected count being the
 sum, over those days, of the mean of the comparison days with the same weekday (the overall comparison
 mean where a weekday has fewer than MIN_PER_WEEKDAY comparison days). The 95 percent interval is a
-negative binomial one on the log scale: the spread phi is the comparison days' variance to mean ratio
-(at least 1), the variance of the observed count phi times the count, and the variance of the expected
-count from the weekday means it is built from. Where at least MIN_SHIFTS pseudo windows fit, a
-permutation p value is added: the same window shifted to other stretches of comparison days, the share
-of them with a ratio at least as high. Fewer than MIN_WINDOW_DAYS usable window days or MIN_COMPARISON_DAYS
-comparison days: "too few days", and no figure.
+negative binomial score interval: phi is the comparison days' Pearson dispersion around their weekday
+means (at least 1), a day's variance is its mean times (1 + (phi - 1) times its mean over the comparison
+mean), so the spread grows with the level as in a negative binomial, and the expected count's own
+uncertainty (phi times the variance of the weekday means) is added. The interval is every ratio R for
+which the observed count lies within t standard deviations of R times the expected count, t the 97.5
+percent point of Student's t on the comparison days' degrees of freedom (phi is estimated from them); it
+stays sensible at zero (0 to an upper bound) and has no upper bound when the counts are too uncertain.
+On synthetic data with known answers (tests/test_calendar_test.py) it covers the true ratio about 95
+percent of the time with or without a rise; a window with no rise is called raised about 2 to 5 percent
+of the time at the spreads seen so far (dispersion 1 to 3), and up to about 1 in 8 with 14 comparison
+days and very uneven counts (a negative binomial shape under 2). Where at least MIN_SHIFTS pseudo windows fit, a permutation p value is
+added: the same window shifted to other stretches of comparison days, the share of them with a ratio at
+least as high (the shifts overlap one another, so it is coarse). Fewer than MIN_WINDOW_DAYS usable window
+days or MIN_COMPARISON_DAYS comparison days: "too few days", and no figure. A window still running is
+tested on its days so far and counted in the summary only once it has ended.
 
 Countries. The same test for each country (and WLD) whose comparison days carry at least
 COUNTRY_MIN_MEAN placements a day, on the days the country had any discovery; the busiest COUNTRY_MAX.
@@ -60,7 +77,8 @@ keywords (in the calendar file), beside the same share on the comparison days. A
 is a floor: an item about the event in other words is missed.
 
 Timing, never cause: a rise in a window says state text was more common around the date, not that the
-date caused it, and with many windows some look raised by chance at 95 percent.
+date caused it. With many windows some look raised by chance: about 1 in 40 tested windows where nothing
+happens (more where daily counts swing widely), and the site says how many that is.
 
 Command line:
   python -m pipeline.calendar_test validate [path]   check the calendar file
@@ -84,7 +102,7 @@ import yaml
 from pipeline import config
 
 MEASURE_ID = "calendar"
-VERSION = "1"
+VERSION = "2"                  # 2: score interval, Pearson dispersion, t quantile, 28 October retrospective
 
 PATH = config.ROOT / "sources" / "political_calendar.yaml"
 SCHEMA_PATH = config.ROOT / "sources" / "political_calendar_schema.json"
@@ -96,6 +114,7 @@ MIN_COMPARISON_DAYS = 14       # usable comparison days needed for a figure
 MIN_PER_WEEKDAY = 2            # comparison days of a weekday before its own mean is used
 MIN_SHIFTS = 19                # pseudo windows needed before a permutation p value is given
 Z95 = 1.959964
+CHANCE_RAISED = 0.025          # the share of windows without a rise called raised by chance (one tail)
 COUNTRY_MIN_MEAN = 1.0         # placements per comparison day for a country's own test
 COUNTRY_MAX = 8
 OUTAGE_FLOOR = 0.25
@@ -238,13 +257,20 @@ def _span(a: str, b: str) -> List[str]:
     return out
 
 
+_WEEKDAYS: Dict[str, int] = {}
+
+
 def _weekday(day: str) -> int:
-    return dt.date.fromisoformat(day).weekday()
+    w = _WEEKDAYS.get(day)
+    if w is None:
+        w = _WEEKDAYS[day] = dt.date.fromisoformat(day).weekday()
+    return w
 
 
 def windows(cal: Dict) -> List[Dict]:
-    """Every dated event's window, in date order, with its kind: retrospective (the window begins before
-    compiled_on), forward (on or after it) or added_later (added_on after compiled_on)."""
+    """Every dated event's window, in date order, with its kind: retrospective (the window begins on or
+    before compiled_on), forward (after it) or added_later (added_on after compiled_on), and the ids of
+    the windows it overlaps."""
     lead, lag = int(cal["window"]["lead_days"]), int(cal["window"]["lag_days"])
     compiled = cal["compiled_on"]
     out = []
@@ -252,13 +278,16 @@ def windows(cal: Dict) -> List[Dict]:
         if not e.get("start"):
             continue
         ws, we = _shift(e["start"], -lead), _shift(e["end"], lag)
-        kind = "added_later" if e["added_on"] > compiled else ("retrospective" if ws < compiled else "forward")
+        kind = "added_later" if e["added_on"] > compiled else ("retrospective" if ws <= compiled else "forward")
         out.append({"id": e["id"], "name": e["name"], "category": e["category"], "status": e["status"],
                     "recurrence": e["recurrence"], "known_before_compiled": e["known_before_compiled"],
                     "added_on": e["added_on"], "start": e["start"], "end": e["end"], "window_start": ws,
                     "window_end": we, "kind": kind, "keywords": list(e["keywords"]),
                     "source_url": e["source_url"], "source_title": e["source_title"], "note": e.get("note")})
     out.sort(key=lambda w: (w["window_start"], w["id"]))
+    for w in out:
+        w["overlaps"] = [x["id"] for x in out if x["id"] != w["id"] and x["window_start"] <= w["window_end"]
+                         and w["window_start"] <= x["window_end"]]
     return out
 
 
@@ -405,10 +434,65 @@ def ratio_of(counts: Dict[str, float], wdays: List[str], pool: List[str]) -> Opt
     return (sum(counts.get(d, 0) for d in wdays) / e) if e > 0 else None
 
 
+def t975(dof: int) -> float:
+    """The 97.5 percent point of Student's t with dof degrees of freedom (Cornish Fisher expansion, within
+    0.01 of the exact value from 7 degrees of freedom up, the fewest a 14 day pool has): the spread is estimated from the comparison days,
+    so a short pool widens the interval."""
+    z = Z95
+    n = float(max(int(dof), 1))
+    return z + (z ** 3 + z) / (4 * n) + (5 * z ** 5 + 16 * z ** 3 + 3 * z) / (96 * n * n)
+
+
+def dispersion_dof(pool: List[str]) -> int:
+    """The degrees of freedom of dispersion(): the pool's days less one per weekday mean it uses."""
+    c = Counter(_weekday(d) for d in pool)
+    groups = len([w for w, k in c.items() if k >= MIN_PER_WEEKDAY])
+    return len(pool) - max(groups, 1)
+
+
+def dispersion(counts: Dict[str, float], pool: List[str]) -> float:
+    """The pool's Pearson dispersion around its weekday means (the overall mean for a weekday with fewer
+    than MIN_PER_WEEKDAY days), at least 1. A weekday rhythm is not counted as spread."""
+    by_wd: Dict[int, List[float]] = defaultdict(list)
+    for d in pool:
+        by_wd[_weekday(d)].append(counts.get(d, 0))
+    m_all = sum(counts.get(d, 0) for d in pool) / float(len(pool)) if pool else 0.0
+    ss, groups = 0.0, 0
+    for vals in by_wd.values():
+        if len(vals) >= MIN_PER_WEEKDAY:
+            m = sum(vals) / float(len(vals))
+            groups += 1
+        else:
+            m = m_all
+        if m > 0:
+            ss += sum((x - m) ** 2 for x in vals) / m
+    dof = len(pool) - max(groups, 1)
+    return max(1.0, ss / dof) if dof > 0 else 1.0
+
+
+def score_interval(o: float, e: float, n_days: int, phi: float, m_pool: float, var_e0: float, z: float = Z95):
+    """(low, high) of the ratio R: every R for which o lies within z standard deviations of R e, where
+    var(O | R) = R e (1 + (phi - 1) R e / (n_days m_pool)) + R^2 phi var_e0. high is None when the expected
+    count is too uncertain for an upper bound."""
+    inv_k = (phi - 1.0) / m_pool if m_pool > 0 else 0.0
+    z2 = z * z
+    quad = inv_k * e * e / float(max(n_days, 1)) + phi * var_e0
+    a = e * e - z2 * quad
+    b = -(2.0 * o * e + z2 * e)
+    c = float(o) * o
+    disc = math.sqrt(max(0.0, b * b - 4.0 * a * c))
+    if a <= 0:
+        # the upper root runs off: only the lower bound is defined
+        low = c / (-b) if b < 0 and o > 0 else 0.0
+        return max(0.0, low), None
+    low = (-b - disc) / (2.0 * a) if o > 0 else 0.0
+    return max(0.0, low), (-b + disc) / (2.0 * a)
+
+
 def rate_test(counts: Dict[str, float], wdays: List[str], pool: List[str], wrange: Optional[List[str]] = None) -> Dict:
     """The window's rate ratio against the pool: observed, expected, ratio, the 95 percent negative
-    binomial interval and, where enough pseudo windows fit, the permutation p value. state is "tested"
-    or "too_few_days"."""
+    binomial score interval and, where enough pseudo windows fit, the permutation p value. state is
+    "tested", "no_comparison_volume" or "too_few_days"."""
     wdays, pool = sorted(wdays), sorted(pool)
     out = {"state": "too_few_days", "window_days": len(wdays), "comparison_days": len(pool),
            "observed": int(round(sum(counts.get(d, 0) for d in wdays))), "expected": None, "ratio": None,
@@ -416,35 +500,48 @@ def rate_test(counts: Dict[str, float], wdays: List[str], pool: List[str], wrang
     if len(wdays) < MIN_WINDOW_DAYS or len(pool) < MIN_COMPARISON_DAYS:
         return out
     e, var_e0, m_all, fallback = _expected(counts, wdays, pool)
-    pm, pv = _mean_var([counts.get(d, 0) for d in pool])
-    phi = max(1.0, pv / pm) if pm > 0 else 1.0
+    phi = dispersion(counts, pool)
     o = sum(counts.get(d, 0) for d in wdays)
     out.update({"state": "tested", "expected": round(e, 2), "dispersion": round(phi, 2), "weekday_fallback": fallback,
-                "comparison_mean": round(pm, 3), "window_mean": round(o / float(len(wdays)), 3)})
+                "comparison_mean": round(m_all, 3), "window_mean": round(o / float(len(wdays)), 3)})
     if e <= 0:
         out["state"] = "no_comparison_volume"
         return out
     r = o / e
-    se = math.sqrt(phi / max(o, 0.5) + phi * var_e0 / (e * e))
-    out.update({"ratio": round(r, 3), "ci_low": 0.0 if o == 0 else round(r * math.exp(-Z95 * se), 3),
-                "ci_high": round(r * math.exp(Z95 * se), 3)})
-    # Pseudo windows: the window's span moved onto comparison days, never overlapping the real one.
+    lo, hi = score_interval(o, e, len(wdays), phi, m_all, var_e0, t975(dispersion_dof(pool)))
+    out.update({"ratio": round(r, 3), "ci_low": round(lo, 3), "ci_high": None if hi is None else round(hi, 3)})
+    # Pseudo windows: the window's span moved onto comparison days, never overlapping the real one. The
+    # pool's weekday sums are kept, and each pseudo window's own days taken out of them.
     wrange = wrange or wdays
     length = len(wrange)
     pset = set(pool)
+    sums: Dict[int, float] = defaultdict(float)
+    ns: Dict[int, int] = defaultdict(int)
+    for d in pool:
+        sums[_weekday(d)] += counts.get(d, 0)
+        ns[_weekday(d)] += 1
+    total, n_pool = sum(sums.values()), len(pool)
     ratios = []
     for s in range(-NORMAL_SPAN_DAYS - length, NORMAL_SPAN_DAYS + length + 1):
         if abs(s) < length:
             continue
-        pseudo = [_shift(d, s) for d in wrange]
-        use = [d for d in pseudo if d in pset]
-        rest = [d for d in pool if d not in set(pseudo)]
-        if len(use) < MIN_WINDOW_DAYS or len(use) < len(wdays) or len(rest) < MIN_COMPARISON_DAYS:
+        full = [x for x in (_shift(d, s) for d in wrange) if x in pset]
+        if len(full) < MIN_WINDOW_DAYS or len(full) < len(wdays) or n_pool - len(full) < MIN_COMPARISON_DAYS:
             continue
-        use = use[:len(wdays)] if len(use) > len(wdays) else use
-        rs = ratio_of(counts, use, rest)
-        if rs is not None:
-            ratios.append(rs)
+        use = full[:len(wdays)]
+        # the rest is the pool less every pseudo window day; use is tested against it
+        out_s, out_n = defaultdict(float), defaultdict(int)
+        for d in full:
+            out_s[_weekday(d)] += counts.get(d, 0)
+            out_n[_weekday(d)] += 1
+        rest_n = n_pool - len(full)
+        m_rest = (total - sum(out_s.values())) / float(rest_n)
+        exp_s = 0.0
+        for w, k in Counter(_weekday(d) for d in use).items():
+            nw = ns[w] - out_n[w]
+            exp_s += k * ((sums[w] - out_s[w]) / float(nw) if nw >= MIN_PER_WEEKDAY else m_rest)
+        if exp_s > 0:
+            ratios.append(sum(counts.get(d, 0) for d in use) / exp_s)
     out["shifts"] = len(ratios)
     if len(ratios) >= MIN_SHIFTS:
         out["p_shift"] = round((1 + sum(1 for x in ratios if x >= r - 1e-12)) / float(1 + len(ratios)), 3)
@@ -462,25 +559,35 @@ def _matcher(keywords: List[str]):
     return lambda title: any(p.search((title or "").lower()) for p in pats)
 
 
+_BY_DAY = ("_by_day", "")
+
+
+def _rows_by_day(rows_by: Dict) -> Dict[str, List[Dict]]:
+    out: Dict[str, List[Dict]] = defaultdict(list)
+    for key, rows in (rows_by or {}).items():
+        if key != _BY_DAY:
+            out[key[0]].extend(rows)
+    return out
+
+
 def mentions(rows_by: Dict, wdays: List[str], pool: List[str], keywords: List[str]) -> Optional[Dict]:
     """The share of the window's state origin placements whose headline carries a keyword, and the same
     share on the comparison days. None when no headlines are at hand."""
     if not rows_by:
         return None
     hit = _matcher(keywords)
-    wset, pset = set(wdays), set(pool)
+    by_day = rows_by.get(_BY_DAY) if _BY_DAY in rows_by else _rows_by_day(rows_by)
     w_n = w_k = p_n = p_k = 0
     by_outlet: Counter = Counter()
-    for (d, _c), rows in rows_by.items():
-        if d in wset:
-            for r in rows:
-                w_n += 1
-                by_outlet[r.get("outlet_id")] += 1
-                w_k += 1 if hit(r.get("title")) else 0
-        elif d in pset:
-            for r in rows:
-                p_n += 1
-                p_k += 1 if hit(r.get("title")) else 0
+    for d in set(wdays):
+        for r in by_day.get(d, ()):
+            w_n += 1
+            by_outlet[r.get("outlet_id")] += 1
+            w_k += 1 if hit(r.get("title")) else 0
+    for d in set(pool) - set(wdays):
+        for r in by_day.get(d, ()):
+            p_n += 1
+            p_k += 1 if hit(r.get("title")) else 0
     return {"items": w_n, "mentioning": w_k, "share": round(w_k / float(w_n), 4) if w_n else None,
             "comparison_items": p_n, "comparison_mentioning": p_k,
             "comparison_share": round(p_k / float(p_n), 4) if p_n else None,
@@ -519,6 +626,10 @@ def analyse(daily: Dict, until: str, cal: Dict, meta: Optional[Dict] = None, row
     series = _country_series(entries, days)
     dayset = set(days)
     last = days[-1] if days else None
+    first = days[0] if days else None
+    if rows_by:
+        rows_by = dict(rows_by)
+        rows_by[_BY_DAY] = _rows_by_day(rows_by)
     results = []
     for w in wins:
         if deadline is not None and time.monotonic() >= deadline:
@@ -540,6 +651,9 @@ def analyse(daily: Dict, until: str, cal: Dict, meta: Optional[Dict] = None, row
                 excluded["outside_record"] += 1
         lo, hi = _shift(w["window_start"], -NORMAL_SPAN_DAYS), _shift(w["window_end"], NORMAL_SPAN_DAYS)
         near = [d for d in days if lo <= d <= hi and d not in conf]
+        # the most normal days this window can ever have: every day of the span from the first of record
+        # outside every window, as if all were complete and unconfounded
+        r["normal_possible"] = len([d for d in _span(max(lo, _shift(first, 1)), hi) if d not in all_win])
         wset = set(wrange)
         pools = {"normal": [d for d in near if d not in all_win], "other": [d for d in near if d not in wset]}
         used_w = [d for d in in_rec if d not in conf]
@@ -555,20 +669,28 @@ def analyse(daily: Dict, until: str, cal: Dict, meta: Optional[Dict] = None, row
             t = rate_test(world[0], wd, pl, wrange)
             t["label_mix_days"] = len([d for d in used_w if d in mixed])
             t["mentions"] = mentions(rows_by, wd, pl, w["keywords"]) if t["window_days"] else None
-            countries = []
+            # the busiest COUNTRY_MAX countries with a test, busiest first: tested in that order, so the
+            # quiet ones are never tested
+            cand = []
             for c, (cnt, mon) in series.items():
                 if c == WORLD:
                     continue
                 cw, cp = [d for d in wd if d in mon], [d for d in pl if d in mon]
-                if not cp or sum(cnt.get(d, 0) for d in cp) / float(len(cp)) < COUNTRY_MIN_MEAN:
+                if not cp:
                     continue
-                ct = rate_test(cnt, cw, cp, wrange)
+                mean = sum(cnt.get(d, 0) for d in cp) / float(len(cp))
+                if mean >= COUNTRY_MIN_MEAN:
+                    cand.append((-mean, c, cw, cp))
+            countries = []
+            for _m, c, cw, cp in sorted(cand, key=lambda x: (x[0], x[1])):
+                if len(countries) >= COUNTRY_MAX:
+                    break
+                ct = rate_test(series[c][0], cw, cp, wrange)
                 if ct["state"] != "tested":
                     continue
                 ct["country"] = c
                 countries.append(ct)
-            countries.sort(key=lambda x: (-(x.get("comparison_mean") or 0), x["country"]))
-            t["countries"] = countries[:COUNTRY_MAX]
+            t["countries"] = countries
             r["comparisons"][name] = t
         r["days_in_record"] = len(in_rec)
         r["days_usable"] = len(used_w)
@@ -654,14 +776,20 @@ def summarise(res: Dict) -> Dict:
     out = {"windows": len(res["windows"]), "undated": len(res["undated"]), "normal_days": res["normal_days"]}
     for kind in ("retrospective", "forward", "added_later"):
         ws = [w for w in res["windows"] if w["kind"] == kind]
-        tested = [w for w in ws if w.get("state") in ("tested", "in_progress")
-                  and any((w.get("comparisons") or {}).get(c, {}).get("state") == "tested" for c in ("normal", "other"))]
+        # a window still running is left out until it has ended: its figures are interim
+        tested = [w for w in ws if w.get("state") == "tested"]
         out[kind] = {"windows": len(ws), "tested_normal": len([w for w in tested if w["comparisons"]["normal"]["state"] == "tested"]),
                      "tested_other": len([w for w in tested if w["comparisons"]["other"]["state"] == "tested"]),
                      "raised_normal": len([w for w in tested if _raised(w["comparisons"]["normal"])]),
                      "raised_other": len([w for w in tested if _raised(w["comparisons"]["other"])]),
+                     "in_progress": len([w for w in ws if w.get("state") == "in_progress"]),
                      "upcoming": len([w for w in ws if w.get("state") == "upcoming"])}
     return out
+
+
+def by_chance(n_tested: int) -> float:
+    """How many of n_tested windows would be called raised by chance alone if no window had a rise."""
+    return round(n_tested * CHANCE_RAISED, 1)
 
 
 def meta_summary(conn, ctx) -> Dict:
@@ -678,9 +806,11 @@ def methodology_text(block) -> str:
           "and expos China hosts, and the Spring and Mid-Autumn festivals, each with its category, how it "
           "recurs, whether it is fixed, announced or only expected, whether its dates were public before 28 "
           "October 2026, and a public source. The file was compiled on 28 October 2026 and the committed file "
-          "is the pre-registration: a window that begins before that day is a retrospective test, chosen while "
-          "its data could be seen, and a window that begins on or after it is a forward test fixed in advance. "
-          "The two are reported apart and never pooled.")
+          "is the pre-registration: it was committed that evening, after the day's data had been published, so a "
+          "window that begins on or before 28 October is a retrospective test, chosen while its data could be "
+          "seen, and a window that begins after it is a forward test fixed in advance. An entry added or changed "
+          "later is reported as added after the pre-registration. The kinds are reported apart and never pooled. "
+          "The interval was revised on 29 October 2026, before any forward window had begun.")
     p2 = ("Each window is an event's days with 3 days before and 3 after. The series is the evidence settled "
           "state origin placements of each complete day, as the daily files count them, worldwide and for each "
           "country with at least %s placement a day on its comparison days. Days are left out on both sides "
@@ -688,22 +818,30 @@ def methodology_text(block) -> str:
           "labelling was well behind, a ruleset or relevance gate change took effect on the day or the 2 days "
           "before, a quarter of the day's placements came from a backfill read, or the day's labels were made "
           "under other rules than the days it is compared with. A window is compared with normal days, outside "
-          "every window of the calendar and within %d days of it, and, as a conservative check while normal "
-          "days are scarce, with every other usable day near it. The rate ratio is the window's placements over "
+          "every window of the calendar and within %d days of it, and, while normal days are scarce, "
+          "with every other usable day near it; other events' windows are among those days, so "
+          "it is a check, not a cleaner test. Days are UTC days of record and the events' dates Beijing dates; "
+          "the lead days cover the 8 hours between them. The rate ratio is the window's placements over "
           "the count expected from comparison days of the same weekday, with a 95 percent negative binomial "
-          "interval and, where at least %d shifted windows fit, a permutation p value. With fewer than %d usable "
+          "score interval and, where at least %d shifted windows fit, a permutation p value. With fewer than %d usable "
           "window days or %d comparison days the window says too few days. The share of the window's state "
-          "origin headlines that name the event, by keywords in the file, is given beside the same share on "
-          "the comparison days." % ("%g" % COUNTRY_MIN_MEAN, NORMAL_SPAN_DAYS, MIN_SHIFTS, MIN_WINDOW_DAYS,
+          "origin headlines that carry one of the event's keywords in the file is given beside the same share "
+          "on the comparison days; a headline about the event in other words is missed, and a keyword such as "
+          "a city name can match a headline about something else." % ("%g" % COUNTRY_MIN_MEAN, NORMAL_SPAN_DAYS, MIN_SHIFTS, MIN_WINDOW_DAYS,
                                   MIN_COMPARISON_DAYS))
-    p3 = ("So far %d retrospective windows had enough days against normal days and %d against other days, and "
-          "%d forward windows had been tested. A raised window shows timing, not cause: state text was "
-          "more common around the date, which the date need not explain, and with many windows some look raised "
-          "by chance. The calendar is report only and changes no count. A hand check codes whether a sample of "
+    rt_n, rt_o = int(retro.get("tested_normal") or 0), int(retro.get("tested_other") or 0)
+    ft_n, ft_o = int(fwd.get("tested_normal") or 0), int(fwd.get("tested_other") or 0)
+    p3 = ("So far, of the windows that have ended, %d retrospective windows had enough days against normal days "
+          "(%d raised) and %d against other days (%d raised); %d forward windows had enough days against normal "
+          "days (%d raised) and %d against other days (%d raised). A raised window shows timing, not cause: state "
+          "text was more common around the date, which the date need not explain. With many windows some look "
+          "raised by chance: where nothing happens, about 1 in 40 tested windows would (on synthetic data 2 to 5 "
+          "in 100, the more as daily counts swing), and overlapping windows share days, so they rise and fall "
+          "together. The calendar is report only and changes no count. A hand check codes whether a sample of "
           "headlines the keywords matched, and missed, are about the event, and whether each window's dates "
           "match its source; it has to agree at least %d percent of the time before the marking provisional "
-          "comes off." % (int(retro.get("tested_normal") or 0), int(retro.get("tested_other") or 0),
-                          int(fwd.get("tested_normal") or 0) + int(fwd.get("tested_other") or 0),
+          "comes off." % (rt_n, int(retro.get("raised_normal") or 0), rt_o, int(retro.get("raised_other") or 0),
+                          ft_n, int(fwd.get("raised_normal") or 0), ft_o, int(fwd.get("raised_other") or 0),
                           int(round(CHECK_THRESHOLD * 100))))
     return "\n\n".join((p1, p2, p3))
 
@@ -731,7 +869,7 @@ def draw_sample(conn, n=SAMPLE_MENTIONS, seed=None, out_dir=None):
     for w in begun:
         sid = "d_%s" % w["id"]
         rows.append({"sample_id": sid, "kind": "dates", "event": w["name"], "start": w["start"], "end": w["end"],
-                     "source_url": w["source_url"],
+                     "source_url": w["source_url"], "note": w.get("note") or "",
                      "question": "Does the source give these dates for the event? yes or no"})
         key[sid] = {"expected": "yes"}
     hits, misses = [], []

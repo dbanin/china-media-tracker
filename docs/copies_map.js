@@ -56,7 +56,8 @@
   }
   /* A text's placements in the scope. */
   function scopeEntries(text, scope, data) {
-    return ((text && text.placements) || []).filter(function (p) { return inScope(p.d, scope, data); });
+    var ps = text && text.placements;
+    return (Array.isArray(ps) ? ps : []).filter(function (p) { return p && inScope(p.d, scope, data); });
   }
   /* {countries, outlets} as the export ranks them: the worldwide stratum is never a country. */
   function counts(entries) {
@@ -93,7 +94,7 @@
   /* The ranked texts of a scope that the file describes. */
   function ranked(data, scope) {
     var s = data && data.scopes && data.scopes[scope];
-    return ((s && s.ranked) || []).filter(function (r) { return data.texts && data.texts[r.id]; });
+    return (s && Array.isArray(s.ranked) ? s.ranked : []).filter(function (r) { return r && data.texts && data.texts[r.id]; });
   }
   function textTitle(data, id) {
     var t = (data.texts || {})[id] || {};
@@ -136,6 +137,25 @@
     if (!drawn || !Object.keys(drawn).length) return [];
     return (isos || []).filter(function (k) { return k !== WLD && !drawn[k]; }).sort();
   }
+  /* Rank numbers that state ties: texts with the same countries and outlets share a rank (1, 2, 2, 4). */
+  function rankNumbers(list) {
+    var out = [];
+    (list || []).forEach(function (r, i) {
+      var p = list[i - 1];
+      out.push(p && p.countries === r.countries && p.outlets === r.outlets ? out[i - 1] : i + 1);
+    });
+    return out;
+  }
+  /* The count line: shared texts of all texts in the window, how many are listed, and ties at the cut. */
+  function countText(sc, listed) {
+    var shared = (sc && sc.shared_texts) || 0, tied = (sc && sc.tied_beyond) || 0;
+    var s = plural(shared, "state text") + " ran in two or more countries" + (sc && sc.texts ? ", of " + num(sc.texts) + " state texts in all" : "") + ".";
+    if (shared > listed) {
+      s += " The " + num(listed) + " run in the most countries are listed";
+      s += tied ? "; " + plural(tied, "more text ties", "more texts tie") + " with the last one listed and " + (tied === 1 ? "is" : "are") + " not shown." : ".";
+    }
+    return s;
+  }
   /* The side list entry's line under the title. */
   function listMeta(data, r) {
     var t = data.texts[r.id] || {};
@@ -165,18 +185,26 @@
     fetch("data/copies_map.json", {cache: "no-cache"}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (data) {
         S.data = data;
-        if (!data || !data.scopes || !(ranked(data, "all_time").length || ranked(data, "last_30d").length)) {
+        /* A failed export writes the empty structure without generated_at: say nothing rather than "none". */
+        if (!data || typeof data !== "object" || !data.generated_at) throw new Error("no copies map in this export");
+        if (!data.scopes || !(ranked(data, "all_time").length || ranked(data, "last_30d").length)) {
           sec.hidden = false;
           el("cm-body").hidden = true;
           el("cm-empty").hidden = false;
-          el("cm-empty").textContent = "No state text has run at outlets in two or more countries yet, so there is nothing to draw.";
+          el("cm-empty").textContent = "No counted state text has run at monitored outlets in two or more countries yet, so there is nothing to draw.";
           return;
         }
         if (!ranked(data, "last_30d").length) S.scope = "all_time";
         sec.hidden = false;
         setup();
         render();
-      }).catch(function (e) { if (typeof console !== "undefined") console.error("copies map", e); });
+      }).catch(function (e) {
+        /* Missing, malformed or unreadable: the section stays out of the page, never half drawn, and so
+           does its link in the page navigation. */
+        sec.hidden = true;
+        Array.prototype.forEach.call(document.querySelectorAll('a[href="#copies-map"]'), function (a) { a.hidden = true; });
+        if (typeof console !== "undefined") console.warn("copies map not shown:", e && e.message ? e.message : e);
+      });
   }
 
   function setup() {
@@ -233,25 +261,39 @@
     el("cm-mode-wrap").hidden = S.view !== "one";
     var sc = (data.scopes || {})[S.scope] || {};
     el("cm-window").textContent = S.scope === "last_30d" ? windowText(data.window) : "Since collection began";
-    el("cm-count").textContent = plural(sc.shared_texts || 0, "state text") + " ran in two or more countries" +
-      (sc.texts ? ", of " + num(sc.texts) + " state texts in all" : "") + "." +
-      ((sc.shared_texts || 0) > list.length ? " The " + list.length + " run in the most countries are listed." : "");
+    el("cm-count").textContent = countText(sc, list.length);
     renderList(list);
     renderMap();
     renderTable();
+    /* One short line for screen readers, not the whole table, each time the view changes. */
+    var st = el("cm-status");
+    if (st) {
+      var r = S.selected && list.filter(function (x) { return x.id === S.selected; })[0];
+      st.textContent = S.view === "one" && r ? "Showing " + textTitle(data, r.id) + ": " + plural(r.countries, "country", "countries") + ", " + plural(r.outlets, "outlet") + ". " + SCOPES[S.scope] + "."
+        : "Showing shared state texts by country. " + SCOPES[S.scope] + ".";
+    }
   }
   function renderList(list) {
     var ol = el("cm-list"), data = S.data;
     if (!list.length) { ol.innerHTML = '<li class="cm-none">No state text ran in two or more countries in this window.</li>'; return; }
+    var ranks = rankNumbers(list);
     ol.innerHTML = list.map(function (r, i) {
       var t = data.texts[r.id] || {}, on = r.id === S.selected;
+      var tie = (ranks[i - 1] === ranks[i]) || (ranks[i + 1] === ranks[i]);
       return '<li><button type="button" class="cm-item' + (on ? " active" : "") + '" data-id="' + esc(r.id) + '" aria-pressed="' + on + '">' +
-        '<span class="cm-rank">' + (i + 1) + '</span><span class="cm-text"><span class="cm-title"' +
+        '<span class="cm-rank"' + (tie ? ' title="Tied on countries and outlets"' : "") + '>' + ranks[i] + (tie ? '<span class="cm-sr"> (tied)</span>' : "") +
+        '</span><span class="cm-text"><span class="cm-title" dir="auto"' +
         (t.headline && t.headline_lang ? ' lang="' + esc(t.headline_lang) + '"' : "") + '>' + esc(textTitle(data, r.id)) + '</span>' +
         '<span class="cm-meta">' + esc(listMeta(data, r)) + '</span></span></button></li>';
     }).join("");
     Array.prototype.forEach.call(ol.querySelectorAll("button.cm-item"), function (b) {
-      b.addEventListener("click", function () { S.selected = b.getAttribute("data-id"); S.view = "one"; render(); });
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-id");
+        S.selected = id; S.view = "one"; render();
+        /* The list is drawn again: keep the keyboard on the text just picked. */
+        var again = Array.prototype.filter.call(ol.querySelectorAll("button.cm-item"), function (x) { return x.getAttribute("data-id") === id; })[0];
+        if (again && typeof again.focus === "function") again.focus();
+      });
     });
   }
   function rowsByIso() {
@@ -293,13 +335,17 @@
       return;
     }
     if (!S.selected) { box.innerHTML = ""; return; }
-    var t = data.texts[S.selected] || {}, rows = byCountry(t, S.scope, data), shown = bandsShown(data);
+    var t = data.texts[S.selected] || {}, rows = byCountry(t, S.scope, data);
+    /* The alteration column only where a copy of this text was scored (paired with an original). */
+    var scored = rows.some(function (r) { return r.outlets.some(function (p) { return p.b; }); });
+    var shown = bandsShown(data) && scored;
     var chip = shown && provisional(data) ? ' <span class="m-chip m-chip-provisional" title="No hand check of the alteration measure has passed yet.">Provisional</span>' : "";
     var orig = t.original ? (t.original.kind === "reference" ? "Paired with the state outlet's own page" : "Paired with an earlier monitored copy") +
       (t.original.published ? ", published " + fmtDate(t.original.published) : "") + ". " : "";
     var note = shown ? "Alteration band: the share of new words in the copy against the original" + (provisional(data) ? ", provisional." : ".")
-      : "Alteration bands are not shown while the alteration measure is " + esc((data.alteration && data.alteration.status) || "off") + ".";
-    box.innerHTML = '<h3 class="cm-h3"' + (t.headline && t.headline_lang ? ' lang="' + esc(t.headline_lang) + '"' : "") + '>' + esc(textTitle(data, S.selected)) + '</h3>' +
+      : !bandsShown(data) ? "Alteration bands are not shown while the alteration measure is " + ((data.alteration && data.alteration.status) || "off") + "."
+      : "No copy of this text was paired with an original and scored for alteration" + (S.scope === "last_30d" ? " in this window." : ".");
+    box.innerHTML = '<h3 class="cm-h3" dir="auto"' + (t.headline && t.headline_lang ? ' lang="' + esc(t.headline_lang) + '"' : "") + '>' + esc(textTitle(data, S.selected)) + '</h3>' +
       '<p class="cm-sub">' + esc(agencyName(data, t.agency)) + " text, first seen " + esc(fmtDate(t.first_seen)) + ". " + esc(orig) + esc(note) + '</p>' +
       '<table class="cm-table"><thead><tr><th scope="col">Country</th><th scope="col">Outlet and day</th>' +
       (shown ? '<th scope="col">Alteration' + chip + '</th>' : "") + '</tr></thead><tbody>' +
@@ -339,6 +385,7 @@
     inScope: inScope, scopeEntries: scopeEntries, counts: counts, byCountry: byCountry, tierIndex: tierIndex,
     shadeValue: shadeValue, ranked: ranked, textTitle: textTitle, outletLine: outletLine, tipLines: tipLines,
     summary: summary, summaryRows: summaryRows, offMap: offMap, listMeta: listMeta, bandsShown: bandsShown, provisional: provisional,
+    rankNumbers: rankNumbers, countText: countText,
     colorFor: colorFor, mount: mount
   };
 }));

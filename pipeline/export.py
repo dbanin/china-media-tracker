@@ -847,6 +847,11 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             entry["warnings"].append({"type": "no_active_outlets", "text": "all registered outlets are inactive"})
         if active and excluded:
             entry["warnings"].append({"type": "language_excluded", "text": "%d registered outlets publishing in %s are excluded by project rule, so this country's press in %s is not read and its figures cover its other languages only" % (sum(excluded.values()), ", ".join(sorted(excluded)), "that language" if len(excluded) == 1 else "those languages")})
+        # Outlets added for their China coverage, not reach (RULES D12), raise the country's counts because of how
+        # they were chosen; the warning carries that wherever warnings are shown (registry.selection_warning).
+        chosen = [o["name"] for o in active if not registry.reach_selected(o)]
+        if chosen and not worldwide:
+            entry["warnings"].append({"type": "china_selected", "text": registry.selection_warning(chosen, len(active), country in ranked)})
         if active and not working:
             entry["warnings"].append({"type": "no_working_outlet", "text": "none of the %d active outlets delivered an item through a working feed in the last 30 days, so nothing is being collected here; its zeros are absence of data, not absence of coverage" % len(active)})
         elif active and not worldwide and entry["last_30d"]["rel"] < config.MIN_RELEVANT_ITEMS_30D:
@@ -2309,7 +2314,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
     authors_cleaned = extract.clean_stored_authors(conn)
     planted_counts = planted.scan_quietly(conn)
     from pipeline import hosted_travel   # disclosure flag (D8): never a label, a category or a count
-    hosted_counts = hosted_travel.scan_quietly(conn)
+    hosted_counts = hosted_travel.export_scan(conn)   # within its own time budget; the rest next run
     outlets = registry.load_outlets()
     gaps = registry.load_gaps()
     roll = rebuild_rollups(conn, outlets)
@@ -2357,7 +2362,7 @@ def run(conn, run_id: str = "export", export_dir: Path = config.EXPORT_DIR,
         put(out / "examples.json", examples)
         # A failure in the planted export is printed and leaves an empty planted.json, never a stop.
         write_json(out / "planted.json", planted.build_export_quietly(conn))
-        write_json(out / "hosted_travel.json", hosted_travel.build_export_quietly(conn))
+        put(out / "hosted_travel.json", hosted_travel.build_export_quietly(conn))   # stamped: the mixed-export check sees it
         # The licensed archive checks (sources/archive_checks.yaml), a separate source and method: their own
         # side file, read by no count, map, share, top 10 or finding. A failure leaves no checks, never a stop.
         from pipeline import archive_checks

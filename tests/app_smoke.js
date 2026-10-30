@@ -68,7 +68,8 @@
 
   /* Cell ink: dark from Lab lightness 55, so the L 62 step (light ink at 2.6:1 before) takes dark ink. */
   assert(H.inkOn("rgb(230, 114, 91)") === "#0c0d0f", "L 62 step takes dark ink");
-  assert(H.inkOn("rgb(210, 58, 46)") === "#f3ede2" && H.inkOn("rgb(61, 3, 6)") === "#f3ede2", "darker steps keep light ink");
+  assert(H.inkOn("rgb(61, 3, 6)") === "#f3ede2" && H.inkOn("rgb(158, 15, 23)") === "#f3ede2", "darker steps keep light ink");
+  assert(H.inkOn("rgb(210, 58, 46)") === "#ffffff", "the middle red, under 4.5:1 with cream or dark ink, takes white");
   /* State origin by issuer: state-owned enterprises and SAR government bodies apart, private releases as their own count. */
   var it = {by_type: {state_media: {A: 900}, state_owned_enterprise: {A: 41, B: 0}, sar_government: {A: 7}, private_release: {C: 30, not_relevant: 12}, none: {C: 5}}, unrecorded: 1200};
   var line = H.issuerLineText(it);
@@ -84,5 +85,10 @@
   assert(kp.length === 1 && /Keyword lists cover only some/.test(kp[0]), "genuinely partial keyword coverage keeps its note");
   assert(H.languageNotes({language_support: "partial", languages: ["en", "sw"]}).length === 1, "older data without the field");
   assert(H.languageNotes({language_support: "full", languages: ["en"]}).length === 0, "full support, no note");
+  /* Header links (site QA 2026-10-29): a link whose section is missing or hidden is hidden with it. */
+  var shownIds = {"map-card": 1, themes: 1, method: 1};
+  var nh = H.navHidden(["#map-card", "#copies-map", "#themes", "#nowhere", "javascript:alert(1)", "", "#method"], function (id) { return !!shownIds[id]; });
+  assert(nh.join(",") === "false,true,false,true,true,true,false", "nav links follow their sections: " + nh);
+  assert(H.navHidden(null, function () { return true; }).length === 0, "no links, nothing to do");
   console.log("app smoke ok");
 })();

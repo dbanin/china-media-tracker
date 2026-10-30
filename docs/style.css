@@ -231,7 +231,17 @@ aside#panel table { width: 100%; border-collapse: collapse; font-size: 0.86rem; 
 aside#panel th, aside#panel td { text-align: left; padding: 0.35rem 0.3rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 aside#panel th { color: var(--ash); font-weight: 400; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; }
 aside#panel td.num, aside#panel th.num { text-align: right; font-variant-numeric: tabular-nums; }
-.stake-note { font-size: 0.74rem; color: var(--ash); margin-top: 0.2rem; line-height: 1.35; max-width: 34rem; }
+.stake-note { font-size: 0.74rem; color: var(--ash); margin-top: 0.2rem; line-height: 1.35; max-width: 34rem; overflow-wrap: anywhere; }
+.stake-status { display: inline-block; font-size: 0.6rem; padding: 0 0.35rem; border: 1px solid var(--rule-strong); color: var(--bone-soft); letter-spacing: 0.1em; text-transform: uppercase; border-radius: 2px; margin-right: 0.2rem; }
+.stake-status.is-disputed { border-color: var(--warn); color: var(--warn); }
+.stake-more summary { cursor: pointer; color: var(--bone-soft); margin-top: 0.15rem; }
+.stake-more summary:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
+.stake-more p { margin: 0.25rem 0 0.1rem 0; }
+.stake-caveat { font-style: italic; }
+/* The panel's outlet column would shrink to a word's width on a phone and in the 28rem side panel of a wide
+   screen (its cells break anywhere), stacking the stake one word to a line; the line keeps a readable width and
+   the table scrolls sideways as before. */
+.stake-note { min-width: min(15rem, calc(100vw - 7rem)); }
 .badge { display: inline-block; font-size: 0.62rem; padding: 0.1rem 0.45rem; border: 1px solid var(--rule-strong); color: var(--ash); margin-left: 0.35rem; vertical-align: middle; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 2px; }
 .badge.cat-A { border-color: var(--gold); color: var(--gold); }
 .badge.cat-B { border-color: var(--warn); color: var(--warn); }
@@ -435,6 +445,20 @@ body.map-failed.force-list #map-wrap { display: block; }
 #lean-cross-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 #lean-cross-table tr.zero td { color: var(--ash-faint); }
 #lean-cross-table tr.total td { border-top: 1px solid var(--rule-strong); font-weight: 500; }
+#lean-cross-table tbody th { color: var(--bone-soft); font-weight: 400; font-size: inherit; letter-spacing: 0; text-transform: none; padding: 0.42rem 0.4rem; border-bottom: 1px solid var(--rule); }
+#lean-cross-table tr.zero th { color: var(--ash-faint); }
+#lean-cross-table tr.total th { border-top: 1px solid var(--rule-strong); font-weight: 500; }
+#lean-cross-table caption.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* At phone width the seven columns fit the scroll box instead of running past it: headings wrap, cells tighten. */
+@media (max-width: 520px) {
+  #lean-cross-table { font-size: 0.7rem; }
+  #lean-cross-table th, #lean-cross-table td { padding-left: 0.12rem; padding-right: 0.12rem; }
+  #lean-cross-table tbody th { hyphens: auto; -webkit-hyphens: auto; }
+  #lean-cross-table thead th { font-size: 0.56rem; letter-spacing: 0.02em; white-space: normal; vertical-align: bottom; }
+  #lean-cross-table td.num { white-space: nowrap; }
+  #lean-cross-table td.num.word { white-space: normal; font-size: 0.62rem; }
+  #lean-cross-table tr > :last-child { padding-right: 0.1rem; }
+}
 /* The caution under a leaning group whose outlets outside the US are rated only by a US based rater. */
 .lean-caveat { display: block; color: var(--ash); font-size: 0.72rem; line-height: 1.35; margin-top: 0.15rem; }
 /* The base rule above is later in the sheet than the medium-width block, so the row override must
@@ -478,6 +502,7 @@ header.top .sub { font-size: 1.08rem; color: var(--bone-soft); max-width: 60ch; 
 .top-nav { display: flex; flex-wrap: wrap; gap: var(--s1); }
 .top-nav a { border: 1px solid var(--rule); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 0.84rem; color: var(--bone-soft); background: rgba(255, 255, 255, 0.02); transition: border-color 180ms ease, color 180ms ease, background 180ms ease; }
 .top-nav a:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+.top-nav a[hidden] { display: none; }   /* app.js syncNav: a link whose section is hidden goes with it */
 .notes-strip, .notice { max-width: var(--page); margin: 0 auto var(--s2); padding: 0 var(--gutter); box-sizing: border-box; }
 .notice { padding: 12px 16px; border-radius: 10px; }
 
@@ -633,6 +658,16 @@ section.sec.faq, section.sec.method { max-width: var(--page); padding-left: var(
    Tables scroll inside their own wrapper, so the card never widens the page on a phone. */
 #planted .th-kicker, #hosted-travel .th-kicker { font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: var(--s1); }
 #planted .th-sub, #hosted-travel .th-sub { font-size: 0.98rem; color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s3); }
+#hosted-travel .ht-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#hosted-travel .pl-table-wrap:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 560px) {
+  #hosted-travel .pl-table { min-width: 0; }
+  #hosted-travel .pl-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  #hosted-travel .pl-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  #hosted-travel .pl-table td { display: block; padding: 2px 0; border-bottom: 0; }
+  #hosted-travel .pl-table td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 6.5rem; color: var(--ash); font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; }
+  #hosted-travel .pl-table .pl-title { max-width: none; }
+}
 .pl-empty { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); }
 .pl-line { color: var(--ash); font-size: 0.9rem; max-width: 70ch; margin: 0 0 var(--s2); }
 .pl-table-wrap { overflow-x: auto; max-width: 100%; margin: 0 0 var(--s2); -webkit-overflow-scrolling: touch; }
