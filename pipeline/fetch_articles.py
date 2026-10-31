@@ -23,6 +23,7 @@ from pipeline import config, extract, robots, store
 _robots_cache: Dict[str, tuple] = {}
 _robots_lock = threading.Lock()
 _last_request: Dict[str, float] = {}
+_asleep: Dict[int, float] = {}
 _rate_lock = threading.Lock()
 # The worker permit the current thread holds, if it runs under paced(): given back while the thread
 # sleeps through a long Crawl-delay, so a sleeping thread does not keep a working one out.
@@ -127,11 +128,22 @@ def _rate_wait(domain: str) -> None:
     if held is None or wait <= config.MIN_SECONDS_PER_DOMAIN + config.JITTER_SECONDS:
         time.sleep(wait)
         return
+    me = threading.get_ident()
     held.release()
+    with _rate_lock:
+        _asleep[me] = slot
     try:
         time.sleep(wait)
     finally:
+        with _rate_lock:
+            _asleep.pop(me, None)
         held.acquire()
+
+
+def long_sleeps() -> List[float]:
+    """When each thread now sleeping through a long Crawl-delay without its permit (_rate_wait) wakes."""
+    with _rate_lock:
+        return list(_asleep.values())
 
 
 def slot_in(domain: str) -> float:

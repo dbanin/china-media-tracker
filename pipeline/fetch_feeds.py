@@ -14,7 +14,7 @@ import json
 import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from typing import Dict, List, Optional, Tuple
 
 from pipeline import boilerplate, extract, gate, registry, store
@@ -401,6 +401,16 @@ def section_feed_flooding(conn, feed_url: str, now: Optional[dt.datetime] = None
 # turns by the hour, so none is left out for good. The waits are slept without a worker permit
 # (fetch_articles.paced), so the other workers keep polling everything else.
 SLOW_FEED_WINDOW_SECONDS = 600
+# Discovery does not hold the run for those sleeps. From 2026-10-20 it polled everything else in 11 to 22
+# minutes and then slept to minute 28 for teledoce.com (ten minutes between requests, and its feed
+# redirects), and from 2026-10-22, when the rules stage got its reserve, that left the article fetch
+# a minute of the run: 12,470 relevant articles were queued by 2026-10-30. So past
+# SLOW_FEED_PATIENCE_SECONDS, once every outlet left is asleep for more than SLOW_FEED_NEAR_SECONDS, the
+# stage moves on (outlets_left_asleep, no health record either way). One clock hour in
+# SLOW_FEED_PATIENT_EVERY_HOURS it waits them out as before, so none is left out for good.
+SLOW_FEED_PATIENCE_SECONDS = 900
+SLOW_FEED_NEAR_SECONDS = 60
+SLOW_FEED_PATIENT_EVERY_HOURS = 6
 _slow_feeds: Dict = {"started": None, "deadline": None, "polled": {}}
 _slow_lock = threading.Lock()
 
@@ -427,6 +437,40 @@ def _defer_feed(url: str) -> bool:
             return True
         _slow_feeds["polled"][domain] = _slow_feeds["polled"].get(domain, 0) + 1
     return False
+
+
+def _patience_ends(started: float) -> Optional[float]:
+    """When discovery stops waiting for outlets that only sleep, or None in an hour that waits them out."""
+    if int(started // 3600) % SLOW_FEED_PATIENT_EVERY_HOURS == 0:
+        return None
+    return started + SLOW_FEED_PATIENCE_SECONDS
+
+
+def _only_sleeps_left(left: int, patience_ends: Optional[float], now: Optional[float] = None) -> bool:
+    """Whether all the outlets left are asleep on a long Crawl-delay, past the stage's patience, with none
+    about to wake. An outlet not started yet, or polling, is not asleep, so it is always waited for."""
+    from pipeline import fetch_articles as fa
+    now = time.time() if now is None else now
+    if patience_ends is None or now < patience_ends:
+        return False
+    wakes = fa.long_sleeps()
+    return len(wakes) >= left and all(w - now > SLOW_FEED_NEAR_SECONDS for w in wakes)
+
+
+def _arrivals(futures, counts: Dict, patience_ends: Optional[float], deadline: Optional[float]):
+    """The futures as they finish, like as_completed, until only sleeps or a passed deadline are left."""
+    pending = set(futures)
+    while pending:
+        done, pending = wait(pending, timeout=1.0, return_when=FIRST_COMPLETED)
+        yield from done
+        if done:
+            continue
+        if deadline and time.time() > deadline:
+            counts["stopped_at_deadline"] = True
+            return
+        if _only_sleeps_left(len(pending), patience_ends):
+            counts["outlets_left_asleep"] = len(pending)
+            return
 
 
 def _take_turns(entries: List[Dict]) -> List[Dict]:
@@ -506,7 +550,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     pool = ThreadPoolExecutor(max_workers=workers + config.SLOW_DOMAIN_THREADS)
     futures = [pool.submit(fetch_articles.paced(permits, poll), o) for o in outlets]
     try:
-        for fut in as_completed(futures):
+        for fut in _arrivals(futures, counts, _patience_ends(_slow_feeds["started"]), deadline):
             try:
                 group = fut.result()
             except Exception as exc:       # one outlet must not take the discovery stage down

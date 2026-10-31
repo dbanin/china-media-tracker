@@ -4,6 +4,23 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Article fetch starved by discovery (2026-10-30)
+
+From 2026-10-22 18:10 UTC the article fetch got about a minute of each run, so relevant articles stopped being
+read: 12,470 were queued on 2026-10-30, against about 2,000 new a day, and the days from 2026-10-23 were heavily
+undercounted on the site. No article was lost. The queue is read oldest first as runs allow, and those days fill
+in as it drains. RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, the data schema and ASSET_VERSION are unchanged.
+
+- Cause: since 2026-10-20 discovery polled nearly every feed in 11 to 22 minutes, then slept to about minute 28 for
+  teledoce.com, whose robots.txt asks for ten minutes between requests and whose feed redirects. The reserve the
+  rules stage received on 2026-10-22 took the article fetch's remaining time.
+- Discovery now moves on past 15 minutes once every outlet left is asleep on such a delay with none about to wake
+  (counts.outlets_left_asleep). One clock hour in six it waits them out, so those outlets are still polled. Crawl
+  delays are unchanged and nothing is requested sooner.
+- A run that leaves 1,000 or more relevant articles queued at its deadline now raises a warning in Actions.
+- A test wrote a Beijing date using the UTC date, so it failed from 18:00 to 24:00 UTC every day and blocked the
+  export of 2026-10-30 23:50 UTC. The test now uses the Beijing date. The pipeline's reading was right.
+
 ## Stress test of the eight new features (2026-10-29)
 
 Every feature added on 2026-10-28 was tested against synthetic edge cases, the local database and the page at

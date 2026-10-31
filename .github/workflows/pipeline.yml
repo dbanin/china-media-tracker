@@ -189,6 +189,9 @@ jobs:
           print("summary: %d new, %d relevant, %d fetched, %d paywalled, rules A %d, llm %d%s" % (
               disc.get("items_new", 0), disc.get("gate_relevant", 0), fet.get("fetched", 0), fet.get("paywalled", 0),
               cr.get("A", 0), cl.get("classified", 0), " (LLM ceiling hit)" if cl.get("ceiling_hit") else ""))
+          # An article fetch that cannot keep up is otherwise silent: from 2026-10-22 it left 12,470 articles queued.
+          if fet.get("skipped_deadline", 0) >= 1000:
+              print("::warning title=Article fetch behind::%d relevant articles left queued at the deadline; the site's recent days are undercounted" % fet["skipped_deadline"])
           PY
       - name: Reliability study, by itself when it is due and the budget allows
         # Every run collects a finished study batch. An export run also submits one through the Batches

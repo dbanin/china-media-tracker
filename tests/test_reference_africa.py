@@ -428,7 +428,7 @@ def test_a_lightly_altered_french_copy_pairs_with_the_afrique_original_and_its_b
     assert r["band"] in ("light", "moderate") and r["added_paragraphs"] == 1
     # a re-listed original keeps its URL's Beijing date only (bjt_url_checked), days before it was listed
     # again and discovered: the speed measure then reads the pair by date, in Beijing time
-    day = (tc.NOW - dt.timedelta(days=3)).date().isoformat()
+    day = (tc.NOW + dt.timedelta(hours=8) - dt.timedelta(days=3)).date().isoformat()
     conn.execute("UPDATE reference_items SET published_at=? WHERE id=?", (day, ref))
     conn.execute("DELETE FROM state_copies")
     tc._run(conn, sources)

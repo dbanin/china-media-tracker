@@ -286,3 +286,45 @@ def test_a_deferred_feed_is_counted_and_leaves_no_health_record(monkeypatch, tmp
     counts = fetch_feeds.run(conn, "t", outlets=[outlet])
     assert counts["feeds_deferred"] == 1 and counts["feeds"] == 0 and counts["outlets_polled"] == 1
     assert store.feed_health_row(conn, "https://lovinmalta.example/feed") is None
+
+
+# ---------------------------------------------------------------------------
+# Discovery does not hold the run for an outlet that only sleeps (2026-10-30)
+# ---------------------------------------------------------------------------
+
+def test_discovery_waits_for_whatever_is_not_asleep(monkeypatch):
+    monkeypatch.setattr(fa, "_asleep", {1: 2000.0, 2: 3000.0})
+    assert fetch_feeds._only_sleeps_left(2, 1000.0, now=1500.0)            # past patience, both asleep
+    assert not fetch_feeds._only_sleeps_left(3, 1000.0, now=1500.0)        # one outlet is still polling
+    assert not fetch_feeds._only_sleeps_left(2, 1000.0, now=900.0)         # patience not over
+    assert not fetch_feeds._only_sleeps_left(2, None, now=1500.0)          # an hour that waits them out
+    assert not fetch_feeds._only_sleeps_left(2, 1000.0, now=1950.0)        # one wakes within the minute
+
+
+def test_one_hour_in_six_waits_the_sleepers_out():
+    hours = [fetch_feeds._patience_ends(3600.0 * h) for h in range(12)]
+    assert [h for h, end in enumerate(hours) if end is None] == [0, 6]
+    assert hours[1] == 3600.0 + fetch_feeds.SLOW_FEED_PATIENCE_SECONDS
+
+
+def test_an_outlet_that_only_sleeps_does_not_hold_the_discovery_stage(monkeypatch, tmp_path):
+    def outlet(oid, url):
+        return {"id": oid, "name": oid, "country": "MLT", "language": "en", "feeds": [url], "tier": "national", "active": True}
+    quick, slow = outlet("mt_quick", "https://quick.example/feed"), outlet("mt_slow", "https://lovinmalta.example/feed")
+    monkeypatch.setattr(fa, "domain_gap", lambda d: 8.0 if d == "lovinmalta.example" else config.MIN_SECONDS_PER_DOMAIN)
+
+    def poll(o):
+        if o is slow:
+            fa._last_request["lovinmalta.example"] = time.time()
+            fa._rate_wait("lovinmalta.example")
+        return [{"outlet": o, "feed_url": o["feeds"][0], "kind": registry.EDITORIAL, "result": None, "deferred": True}]
+    monkeypatch.setattr(fetch_feeds, "poll_outlet", poll)
+    monkeypatch.setattr(fetch_feeds, "_patience_ends", lambda started: started)
+    monkeypatch.setattr(fetch_feeds, "SLOW_FEED_NEAR_SECONDS", 1)
+    monkeypatch.setattr(registry, "load_outlets", lambda *a, **k: [quick, slow])
+    conn = store.connect(tmp_path / "d.db")
+    began = time.time()
+    counts = fetch_feeds.run(conn, "t", outlets=[quick, slow])
+    assert time.time() - began < 6
+    assert counts["outlets_polled"] == 1 and counts["outlets_left_asleep"] == 1 and counts["outlets_skipped"] == 1
+    assert "stopped_at_deadline" not in counts
