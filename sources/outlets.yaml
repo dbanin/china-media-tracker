@@ -3,14 +3,14 @@
   country: ITA
   language: it
   feeds:
-  - https://xml2.corriereobjects.it/rss/homepage.xml
-  - https://xml2.corriereobjects.it/rss/esteri.xml
+  - https://www.corriere.it/dynamic-feed/rss/section/Esteri.xml
+  - https://www.corriere.it/dynamic-feed/rss/section/Economia.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Carries CairoRcs Studio branded placements. Verified 2026-09-02.
+  notes: Carries CairoRcs Studio branded placements. Verified 2026-09-02. Feeds replaced 2026-11-09. The old feeds on xml2.corriereobjects.it still answered but had stopped updating (newest items 2024-05-13 for the homepage feed and 2025-03-06 for the world feed). They were replaced by the section feeds at www.corriere.it/dynamic-feed/rss/section/ for world news (Esteri, 100 items, newest 2 hours old) and the economy (Economia, 100 items), both verified 2026-11-09 with robots.txt allowing the crawler; the Homepage address there returned no items.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/it/newspapers
   political_leaning: centre
@@ -4251,12 +4251,14 @@
   language: bs
   feeds:
   - https://www.klix.ba/rss
+  news_sitemaps:
+  - https://www.klix.ba/sitemap/news
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the feed was saturated on 99 of 197 polls, with about 3,382 items estimated missed beside 4,333 new. The news sitemap in the index its robots.txt lists carried 488 items over 47.8 hours on 2026-11-09, verified with the collector's sitemap reader.
   audience_rank: 1
   rank_source: https://www.semrush.com/trending-websites/ba/all
   political_leaning: unassessed
@@ -4619,12 +4621,14 @@
   language: pt
   feeds:
   - https://www.cnnbrasil.com.br/feed/
+  news_sitemaps:
+  - https://www.cnnbrasil.com.br/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. The feed has failed since 2026-10-19 because it redirects to admin.cnnbrasil.com.br/feed/, which that host's robots.txt does not allow. The news sitemap its robots.txt lists carried 500 items over 40 hours on 2026-11-09, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one, and the weekly feed check reads only them.
   audience_rank: 6
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/brazil
   political_leaning: unassessed
@@ -4772,12 +4776,14 @@
   feeds:
   - https://www.metropoles.com/feed
   - https://www.metropoles.com/mundo/feed
+  news_sitemaps:
+  - https://www.metropoles.com/sitemap/google-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the main feed was saturated on 152 of 199 polls, with about 5,778 items estimated missed beside 3,543 new. The news sitemap its robots.txt lists carried 510 items over 40 hours on 2026-11-09, verified with the collector's sitemap reader.
   audience_rank: 5
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/brazil
   political_leaning: unassessed
@@ -6852,12 +6858,13 @@
   feeds:
   - https://www.prensa-latina.cu/feed/
   - https://www.prensa-latina.cu/rss
+  - https://www.prensa-latina.cu/sitemap.rss
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feed added 2026-11-09. In the 28 days to 2026-11-09 the main feed (10 items over 0.8 hours on 2026-11-09) was saturated on 158 of 198 polls, with about 2,863 items estimated missed beside 1,787 new. The RSS file its robots.txt lists as a sitemap, sitemap.rss, carried 50 items on 2026-11-09, 48 of them from the last 3.3 hours, and was added as a feed; its sitemap.xml timed out and no Google News sitemap was found.
   audience_rank: 7
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Mass_media_in_Cuba
@@ -7012,12 +7019,14 @@
   feeds:
   - https://www.philenews.com/feed/
   - https://www.philenews.com/rss/
+  news_sitemaps:
+  - https://www.philenews.com/news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. robots.txt disallows every feed address (/feed/ and */feed/) for all crawlers, so the feeds have not been read since 2026-09-22. The news sitemap its robots.txt lists, which it allows, carried 120 items over 14.3 hours on 2026-11-09, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one, and the weekly feed check reads only them.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/sigmalive.com/
   political_leaning: centre
@@ -12416,13 +12425,14 @@
   language: id
   feeds:
   - https://www.antaranews.com/rss/terkini.xml
-  - https://www.antaranews.com/rss/dunia.xml
+  - https://www.antaranews.com/rss/dunia-internasional.xml
+  - https://www.antaranews.com/rss/ekonomi-bisnis.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds changed 2026-11-09. In the 28 days to 2026-11-09 the terkini feed was saturated on 91 of 193 polls, with about 6,845 items estimated missed beside 6,366 new, and the world feed dunia.xml had stopped updating (5 new items in those 28 days; on 2026-11-09 the newest of its 20 items was five days old). dunia.xml was replaced by the international section feed dunia-internasional.xml (20 items over 10 hours) and the business feed ekonomi-bisnis.xml (20 items over 3.6 hours) was added, both verified 2026-11-09 with robots.txt allowing the crawler. Antara lists no sitemap in robots.txt and answers HTTP 404 at the usual Google News sitemap addresses, so none is registered.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
@@ -13577,12 +13587,14 @@
   feeds:
   - https://www.isna.ir/rss
   - https://www.isna.ir/rss/tp/24
+  - https://www.isna.ir/rss/tp/17
+  - https://www.isna.ir/rss/tp/34
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 44 of the hosted runner''s 140 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 44 of the hosted runner''s 140 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added. Section feeds added 2026-11-09. In the 28 days to 2026-11-09 the main feed was saturated on 138 of 221 polls, with about 11,022 items estimated missed beside 5,510 new. robots.txt still lists no sitemap, and https://www.isna.ir/sitemap/news/sitemap.xml (the address its sister sites use) did not parse as a sitemap on 2026-11-09, so the world (rss/tp/17, 30 items over 5.7 hours) and economy (rss/tp/34, 30 items over 6.4 hours) section feeds were added, both verified 2026-11-09. The second registered feed, rss/tp/24, is the sport section, not world news.'
   audience_rank: 3
   rank_source: https://www.similarweb.com/website/iranintl.com/
   political_leaning: centre
@@ -13620,12 +13632,14 @@
   feeds:
   - https://www.khabaronline.ir/rss
   - https://www.khabaronline.ir/rss/tp/2
+  news_sitemaps:
+  - https://www.khabaronline.ir/sitemap/news/sitemap.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the main feed (30 items over 1.8 hours on 2026-11-09) was saturated on 118 of 197 polls, with about 6,957 items estimated missed beside 4,509 new. The news sitemap its robots.txt lists carried 100 items over 4.9 hours on 2026-11-09, verified with the collector's sitemap reader and robots.txt allowing the crawler.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/iranintl.com/
   political_leaning: right
@@ -13640,12 +13654,14 @@
   feeds:
   - https://www.mehrnews.com/rss
   - https://www.mehrnews.com/rss/tp/9
+  - https://www.mehrnews.com/rss/tp/8
+  - https://www.mehrnews.com/rss/tp/25
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 51 of the hosted runner''s 138 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and its Google News sitemap (https://www.mehrnews.com/sitemap/news/sitemap.xml) carried only 30 items of the last two days on 2026-10-17, no more than the RSS; the relay''s hourly polls are added.'
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 51 of the hosted runner''s 138 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and its Google News sitemap (https://www.mehrnews.com/sitemap/news/sitemap.xml) carried only 30 items of the last two days on 2026-10-17, no more than the RSS; the relay''s hourly polls are added. Section feeds added 2026-11-09. In the 28 days to 2026-11-09 the main feed was saturated on 167 of 220 polls, with about 13,794 items estimated missed beside 5,951 new. The news sitemap still carried only 30 items (0.9 hours) on 2026-11-09, no more than the RSS, so the international (rss/tp/8, 30 items over 9.6 hours) and economy (rss/tp/25, 30 items over 7.7 hours) section feeds were added, both verified 2026-11-09. The second registered feed, rss/tp/9, is the sport section, not world news.'
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/iranintl.com/
   political_leaning: right
@@ -14790,14 +14806,14 @@
   country: JPN
   language: ja
   feeds:
-  - https://www.nhk.or.jp/rss/news/cat0.xml
-  - https://www3.nhk.or.jp/rss/news/cat6.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat0.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat6.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-09. NHK moved its news site to news.web.nhk. The old main feed (www.nhk.or.jp/rss/news/cat0.xml) had been refused by robots.txt since 2026-09-28, and the old international feed (www3.nhk.or.jp/rss/news/cat6.xml) still answered but its newest item was from 2026-08-08. The same two feeds at news.web.nhk (cat0, 7 items over 11 hours, and cat6, 130 items over 144 hours) were verified 2026-11-09; robots.txt allows the crawler and the article pages serve their text without a login.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
   political_leaning: centre_right
@@ -15845,12 +15861,14 @@
   feeds:
   - https://www.koreatimes.co.kr/www/rss/rss.xml
   - https://www.koreatimes.co.kr/www/rss/world.xml
+  news_sitemaps:
+  - https://www.koreatimes.co.kr/sitemap/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. The RSS addresses have failed since 2026-10-19 because they lead to feed.koreatimes.co.kr, whose robots.txt answered HTTP 204 on 2026-11-09, which the crawler reads as unavailable and so does not fetch. The news sitemap in the index its robots.txt lists, on www.koreatimes.co.kr, carried 173 items over 46 hours on 2026-11-09, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one, and the weekly feed check reads only them.
   political_leaning: centre
   leaning_source: https://en.wikipedia.org/wiki/The_Korea_Times
   ownership: private
@@ -17908,13 +17926,15 @@
   country: MEX
   language: es
   feeds:
-  - https://www.excelsior.com.mx/rss/global.xml
+  - https://www.excelsior.com.mx/rss
+  news_sitemaps:
+  - https://www.excelsior.com.mx/sitemap-google-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds changed 2026-11-09. The old feed rss/global.xml had answered HTTP 404 since 2026-10-19. It was replaced by the site feed https://www.excelsior.com.mx/rss (46 items, 38 of them from the last two days, on 2026-11-09), and the Google News sitemap its robots.txt lists was added (377 items over 48 hours), both verified 2026-11-09.
   political_leaning: centre_right
   leaning_source: https://www.eurotopics.net/en/212872/excelsior
   ownership: private
@@ -19431,6 +19451,8 @@
   language: ms
   feeds:
   - https://www.utusan.com.my/feed/
+  - https://www.utusan.com.my/category/luar-negara/feed/
+  - https://www.utusan.com.my/category/ekonomi/feed/
   section_feeds:
   - url: https://www.utusan.com.my/category/pr-newswire-bm/feed/
     kind: press_release
@@ -19455,7 +19477,7 @@
       label: PR NEWSWIRE (EN)
       readable: true
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Section feeds added 2026-11-09. In the 28 days to 2026-11-09 the main feed (10 items) was saturated on 116 of 200 polls, with about 2,775 items estimated missed beside 1,383 new. Utusan has no Google News sitemap (robots.txt points at a Yoast index of post sitemaps, and /news-sitemap.xml answers HTTP 404), so the world (category/luar-negara, 10 items over 11.2 hours) and economy (category/ekonomi, 10 items over 8.4 hours) section feeds were added, both verified 2026-11-09.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Utusan_Malaysia
   ownership: private
@@ -21171,6 +21193,8 @@
   feeds:
   - https://arynews.tv/feed/
   - https://arynews.tv/category/international/feed/
+  news_sitemaps:
+  - https://arynews.tv/sitemap/news_sitemap.xml
   section_feeds:
   - url: https://arynews.tv/category/advertorial/feed
     kind: sponsored
@@ -21186,7 +21210,7 @@
       label: Advertorial
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. robots.txt disallows every feed address (/feed/ and */feed/) for all crawlers, so the feeds have not been read since 2026-10-21. The news sitemap its robots.txt lists, which it allows, carried 38 items over 23.6 hours on 2026-11-09, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one, and the weekly feed check reads only them.
   audience_rank: 5
   rank_source: https://www.similarweb.com/website/dawn.com/
   political_leaning: centre_right
@@ -21383,12 +21407,14 @@
   language: en
   feeds:
   - https://www.thenews.com.pk/rss/1/1
+  news_sitemaps:
+  - https://www.thenews.com.pk/assets/uploads/google_news_latest.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. The feed still answers but its newest item is from 2025-11-21, and the other numbered feeds tried (rss/1/8) are as old. The news sitemap its robots.txt lists carried 100 items over 48 hours on 2026-11-09, verified with the collector's sitemap reader; its publication dates run up to 2.5 hours ahead of the clock. The RSS address stays listed because the registry requires one.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/the-news-international/
   ownership: private
@@ -23350,12 +23376,13 @@
   feeds:
   - https://www.mk.ru/rss/news/index.xml
   - https://www.mk.ru/rss/politics/index.xml
+  - https://www.mk.ru/rss/economics/index.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 53 of the hosted runner''s 128 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added.'
+  notes: 'Verified 2026-09-02. On both collectors (collector: both) since 2026-10-17: 53 of the hosted runner''s 128 polls from 2026-10-01 to 2026-10-11 found the feed saturated, and no Google News sitemap was found in its robots.txt that would cover the gap (checked 2026-10-17), so the relay''s hourly polls are added. Economy feed added 2026-11-09. In the 28 days to 2026-11-09 the news feed (75 items over 1.7 hours on 2026-11-09) was saturated on 137 of 192 polls, with about 24,025 items estimated missed beside 13,356 new. The sitemap index its robots.txt lists has no Google News file (its newest delta file had 5 entries on 2026-11-09), so the economics section feed (36 items) was added beside the politics one, verified 2026-11-09.'
   audience_rank: 6
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
   political_leaning: right
@@ -23466,12 +23493,14 @@
   language: ru
   feeds:
   - https://rg.ru/xml/index.xml
+  news_sitemaps:
+  - https://rg.ru/sitemaps/news-index.xml
   release_sections:
     searched_on: '2026-09-15'
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the feed was saturated on 45 of 195 polls, with about 3,141 items estimated missed beside 9,783 new. The news sitemap index its robots.txt lists carried 607 items over 48 hours in 2 files on 2026-11-09, verified with the collector's sitemap reader.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Rossiyskaya_Gazeta
   ownership: state
@@ -24298,6 +24327,8 @@
   feeds:
   - https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311
   - https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml
+  news_sitemaps:
+  - https://www.channelnewsasia.com/api/v1/sitemap-news-feed?_format=xml
   section_feeds:
   - url: https://www.channelnewsasia.com/media-releases
     kind: press_release
@@ -24336,7 +24367,7 @@
       label: /advertorial
       readable: true
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the main feed was saturated on 30 of 166 polls, with about 323 items estimated missed beside 1,993 new. The news sitemap its robots.txt lists carried 50 items over 11.8 hours on 2026-11-09, verified with the collector's sitemap reader.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/singapore
   political_leaning: centre
@@ -26074,12 +26105,14 @@
   feeds:
   - https://sana.sy/?feed=rss2
   - https://sana.sy/feed/
+  news_sitemaps:
+  - https://sana.sy/news-sitemap.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 its two feeds were saturated on 57 of 137 and 67 of 149 polls, with about 3,118 items estimated missed beside 2,271 new. The news sitemap in the index its robots.txt lists carried 374 items over 48 hours on 2026-11-09, verified with the collector's sitemap reader.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/syria.tv/
   political_leaning: state_controlled
@@ -27490,12 +27523,14 @@
   language: tr
   feeds:
   - https://www.ekonomim.com/rss
+  news_sitemaps:
+  - https://www.ekonomim.com/newsmap
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: business
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-09. In the 28 days to 2026-11-09 the feed was saturated on 72 of 198 polls, with about 2,153 items estimated missed beside 3,363 new. The news sitemap its robots.txt lists (newsmap) carried 326 items over 47.5 hours on 2026-11-09, verified with the collector's sitemap reader.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://tr.wikipedia.org/wiki/Nas%C4%B1l_Bir_Ekonomi

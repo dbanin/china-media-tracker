@@ -18,6 +18,13 @@ from pipeline import config, export, fetch_articles, fetch_feeds, news_sitemap, 
 
 FIX = Path(__file__).parent / "fixtures" / "reference"
 NOW = dt.datetime(2026, 10, 14, 0, 0, tzinfo=dt.timezone.utc)
+# The sources of 2026-10-13 and 2026-10-28, which the fixture network below serves; the language editions
+# of 2026-11-09 have tests of their own (tests/test_reference_languages.py).
+ORIGINAL_TEN = ["ref_xinhua_en", "ref_cgtn_en", "ref_global_times_en", "ref_peoples_daily_en", "ref_china_daily_en",
+                "ref_ecns_en", "ref_cgtn_africa_en", "ref_china_daily_africa_en", "ref_xinhua_africa_en", "ref_xinhua_africa_fr"]
+LANGUAGE_EDITIONS = ["ref_xinhua_fr", "ref_xinhua_es", "ref_xinhua_pt", "ref_xinhua_ar", "ref_xinhua_ru", "ref_cgtn_es",
+                     "ref_cgtn_fr", "ref_cgtn_ar", "ref_cgtn_ru", "ref_cgtn_pt", "ref_cgtn_it", "ref_peoples_daily_fr",
+                     "ref_peoples_daily_es"]
 COUNTED = ("articles", "classifications", "daily_discovery", "daily_outlet_discovery", "daily_counts", "feed_health",
            "feed_polls", "feed_poll_log", "seen_urls", "body_fingerprints", "body_links", "outlets")
 
@@ -36,16 +43,17 @@ def _feed(src, url_part):
 
 def test_the_registry_validates_and_holds_the_recommended_set():
     srcs = reference.load_sources()
-    assert [s["id"] for s in srcs] == ["ref_xinhua_en", "ref_cgtn_en", "ref_global_times_en", "ref_peoples_daily_en",
-                                       "ref_china_daily_en", "ref_ecns_en", "ref_cgtn_africa_en", "ref_china_daily_africa_en",
-                                       "ref_xinhua_africa_en", "ref_xinhua_africa_fr"]
+    assert [s["id"] for s in srcs] == ORIGINAL_TEN + LANGUAGE_EDITIONS
     for s in srcs:
         assert s["id"].startswith("ref_") and "country" not in s
         assert s["collector"] == "hosted" and s["active"] is True
         for f in reference._listings(s):
             assert f["time_rule"] in ("as_published", "bjt_if_unzoned", "bjt", "bjt_url_checked", "date_only", "url_date")
-    # Xinhua Italian does not exist; CRI English and CGTN Italian are not usable.
-    assert not any("italian" in f["url"] or "cri.cn" in f["url"] for s in srcs for f in reference._listings(s))
+    # Xinhua Italian does not exist and CRI English is not usable; CGTN Italian is read from its Nuxt payload
+    # since 2026-11-09.
+    assert not any("italian.news.cn" in f["url"] or "italian.xinhuanet" in f["url"] or "cri.cn" in f["url"]
+                   for s in srcs for f in reference._listings(s))
+    assert {s["language"] for s in srcs} == {"en", "fr", "es", "pt", "ar", "ru", "it"}
 
 
 def test_reference_ids_are_apart_from_the_outlets_and_china_is_not_monitored():
@@ -297,10 +305,11 @@ def test_poll_and_fetch_write_reference_items_only(db, monkeypatch):
     ids = _seed_counted(db)
     before = _counts(db)
     shared_body = store.load_body(store.url_hash(SHARED_URL))
-    got = reference.poll(db, now=NOW)
+    srcs = [s for s in reference.load_sources() if s["id"] in ORIGINAL_TEN]
+    got = reference.poll(db, sources=srcs, now=NOW)
     assert got["new"] > 0 and got["feeds_ok"] == got["feeds"]
     rows = {r["url"]: r for r in db.execute("SELECT * FROM reference_items")}
-    assert {r["source_id"] for r in rows.values()} == {s["id"] for s in reference.load_sources()}
+    assert {r["source_id"] for r in rows.values()} == set(ORIGINAL_TEN)
     assert all(r["status"] == "discovered" and r["collector"] == "hosted" for r in rows.values())
     # the CGTN item listed by the RSS and the sitemap is stored once, with the RSS time
     botswana = [r for u, r in rows.items() if "1RcZzKR0rRK" in u]
@@ -317,9 +326,9 @@ def test_poll_and_fetch_write_reference_items_only(db, monkeypatch):
     assert rows[SHARED_URL]["also_monitored"] == str(ids[0])
     assert "http://epaper.chinadaily.com.cn/global" not in rows
     health = db.execute("SELECT COUNT(*) FROM reference_feed_health").fetchone()[0]
-    assert health == sum(len(reference._listings(s)) for s in reference.load_sources())
+    assert health == sum(len(reference._listings(s)) for s in srcs)
 
-    got = reference.fetch(db, now=NOW)
+    got = reference.fetch(db, sources=srcs, now=NOW)
     assert got["fetched"] > 0 and got.get("paywalled") == 1
     assert _counts(db) == before
     # the monitored article's body at the shared address is untouched
@@ -336,7 +345,7 @@ def test_poll_and_fetch_write_reference_items_only(db, monkeypatch):
     assert pw["status"] == "paywalled" and pw["body_hash"] is None
     # paywalled, fetched and failed items are never fetched again
     n = len(net.requests)
-    again = reference.fetch(db, now=NOW)
+    again = reference.fetch(db, sources=srcs, now=NOW)
     assert again["candidates"] == 0 and len(net.requests) == n
 
 

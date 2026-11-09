@@ -292,8 +292,12 @@ _DASHES = "-\u2013\u2014"
 # NOVA, APA ...) only in capitals, since in lower case they are words ("ap", "agi", "nova") and in
 # title case they open ordinary sentences.
 _AGENCIES_ANY_CASE = (r"xinhua|xinhuanet|ecns|cgtn|cctv|china daily|global times|people'?s daily|people\u2019s daily|"
+                      # the state publishers in the languages of the reference editions added on 2026-11-09
+                      r"\u0441\u0438\u043d\u044c\u0445\u0443\u0430|\u0634\u064a\u0646\u062e\u0648\u0627|"
+                      r"\u0436\u044d\u043d\u044c\u043c\u0438\u043d\u044c \u0436\u0438\u0431\u0430\u043e|"
+                      r"(?:le )?quotidien du peuple(?: en ligne)?|diario del pueblo|pueblo en l[i\u00ed]nea|"
                       r"italpress|agenzia nova|adnkronos|bernama|antara|reuters")
-_AGENCIES_CAPS = r"ANSA|AGI|NOVA|Nova|AKI|AFP|AP|EFE|LUSA|Lusa|APA|DPA|dpa|CNA|KPL|MNA|AIP|CRI|ECNS|CGTN|CCTV"
+_AGENCIES_CAPS = r"ANSA|AGI|NOVA|Nova|AKI|AFP|AP|EFE|LUSA|Lusa|APA|DPA|dpa|CNA|KPL|MNA|AIP|CRI|ECNS|CGTN|CCTV|VCG|CFP"
 _AGENCIES = r"(?i:%s)|%s" % (_AGENCIES_ANY_CASE, _AGENCIES_CAPS)
 # A state agency's regional service after its name, in a credit line, a tail tag or a dateline: "CGTN
 # Africa" (the byline at the head of CGTN Africa's pages), "Xinhua Afrique", "China Daily Africa". Without
@@ -312,7 +316,23 @@ _CREDIT_WORDS = re.compile(
     r"^\W*(?:source|sources|fonte|fuente|fontes|sumber|quelle|photo|photos|foto|fotos|fotografia|image|images|video|"
     r"editor|editing|edited by|reporting|reported by|written by|translated|translation|traduzione|tradu\u00e7\u00e3o|"
     r"traducci\u00f3n|credit|credits|cr\u00e9dit|copyright|courtesy|agenzia|agencia|agence|ag\u00eancia|by|text|testo|"
-    r"texto|\u00a9)(?!\w)", re.IGNORECASE)
+    r"texto|\u00a9|"
+    # Russian and Arabic credit words (source, photo, video), for the editions added on 2026-11-09
+    r"\u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a|\u0444\u043e\u0442\u043e|\u0432\u0438\u0434\u0435\u043e|"
+    r"\u0627\u0644\u0645\u0635\u062f\u0631|\u0645\u0635\u062f\u0631|\u0635\u0648\u0631\u0629|\u0627\u0644\u0635\u0648\u0631\u0629)(?!\w)", re.IGNORECASE)
+# A dateline in another script, whose place no Latin capital opens and whose agency mark may come without a
+# dash: Xinhua Russian "Берлин, 9 ноября /Синьхуа/ --", Xinhua Arabic "واشنطن 8 نوفمبر 2026 (شينخوا)",
+# People's Daily Russian "9 ноября, «Жэньминь жибао» онлайн --". Up to eight words, then the agency in
+# slashes, brackets or guillemets; only the agencies named in those scripts, so a Latin sentence is never taken.
+_AGENCIES_SCRIPT = (r"\u0441\u0438\u043d\u044c\u0445\u0443\u0430|\u0634\u064a\u0646\u062e\u0648\u0627|"
+                    r"\u0436\u044d\u043d\u044c\u043c\u0438\u043d\u044c \u0436\u0438\u0431\u0430\u043e")
+_DATELINE_SCRIPT = re.compile(
+    r"^(?:[^\s()/\u00ab]+\s+){0,8}?(?:/\s*(?i:%s)\s*/|\(\s*(?i:%s)\s*\)|\u00ab\s*(?i:%s)\s*\u00bb(?:\s+\u043e\u043d\u043b\u0430\u0439\u043d)?)"
+    r"\s*[%s]{0,2}\s*" % (_AGENCIES_SCRIPT, _AGENCIES_SCRIPT, _AGENCIES_SCRIPT, _DASHES))
+# A wire's end mark on a line of its own or closing the last paragraph: French "Fin", Portuguese "Fim",
+# Xinhua Arabic "/نهاية الخبر/" (end of the item).
+_END_MARK = re.compile(r"^[\(/\[]?\s*(?:fin|fim|\u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u062e\u0628\u0631)\s*[\)/\]]?\.?$", re.IGNORECASE)
+_END_MARK_TAIL = re.compile(r"(?<=[.!?\u00bb\"\u201d])\s+(?:Fin|Fim|/\u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u062e\u0628\u0631/)\.?$")
 _AGENCY_NAME = re.compile(r"(?<!\w)(?:%s)(?!\w)" % _AGENCIES)
 _AGENCY_MARKED = re.compile(r"[\(\[]\s*(?:[^\)\]]*?[\s/])?(?:%s)\s*[\)\]]|(?<!\w)(?:%s)\s*/|/\s*(?:%s)(?!\w)|\u00a9"
                             % (_AGENCIES, _AGENCIES, _AGENCIES))
@@ -357,6 +377,8 @@ def is_credit_line(line: str) -> bool:
         return False
     if _DATELINE.match(s) and len(_DATELINE.sub("", s, count=1).split()) >= 2:
         return False      # a short opening paragraph after its dateline: "ROMA (ITALPRESS) - Il governo ha detto."
+    if _DATELINE_SCRIPT.match(s) and len(_DATELINE_SCRIPT.sub("", s, count=1).split()) >= 2:
+        return False      # the same in Russian or Arabic: "Берлин, 9 ноября /Синьхуа/ -- Канцлер ФРГ сказал."
     if _AGENCY_MARKED.search(s):
         return True
     m = _CREDIT_WORDS.match(s)
@@ -384,13 +406,16 @@ def normalise(text: str, template_lines: Optional[Set[str]] = None) -> List[str]
         key = _line_key(l)
         if template_lines and key in template_lines:
             continue
-        if _NOISE_LINE.match(l) or (len(l.split()) <= 3 and key in _MENU_LINES):
+        if _NOISE_LINE.match(l) or (len(l.split()) <= 3 and key in _MENU_LINES) or _END_MARK.match(l):
             continue
         if is_credit_line(l):
             continue
         if i < 4:
             l = _DATELINE.sub("", l, count=1)
             l = _DATELINE_UPPER.sub("", l, count=1)
+            l = _DATELINE_SCRIPT.sub("", l, count=1)
+        if i == len(lines) - 1:
+            l = _END_MARK_TAIL.sub("", l)
         l = _TAIL_CREDIT.sub("", l).strip()
         if l:
             out.append(l)

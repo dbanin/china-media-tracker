@@ -193,6 +193,11 @@ jobs:
           if fet.get("skipped_deadline", 0) >= 1000:
               print("::warning title=Article fetch behind::%d relevant articles left queued at the deadline; the site's recent days are undercounted" % fet["skipped_deadline"])
           PY
+      - name: Input watch, warning when a key input is at risk
+        # Reads the database only, in about a second: key outlets' polls, entries, saturation, fetch losses
+        # and silence, the reference sources, and a rising fetch backlog (pipeline/input_watch.py). Never fails the run.
+        continue-on-error: true
+        run: python -m pipeline.input_watch
       - name: Reliability study, by itself when it is due and the budget allows
         # Every run collects a finished study batch. An export run also submits one through the Batches
         # API when a study is needed (none yet, the judging model changed, the last is old, or the label

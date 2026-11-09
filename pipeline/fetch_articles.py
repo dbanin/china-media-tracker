@@ -489,7 +489,9 @@ def process_article(conn_factory, row) -> Dict:
                 fields["body_chars"] = len(text)
             out.update(status="paywalled", reason=pw_reason)
         elif not text or len(text) < 200:
-            fields.update(status="failed", fail_reason="extraction_empty")
+            # Stamped with the extraction it failed under, so a later change to its template retries it
+            # once (retry_candidates) and a row that failed under the current one is not taken again.
+            fields.update(status="failed", fail_reason="extraction_empty", extract_version=config.EXTRACT_VERSION)
             out.update(status="failed", reason="extraction_empty")
         elif unreadable:
             # A challenge page or menus with no running text: not the article, so never classified.
@@ -533,7 +535,25 @@ def retry_candidates(conn) -> List:
         "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<? AND discovered_at>=? ORDER BY discovered_at",
         (RETRY_ATTEMPT_LIMIT, since_iso),
     ).fetchall()
-    return [r for r in rows if r["fail_reason"] and r["fail_reason"].startswith(TRANSIENT_FAIL_PREFIXES)]
+    out = [r for r in rows if r["fail_reason"] and r["fail_reason"].startswith(TRANSIENT_FAIL_PREFIXES)]
+    return out + stale_empty_candidates(conn)
+
+
+def stale_empty_candidates(conn) -> List:
+    """Articles of any age that found no text under an extraction their template has since changed
+    (extract.EXTRACTION_CHANGES), taken once more. Failed rows carry the version they failed under
+    (NULL before 2026-11-09), so one that fails again under the current version is not taken again.
+    On the 2026-11-09 snapshot this is the 1,234 China relevant Chosun Ilbo stories that failed as
+    extraction_empty before the Arc payload was read (2026.11.1), and 3 Straits Times paid releases."""
+    rows = []
+    for _changed, prefix, _why in extract.EXTRACTION_CHANGES:
+        rows += conn.execute(
+            "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fail_reason='extraction_empty'"
+            " AND fetch_attempts<? AND substr(url, 1, ?)=? AND (extract_version IS NULL OR extract_version<>?)"
+            " ORDER BY discovered_at", (RETRY_ATTEMPT_LIMIT, len(prefix), prefix, config.EXTRACT_VERSION)).fetchall()
+    seen = set()
+    return [r for r in rows if extract.stale_extraction(r["url"], r["extract_version"])
+            and not (r["id"] in seen or seen.add(r["id"]))]
 
 
 def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int] = None,

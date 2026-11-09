@@ -204,3 +204,244 @@ def test_the_validation_date_is_utc():
     src = inspect.getsource(v.run)
     assert "dt.date.today()" not in src
     assert "dt.datetime.now(dt.timezone.utc).date()" in src
+
+
+# ---------------------------------------------------------------------------
+# the weekly check finishes inside its step and keeps what it did (2026-11-09)
+# ---------------------------------------------------------------------------
+
+import threading
+import time
+
+from pipeline import fetch_articles as fa
+
+
+def _outlet(oid, feeds=None):
+    return {"id": oid, "name": oid, "country": "ITA", "language": "it", "tier": "national_daily", "active": True,
+            "feeds": feeds or ["https://%s.test/rss" % oid]}
+
+
+def _harness(tmp_path, monkeypatch, outlets, fetch, dead_history=True):
+    """run() over these outlets with fetch as fetch_feed, a database in tmp_path, and every feed on record
+    as long dead, so any outlet that is judged is deactivated."""
+    from pipeline import store
+    saved = {}
+    monkeypatch.setattr(config, "COLLECTOR", "hosted")
+    monkeypatch.setattr(registry, "load_outlets", lambda *a, **k: outlets)
+    monkeypatch.setattr(registry, "save_outlets", lambda os_, *a, **k: saved.setdefault("o", os_))
+    monkeypatch.setattr(v, "fetch_feed", fetch)
+    db = tmp_path / "t.db"
+    conn = store.connect(db)
+    if dead_history:
+        for o in outlets:
+            for url in o["feeds"]:
+                conn.execute("INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, total_checks, "
+                             "total_failures) VALUES (?,?,?,?,?,?)",
+                             (url, o["id"], "2026-11-08T00:00:00+00:00", "2026-09-01T00:00:00+00:00", 90, 80))
+    conn.commit()
+    monkeypatch.setattr(store, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(v, "registry_dates", lambda *a, **k: {})
+    monkeypatch.setattr(v, "measured_from", lambda o, dates, t: "2026-08-01")
+    return db, saved
+
+
+def _failing(delay=0.0, starts=None):
+    def fetch(url):
+        if starts is not None:
+            starts.append((time.time(), url))
+        time.sleep(delay)
+        return {"ok": False, "entries": [], "status": 403, "error": "http_403", "elapsed": delay}
+    return fetch
+
+
+def _ro(db):
+    return sqlite3.connect("file:%s?mode=ro" % db, uri=True)
+
+
+def test_the_check_order_is_least_recently_validated_then_least_recently_checked():
+    a, b, c, d = _outlet("a"), _outlet("b"), _outlet("c"), _outlet("d", ["https://d1.test/", "https://d2.test/"])
+    validated = {"a": "2026-11-02T03:50:00+00:00", "b": "2026-10-26T03:50:00+00:00"}
+    checked = {"https://c.test/rss": "2026-11-08T10:00:00+00:00", "https://d1.test/": "2026-11-08T11:00:00+00:00",
+               "https://d2.test/": "2026-10-31T00:00:00+00:00", "https://a.test/rss": "2026-09-01T00:00:00+00:00"}
+    order = [o["id"] for o in v.check_order([a, b, c, d], validated, checked)]
+    assert order == ["d", "c", "b", "a"], "never validated first (by oldest feed), then the oldest validation"
+    assert [o["id"] for o in v.check_order([c, a], {}, {})] == ["c", "a"], "no record at all: registry order"
+
+
+def test_the_deadline_starts_no_outlet_and_judges_none_it_left(tmp_path, monkeypatch):
+    """The 2026-11-02 check ran into the step's 15 minutes and lost everything. Past the deadline no outlet
+    starts; those left are reported, saved nowhere and never deactivated, however dead their history."""
+    outlets = [_outlet("o%d" % i) for i in range(8)]
+    starts = []
+    db, saved = _harness(tmp_path, monkeypatch, outlets, _failing(0.5, starts))
+    out = tmp_path / "v.json"
+    t0 = time.time()
+    v.run(apply=True, json_out=str(out), workers=1, deadline_minutes=1.0 / 60)
+    assert time.time() - t0 < 8
+    assert starts and all(t - t0 < 1.0 + 0.3 for t, _ in starts), "no feed is fetched after the deadline"
+    report = json.loads(out.read_text())
+    n = report["outlets_checked"]
+    assert 1 <= n < 8 and report["outlets_to_check"] == 8
+    assert report["outlets_skipped_deadline"] == 8 - n and report["outlets_left_asleep"] == 0
+    left = set(report["unchecked"]["deadline"])
+    judged = {r["outlet_id"] for r in report["results"]}
+    assert len(judged) == n and not judged & left
+    assert set(report["dead_candidates"]) == judged == set(report["newly_inactive"])
+    by_id = {o["id"]: o for o in saved["o"]}
+    assert all(by_id[i]["active"] for i in left), "an outlet left for the deadline is never judged"
+    ro = _ro(db)
+    assert {r[0] for r in ro.execute("SELECT outlet_id FROM outlet_validation")} == judged
+    stamped = {r[0] for r in ro.execute("SELECT outlet_id FROM feed_health WHERE total_checks = 91")}
+    assert stamped == judged, "only checked outlets get a feed health record from this run"
+
+
+def test_each_outlet_is_saved_as_it_arrives_so_a_killed_run_keeps_its_work(tmp_path, monkeypatch):
+    outlets = [_outlet("o%d" % i) for i in range(5)]
+    db, saved = _harness(tmp_path, monkeypatch, outlets, _failing())
+    real = v.save_outlet
+    calls = []
+
+    def save_then_die(conn, oid, group):
+        if len(calls) == 3:
+            raise KeyboardInterrupt("the step's timeout")
+        calls.append(oid)
+        real(conn, oid, group)
+
+    monkeypatch.setattr(v, "save_outlet", save_then_die)
+    out = tmp_path / "v.json"
+    with pytest.raises(KeyboardInterrupt):
+        v.run(apply=True, json_out=str(out), workers=2, deadline_minutes=1)
+    ro = _ro(db)
+    assert {r[0] for r in ro.execute("SELECT outlet_id FROM outlet_validation")} == set(calls)
+    assert ro.execute("SELECT COUNT(*) FROM feed_health WHERE total_checks = 91").fetchone()[0] == 3
+    assert "o" not in saved and not out.exists(), "a killed run deactivates nothing"
+
+
+def test_an_outlet_that_only_sleeps_through_a_crawl_delay_does_not_hold_the_check(tmp_path, monkeypatch):
+    """teledoce.com asks ten minutes between requests. Its outlet sleeps without a worker permit
+    (fetch_articles.paced), the others go on, and once only that sleep is left the check ends."""
+    release = threading.Event()
+
+    class Clock:
+        time = staticmethod(time.time)
+        sleep = staticmethod(lambda s: release.wait(s))
+
+    monkeypatch.setattr(fa, "time", Clock)
+    monkeypatch.setitem(fa._last_request, "sleepy.test", time.time() + 600)
+    fast = _failing()
+
+    def fetch(url):
+        if "sleepy.test" in url:
+            fa._rate_wait("sleepy.test")
+        return fast(url)
+
+    outlets = [_outlet("sleepy", ["https://sleepy.test/rss"])] + [_outlet("o%d" % i) for i in range(4)]
+    db, saved = _harness(tmp_path, monkeypatch, outlets, fetch)
+    monkeypatch.setattr(v, "SLEEP_PATIENCE_SECONDS", 0)
+    out = tmp_path / "v.json"
+    t0 = time.time()
+    try:
+        v.run(apply=True, json_out=str(out), workers=1, deadline_minutes=0.5)
+        took = time.time() - t0
+    finally:
+        release.set()
+    assert took < 10, "it did not wait for the sleep, nor for the 30 second deadline"
+    report = json.loads(out.read_text())
+    assert report["unchecked"]["asleep"] == ["sleepy"] and report["outlets_left_asleep"] == 1
+    assert report["outlets_checked"] == 4 and report["outlets_skipped_deadline"] == 0
+    assert "sleepy" not in report["dead_candidates"]
+    assert {o["id"]: o for o in saved["o"]}["sleepy"]["active"] is True
+    assert _ro(db).execute("SELECT 1 FROM outlet_validation WHERE outlet_id='sleepy'").fetchone() is None
+
+
+def test_consecutive_partial_weeks_cover_the_whole_registry(tmp_path, monkeypatch):
+    outlets = [_outlet("o%d" % i) for i in range(6)]
+    db, _ = _harness(tmp_path, monkeypatch, outlets, _failing(0.5), dead_history=False)
+    seen = []
+    for week in range(10):
+        out = tmp_path / ("v%d.json" % week)
+        v.run(json_out=str(out), workers=1, deadline_minutes=1.2 / 60)
+        report = json.loads(out.read_text())
+        assert report["outlets_checked"] < 6
+        now = {r["outlet_id"] for r in report["results"]}
+        left = {o["id"] for o in outlets} - set().union(*seen)
+        assert now <= left or left <= now, "a week checks what the weeks before left before anything again"
+        seen.append(now)
+        if set().union(*seen) == {o["id"] for o in outlets}:
+            break
+    assert set().union(*seen) == {o["id"] for o in outlets}
+
+
+def test_the_report_results_follow_the_check_order(tmp_path, monkeypatch):
+    outlets = [_outlet("a"), _outlet("b"), _outlet("c")]
+    db, _ = _harness(tmp_path, monkeypatch, outlets, _failing(), dead_history=False)
+    conn = sqlite3.connect(str(db))
+    conn.execute("CREATE TABLE IF NOT EXISTS outlet_validation (outlet_id TEXT PRIMARY KEY, last_validated TEXT NOT NULL)")
+    conn.executemany("INSERT INTO outlet_validation VALUES (?,?)", [("a", "2026-11-02"), ("c", "2026-10-26")])
+    conn.commit()
+    out = tmp_path / "v.json"
+    v.run(json_out=str(out), workers=3, deadline_minutes=1)
+    report = json.loads(out.read_text())
+    assert [r["outlet_id"] for r in report["results"]] == ["b", "c", "a"]
+    assert report["outlets_checked"] == 3 and report["unchecked"] == {"deadline": [], "asleep": [], "error": []}
+
+
+def test_an_outlet_whose_check_breaks_is_reported_and_not_judged(tmp_path, monkeypatch):
+    def fetch(url):
+        if "bad" in url:
+            raise RuntimeError("boom")
+        return _failing()(url)
+    outlets = [_outlet("bad"), _outlet("ok")]
+    db, saved = _harness(tmp_path, monkeypatch, outlets, fetch)
+    out = tmp_path / "v.json"
+    v.run(apply=True, json_out=str(out), workers=2, deadline_minutes=1)
+    report = json.loads(out.read_text())
+    assert report["unchecked"]["error"] == ["bad"] and report["outlet_errors"] == 1
+    assert report["newly_inactive"] == ["ok"]
+
+
+def test_the_command_has_the_deadline_flag_and_does_not_wait_for_sleeping_threads():
+    """The pool's threads are joined at interpreter exit, so a thread asleep for ten minutes would carry the
+    step past its limit after the deadline; the command leaves with os._exit once everything is written."""
+    import inspect
+    src = inspect.getsource(v)
+    assert "--deadline-minutes" in src and "os._exit(0)" in src
+    assert 0 < v.DEADLINE_MINUTES <= 12, "well inside the step's 15 minutes"
+    assert v.SLEEP_PATIENCE_SECONDS < v.DEADLINE_MINUTES * 60
+
+
+def test_outlets_start_in_check_order_however_the_workers_contend(tmp_path, monkeypatch):
+    """One task per outlet let a thread that had just finished take the worker permit back ahead of threads
+    waiting since the start, so on the snapshot 64 outlets never checked were passed over for 1,292 checked
+    after them. A task now takes its permit before it takes the next outlet."""
+    outlets = [_outlet("o%02d" % i) for i in range(40)]
+    starts = []
+    _harness(tmp_path, monkeypatch, outlets, _failing(0.01, starts), dead_history=False)
+    v.run(json_out=str(tmp_path / "v.json"), workers=2, deadline_minutes=1)
+    got = [url.split("//")[1].split(".")[0] for _, url in sorted(starts)]
+    want = [o["id"] for o in outlets]
+    assert sorted(got) == want
+    assert all(abs(got.index(oid) - i) <= 2 for i, oid in enumerate(want)), got
+
+
+def test_an_outlet_read_through_its_news_sitemap_is_judged_on_it_too(tmp_path, monkeypatch):
+    """Korea Times, CNN Brasil, Philenews and ARY are read through their sitemaps alone, their RSS refused by
+    robots.txt; judged on the RSS only they would be retired while the sitemap worked."""
+    sitemap_only = dict(_outlet("kr_sm", ["https://sm.test/rss"]), news_sitemaps=["https://sm.test/news.xml"])
+    both_dead = dict(_outlet("kr_dead", ["https://dead.test/rss"]), news_sitemaps=["https://dead.test/news.xml"])
+    db, saved = _harness(tmp_path, monkeypatch, [sitemap_only, both_dead], _failing())
+    maps = []
+    def sitemap(url):
+        maps.append(url)
+        ok = url == "https://sm.test/news.xml"
+        return {"ok": ok, "entries": [{}] * (40 if ok else 0), "status": 200 if ok else 404,
+                "error": None if ok else "http_404", "elapsed": 0.1}
+    monkeypatch.setattr(v.news_sitemap, "fetch_entries", sitemap)
+    out = tmp_path / "v.json"
+    v.run(apply=True, json_out=str(out))
+    assert sorted(maps) == ["https://dead.test/news.xml", "https://sm.test/news.xml"]
+    assert json.loads(out.read_text())["newly_inactive"] == ["kr_dead"]
+    by_id = {o["id"]: o for o in saved["o"]}
+    assert by_id["kr_sm"]["active"] is True and by_id["kr_dead"]["active"] is False
+    rows = dict(_ro(db).execute("SELECT feed_url, last_entries FROM feed_health WHERE feed_url LIKE '%news.xml'"))
+    assert rows["https://sm.test/news.xml"] == 40

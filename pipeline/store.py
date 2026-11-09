@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS articles (
     audit_keep INTEGER,               -- gated-out only: 1 kept permanently for the gate audit, 0 not, NULL undecided
     extract_version TEXT,             -- config.EXTRACT_VERSION the stored body was extracted under; NULL before 2026-10-12
     day_of_record TEXT,               -- publication day of an item a backfill read brought in (backfill_day); NULL means the discovery day
-    doctrine TEXT                     -- doctrine term matches (pipeline/doctrine.py), JSON; NULL until tagged. Report only, never a label
+    doctrine TEXT,                    -- doctrine term matches (pipeline/doctrine.py), JSON; NULL until tagged. Report only, never a label
+    published_raw TEXT                -- the feed's own stamp of an item judged under a feed clock correction (fetch_feeds.clock_fix); NULL when none applied
 );
 CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status);
 CREATE INDEX IF NOT EXISTS idx_articles_country_date ON articles(country, published_at);
@@ -624,6 +625,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "doctrine" not in cols:
         # Doctrine term matches (pipeline/doctrine.py), added 2026-10-13; NULL until an article is tagged.
         _add_column(conn, "articles", "doctrine", "TEXT")
+    if "published_raw" not in cols:
+        # The feed's own stamp of an item judged under a feed clock correction (fetch_feeds.clock_fix), added
+        # 2026-11-09; NULL when no correction applied and published_at is the feed's stamp as given.
+        _add_column(conn, "articles", "published_raw", "TEXT")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_articles_audit_keep ON articles(discovered_at) WHERE audit_keep=1")
     od = {r[1] for r in conn.execute("PRAGMA table_info(daily_outlet_discovery)")}
     if "gate_relevant" not in od and _once(conn, "daily_outlet_discovery.gate_relevant",
@@ -935,12 +940,12 @@ def insert_discovered(conn: sqlite3.Connection, item: Dict) -> Optional[int]:
     cur = conn.execute(
         """INSERT OR IGNORE INTO articles
            (url, url_hash, outlet_id, country, language, feed_url, title, summary, author,
-            published_at, discovered_at, status, gate_relevant, gate_terms, day_of_record)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            published_at, discovered_at, status, gate_relevant, gate_terms, day_of_record, published_raw)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (item["url"], h, item["outlet_id"], item["country"], item["language"], item.get("feed_url"),
          item.get("title"), item.get("summary"), item.get("author"), item.get("published_at"),
          stamp, item.get("status", "discovered"), item.get("gate_relevant"),
-         json.dumps(item.get("gate_terms") or []), item.get("day_of_record")),
+         json.dumps(item.get("gate_terms") or []), item.get("day_of_record"), item.get("published_raw")),
     )
     if cur.rowcount == 0:
         return None

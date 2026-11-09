@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss version="2.0">
+<channel>
+    <title>국민일보 | 전체기사</title>
+    <link>https://www.kmib.co.kr</link>
+    <description>Fixture</description>
+    <copyright/>
+    <generator/>
+
+    <item>
+        <title>Item 1</title>
+
+        <link>https://www.kmib.co.kr/article/item-1</link>
+
+        <pubDate>
+            <![CDATA[ 09 Nov 2026 15:06:13 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 2</title>
+
+        <link>https://www.kmib.co.kr/article/item-2</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 10:21:22 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 3</title>
+
+        <link>https://www.kmib.co.kr/article/item-3</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 10:21:17 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 4</title>
+
+        <link>https://www.kmib.co.kr/article/item-4</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 09:45:31 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 5</title>
+
+        <link>https://www.kmib.co.kr/article/item-5</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 11:18:17 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 6</title>
+
+        <link>https://www.kmib.co.kr/article/item-6</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 09:45:28 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 7</title>
+
+        <link>https://www.kmib.co.kr/article/item-7</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 11:18:13 GMT ]]>
+        </pubDate>
+
+        </item><item>
+        <title>Item 8</title>
+
+        <link>https://www.kmib.co.kr/article/item-8</link>
+
+        <pubDate>
+            <![CDATA[ 10 Nov 2026 11:15:18 GMT ]]>
+        </pubDate>
+
+        </item></channel>
+</rss>

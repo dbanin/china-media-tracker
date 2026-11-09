@@ -205,5 +205,16 @@
   ],
   "note": "PerthNow (Seven West Media): Reuters copy bylined Staff Writers; the source is in window.PAGE_DATA (C-22843175, source Reuters) and never in the body, and the fetch stage credits it beside the desk byline as \"Staff Writers; Reuters\" (extract.embedded_source, extract.wire_author).",
   "synthetic": true
+ },
+ {
+  "name": "ko_kr_chosun_arc_story",
+  "url": "https://www.chosun.com/international/2026/11/09/SYNTHFREE0000000000000001/",
+  "language": "ko",
+  "author": null,
+  "date": null,
+  "title": "틔잢캠핚 씶빬… 쾒뾠 푾룻",
+  "chars": 578,
+  "note": "Chosun Ilbo (Arc XP): the served page holds no article text, only the Fusion.globalContent payload the browser draws it from; the story is read from the payload's content_elements (extract.arc_story_html), never on a page marked paywalled or members only.",
+  "synthetic": true
  }
 ]

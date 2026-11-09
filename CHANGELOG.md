@@ -4,6 +4,90 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Input fixes after the input stress test (2026-11-09)
+
+The tracker's inputs (feeds, feed clocks, page extraction, reference sources and the weekly feed check) were
+tested against the runner's database snapshot of 2026-11-09 00:27 UTC and against hostile input, and the losses
+found were fixed, one agent per task. Every fix was proven on the snapshot's real rows. EXTRACT_VERSION 2026.11.1.
+RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, the data schema (20) and ASSET_VERSION are unchanged: no site data
+file changes shape apart from meta.last_runs gaining input_watch. The database gains articles.published_raw and
+the table outlet_validation.
+
+- Feed clocks, corrected per feed (pipeline/fetch_feeds.py). In the 28 days to 2026-11-09, 5,830 articles carried
+  a published time after their discovery, which the tracker treats as not credible. Harian Metro and Berita Harian
+  write Malaysian local time marked as UTC (8 hours ahead); CTV News and CP24 write the UTC clock marked as four
+  hours behind it (4 hours ahead, already in September); Sahafah 24 stamps every item with the feed's generation
+  time; Bild, Prensa Latina, RTP and others keep their country's local time across its clock change. Discovery now
+  learns each feed's offset from the items first seen in each poll over the last seven days, against their
+  discovery and the previous poll, and takes off a whole or half hour only when it fits at least 90 percent of at
+  least 20 items in 5 polls, fits at least 10 percent more of them than no offset, and fits the last day too; it
+  never moves a time more than half an hour before the previous poll. A stamp shared by a poll's items that
+  follows the poll clock is a generation stamp and gives no publication time (Sahafah 24, Korea Times). The feed's
+  own stamp is kept in articles.published_raw. Older rows are repaired once per database, each by the profile its
+  feed had on its own day. On the snapshot 3,647 publication times became credible, 1,284 generation stamps were
+  cleared, no day of record moved, and the articles published after their discovery fell from 5,830 to 1,328
+  (Kukmin Ilbo's edition dates, Taipei Times and CNA media releases dated by day only stay not credible).
+- Page extraction (pipeline/extract.py). The Chosun Ilbo serves each article as an empty page plus the Arc XP
+  payload the browser draws it from, so 1,234 of its 1,259 China relevant articles had failed as extraction_empty
+  and all 13 classified were members only stories labelled on the reporter's bio. The story is now read from the
+  payload only when the served page does not print its paragraphs, carries no paywall marker, has no content
+  restriction or a free one, and is not marked members only; Chosun's members only notice is a paywall marker.
+  On the 4,019 saved pages and 13 fetched on 2026-11-09 the text changes on 19 pages only (18 Chosun stories from
+  no text to 298 to 2,527 characters, 1 Radio Free Asia story from its site menu to the article) and 3 Chosun
+  members only pages become paywalled; every other page reads exactly as before. The page scanners now take
+  linear time: page_labels took 76 seconds on a page of 4,000 unclosed tags and takes under a millisecond.
+- Failed pages of a changed template are fetched once more (fetch_articles.stale_empty_candidates). Until now
+  extraction_empty was final. A page that found no text under an extraction its template has since changed is now
+  taken once more whatever its age, and one that fails again records the version it failed under and is not taken
+  again: on the snapshot the 1,234 Chosun stories and 3 Straits Times paid releases.
+- TASS in Russian now answers every article with a bot protection challenge page (5 of 5 fetched, after 610 HTTP
+  403 answers until 2026-10-24). Nothing there can be read without solving the challenge, so it is left alone;
+  TASS English reads normally.
+- Postmedia. The eight papers lose almost every China relevant item at fetch since 2026-11-01 (661 of 669 in the
+  week to 2026-11-09, against 35 percent before). Their news and opinion pages were already declared not free
+  (schema.org isAccessibleForFree false); since 2026-11-01 their GlobeNewswire and press release pages, which
+  carried 66 of the papers' state origin labels, are declared not free too. This is the papers' own declaration,
+  honoured as before, not a misreading.
+- Registry (sources/outlets.yaml): feeds added or replaced for 21 outlets, each checked on 2026-11-09 through the
+  collector's own robots.txt check, rate limiter, user agent, feed reader and sitemap reader. The snapshot
+  estimates 424,364 items missed to feed saturation in 28 days beside 2,288,268 new; 86,176 of them fell at 13
+  outlets that now have a second way in: news sitemaps for Khabar Online, SANA Arabic, Rossiyskaya Gazeta, CNA,
+  Metropoles, Ekonomim and Klix, and section feeds for Antara, Mehr, ISNA, Moskovskij Komsomolets, Utusan Malaysia
+  and Prensa Latina. Dark outlets: NHK News, Excelsior and Corriere della Sera have new feeds, and The News
+  International, The Korea Times, CNN Brasil, Philenews and ARY News new news sitemaps. Of the items the new
+  sources list from the 36 hours before the snapshot, it never saw 197 of 197 at Excelsior, 170 of 170 at CNN
+  Brasil and 52 of 52 at The Korea Times. No outlet changed country, language or tier, and none was activated.
+  Not fixed: TASS, RIA Novosti and Sada El Balad, and 20 of the 27 dark outlets that had produced state origin or
+  unchecked state sourcing labels (HTTP 403, bot checks, robots.txt refusals, no items or no longer publishing).
+- Weekly feed check (pipeline/validate_sources.py). The check of 2026-11-02 was killed at its 15 minute step with
+  nothing saved, because it judged and saved only after every feed was checked, and since 2026-10-12 hosts asking
+  ten minutes between requests held a worker each for that long. It now starts no outlet after 11 minutes, saves
+  each outlet as soon as it is checked, paces its workers as discovery does, exits without waiting for threads
+  asleep, checks outlets least recently checked first (table outlet_validation) and judges only outlets checked
+  in full. On the snapshot two weeks cover all 1,619 collectable outlets. It now judges an outlet on its Google
+  News sitemaps as well as its RSS feeds: four outlets are read through a sitemap alone because robots.txt refuses
+  their RSS, and judged on the RSS only they would have been retired while the sitemap worked. uy_telemundo needs
+  about 20 minutes on teledoce.com's Crawl-delay and is reported every week, never judged.
+- Input watch (pipeline/input_watch.py, a new step after collection). It reads only the database, takes about a
+  second, and raises a warning titled "Input at risk" for each problem: for the inputs that carried the current
+  state origin and unchecked state sourcing items of the last 56 days (each network and each title group once, at
+  most 25, which carry 58 percent of them on the snapshot), no successful poll in 24 hours, a newest entry older
+  than 72 hours, 40 percent or more missed to saturation over 7 days, a jump in items lost at fetch against the
+  input's own earlier share, or an improbable silence; for reference sources, 30 percent or more failed over 7 days
+  (pages with no article at all not counted) or no item in 48 hours; and a fetch backlog rising three runs in a row
+  to 250 or more, which on the snapshot's 488 fetch runs fires only at the start of the 2026-10-22 starvation, 13
+  hours before the workflow's own warning.
+- Reference sources (pipeline/reference.py, sources/reference.yaml). 4,056 of the snapshot's 7,381 CGTN items had
+  failed: 3,174 breaking news alerts carrying only a headline, 536 under the cleaner bug fixed on 2026-10-19, 55
+  short videos and 291 transcript pages whose text sits in a data attribute. Alerts and short videos now fail as
+  no_text with the reason, transcripts are read, ECNS photo redirects are followed once under robots.txt and
+  People's Daily video pages are read from their text container. Thirteen editions were added as originals:
+  Xinhua French, Spanish, Portuguese, Arabic and Russian, CGTN Spanish, French, Arabic, Russian, Portuguese and
+  Italian, and People's Daily French and Spanish; copies.py now removes Russian and Arabic datelines and credit
+  lines. Xinhua has no Italian edition, so 773 of the snapshot's 1,080 translation rows still have no original
+  in their language (437 from Italpress); 307 now do. No count, denominator or classification changes.
+- lookalike._ts returns no time for a value that is not a date string, where it raised AttributeError.
+
 ## Article fetch starved by discovery (2026-10-30)
 
 From 2026-10-22 18:10 UTC the article fetch got about a minute of each run, so relevant articles stopped being

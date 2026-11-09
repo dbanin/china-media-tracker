@@ -21,20 +21,44 @@ retired on 2026-10-22, because collecting from another network works around a si
 choice to refuse the crawler, and its outlets were made inactive. Nothing here moves an outlet to
 another collector or makes an inactive outlet active again; an outlet the runner cannot reach is
 deactivated like any other dead outlet.
+
+The check has a deadline (DEADLINE_MINUTES, --deadline-minutes) well inside its workflow step's 15
+minutes. No outlet is started after it, and the outlets it leaves are reported and never judged. Each
+outlet's feed health is saved as soon as its check is done, so a run stopped early keeps what it did.
+Outlets are checked least recently validated first (outlet_validation, then feed_health.last_checked),
+so consecutive partial weeks cover the whole registry. An outlet whose only work left is a long
+robots.txt Crawl-delay sleep does not hold the run either (fetch_feeds._arrivals, the patience rule of
+discovery); it is reported as left asleep and comes first the next week.
 """
 import argparse
+import collections
 import datetime as dt
 import json
+import os
 import subprocess
 import sys
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-from pipeline import config, registry
+from pipeline import config, news_sitemap, registry
 from pipeline.feeds_util import fetch_feed
 
 DEAD_AFTER_DAYS = 7
 MIN_FAILED_CHECKS = 3
 ROBOTS_ERRORS = ("robots_disallowed",)
+# The step that runs the check is capped at 15 minutes (pipeline.yml, after a 20 minute collection) and
+# the 2026-11-02 check was killed there with nothing saved. The full registry (1,619 outlets, 2,037 feeds
+# on 2026-11-09) took 13 minutes on 2026-10-12, before feeds honoured robots.txt Crawl-delay, so a check
+# now covers most of the registry in a week and the rest first the next week.
+DEADLINE_MINUTES = 11.0
+# Once every outlet left only sleeps through a long Crawl-delay (teledoce.com asks ten minutes between
+# requests), the run waits this long from its start, and after that only for a sleep about to end
+# (fetch_feeds.SLOW_FEED_NEAR_SECONDS). Discovery's own patience (fetch_feeds.SLOW_FEED_PATIENCE_SECONDS,
+# 15 minutes) is longer than this whole check.
+SLEEP_PATIENCE_SECONDS = 300
+# When each outlet's feeds were last checked here, whatever the hourly collection does to feed_health.
+CHECKS_TABLE = "outlet_validation"
 
 
 def is_dead(results, history, today, started=None):
@@ -129,7 +153,7 @@ def measured_from(outlet, dates, today):
         days.append(outlet["collector_since"])
     if dates is not None:
         days.append(dates.get(("id", outlet["id"]), today))
-        days.extend(dates.get(("url", u), today) for u in outlet["feeds"])
+        days.extend(dates.get(("url", u), today) for u, _ in editorial_feeds(outlet))
     return max(days) if days else None
 
 
@@ -137,10 +161,14 @@ def measured_from(outlet, dates, today):
 # the run
 # ---------------------------------------------------------------------------
 
-def check_outlet(outlet):
+def check_outlet(outlet, stop=None):
+    """This run's result for each of the outlet's feeds, or None when stop() said, before a feed, that
+    the run is over: an outlet checked in part is not judged."""
     results = []
-    for url in outlet["feeds"]:
-        r = fetch_feed(url)
+    for url, kind in editorial_feeds(outlet):
+        if stop is not None and stop():
+            return None
+        r = news_sitemap.fetch_entries(url) if kind == "news_sitemap" else fetch_feed(url)
         results.append({
             "outlet_id": outlet["id"],
             "feed_url": url,
@@ -151,6 +179,48 @@ def check_outlet(outlet):
             "elapsed": round(r["elapsed"], 2),
         })
     return results
+
+
+def editorial_feeds(outlet):
+    """(url, type) for each feed the outlet is judged on: its RSS feeds, then its Google News sitemaps.
+    Until 2026-11-09 only the RSS was checked, so an outlet read through its sitemap alone, because its
+    RSS is refused by robots.txt (kr_koreatimes, br_cnnbrasil, cy_philenews, pk_ary), would have been
+    judged dead on the RSS and retired while its sitemap worked."""
+    return [(e["url"], e["type"]) for e in registry.feed_entries(outlet) if e["kind"] == registry.EDITORIAL]
+
+
+def check_order(outlets, validated, last_checked):
+    """The outlets, least recently checked first: by the day this check last covered them (none yet
+    first), then by their oldest feed_health.last_checked, then in registry order. feed_health alone
+    would not rotate: the hourly collection, which runs just before, stamps nearly every feed."""
+    def key(item):
+        i, o = item
+        oldest = min((last_checked.get(u) or "" for u, _ in editorial_feeds(o)), default="")
+        return (validated.get(o["id"]) or "", oldest, i)
+    return [o for _, o in sorted(enumerate(outlets), key=key)]
+
+
+def load_state(conn):
+    """(history, validated, last_checked) from the database, read before this run records anything, so
+    only recorded history counts toward MIN_FAILED_CHECKS."""
+    history, last_checked = {}, {}
+    for row in conn.execute("SELECT feed_url, last_ok, total_failures, total_checks, last_checked FROM feed_health"):
+        history[row[0]] = {"last_ok": row[1], "total_failures": row[2], "total_checks": row[3]}
+        last_checked[row[0]] = row[4]
+    conn.execute("CREATE TABLE IF NOT EXISTS %s (outlet_id TEXT PRIMARY KEY, last_validated TEXT NOT NULL)" % CHECKS_TABLE)
+    conn.commit()
+    validated = {r[0]: r[1] for r in conn.execute("SELECT outlet_id, last_validated FROM %s" % CHECKS_TABLE)}
+    return history, validated, last_checked
+
+
+def save_outlet(conn, outlet_id, results):
+    """One outlet's check, committed at once: its feeds' health and the day it was checked."""
+    from pipeline import store
+    for r in results:
+        store.record_feed_health(conn, r["outlet_id"], r["feed_url"], r["ok"], r["error"], r["entries"])
+    conn.execute("INSERT OR REPLACE INTO %s(outlet_id, last_validated) VALUES (?, ?)" % CHECKS_TABLE,
+                 (outlet_id, store.utcnow()))
+    conn.commit()
 
 
 def robots_blocked(results) -> bool:
@@ -191,53 +261,107 @@ def apply_decisions(outlets, decisions, today):
     return deactivated
 
 
-def run(apply=False, json_out=None, workers=12):
+def run(apply=False, json_out=None, workers=12, deadline_minutes=DEADLINE_MINUTES):
+    started = time.time()
+    deadline = started + deadline_minutes * 60 if deadline_minutes and deadline_minutes > 0 else None
     outlets = registry.load_outlets()
     # UTC, like every other date this project records. last_ok is written in UTC, so comparing it
     # against the runner's local date moved the seven day boundary by up to a day either way.
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     to_check = registry.collectable(outlets)
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        nested = list(pool.map(check_outlet, to_check))
-    results = [r for group in nested for r in group]
 
     # Feed health history lives in the database when it exists, so the elapsed time rule can be
     # applied. Without history, report only.
-    history = {}
+    conn, history, validated, last_checked = None, {}, {}, {}
     try:
         from pipeline import store
         conn = store.connect()
-        for row in conn.execute(
-            "SELECT feed_url, last_ok, total_failures, total_checks FROM feed_health"
-        ):
-            history[row[0]] = {"last_ok": row[1], "total_failures": row[2], "total_checks": row[3]}
-        for r in results:
-            store.record_feed_health(conn, r["outlet_id"], r["feed_url"], r["ok"], r["error"], r["entries"])
-        conn.commit()
+        history, validated, last_checked = load_state(conn)
     except Exception as exc:  # store may not exist yet on a fresh checkout
+        conn = None
         print("feed health history unavailable (%s); reporting only" % exc, file=sys.stderr)
+    order = check_order(to_check, validated, last_checked)
+
+    # Paced like discovery (fetch_feeds.run): a thread sleeping through a long Crawl-delay hands its
+    # permit back, so the other workers go on, and _arrivals stops waiting once only such sleeps are left.
+    from pipeline import fetch_articles, fetch_feeds
+    permits = threading.BoundedSemaphore(workers)
+    stopped = threading.Event()
+
+    def late():
+        return stopped.is_set() or (deadline is not None and time.time() > deadline)
+
+    # A task takes its permit first and only then the next outlet in check order. Submitting one task per
+    # outlet let a thread that had just finished take the permit back ahead of threads waiting since the
+    # start: on the 2026-11-09 snapshot a run left 64 never checked outlets for 1,292 checked after them.
+    queue, queue_lock = collections.deque(order), threading.Lock()
+
+    def check_next():
+        with queue_lock:
+            o = queue.popleft() if queue else None
+        if o is None:
+            return None, None
+        try:
+            return o["id"], (None if late() else check_outlet(o, stop=late))
+        except Exception as exc:       # one outlet must not take the check down; it is not judged
+            return o["id"], exc
+
+    checked, errors, save_errors, counts = {}, {}, 0, {}
+    pool = ThreadPoolExecutor(max_workers=workers + config.SLOW_DOMAIN_THREADS)
+    futures = [pool.submit(fetch_articles.paced(permits, check_next)) for _ in order]
+    try:
+        for fut in fetch_feeds._arrivals(futures, counts, started + SLEEP_PATIENCE_SECONDS, deadline):
+            oid, group = fut.result()      # group None: not started, or stopped between feeds, at the deadline
+            if isinstance(group, Exception):
+                errors[oid] = "%s: %s" % (type(group).__name__, str(group)[:200])
+            elif group is not None:
+                checked[oid] = group
+                if conn is not None:
+                    try:
+                        save_outlet(conn, oid, group)
+                    except Exception as exc:
+                        conn.rollback()
+                        save_errors += 1
+                        print("feed health not saved for %s (%s)" % (oid, exc), file=sys.stderr)
+            if deadline is not None and time.time() > deadline:
+                counts["stopped_at_deadline"] = True
+                break
+    finally:
+        stopped.set()
+        pool.shutdown(wait=False, cancel_futures=True)
+
+    unchecked = [o["id"] for o in order if o["id"] not in checked and o["id"] not in errors]
+    asleep = unchecked if counts.get("outlets_left_asleep") and not counts.get("stopped_at_deadline") else []
+    skipped = [] if asleep else unchecked
+    results = [r for o in order if o["id"] in checked for r in checked[o["id"]]]
 
     dates = registry_dates()
     if dates is None:
         print("registry history unavailable; outlets that never succeeded are only reported", file=sys.stderr)
     by_id = {o["id"]: o for o in outlets}
 
+    # Only an outlet checked in full on this run is judged; one left for the deadline, asleep or broken
+    # keeps its state until a later week checks it.
     decisions = {}
-    by_outlet = {}
-    for r in results:
-        by_outlet.setdefault(r["outlet_id"], []).append(r)
-    for oid, rs in by_outlet.items():
+    for oid, rs in checked.items():
         o = by_id[oid]
         d = decide(o, rs, history, today, measured_from(o, dates, today))
         if d:
             decisions[oid] = d
 
     ok = sum(1 for r in results if r["ok"])
-    print("checked %d feeds across %d outlets: %d ok, %d failing" % (
-        len(results), len(to_check), ok, len(results) - ok))
+    print("checked %d of %d outlets in %.0f s (%d feeds: %d ok, %d failing); not checked: %d left at the "
+          "%g minute deadline, %d left asleep on a long Crawl-delay, %d with an error" % (
+              len(checked), len(order), time.time() - started, len(results), ok, len(results) - ok,
+              len(skipped), deadline_minutes or 0, len(asleep), len(errors)))
     for r in results:
         if not r["ok"]:
             print("  FAIL %-24s %s  (%s)" % (r["outlet_id"], r["feed_url"], r["error"]))
+    for label, ids in (("left at the deadline", skipped), ("left asleep", asleep)):
+        if ids:
+            print("  %s, first next week: %s%s" % (label, ", ".join(ids[:20]), " and %d more" % (len(ids) - 20) if len(ids) > 20 else ""))
+    for oid, why in sorted(errors.items()):
+        print("  ERROR %-24s %s" % (oid, why))
 
     changed = []
     if apply and decisions:
@@ -252,7 +376,12 @@ def run(apply=False, json_out=None, workers=12):
     if json_out:
         with open(json_out, "w", encoding="utf-8") as fh:
             json.dump({"date": today, "results": results, "newly_inactive": changed,
-                       "dead_candidates": sorted(decisions), "decisions": {k: list(v) for k, v in decisions.items()}},
+                       "dead_candidates": sorted(decisions), "decisions": {k: list(v) for k, v in decisions.items()},
+                       "deadline_minutes": deadline_minutes, "seconds": round(time.time() - started, 1),
+                       "outlets_to_check": len(order), "outlets_checked": len(checked),
+                       "outlets_skipped_deadline": len(skipped), "outlets_left_asleep": len(asleep),
+                       "outlet_errors": len(errors), "feed_health_save_errors": save_errors,
+                       "unchecked": {"deadline": skipped, "asleep": asleep, "error": sorted(errors)}},
                       fh, indent=1)
     return results, changed
 
@@ -262,5 +391,13 @@ if __name__ == "__main__":
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--json", dest="json_out")
     ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--deadline-minutes", type=float, default=DEADLINE_MINUTES,
+                    help="start no outlet after this many minutes (0: no deadline)")
     args = ap.parse_args()
-    run(apply=args.apply, json_out=args.json_out, workers=args.workers)
+    run(apply=args.apply, json_out=args.json_out, workers=args.workers, deadline_minutes=args.deadline_minutes)
+    # A worker still asleep on a long Crawl-delay, or still fetching at the deadline, would hold the
+    # interpreter's exit until it wakes (the pool's threads are joined at exit), up to ten minutes past
+    # the deadline and the step's limit. Everything is saved and written by now.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)

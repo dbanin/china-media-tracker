@@ -184,7 +184,9 @@ def test_a_french_xinhua_copy_pairs_with_the_afrique_original(conn):
 
 
 def test_without_the_afrique_source_the_french_copy_is_a_translation(conn):
-    sources = {k: v for k, v in copies.load_reference_sources().items() if k != "ref_xinhua_africa_fr"}
+    # without any French Xinhua edition (the Afrique channel, and since 2026-11-09 Xinhua French)
+    sources = {k: v for k, v in copies.load_reference_sources().items()
+               if not (v["publisher"] == "xinhua" and v["language"] == "fr")}
     body = "COTONOU, 28 octobre (Xinhua) -- " + "\n".join(FR_PARAS)
     aid = tc._article(conn, "https://journal.example.bj/a", "bj_paper", FR_TITLE, body, hours_ago=2, lang="fr", country="BEN",
                       sigs=["xinhua_dateline"])

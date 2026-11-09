@@ -14,6 +14,7 @@ import json
 import re
 import threading
 import time
+from collections import Counter
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from typing import Dict, List, Optional, Tuple
 
@@ -79,6 +80,8 @@ SECTION_GUARD_PENDING = ("discovered", "queued", "fetched", "awaiting_llm", "llm
 
 
 def _entry_time(entry) -> Optional[str]:
+    """The entry's date as the feed gives it, in UTC (feedparser's *_parsed are UTC). A feed whose clock
+    is wrong is corrected afterwards, per feed (clock_fix)."""
     for key in ("published_parsed", "updated_parsed", "created_parsed"):
         val = entry.get(key)
         if val:
@@ -87,6 +90,373 @@ def _entry_time(entry) -> Optional[str]:
             except Exception:
                 continue
     return None
+
+
+# Feed clocks. A published time after the item's discovery is not credible (lookalike.published_ts), so a
+# feed whose clock runs ahead loses every publication time it gives. In the 28 days to 2026-11-09, 5,830
+# articles had a published time after their discovery. The live feeds on 2026-11-09 showed why:
+# hmetro.com.my and bharian.com.my write Malaysian local time marked +0000 (8 hours ahead); ctvnews.ca and
+# cp24.com write the UTC clock marked -0400 (4 hours ahead, already so in September, before Canada left
+# daylight time); sa24.co stamps every item with the feed's generation time, Yemen local time marked GMT
+# (3 hours ahead); kmib.co.kr wraps its dates in whitespace and CDATA, which feedparser reads correctly, but
+# dates about a third of its items a day ahead (the edition date), which no clock offset explains. Others
+# follow their country's clock: Bild +2 hours until 2026-10-25 and +1 since, Prensa Latina right until
+# 2026-10-31 and +1 since Cuba left daylight time.
+#
+# The tracker learns each feed's clock from what it already holds: for the items first seen in each poll
+# over the last CLOCK_DAYS (a poll is the items discovered within CLOCK_POLL_GAP_SECONDS of one another,
+# as in _span_floor), the feed's stamp against the discovery and the previous poll. With an offset h the
+# corrected time of an item new in a poll lies between the previous poll (less CLOCK_SLACK_HOURS) and its
+# discovery (plus CLOCK_TOLERANCE_SECONDS). The fit of h is the share of items for which it does, among
+# the items that can fit any offset (a stamp already before the previous poll is a late listing and says
+# nothing about the clock). The offset is the smallest whole or half hour from CLOCK_STEP_HOURS to
+# CLOCK_MAX_HOURS within CLOCK_NEAR_BEST of the best fit; it is applied only when it fits at least
+# CLOCK_MIN_FIT of at least CLOCK_MIN_ITEMS items in CLOCK_MIN_POLLS polls, fits CLOCK_MIN_GAIN more of
+# them than no offset does, and fits the polls of the last CLOCK_RECENT_HOURS too (so a feed that has
+# just changed its clock is left alone until the window agrees). Evidence (snapshot of 2026-11-09, the
+# seven days before it, 1,162 feeds with at least 20 such items in 5 polls): 22 feeds have 15.6 percent
+# or more of their items ahead of discovery and the next has 6.7 percent, so no offset can gain any other
+# feed CLOCK_MIN_GAIN; of the 22, the 19 corrected fit their offset at 0.952 or more and the three left
+# alone fit at most 0.941 and fail the last day (El Khabar), or fit 0.763 (Mothership) and 0.615 (Kukmin
+# Ilbo). The slack: of 172,536 new items of correctly dated feeds over three days, 4.3 percent are
+# stamped more than half an hour before the previous poll (listed late) and 3.7 percent more than an hour.
+#
+# A feed that stamps the items of a poll with one identical time following the poll clock gives a
+# generation stamp, not a publication time, and the item gets none (the article fetch may then take the
+# page's date). Only a stamp written to the second counts: a stamp on a whole minute is shared by
+# releases published in the same minute (PR Newswire). On history: at least GENERATION_MIN_POLLS polls
+# whose most common stamp is carried by two items or more lie within GENERATION_BAND_HOURS of one
+# distance from the poll, and GENERATION_SHARE of all dated items lie within GENERATION_MARGIN_HOURS of
+# that band (a poll of a feed both collectors read can hold two generation stamps, one from each); the
+# band is then applied to each poll. In a single poll without such history: GENERATION_MIN_ENTRIES or
+# more dated entries all carry one stamp from GENERATION_NEAR_SECONDS before the poll to
+# CLOCK_TOLERANCE_SECONDS after it. A feed whose items share stamps at one distance from the poll is
+# never given an offset. Evidence (the snapshot of 2026-11-09, every seven day window): of 50 feeds with
+# five polls or more repeating a stamp to the second, two are generation stamps in any window, Sahafah 24
+# (2.81 to 3.00 hours after the poll) and Korea Times (0.16 hours to a few seconds before it); the
+# others' repeated stamps spread over hours (edition times, batch releases), as India Today's over 5.5.
+#
+# A corrected time is never put more than CLOCK_SLACK_HOURS before the feed's previous poll: such an item
+# keeps the feed's stamp. articles.published_raw keeps the feed's own stamp for every item judged under a
+# correction (published_at then holds the corrected time, the stamp itself when it was kept, or NULL for a
+# generation stamp); NULL means no correction applied when the item arrived.
+CLOCK_DAYS = 7
+CLOCK_POLL_GAP_SECONDS = 300
+CLOCK_STEP_HOURS = 0.5
+CLOCK_MAX_HOURS = 14.0
+CLOCK_SLACK_HOURS = 0.5
+CLOCK_TOLERANCE_SECONDS = 120
+CLOCK_MIN_ITEMS = 20
+CLOCK_MIN_POLLS = 5
+CLOCK_MIN_FIT = 0.9
+CLOCK_MIN_GAIN = 0.1
+CLOCK_NEAR_BEST = 0.02
+CLOCK_RECENT_HOURS = 24
+CLOCK_RECENT_MIN_ITEMS = 5
+GENERATION_MIN_ENTRIES = 3
+GENERATION_MIN_POLLS = 5
+GENERATION_SHARE = 0.8
+GENERATION_BAND_HOURS = 0.5
+GENERATION_MARGIN_HOURS = 0.5
+GENERATION_NEAR_SECONDS = 900
+
+
+def _clock_time(value) -> Optional[dt.datetime]:
+    """A stored or parsed time with a time of day as an aware UTC datetime; None for a bare date or
+    anything unreadable."""
+    if not isinstance(value, str) or "T" not in value:
+        return None
+    try:
+        d = dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)).astimezone(dt.timezone.utc)
+
+
+def _on_the_half_hour(t: dt.datetime) -> bool:
+    """A stamp on a whole or half hour to the second: a date without a time, or a scheduled release."""
+    return t.second == 0 and t.microsecond == 0 and t.minute in (0, 30)
+
+
+def clock_polls(rows) -> List[Dict]:
+    """A feed's rows (discovered_at, feed stamp), in discovery order, as polls: {"at", "prev", "stamps"},
+    at and prev the first discovery of the poll and of the one before (None for the first), stamps the
+    (discovery, stamp) pairs of its dated items, all as POSIX seconds."""
+    polls, last = [], None
+    for disc, raw in rows:
+        d = _aware(disc)
+        if d is None:
+            continue
+        d = d.timestamp()
+        if last is None or d - last > CLOCK_POLL_GAP_SECONDS:
+            polls.append({"at": d, "prev": polls[-1]["at"] if polls else None, "stamps": []})
+        last = d
+        s = _clock_time(raw)
+        if s is not None:
+            polls[-1]["stamps"].append((d, s.timestamp()))
+    return polls
+
+
+def _round_stamp(seconds: float) -> bool:
+    return _on_the_half_hour(dt.datetime.fromtimestamp(seconds, dt.timezone.utc))
+
+
+def _generation_like(t: dt.datetime) -> bool:
+    """A stamp that can be a generation stamp: to the second, not on a whole minute (several releases in one
+    minute share a stamp written to the minute, as PR Newswire's do)."""
+    return t.second != 0 or t.microsecond != 0
+
+
+def _repeated_rel(polls: List[Dict]) -> List[float]:
+    """For each poll whose most common stamp, written to the second, is carried by two items or more: the
+    hours from the poll to that stamp."""
+    rel = []
+    for p in polls:
+        if len(p["stamps"]) < 2:
+            continue
+        stamp, n = Counter(s for _, s in p["stamps"]).most_common(1)[0]
+        if n >= 2 and _generation_like(dt.datetime.fromtimestamp(stamp, dt.timezone.utc)):
+            rel.append((stamp - p["at"]) / 3600.0)
+    return rel
+
+
+def _generation_band(polls: List[Dict]) -> Optional[Tuple[float, float]]:
+    """(lowest, highest) hours from poll to stamp when the feed stamps its items with the poll's own
+    clock (see the note above), else None."""
+    rel = _repeated_rel(polls)
+    if len(rel) < GENERATION_MIN_POLLS or max(rel) - min(rel) > GENERATION_BAND_HOURS:
+        return None
+    # The band must hold nearly every dated item, not only the repeated stamps: a poll of a feed both
+    # collectors read can hold two generation stamps, one from each, and a feed with real times has items
+    # at every distance from the poll.
+    lo, hi = (min(rel) - GENERATION_MARGIN_HOURS) * 3600, (max(rel) + GENERATION_MARGIN_HOURS) * 3600
+    dated = [s - d for p in polls for d, s in p["stamps"]]
+    if sum(1 for x in dated if lo <= x <= hi) < GENERATION_SHARE * len(dated):
+        return None
+    return round(min(rel), 3), round(max(rel), 3)
+
+
+def _fit(items, hours: float) -> float:
+    shift = hours * 3600.0
+    return sum(1 for floor, top, s, _, _ in items if floor <= s - shift <= top) / float(len(items)) if items else 0.0
+
+
+def clock_profile(polls: List[Dict]) -> Dict:
+    """A feed's clock from its polls (clock_polls): {"offset_hours", "generation", "items", "polls", "fit",
+    "fit_zero", "ahead"}. offset_hours is the hours to take off its stamps, or None; generation the band of
+    a generation stamp (_generation_band), or None. See the note above."""
+    out = {"offset_hours": None, "generation": _generation_band(polls), "items": 0, "polls": 0}
+    if out["generation"]:
+        return out
+    slack, tol = CLOCK_SLACK_HOURS * 3600.0, float(CLOCK_TOLERANCE_SECONDS)
+    items, used = [], 0
+    for p in polls:
+        if p["prev"] is None:
+            continue        # nothing to place the first poll's items after
+        floor = p["prev"] - slack
+        seen = Counter(s for _, s in p["stamps"])
+        mine = [(floor, d + tol, s, d, seen[s] > 1 and not _round_stamp(s) and s % 60)
+                for d, s in p["stamps"] if s >= floor and not _round_stamp(s)]
+        items.extend(mine)
+        used += 1 if mine else 0
+    out.update(items=len(items), polls=used)
+    if len(items) < CLOCK_MIN_ITEMS or used < CLOCK_MIN_POLLS:
+        return out
+    # A feed whose items share stamps that keep one distance from the poll is a generation stamp the
+    # window holds too few polls of for _generation_band, never a clock to correct.
+    repeated = sum(1 for i in items if i[4]) / float(len(items))
+    rel = _repeated_rel(polls)
+    if repeated > 1 - GENERATION_SHARE and len(rel) >= 2 and max(rel) - min(rel) <= GENERATION_BAND_HOURS:
+        out["repeated"] = round(repeated, 3)
+        return out
+    ahead = sum(1 for _, top, s, _, _ in items if s > top) / float(len(items))
+    out["ahead"] = round(ahead, 3)
+    if ahead < CLOCK_MIN_GAIN:      # no offset can gain more than the share of items ahead
+        return out
+    steps = int(round(CLOCK_MAX_HOURS / CLOCK_STEP_HOURS))
+    fits = {k * CLOCK_STEP_HOURS: _fit(items, k * CLOCK_STEP_HOURS) for k in range(0, steps + 1)}
+    best = max(f for h, f in fits.items() if h > 0)
+    hours = min(h for h, f in fits.items() if h > 0 and f >= best - CLOCK_NEAR_BEST)
+    out.update(fit=round(fits[hours], 3), fit_zero=round(fits[0.0], 3), candidate_hours=hours)
+    if fits[hours] < CLOCK_MIN_FIT or fits[hours] - fits[0.0] < CLOCK_MIN_GAIN:
+        return out
+    newest = max(i[3] for i in items)
+    recent = [i for i in items if i[3] >= newest - CLOCK_RECENT_HOURS * 3600.0]
+    if len(recent) >= CLOCK_RECENT_MIN_ITEMS and _fit(recent, hours) < CLOCK_MIN_FIT:
+        out["recent_fit"] = round(_fit(recent, hours), 3)
+        return out
+    out["offset_hours"] = hours
+    return out
+
+
+def clock_label(profile: Optional[Dict]) -> Optional[str]:
+    """How a feed's clock is corrected, for the stage counts: "-8.0h", "generation", or None."""
+    if not profile:
+        return None
+    if profile.get("generation"):
+        return "generation"
+    if profile.get("offset_hours"):
+        return "-%.1fh" % profile["offset_hours"]
+    return None
+
+
+def _clock_rows(conn, since: dt.datetime, until: dt.datetime) -> Dict[str, List]:
+    """Every article discovered from since to until, by feed, in discovery order: (id, discovered_at, feed
+    stamp, published_at, published_raw, day_of_record). The feed stamp is published_raw when set, else
+    published_at; an item a backfill read brought in (day_of_record set) gives none."""
+    by: Dict[str, List] = {}
+    for r in conn.execute(
+            """SELECT id, feed_url, discovered_at, published_at, published_raw, day_of_record FROM articles
+               WHERE discovered_at>=? AND discovered_at<=? AND feed_url IS NOT NULL ORDER BY discovered_at, id""",
+            (since.isoformat(), until.isoformat())):
+        raw = r["published_raw"] if r["published_raw"] is not None else r["published_at"]
+        by.setdefault(r["feed_url"], []).append(
+            (r["id"], r["discovered_at"], None if r["day_of_record"] else raw, r["published_at"], r["published_raw"],
+             r["day_of_record"]))
+    return by
+
+
+def clock_profiles(conn, now: Optional[dt.datetime] = None, rows: Optional[Dict[str, List]] = None) -> Dict[str, Dict]:
+    """The clock profile (clock_profile) of every feed with items over the last CLOCK_DAYS that is corrected
+    (an offset or a generation stamp); feeds left as they are have no entry."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    rows = rows if rows is not None else _clock_rows(conn, now - dt.timedelta(days=CLOCK_DAYS), now)
+    out = {}
+    for feed, rs in rows.items():
+        p = clock_profile(clock_polls([(r[1], r[2]) for r in rs]))
+        if clock_label(p):
+            out[feed] = p
+    return out
+
+
+def generation_stamps(stamps: List[Optional[str]], profile: Optional[Dict], now: dt.datetime) -> set:
+    """The stamps of one poll's entries that are generation stamps (see the note above), never one written to
+    the minute: a stamp at the distance from the poll the feed's history gives (profile generation band,
+    widened by GENERATION_MARGIN_HOURS) carried by two entries or more, or by the only dated stamp of the
+    poll; without such history, the one stamp all of GENERATION_MIN_ENTRIES or more dated entries carry,
+    from GENERATION_NEAR_SECONDS before the poll to CLOCK_TOLERANCE_SECONDS after it."""
+    dated = [s for s in stamps if s]
+    counts = Counter(dated)
+    band = (profile or {}).get("generation")
+    out = set()
+    for stamp, n in counts.items():
+        t = _clock_time(stamp)
+        if t is None or not _generation_like(t):
+            continue
+        rel = (t - now).total_seconds()
+        if band and (n >= 2 or len(counts) == 1) and \
+                (band[0] - GENERATION_MARGIN_HOURS) * 3600 <= rel <= (band[1] + GENERATION_MARGIN_HOURS) * 3600:
+            out.add(stamp)
+        elif len(counts) == 1 and n >= GENERATION_MIN_ENTRIES and -GENERATION_NEAR_SECONDS <= rel <= CLOCK_TOLERANCE_SECONDS:
+            out.add(stamp)
+    return out
+
+
+def clock_fix(stamp: Optional[str], profile: Optional[Dict], generation: set,
+              last_poll: Optional[dt.datetime]) -> Tuple[Optional[str], Optional[str]]:
+    """(published_at, published_raw) for an entry stamped `stamp`: None and the stamp for a generation stamp;
+    the stamp less the feed's offset, and the stamp, under an offset, unless that would put it more than
+    CLOCK_SLACK_HOURS before the feed's previous poll (last_poll), when the stamp is kept, and the stamp
+    again; the stamp and None when the feed's clock is not corrected."""
+    if not stamp:
+        return stamp, None
+    if stamp in generation:
+        return None, stamp
+    hours = (profile or {}).get("offset_hours")
+    t = _clock_time(stamp)
+    if not hours or t is None:
+        return stamp, None
+    fixed = t - dt.timedelta(hours=hours)
+    if last_poll is not None and fixed < last_poll - dt.timedelta(hours=CLOCK_SLACK_HOURS):
+        return stamp, stamp
+    return fixed.isoformat(), stamp
+
+
+def _repair_feed(rows: List, profile_at, counts: Dict, updates: List, start: float) -> None:
+    """Judge a feed's rows discovered from start (POSIX seconds) and not judged before (published_raw NULL,
+    a published_at, no day_of_record) by the profile profile_at(discovery seconds) gives, as at insertion,
+    with the previous poll on record standing for the previous poll."""
+    polls, last, members = [], None, []
+    for r in rows:
+        d = _aware(r[1])
+        if d is None:
+            continue
+        d = d.timestamp()
+        if last is None or d - last > CLOCK_POLL_GAP_SECONDS:
+            polls.append({"at": d, "prev": polls[-1]["at"] if polls else None})
+            members.append([])
+        last = d
+        members[-1].append(r)
+    for p, rs in zip(polls, members):
+        todo = [r for r in rs if r[4] is None and r[3] is not None and not r[5]]
+        if not todo or p["at"] < start:
+            continue
+        profile = profile_at(p["at"])
+        at = dt.datetime.fromtimestamp(p["at"], dt.timezone.utc)
+        prev = dt.datetime.fromtimestamp(p["prev"], dt.timezone.utc) if p["prev"] is not None else None
+        generation = generation_stamps([r[2] for r in rs], profile, at)
+        if not clock_label(profile) and not generation:
+            continue
+        for r in todo:
+            published, raw = clock_fix(r[3], profile, generation, prev)
+            if raw is None:
+                continue
+            kind = "generation" if published is None else ("offset" if published != raw else "kept")
+            counts[kind] += 1
+            updates.append((published, raw, r[0], kind))
+
+
+def repair_clocks(conn, days: Optional[float] = None, now: Optional[dt.datetime] = None,
+                  profiles: Optional[Dict[str, Dict]] = None, rows: Optional[Dict[str, List]] = None,
+                  commit: bool = True) -> Dict:
+    """Correct the stored items of feeds with a wrong clock that were not judged when they arrived
+    (published_raw NULL): those stored before this correction existed, and those that arrived before their
+    feed's profile held. Each row is judged as clock_fix judges a new item, by the profile its feed had on
+    the item's discovery day (learned over the CLOCK_DAYS ending with that day) or, given profiles, by
+    those; the previous poll is the previous poll on record. Items a backfill read brought in (day_of_record
+    set) are left out, so no day of record moves. Idempotent: a judged row keeps published_raw and is never
+    judged again. Returns counts: rows corrected by an offset, generation stamps cleared, rows kept, and per
+    feed."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if days is None:
+        first = conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0]
+        start = _aware(first) if first else now
+    else:
+        start = now - dt.timedelta(days=days)
+    counts = {"offset": 0, "generation": 0, "kept": 0, "feeds": {}}
+    if rows is None:
+        rows = _clock_rows(conn, start - dt.timedelta(days=0 if profiles is not None else CLOCK_DAYS), now)
+    updates: List = []
+    for feed, rs in rows.items():
+        if profiles is not None:
+            def profile_at(_, p=profiles.get(feed)):
+                return p
+        else:
+            if not any(r[2] for r in rs):
+                continue
+            polls_all = clock_polls([(r[1], r[2]) for r in rs])
+            cache: Dict[str, Dict] = {}
+
+            def profile_at(at, polls_all=polls_all, cache=cache):
+                day = dt.datetime.fromtimestamp(at, dt.timezone.utc).date()
+                if day.isoformat() not in cache:
+                    end = min(now, dt.datetime.combine(day + dt.timedelta(days=1), dt.time(), dt.timezone.utc)).timestamp()
+                    begin = end - CLOCK_DAYS * 86400.0
+                    window = [dict(p, prev=p["prev"] if p["prev"] is not None and p["prev"] >= begin else None)
+                              for p in polls_all if begin <= p["at"] < end]
+                    cache[day.isoformat()] = clock_profile(window)
+                return cache[day.isoformat()]
+        before = len(updates)
+        _repair_feed(rs, profile_at, counts, updates, start.timestamp())
+        if len(updates) > before:
+            per = Counter(u[3] for u in updates[before:])
+            counts["feeds"][feed] = dict(per)
+    for published, raw, aid, _ in updates:
+        conn.execute("UPDATE articles SET published_at=?, published_raw=? WHERE id=? AND published_raw IS NULL",
+                     (published, raw, aid))
+    if commit:
+        conn.commit()
+    return counts
 
 
 def newest_entry_time(entries, now: Optional[dt.datetime] = None) -> Optional[str]:
@@ -488,6 +858,33 @@ def _take_turns(entries: List[Dict]) -> List[Dict]:
     return out
 
 
+def _clock_pass(conn, counts: Dict, now: Optional[dt.datetime] = None) -> Dict[str, Dict]:
+    """The clock profiles of this run (clock_profiles), recorded in the stage counts as feed_clocks, and the
+    window's items not judged yet judged by them (repair_clocks, clock_repaired). A failure is recorded and
+    leaves every clock uncorrected for the run; discovery goes on."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    conn.commit()       # a failure below rolls back the clock pass alone
+    try:
+        rows = _clock_rows(conn, now - dt.timedelta(days=CLOCK_DAYS), now)
+        clocks = clock_profiles(conn, now, rows=rows)
+        repaired = repair_clocks(conn, days=CLOCK_DAYS, now=now, profiles=clocks, rows=rows)
+        # Once per database, every older row too, each by the profile its feed had on its own day (8.7 s
+        # on the 2026-11-09 snapshot: 5,513 rows corrected by an offset, 1,284 generation stamps cleared).
+        # The step is recorded in the same transaction as the repair, so a failure leaves it to the next run.
+        if store._once(conn, "articles.published_raw.history"):
+            history = repair_clocks(conn, days=None, now=now)
+            counts["clock_repaired_history"] = {k: history[k] for k in ("offset", "generation", "kept")}
+    except Exception as exc:  # noqa: BLE001  the stamps stay as the feeds give them
+        conn.rollback()
+        counts["clock_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+        return {}
+    if clocks:
+        counts["feed_clocks"] = {u: clock_label(p) for u, p in sorted(clocks.items())}
+    if repaired["offset"] or repaired["generation"] or repaired["kept"]:
+        counts["clock_repaired"] = {k: repaired[k] for k in ("offset", "generation", "kept")}
+    return clocks
+
+
 def poll_outlet(outlet: Dict) -> List[Dict]:
     out = []
     for fe in _take_turns(registry.feed_entries(outlet)):
@@ -505,7 +902,7 @@ def poll_outlet(outlet: Dict) -> List[Dict]:
             from pipeline import section_pages  # section index pages without a feed
             r = section_pages.fetch_entries(fe["url"], fe.get("type"))
         out.append({"outlet": outlet, "feed_url": fe["url"], "kind": fe.get("kind", registry.EDITORIAL), "result": r,
-                    "type": fe.get("type", "rss")})
+                    "type": fe.get("type", "rss"), "polled_at": dt.datetime.now(dt.timezone.utc)})
     return out
 
 
@@ -541,6 +938,9 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     permits = threading.BoundedSemaphore(workers)
     # Each feed's summary boilerplate (pipeline/boilerplate.py), which the keyword gate does not read.
     boiler = boilerplate.FeedBoilerplate(conn)
+    # Each feed's clock (clock_profiles, the note above CLOCK_DAYS), learned once per run; the items of the
+    # window that arrived before their feed's profile held are judged now.
+    clocks = _clock_pass(conn, counts)
     stopped = threading.Event()
 
     def poll(o):
@@ -590,6 +990,11 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         section = False
                         counts["section_feeds_guarded"] += 1
                     linked, new_here, times = 0, 0, []
+                    clock, polled_at = clocks.get(feed_url), g.get("polled_at") or dt.datetime.now(dt.timezone.utc)
+                    stamps = [_entry_time(e) for e in r["entries"]]
+                    generation = generation_stamps(stamps, clock, polled_at)
+                    last_poll = previous_poll(conn, feed_url, prev) if registry.is_shared(outlet) else prev
+                    last_poll = _aware(last_poll["last_ok"]) if last_poll is not None and last_poll["last_ok"] else None
                     is_map, known, links = g.get("type") == news_sitemap.NEWS_SITEMAP, (), []
                     if is_map:
                         known = news_sitemap.known_hashes(conn, [e.get("link") for e in r["entries"]])
@@ -626,10 +1031,12 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                             "url": link, "outlet_id": outlet["id"], "country": outlet["country"],
                             "language": outlet["language"], "feed_url": feed_url, "title": title,
                             "summary": gate.strip_html(summary)[:2000], "author": extract.clean_author(clean_text(_entry_author(entry)) or None),
-                            "published_at": _entry_time(entry),
                             "status": "queued" if relevant else "gated_out",
                             "gate_relevant": 1 if relevant else 0, "gate_terms": terms,
                         }
+                        # The feed's stamp, corrected for its clock (clock_fix), with the stamp kept beside it.
+                        item["published_at"], item["published_raw"] = clock_fix(_entry_time(entry), clock, generation,
+                                                                                 last_poll)
                         # A backfill read (the result's "backfill", set by the AAP release reader, or a feed's
                         # first poll or first after an outage, backfill_poll) dates an item published well
                         # before it was seen by its publication day, in the counts and the discovery totals
@@ -668,6 +1075,10 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                             continue
                         new_here += 1
                         counts["items_new"] += 1
+                        if item["published_raw"] is not None:
+                            fixed = ("clock_generation" if item["published_at"] is None else
+                                     "clock_offset" if item["published_at"] != item["published_raw"] else "clock_kept")
+                            counts[fixed] = counts.get(fixed, 0) + 1
                         store.record_discovery(conn, outlet["country"], relevant, outlet["id"],
                                                item["day_of_record"] or item["discovered_at"][:10])
                         if section:

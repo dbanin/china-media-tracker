@@ -50,12 +50,33 @@
 #   The CGTN cleaner also drops a video page's clip duration, section label and "CGTN Now" line, and
 #   (since 2026-10-29) a lone ", Updated ..." time line, the newsletter box and a line repeating the one
 #   before it (CGTN Africa prints each photo caption twice).
+#   cgtn_nuxt           CGTN's language editions: the article is read from the page's __NUXT_DATA__ payload
+#                       (extraction takes another story of the page); embedded media addresses are dropped.
+#   xinhua_lang         Xinhua's Spanish, Portuguese, Arabic and Russian pages: the time and site line
+#                       ("2026-11-09 21:07:45丨Russian.News.Cn") and a closing "Fin" or "/نهاية الخبر/" line.
+#   peoples_daily_lang  People's Daily French and Spanish: the article is read from div.fren-textCon or
+#                       div.span-textCon (extraction takes the page's link lists with it).
+# Since 2026-11-09 the CGTN cleaner's sources also read a transcript page's text from its content JSON, and
+# People's Daily English a video page's text from div.d2txtCon (pipeline/reference.py alternative_text).
 #
 # Left out: Xinhua Italian (no such edition: italian.news.cn, italian.xinhuanet.com and it.news.cn do not
 # resolve, and Xinhua's language menu has no Italian; Italpress's Xinhua copy is translated from Xinhua
-# English), CRI English (a script shell for CGTN Radio), CGTN Italian (bodies rendered in the browser, so
-# extraction gets only page chrome), and People's Daily Italian (date only, half its homepage links are
-# evergreen back to 2021, and it is not the origin of the Italpress copy, so it adds little).
+# English), CRI English (a script shell for CGTN Radio), and People's Daily Italian (date only, half its
+# homepage links are evergreen back to 2021, and it is not the origin of the Italpress copy, so it adds
+# little). CGTN Italian, left out on 2026-10-13 because its bodies are rendered in the browser, is read since
+# 2026-11-09 from the page's Nuxt payload (cleaner cgtn_nuxt), as are the other CGTN language editions.
+#
+# The language editions at the end (task reference, 2026-11-09: scratchpad nov9/reference) were found and
+# checked the same way, through the tracker's helpers, so that copies in those languages can pair with an
+# original in their own language. Rechecked and still left out on that day: Xinhua Italian (as above; the
+# Xinhua English and Spanish language menus list Chinese, English, French, Spanish, Russian, Arabic,
+# Portuguese, German, Japanese and Korean only), so Italpress's 437 Xinhua credited copies and Antara's 167
+# (Indonesian), with the Malay and Thai ones, have no original in their language anywhere; Xinhua's
+# /latest/sitemap.xml (404 for French, Spanish, Portuguese and Russian; the Arabic one, named in its
+# robots.txt, ends on 2018-05-31); russian.cgtn.com/rss (an HTML page with no items); People's Daily
+# Russian, Arabic and Portuguese (no feed, their robots.txt sitemaps end in January 2015, homepage only, and
+# 1 credited copy among the translations of the snapshot of 2026-11-09). People's Daily French and Spanish
+# answer https with a TLS error, so they are read over http, as their own homepages link them.
 # Left out on 2026-10-28 (Africa services): africa.cgtn.com, which answers every path, robots.txt included,
 # with the Africa page (so its robots.txt is an HTML page without rules; the page's canonical address on
 # www.cgtn.com is read instead, under a real robots.txt); a CGTN Africa RSS feed (none on CGTN's subscribe
@@ -321,3 +342,261 @@
   notes: >-
     French only for the Africa service; Xinhua has no Africa channel in other languages that the tracker's
     African outlets use.
+
+- id: ref_xinhua_fr
+  name: Xinhua French
+  publisher: xinhua
+  language: fr
+  feeds:
+    # Xinhua French's world and China lists, in the markup of the English lists (20 and 15 timed items on
+    # 2026-11-09; the China list reached back six days). The Afrique list is ref_xinhua_africa_fr's.
+    - {url: "https://french.news.cn/monde/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://french\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://french.news.cn/chine/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://french\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: xinhua_fr
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: french.news.cn has no robots.txt (404, allow all). Lists timed in Beijing time with no zone, as
+    the Afrique list (verified 2026-10-28); the page itself gives the date only (meta publishdate), which
+    agreed with the list date on 2 of 2 pages. Extraction 2 of 2 good (888 and 2,073 characters, the
+    "(Xinhua) --" dateline kept, the last paragraph closing on "Fin").
+  notes: >-
+    French copies credited to Xinhua pair with this edition and with ref_xinhua_africa_fr (pairing goes by
+    publisher and language, not by source).
+
+- id: ref_xinhua_es
+  name: Xinhua Spanish
+  publisher: xinhua
+  language: es
+  feeds:
+    # The world and China lists carry no times (30 and 25 links on 2026-11-09, two to four days); the URL
+    # gives the Beijing date and the page its time.
+    - {url: "https://spanish.news.cn/mundo/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://spanish\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://spanish.news.cn/china/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://spanish\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: xinhua_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: spanish.news.cn has no robots.txt (404, allow all). The page prints its time as
+    "2026-11-09 20:56:33" in Beijing time on 4 of 4 pages, on the URL's date. Extraction 4 of 4 good (883 to
+    5,007 characters, the "ESTAMBUL, 9 nov (Xinhua) --" dateline kept). No feed; /latest/sitemap.xml is 404.
+
+- id: ref_xinhua_pt
+  name: Xinhua Portuguese
+  publisher: xinhua
+  language: pt
+  feeds:
+    - {url: "https://portuguese.news.cn/china/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://portuguese\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://portuguese.news.cn/internacional/index.htm", type: xinhua_list, time_rule: bjt_url_checked, link_pattern: "^https://portuguese\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: xinhua_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: portuguese.news.cn has no robots.txt (404, allow all). 20 timed items a list (one to three days
+    on 2026-11-09), Beijing time with no zone; the list time equals the page's printed time on 2 of 2 pages
+    (list 2026-11-09 19:21:00, page 2026-11-09 19:21:00). Extraction 2 of 2 good (598 and 1,309 characters,
+    the "Beijing, 9 nov (Xinhua) --" dateline kept).
+
+- id: ref_xinhua_ar
+  name: Xinhua Arabic
+  publisher: xinhua
+  language: ar
+  feeds:
+    - {url: "https://arabic.news.cn/world/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://arabic\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://arabic.news.cn/china/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://arabic\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: xinhua_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: arabic.news.cn's robots.txt allows everything. The lists carry no times (16 and 25 links on
+    2026-11-09); the page prints its Beijing time ("2026-11-09 10:42:15") on 4 of 4 pages, on the URL's
+    date. Extraction 4 of 4 good (886 to 2,704 characters); the text opens with the headline and the dateline
+    "بكين 9 نوفمبر 2026 (شينخوا)", which pipeline/copies.py removes since 2026-11-09.
+  notes: >-
+    The sitemap named in robots.txt (/latest/sitemap.xml) ends on 2018-05-31 and is not read.
+
+- id: ref_xinhua_ru
+  name: Xinhua Russian
+  publisher: xinhua
+  language: ru
+  feeds:
+    - {url: "https://russian.news.cn/world/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://russian\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+    - {url: "https://russian.news.cn/china/index.htm", type: link_list, time_rule: url_date, link_pattern: "^https://russian\\.news\\.cn/\\d{8}/[0-9a-f]{32}/c\\.html$"}
+  news_sitemaps: []
+  credits: [xinhua_, source_xinhua]
+  collector: hosted
+  active: true
+  page_time: bjt_stamp
+  cleaner: xinhua_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: russian.news.cn has no robots.txt (404, allow all). The lists carry no times (32 and 31 links on
+    2026-11-09, a few pinned back to 2024-12, which the 30 day age limit leaves out); the page prints its
+    Beijing time on 4 of 4 pages ("2026-11-09 21:07:45丨Russian.News.Cn", a line the cleaner drops).
+    Extraction 4 of 4 good (591 to 4,805 characters, the "Берлин, 9 ноября /Синьхуа/ --" dateline kept).
+
+- id: ref_cgtn_es
+  name: CGTN Español
+  publisher: cgtn
+  language: es
+  feeds: []
+  news_sitemaps:
+    - {url: "https://espanol.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://espanol\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, about three days on 2026-11-09) writes Beijing time with a "Z", as CGTN English's does: for example 18:47Z on the sitemap, 10:47:56 UTC in the page's datePublished; extraction of the Nuxt payload 2 of 2 (807 and 529 characters). Both pages of this edition, and 8 of 8 across the Spanish, French, Arabic and Russian editions, agreed to the minute once the Z time is read as Beijing time. The HTML extraction took another story of the page on every page, so the article is read from the Nuxt payload.
+  notes: >-
+    Robots: espanol.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern.
+
+- id: ref_cgtn_fr
+  name: CGTN Français
+  publisher: cgtn
+  language: fr
+  feeds: []
+  news_sitemaps:
+    - {url: "https://francais.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://francais\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, about three days on 2026-11-09) writes Beijing time with a "Z", as CGTN English's does: for example 20:09Z on the sitemap, 12:09:46 UTC in the page's datePublished; extraction of the Nuxt payload 2 of 2 (377 and 473 characters). Both pages of this edition, and 8 of 8 across the Spanish, French, Arabic and Russian editions, agreed to the minute once the Z time is read as Beijing time. The HTML extraction took another story of the page on every page, so the article is read from the Nuxt payload.
+  notes: >-
+    Robots: francais.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern.
+
+- id: ref_cgtn_ar
+  name: CGTN Arabic
+  publisher: cgtn
+  language: ar
+  feeds: []
+  news_sitemaps:
+    - {url: "https://arabic.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://arabic\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, about three days on 2026-11-09) writes Beijing time with a "Z", as CGTN English's does: for example 18:51Z on the sitemap, 10:51:50 UTC in the page's datePublished; extraction of the Nuxt payload 2 of 2 (791 and 293 characters). Both pages of this edition, and 8 of 8 across the Spanish, French, Arabic and Russian editions, agreed to the minute once the Z time is read as Beijing time. The HTML extraction took another story of the page on every page, so the article is read from the Nuxt payload.
+  notes: >-
+    Robots: arabic.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern.
+
+- id: ref_cgtn_ru
+  name: CGTN Russian
+  publisher: cgtn
+  language: ru
+  feeds: []
+  news_sitemaps:
+    - {url: "https://russian.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://russian\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, about three days on 2026-11-09) writes Beijing time with a "Z", as CGTN English's does: for example 20:36Z on the sitemap, 12:36:55 UTC in the page's datePublished; extraction of the Nuxt payload 2 of 2 (2,736 and 1,976 characters). Both pages of this edition, and 8 of 8 across the Spanish, French, Arabic and Russian editions, agreed to the minute once the Z time is read as Beijing time. The HTML extraction took another story of the page on every page, so the article is read from the Nuxt payload.
+  notes: >-
+    Robots: russian.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern.
+
+- id: ref_cgtn_pt
+  name: CGTN Portuguese
+  publisher: cgtn
+  language: pt
+  feeds: []
+  news_sitemaps:
+    - {url: "https://portuguese.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://portuguese\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, from 2026-11-05 on 2026-11-09) has the same format as the Spanish, French, Arabic and Russian editions, whose Z times are Beijing time on 8 of 8 pages, so it is read the same way. Extraction of the Nuxt payload 2 of 2 good (885 and 339 characters); the page times of this edition were not compared, so its first source_status and time checks should be read before relying on its lags.
+  notes: >-
+    Robots: portuguese.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern.
+
+- id: ref_cgtn_it
+  name: CGTN Italian
+  publisher: cgtn
+  language: it
+  feeds: []
+  news_sitemaps:
+    - {url: "https://italian.cgtn.com/sitemap/latest_sitemap.xml", time_rule: bjt_if_unzoned, link_pattern: "^https://italian\\.cgtn\\.com/\\d{4}/\\d{2}/\\d{2}/ARTI\\d+$"}
+  credits: [cgtn_, china_media_group_credit]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: cgtn_nuxt
+  verified_on: "2026-11-09"
+  evidence: >-
+    The latest news sitemap (100 entries, from 2026-11-05 on 2026-11-09) has the same format as the Spanish, French, Arabic and Russian editions, whose Z times are Beijing time on 8 of 8 pages, so it is read the same way. Extraction of the Nuxt payload 2 of 2 good (264 and 825 characters); the page times of this edition were not compared, so its first source_status and time checks should be read before relying on its lags.
+  notes: >-
+    Robots: italian.cgtn.com's robots.txt has groups for facebookexternalhit and Googlebot only (Allow, Crawl-delay 120) and none for this crawler or "*", so every path is allowed and no delay applies (can_fetch: robots_allowed). The sitemap also lists video items (/VIDE...), left out by link_pattern. Adnkronos runs CGTN copy in Italian (12 credited copies among the translations of 2026-11-09); Italpress's copy is Xinhua's and has no Italian original.
+
+- id: ref_peoples_daily_fr
+  name: People's Daily Online French
+  publisher: peoples_daily
+  language: fr
+  feeds:
+    # The homepage, over http (https fails with a TLS error): 57 story links on 2026-11-09, sections in the path.
+    - {url: "http://french.peopledaily.com.cn/", type: page, time_rule: url_date, link_pattern: "^https?://french\\.peopledaily\\.com\\.cn/(?:[A-Za-z]+/)?n3/\\d{4}/\\d{4}/c\\d+-\\d+\\.html$"}
+  news_sitemaps: []
+  credits: [peoples_daily_]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: peoples_daily_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: the http robots.txt allows these paths. No feed and no sitemap; the URL carries the Beijing date
+    (/n3/YYYY/MMDD/) and the page prints no time (meta publishdate gives the same date), so items stay date
+    only and source_status will flag "date only after day one". The article is the paragraphs of
+    div.fren-textCon: 2 of 2 pages (3,617 and 3,911 characters); plain extraction also took the link lists.
+  notes: >-
+    Alwihda (Chad) runs People's Daily French copy (60 credited copies among the translations of 2026-11-09),
+    the largest group this edition can pair.
+
+- id: ref_peoples_daily_es
+  name: People's Daily Online Spanish
+  publisher: peoples_daily
+  language: es
+  feeds:
+    - {url: "http://spanish.peopledaily.com.cn/", type: page, time_rule: url_date, link_pattern: "^https?://spanish\\.peopledaily\\.com\\.cn/(?:[A-Za-z]+/)?n3/\\d{4}/\\d{4}/c\\d+-\\d+\\.html$"}
+  news_sitemaps: []
+  credits: [peoples_daily_]
+  collector: hosted
+  active: true
+  page_time: none
+  cleaner: peoples_daily_lang
+  verified_on: "2026-11-09"
+  evidence: >-
+    Robots: the http robots.txt allows these paths (https fails with a TLS error). 60 story links on the
+    homepage on 2026-11-09; the URL carries the Beijing date. The page prints "el 09 de noviembre de 2026 |
+    14:50", a form no page_time rule reads yet, so items stay date only. The article is the paragraphs of
+    div.span-textCon: 2 of 2 pages (1,814 and 5,879 characters).

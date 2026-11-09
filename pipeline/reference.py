@@ -40,6 +40,12 @@ gives the sig and shingle count kept on the row. A paywalled page is marked payw
 (no body is kept: a teaser is not an original). A refusal by robots.txt is final; a transient failure
 leaves the item to a later run until it is FETCH_MAX_AGE_DAYS old, after which it is marked expired
 (a candidate is not expired while it is a candidate).
+Since 2026-11-09 a bare meta refresh to another page of the same site is followed once (ECNS photo
+items), CGTN's transcript text is read from its content JSON and People's Daily's video text from its
+text container where extraction misses them (alternative_text), and a page that has no more text than
+a short body fails with what it is (no_text_reason: a breaking news alert, a video with its caption, a
+headline, a short brief) instead of an extraction failure. A row failed by the earlier extraction is
+read once more when a state copy is paired with it or it is a candidate (RETRY_SQL).
 
 Status (source_status). Per source: items by status (fetched, expired, failed, paywalled, discovered,
 blocked by robots.txt), bodies kept, the share of dated items that carry a date only, and that share
@@ -116,6 +122,16 @@ FETCH_MAX_AGE_DAYS = 3
 CANDIDATE_TITLE_JACCARD = 0.4
 CANDIDATE_COPY_DAYS = 14
 CANDIDATE_MAX_AGE_DAYS = 10
+# Retries. A failed fetch is final, except one whose extraction found too little before the extraction
+# changes of 2026-11-09 (the CGTN head bug of 2026-10-15 to 19, the CGTN transcript pages, the People's
+# Daily video pages and the ECNS photo redirects): such a row has no extract_version, since until then only
+# a stored body recorded one. It is read once more when a current state copy names it as its original, or
+# while it is a fetch candidate (up to CANDIDATE_MAX_AGE_DAYS old). Every page read since records
+# config.EXTRACT_VERSION, failed or not, so no row is retried twice. Rows failed for any other reason,
+# and those whose page has no text (no_text, short_text), are not retried.
+RETRY_REASONS = ("extraction_empty", "extraction_empty_after_cleaning", "unreadable: no article text")
+RETRY_SQL = ("(status = 'failed' AND extract_version IS NULL AND (fail_reason IN (?, ?) OR fail_reason LIKE ?))")
+RETRY_PARAMS = [RETRY_REASONS[0], RETRY_REASONS[1], RETRY_REASONS[2] + "%"]
 # Status: an item more than a day old should carry the page's time; a source where at least this share
 # of such items (from DATE_ONLY_MIN_ITEMS of them) still has a date only is flagged.
 DATE_ONLY_AFTER_DAY_FLAG = 0.25
@@ -242,6 +258,7 @@ _URL_DATES = (
     re.compile(r"/n3/(20\d{2})/(\d{2})(\d{2})/"),                     # People's Daily /n3/2026/1013/
     re.compile(r"/a/(20\d{2})(\d{2})/(\d{2})/"),                      # China Daily /a/202610/13/
     re.compile(r"/(20\d{2})-(\d{2})-(\d{2})/"),                       # CGTN /news/2026-10-13/, ECNS /2026-10-13/
+    re.compile(r"\.cgtn\.com/(20\d{2})/(\d{2})/(\d{2})/"),            # CGTN language editions /2026/11/09/ARTI...
 )
 _MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct",
                                        "nov", "dec"], 1)}
@@ -857,6 +874,10 @@ _CD_NAV = re.compile(r"^- [A-Z]+$")
 # Xinhua French: the newsroom's contact box under the article ("Vous avez une question, une remarque, des
 # suggestions ? Contactez" / "notre équipe de rédaction par e-mail à xinhuanet_french@news.cn").
 _XINHUA_FR_DROP = ("vous avez une question, une remarque", "notre équipe de rédaction par e-mail")
+_BARE_URL = re.compile(r"^https?://\S+$")
+# Xinhua's Spanish, Portuguese, Arabic and Russian pages (live check of 2026-11-09): the page's time and site
+# line ("2026-11-09 21:07:45丨Russian.News.Cn"), and the closing "Fin" / "/نهاية الخبر/" mark.
+_XINHUA_LANG_DROP = re.compile(r"^(?:20\d{2}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?\s*[\u4e28|]?\s*\S*news\.cn\S*|fin|/?\u0646\u0647\u0627\u064a\u0629 \u0627\u0644\u062e\u0628\u0631/?)$", re.I)
 
 
 def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
@@ -931,6 +952,11 @@ def clean_body(text: Optional[str], cleaner: Optional[str]) -> str:
         lines = [line for line in lines if line.strip().lower() not in _CD_DROP and not _CD_NAV.match(line.strip())]
     elif cleaner == "xinhua_fr":
         lines = [line for line in lines if not line.strip().lower().startswith(_XINHUA_FR_DROP)]
+    elif cleaner == "cgtn_nuxt":
+        # the address of an embedded video or photo printed as a line, and the "多图" (photo set) mark
+        lines = [line for line in lines if not _BARE_URL.match(line.strip()) and line.strip() != "\u591a\u56fe"]
+    elif cleaner == "xinhua_lang":
+        lines = [line for line in lines if not _XINHUA_LANG_DROP.match(line.strip())]
     return "\n".join(lines).strip()
 
 
@@ -963,11 +989,196 @@ def _cgtn_head(lines: List[str]) -> List[str]:
     return lines[i:]
 
 
+# ---------------------------------------------------------------------------
+# Page text the extractor misses, and pages with no text (live check of 2026-11-09)
+# ---------------------------------------------------------------------------
+
+# CGTN's video transcript pages (/news/YYYY-MM-DD/<base64 "Transcript...">/index.html) render their text in
+# the browser from a data-json attribute of div#cmsMainContent ([{"contentType": 1, "content": "..."}]); the
+# HTML holds no paragraph of it, so extraction found only the menu (291 items "no article text" by
+# 2026-11-09). The transcript is read from that attribute.
+_CGTN_CONTENT_JSON = re.compile(r"""<div\b[^>]*\bid=["']cmsMainContent["'][^>]*\bdata-json=(["'])(.*?)\1""", re.S | re.I)
+# People's Daily English video pages hold their text in div.d2txtCon after a showPlayer(...) script
+# paragraph, which extraction passed over (65 items "extraction_empty_after_cleaning" by 2026-11-09).
+_PD_TEXT_CLASS = "d2txtCon"
+# People's Daily's French and Spanish editions: the article is the paragraphs of div.fren-textCon and
+# div.span-textCon; extraction took the page's link lists with it (49 and 103 lines on 2026-11-09).
+_PD_LANG_TEXT_CLASSES = ("fren-textCon", "span-textCon")
+# ECNS photo items answer with a bare <meta http-equiv="refresh"> to the gallery page on the same site
+# (/photo/... to /hd/...), which the fetch does not follow (96 items "extraction_empty" by 2026-11-09).
+_META_REFRESH = re.compile(r"""<meta[^>]+http-equiv=["']?refresh["']?[^>]*content=["']\s*\d+\s*;\s*url=([^"'>\s]+)""", re.I)
+# Markers of a page whose item is a video, a breaking news alert or a headline.
+# A bare <video> element is no marker: Xinhua's article template carries one on every page, flashes included.
+_VIDEO_MARK = re.compile(r"showPlayer\(|og:video|\"VideoObject\"", re.I)
+_VIDEO_TITLE = re.compile(r"^\s*(?:video|live)\s*[:|]", re.I)
+_BREAKING_LINE = "breaking news"
+_HEADLINE_NOISE = re.compile(r"^(?:source|editor|editors?|photo|video)\s*:|^\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(?::\d{2})?)?$|"
+                             r"^\d{1,2}:\d{2}(?::\d{2})?$|^\d{1,2}:\d{2}, \d{1,2}-[A-Z][a-z]{2}-\d{4}$", re.I)
+# A no text reason needs the page's own paragraphs, cookie lines and the cleaner's template lines aside,
+# to hold less running text than this; otherwise a short body stays an extraction failure (the CGTN head
+# bug of 2026-10-15 to 19 left 536 short bodies of pages that had text, and must not read as "no text").
+NO_TEXT_PAGE_PROSE = MIN_BODY_CHARS
+
+
+def _strip_markup(fragment: str) -> str:
+    text = re.sub(r"(?i)<br\s*/?>", "\n", fragment or "")
+    text = htmllib.unescape(_TAG.sub(" ", text)).replace("\u00a0", " ")
+    return "\n".join(" ".join(line.split()) for line in text.split("\n") if line.strip())
+
+
+def cgtn_content_json(html: Optional[str]) -> Optional[str]:
+    """The text CGTN keeps in div#cmsMainContent's data-json (its text blocks, contentType 1), or None."""
+    m = _CGTN_CONTENT_JSON.search(html or "")
+    if not m:
+        return None
+    try:
+        blocks = json.loads(htmllib.unescape(m.group(2)))
+    except ValueError:
+        return None
+    if not isinstance(blocks, list):
+        return None
+    paras = [_strip_markup(b.get("content")) for b in blocks
+             if isinstance(b, dict) and b.get("contentType") == 1 and isinstance(b.get("content"), str)]
+    text = "\n".join(p for p in paras if p)
+    return text or None
+
+
+# CGTN's language editions (espanol, francais, arabic, russian, portuguese, italian.cgtn.com) are Nuxt pages:
+# the HTML carries the menus and other stories, and the article is in the __NUXT_DATA__ payload, a flat
+# JSON array whose objects refer to other entries by index. The article is the object whose "id" is the
+# page's own ARTI number; its "content" is HTML. Extraction alone took a sidebar story on 8 of 8 pages on
+# 2026-11-09.
+_NUXT_DATA = re.compile(r"""<script\b[^>]*\bid=["']__NUXT_DATA__["'][^>]*>(.*?)</script>""", re.S | re.I)
+_ARTI_ID = re.compile(r"/((?:ARTI|VIDE)\d{10,})/?$")
+_BLOCK_END = re.compile(r"(?i)</p\s*>|<br\s*/?>|</h[1-6]\s*>|</div\s*>|</li\s*>")
+
+
+def cgtn_nuxt_article(html: Optional[str], url: Optional[str]) -> Optional[str]:
+    """The text of the article a CGTN language edition page is about, read from its __NUXT_DATA__
+    payload (the object whose id is the URL's ARTI number), paragraph per line; None when not found."""
+    m = _ARTI_ID.search(urlsplit(url or "").path)
+    d = _NUXT_DATA.search(html or "")
+    if not m or not d:
+        return None
+    try:
+        data = json.loads(d.group(1))
+    except ValueError:
+        return None
+    if not isinstance(data, list):
+        return None
+
+    def val(v):
+        return data[v] if isinstance(v, int) and not isinstance(v, bool) and 0 <= v < len(data) else v
+
+    for obj in data:
+        if isinstance(obj, dict) and "content" in obj and val(obj.get("id")) == m.group(1):
+            content = val(obj["content"])
+            if isinstance(content, str) and content.strip():
+                text = _strip_markup(_BLOCK_END.sub("\n", re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", content)))
+                return text or None
+    return None
+
+
+def _paragraphs(html: Optional[str], within_class=None) -> List[str]:
+    """The text of the page's <p> elements (scripts and styles dropped), optionally only those inside a
+    div whose class names within_class (a class, or a tuple of classes)."""
+    if not html:
+        return []
+    from lxml import html as lhtml
+    try:
+        doc = lhtml.fromstring(html)
+    except Exception:  # noqa: BLE001  an unparsable page has no paragraphs
+        return []
+    for bad in doc.xpath("//script|//style|//noscript"):
+        bad.drop_tree()
+    if within_class:
+        want = {within_class} if isinstance(within_class, str) else set(within_class)
+        roots = [d for d in doc.iter("div") if want & set((d.get("class") or "").split())]
+    else:
+        roots = [doc]
+    out = []
+    for root in roots:
+        for p in root.iter("p"):
+            t = " ".join((p.text_content() or "").split())
+            if t and "showPlayer(" not in t:
+                out.append(t)
+    return out
+
+
+def alternative_text(html: Optional[str], cleaner: Optional[str], url: Optional[str] = None) -> Optional[str]:
+    """The page's text read where its template keeps it, for a source whose extraction misses it: CGTN's
+    content JSON, the Nuxt payload of CGTN's language editions, People's Daily's d2txtCon paragraphs.
+    None when the source has no such place or it is empty."""
+    if cleaner == "cgtn":
+        return cgtn_content_json(html)
+    if cleaner == "cgtn_nuxt":
+        return cgtn_nuxt_article(html, url)
+    if cleaner == "peoples_daily":
+        paras = _paragraphs(html, _PD_TEXT_CLASS)
+        return "\n".join(paras) or None
+    if cleaner == "peoples_daily_lang":
+        paras = _paragraphs(html, _PD_LANG_TEXT_CLASSES)
+        return "\n".join(paras) or None
+    return None
+
+
+def meta_refresh_target(html: Optional[str], url: str) -> Optional[str]:
+    """The address a bare meta refresh page sends to, when it is another page of the same site (the
+    host, "www." aside, or its parent domain) and the page holds nothing else of note; else None."""
+    if not html or len(html) > 4000:
+        return None
+    m = _META_REFRESH.search(html)
+    if not m:
+        return None
+    target = clean_url(urljoin(url, htmllib.unescape(m.group(1).strip().strip("'\""))))
+    a = urlsplit(url).netloc.lower()
+    b = urlsplit(target).netloc.lower()
+    site = lambda h: ".".join(h.split(".")[-2:])  # noqa: E731
+    if not target.startswith("http") or target == clean_url(url) or site(a) != site(b):
+        return None
+    return target
+
+
+def page_prose(html: Optional[str], cleaner: Optional[str]) -> int:
+    """Running text in the page's own paragraphs, without cookie lines and the cleaner's template lines."""
+    from pipeline import extract
+    paras = [p for p in _paragraphs(html) if "cookie" not in p.lower()]
+    return extract.prose_chars(clean_body("\n".join(paras), cleaner)) if paras else 0
+
+
+def no_text_reason(raw: Optional[str], body: Optional[str], title: Optional[str], video: bool,
+                   prose_on_page: int) -> Optional[str]:
+    """Why a page gave a body under MIN_BODY_CHARS, when the page itself has no more text to give (its
+    own paragraphs hold under NO_TEXT_PAGE_PROSE characters of running text):
+      no_text: breaking news alert, headline only   CGTN's alerts ("BREAKING NEWS" over the headline)
+      no_text: video, N characters of caption        a video page whose only text is its caption
+      no_text: headline only                         Xinhua's "Flash:" items, Global Times graphics
+      short_text: N characters                       a one sentence brief, under the minimum
+    None when the page holds more text than the body (an extraction failure, kept as one)."""
+    if prose_on_page >= NO_TEXT_PAGE_PROSE:
+        return None
+    raw_lines = [line.strip().lower() for line in (raw or "").split("\n")]
+    if _BREAKING_LINE in raw_lines:
+        return "no_text: breaking news alert, headline only"
+    head = " ".join((title or "").split()).lower()
+    rest = [line.strip() for line in (body or "").split("\n")
+            if line.strip() and " ".join(line.split()).lower() != head and not _HEADLINE_NOISE.match(line.strip())]
+    n = len(" ".join(rest))
+    if video:
+        return "no_text: video, %d characters of caption" % n
+    if n < 40:
+        return "no_text: headline only"
+    return "short_text: %d characters" % n
+
+
 _extract_lock = threading.Lock()
 
 
 def _fetch_one(row, src: Dict) -> Dict:
-    """Request and extract one reference page (network and extraction only, no database)."""
+    """Request and extract one reference page (network and extraction only, no database). A bare meta
+    refresh to another page of the same site is followed once (under can_fetch and get_page); where the
+    extractor misses the text that the source's template keeps elsewhere (alternative_text), that text
+    is read instead."""
     from pipeline import extract, fetch_articles
     url = row["url"]
     allowed, why = fetch_articles.can_fetch(url)
@@ -977,14 +1188,40 @@ def _fetch_one(row, src: Dict) -> Dict:
     if html is None:
         transient = bool(err) and err.startswith(fetch_articles.TRANSIENT_FAIL_PREFIXES)
         return {"row": row, "kind": "transient" if transient else "failed", "reason": err, "http_status": status}
+    page_url, via = url, None
+    target = meta_refresh_target(html, url)
+    if target:
+        allowed, why = fetch_articles.can_fetch(target)
+        if not allowed:
+            return {"row": row, "kind": "transient" if why == "robots_unavailable" else "blocked", "reason": why}
+        html2, status2, err2 = fetch_articles.get_page(target)
+        if html2 is None:
+            transient = bool(err2) and err2.startswith(fetch_articles.TRANSIENT_FAIL_PREFIXES)
+            return {"row": row, "kind": "transient" if transient else "failed", "reason": err2, "http_status": status2}
+        html, page_url, via = html2, target, "meta_refresh"
+    cleaner = src.get("cleaner")
     with _extract_lock:
-        ex = extract.extract(html, url)
+        ex = extract.extract(html, page_url)
         text = ex.get("text")
+        alt = alternative_text(html, cleaner, page_url)
+        # A CGTN language page's extraction is another story of the page, never its article, and a People's
+        # Daily French or Spanish page's carries the link lists: their text store is read whenever it is there.
+        own_store = cleaner == "cgtn_nuxt" or (cleaner == "peoples_daily_lang" and bool(alt))
+        if own_store or (alt and len(clean_body(alt, cleaner)) > len(clean_body(text, cleaner))):
+            text, via = alt, (via + "+" if via else "") + {"cgtn": "content_json", "cgtn_nuxt": "nuxt_data"}.get(
+                cleaner, "text_container")
+            # the alternative is the page's own text store: judged as a body, without the page's menus
+            unreadable, un_reason = extract.detect_unreadable(None, text, row["title"])
+        else:
+            unreadable, un_reason = extract.detect_unreadable(html, text, row["title"])
         paywalled, pw_reason = extract.detect_paywall(html, text)
-        unreadable, un_reason = extract.detect_unreadable(html, text, row["title"])
+        video = bool(_VIDEO_MARK.search(html)) or bool(_VIDEO_TITLE.match(row["title"] or "")) or any(_CGTN_DURATION.match(line.strip()) for line in (text or "").split("\n")[:150])
+        # where the page keeps its article in a store of its own, that store is all the text it has
+        prose_on_page = extract.prose_chars(clean_body(alt, cleaner)) if own_store else page_prose(html, cleaner)
     return {"row": row, "kind": "page", "html_time": page_time(html, src.get("page_time")), "text": text,
             "paywalled": paywalled, "pw_reason": pw_reason, "unreadable": unreadable, "un_reason": un_reason,
-            "author": ex.get("author"), "title": ex.get("title")}
+            "author": ex.get("author"), "title": ex.get("title"), "via": via, "video": video,
+            "page_prose": prose_on_page}
 
 
 def _host_worker(rows: List, sources: Dict[str, Dict], deadline: Optional[float], out: "queue.Queue") -> None:
@@ -1018,17 +1255,30 @@ def _record_fetch(conn, res: Dict, src: Dict, counts: Dict) -> None:
         counts[status] = counts.get(status, 0) + 1
         return
     text = res["text"]
-    fields = {"fetched_at": now}
+    # every page read records the extraction it was read under, failed or not (see RETRY_SQL)
+    fields = {"fetched_at": now, "extract_version": config.EXTRACT_VERSION}
+    title = row["title"] or res.get("title")
+
+    def short(reason: str, body: Optional[str]) -> str:
+        # a page with no more text than the body says so (no_text_reason); otherwise the extraction failure
+        if "page_prose" not in res:
+            return reason
+        return no_text_reason(text, body, title, bool(res.get("video")), res["page_prose"]) or reason
+
     if res["paywalled"]:
         fields.update(status="paywalled", fail_reason=res["pw_reason"])
     elif not text or len(text) < MIN_BODY_CHARS:
-        fields.update(status="failed", fail_reason="extraction_empty")
+        fields.update(status="failed", fail_reason=short("extraction_empty", clean_body(text, src.get("cleaner"))))
     elif res["unreadable"]:
-        fields.update(status="failed", fail_reason="unreadable: %s" % res["un_reason"])
+        reason = "unreadable: %s" % res["un_reason"]
+        if (res["un_reason"] or "").startswith("no article text"):
+            # menus without running text around a page that has none of its own (a CGTN alert): say what it is
+            reason = short(reason, clean_body(text, src.get("cleaner")))
+        fields.update(status="failed", fail_reason=reason)
     else:
         body = clean_body(text, src.get("cleaner"))
         if len(body) < MIN_BODY_CHARS:
-            fields.update(status="failed", fail_reason="extraction_empty_after_cleaning")
+            fields.update(status="failed", fail_reason=short("extraction_empty_after_cleaning", body))
         else:
             n, sig = body_dups.fingerprint(body)
             fields.update(status="fetched", fail_reason=None, body_hash=store.save_body(body_key(row["url_hash"]), body),
@@ -1080,8 +1330,8 @@ def fetch_candidates(conn, source_ids: List[str], now: Optional[dt.datetime] = N
     out = {}
     for r in conn.execute(
             """SELECT id, title, language FROM reference_items
-               WHERE source_id IN (%s) AND discovered_at >= ? AND status IN ('discovered', 'expired')""" % marks,
-            list(source_ids) + [oldest]):
+               WHERE source_id IN (%s) AND discovered_at >= ? AND (status IN ('discovered', 'expired') OR %s)"""
+            % (marks, RETRY_SQL), list(source_ids) + [oldest] + RETRY_PARAMS):
         ix = idx.get(r["language"])
         ts = lookalike.title_set(r["title"] or "")
         if ix is None or len(ts) < lookalike.TITLE_MIN_TOKENS:
@@ -1119,16 +1369,28 @@ def fetch(conn, deadline: Optional[float] = None, limit: Optional[int] = None, s
         n = config.REFERENCE_FETCH_PER_RUN if limit is None else limit
         cols = "id, source_id, url, url_hash, title, author, published_at, discovered_at"
         rows = []
-        if wanted:
-            ids = sorted(wanted, key=lambda i: (-wanted[i], -i))[:n]
+        # Items a current state copy names as its original whose fetch failed under the old extraction:
+        # read once more, first, so the pair gets its body (RETRY_SQL).
+        try:
+            paired = conn.execute(
+                """SELECT %s FROM reference_items r WHERE source_id IN (%s) AND %s
+                     AND EXISTS (SELECT 1 FROM state_copies s WHERE s.ref_id = r.id AND s.current = 1)
+                   ORDER BY id DESC LIMIT ?""" % (cols, marks, RETRY_SQL), list(by_id) + RETRY_PARAMS + [n]).fetchall()
+        except Exception:  # noqa: BLE001  a database without state_copies: nothing paired
+            paired = []
+        rows = list(paired)
+        counts["paired_retries"] = len(rows)
+        wanted = {i: v for i, v in wanted.items() if i not in {r["id"] for r in rows}}
+        if wanted and len(rows) < n:
+            ids = sorted(wanted, key=lambda i: (-wanted[i], -i))[:n - len(rows)]
             got = {}
             for i in range(0, len(ids), 500):
                 part = ids[i:i + 500]
-                for r in conn.execute("SELECT %s FROM reference_items WHERE id IN (%s) AND status IN ('discovered', 'expired')"
-                                      % (cols, ",".join("?" * len(part))), part):
+                for r in conn.execute("SELECT %s FROM reference_items WHERE id IN (%s) AND (status IN ('discovered', 'expired') OR %s)"
+                                      % (cols, ",".join("?" * len(part)), RETRY_SQL), part + RETRY_PARAMS):
                     got[r["id"]] = r
-            rows = [got[i] for i in ids if i in got]
-        counts["copy_candidates"] = len(rows)
+            rows += [got[i] for i in ids if i in got]
+        counts["copy_candidates"] = len(rows) - counts["paired_retries"]
         if len(rows) < n:
             have = {r["id"] for r in rows}
             newest = conn.execute(

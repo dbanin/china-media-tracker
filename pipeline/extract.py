@@ -41,6 +41,9 @@ INTERSTITIAL_MARKERS = [
     r"the article requires paid subscription",
     # NHK ONE serves the first lines and asks every reader to register and accept its terms first
     r"NHK ONEはどなたでもご利用になれます",
+    # Chosun Ilbo membership stories ("content only Chosun Membership members can use"): the page
+    # carries the story but shows it to members only, so it is never read (arc_story_html)
+    r"조선멤버십 회원만 이용 가능한",
 ]
 _interstitial_re = re.compile("|".join("(?:%s)" % m for m in INTERSTITIAL_MARKERS), re.IGNORECASE)
 
@@ -62,7 +65,7 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
         return True, "interstitial marker with short body: %s" % m.group(0)[:60]
     m = TRUNCATION_MARKER_RE.search(html)
     if m and (not body_text or len(body_text) < TRUNCATION_BODY_CHARS):
-        return True, "truncation marker: %s" % TAG_RE.sub("", m.group(0))[:60]
+        return True, "truncation marker: %s" % _untag(m.group(0), "")[:60]
     art = embedded_article(html)
     if art is not None and art.get("premium"):
         return True, "embedded article marked premium"
@@ -77,8 +80,10 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
 # text node. The opening paragraph is the one that carries the dateline and the wire credit,
 # "Beijing (ANTARA/Xinhua) -" or "Hangzhou, China (ANTARA/PRNewswire)-", so every Antara body
 # lost exactly the part a credit pattern reads. Wrapping the leading text in a paragraph keeps it.
+# Matched through _tag_finditer, with the class value tested by a lookahead and the rest of the tag at
+# most 2,000 characters, so a page of unclosed or repeated tags costs linear time (see LABEL_CLASS_RE).
 ANTARA_LEAD_RE = re.compile(
-    r'(<div\b[^>]*\bclass="[^"]*\bwrap__article-detail-content\b[^"]*"[^>]*>)(\s*)([^<\s][^<]*)')
+    r'(<div\b[^>]*\bclass="(?=[^"]*\bwrap__article-detail-content\b)[^"]*"[^>]{0,2000}>)(\s*)([^<\s][^<]*)')
 
 # The Straits Times paid press release pages (route routes/ArticlePPR/ArticlePPR) are rendered in
 # the browser from a React Router data payload: the served document holds the issuer disclaimer and
@@ -90,6 +95,23 @@ ANTARA_LEAD_RE = re.compile(
 _RR_STREAM_RE = re.compile(r'streamController\.enqueue\(("(?:[^"\\]|\\.)*")\)')
 _PPR_ROUTE = "routes/ArticlePPR/ArticlePPR"
 
+# Arc XP (Fusion) pages hand the story to the browser as Fusion.globalContent, whose content_elements
+# hold its paragraphs. Most Arc outlets also print them in the served document, and trafilatura reads
+# those; the Chosun Ilbo prints none (the article is drawn in the browser), so extraction found no text
+# or only the reporter's bio: on the 2026-11-09 snapshot 1,234 of its 1,259 China relevant articles
+# failed as extraction_empty. The story is read from the payload only when the served document lacks
+# its paragraphs, the page carries no paywall marker (detect_paywall, which knows the Chosun membership
+# notice), its content_restrictions code is absent or one of ARC_FREE_CODES, and it is not marked as a
+# membership or premium story. Seen on saved pages: Chosun "0" on every story, members only ones
+# included (they are refused by their membership marks); The National and The Irish Times "free"; paid
+# stories at The Globe and Mail ("red"), The Irish Times and La Nacion of Costa Rica ("metered").
+_ARC_GLOBAL_RE = re.compile(r"\bFusion\.globalContent\s*=\s*")
+ARC_FREE_CODES = ("0", "free")
+ARC_GATED_SUBTYPES = ("membership", "premium", "subscriber", "subscribers")
+# Paragraphs of the payload looked for in the served document, and the characters of each compared.
+ARC_PROBE_PARAGRAPHS = 5
+ARC_PROBE_CHARS = 40
+
 # Templates whose extraction changed, as (config.EXTRACT_VERSION that changed it, URL prefix, why).
 # A body of such a template stored under an older version (articles.extract_version, NULL before the
 # column existed) was extracted by the old reading and is not the article as the page now reads: it is
@@ -99,9 +121,19 @@ _PPR_ROUTE = "routes/ArticlePPR/ArticlePPR"
 # Straits Times paid release bodies ran 205 to 424 characters, the disclaimer and the headline only;
 # 20 of the 22 Antara English bodies whose page is on disk lacked the stamped lead. Other Straits
 # Times sections and Indonesian Antara read the same under both versions and are not listed.
+# 2026.11.1, the Arc story payload (arc_story_html): on 21 saved Chosun pages (15 of the 2026-10-12
+# snapshot, 6 fetched on 2026-11-09) the old reading found no text on 18 and only the reporter's bio on
+# the 3 members only stories, which are now paywalled; the new one reads all 18 free stories. On the
+# 2026-11-09 snapshot all 13 Chosun bodies that were classified are members only stories labelled on
+# a bio of 201 to 346 characters. Radio Free Asia serves some stories the same way: 1 of the 27 local
+# RFA pages, whose stored body was the site menu. The 222 pages of every other Arc outlet on disk read
+# the same under both versions.
 EXTRACTION_CHANGES = (
     ("2026.10.1", "https://www.straitstimes.com/paid-press-releases/", "Straits Times paid release payload"),
     ("2026.10.1", "https://en.antaranews.com/", "Antara English lead paragraph"),
+    ("2026.11.1", "https://www.chosun.com/", "Chosun Ilbo Arc story payload"),
+    ("2026.11.1", "https://rfa.org/", "Radio Free Asia Arc story payload"),
+    ("2026.11.1", "https://www.rfa.org/", "Radio Free Asia Arc story payload"),
 )
 
 
@@ -118,8 +150,37 @@ def stale_extraction(url: Optional[str], version: Optional[str]) -> Optional[str
     return None
 
 
+def _tag_finditer(rx, start_rx, html: str, pos: int = 0):
+    """rx.finditer(html), in linear time, for a pattern rx that opens a tag ("<name\\b[^>]*", the part
+    start_rx finds) and whose remainder depends only on where that attribute run ends. When a tag opened
+    at s does not match, no tag opened before the next ">" can (its attribute run ends in the same
+    places), so the search skips past that ">"; finditer tried each of them in turn, and a page of 4,000
+    unclosed tags took over a minute."""
+    n = len(html)
+    while pos < n:
+        m = start_rx.search(html, pos)
+        if not m:
+            return
+        hit = rx.match(html, m.start())
+        if hit:
+            yield hit
+            pos = max(hit.end(), m.start() + 1)
+            continue
+        gt = html.find(">", m.start())
+        if gt < 0:
+            return   # every later tag's attribute run ends in the places this one's did
+        pos = gt + 1
+
+
+_ANTARA_START_RE = re.compile(r"<div\b")
+
+
 def _template_html(html: str) -> str:
-    return ANTARA_LEAD_RE.sub(r"\1\2<p>\3</p>", html, count=1)
+    if not html or "wrap__article-detail-content" not in html:
+        return html
+    for m in _tag_finditer(ANTARA_LEAD_RE, _ANTARA_START_RE, html):
+        return html[:m.start()] + m.expand(r"\1\2<p>\3</p>") + html[m.end():]
+    return html
 
 
 def press_release_payload(html: str) -> Optional[Tuple[Optional[str], str]]:
@@ -150,6 +211,78 @@ def press_release_payload(html: str) -> Optional[Tuple[Optional[str], str]]:
     return None
 
 
+def arc_story_text(html: str) -> Optional[str]:
+    """The text of the story arc_story_html finds, or None."""
+    arc = arc_story_html(html)
+    if not arc:
+        return None
+    try:
+        return trafilatura.extract(arc, include_comments=False, include_tables=False, favor_recall=True) or None
+    except Exception:
+        return None
+
+
+def _plain(fragment) -> str:
+    return re.sub(r"\s+", " ", unescape(_untag(fragment if isinstance(fragment, str) else ""))).strip()
+
+
+def _arc_elements_html(elements, depth: int = 0) -> str:
+    """The story's text, heading, list and quote elements as HTML, in order. Images, galleries,
+    embeds and raw HTML blocks are left out, as extraction leaves them out of a served page."""
+    out = []
+    for e in elements if isinstance(elements, list) else []:
+        if not isinstance(e, dict):
+            continue
+        kind, content = e.get("type"), e.get("content")
+        if kind == "text" and isinstance(content, str):
+            out.append("<p>%s</p>" % content)
+        elif kind == "header" and isinstance(content, str):
+            level = e.get("level") if isinstance(e.get("level"), int) and 1 <= e.get("level") <= 6 else 2
+            out.append("<h%d>%s</h%d>" % (level, content, level))
+        elif kind == "list" and depth < 3 and isinstance(e.get("items"), list):
+            out.append("<ul>%s</ul>" % "".join("<li>%s</li>" % i["content"] for i in e["items"]
+                                               if isinstance(i, dict) and isinstance(i.get("content"), str)))
+        elif kind in ("quote", "blockquote") and depth < 3:
+            out.append("<blockquote>%s</blockquote>" % _arc_elements_html(e.get("content_elements"), depth + 1))
+    return "".join(out)
+
+
+def arc_story_html(html: str) -> Optional[str]:
+    """The story of an Arc XP page as an HTML document, from its Fusion.globalContent payload, when the
+    served document does not print it and nothing marks it as withheld (see ARC_FREE_CODES); else None."""
+    if not html or "Fusion.globalContent" not in html or detect_paywall(html, None)[0]:
+        return None
+    m = _ARC_GLOBAL_RE.search(html)
+    if not m:
+        return None
+    try:
+        data, _end = json.JSONDecoder().raw_decode(html, m.end())
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict) or data.get("type") != "story":
+        return None
+    restrictions = data.get("content_restrictions")
+    code = restrictions.get("content_code") if isinstance(restrictions, dict) else None
+    if code not in (None, "") and str(code).strip().lower() not in ARC_FREE_CODES:
+        return None
+    label = data.get("label")
+    icon = label.get("membership_icon") if isinstance(label, dict) else None
+    if isinstance(icon, dict) and icon.get("display"):
+        return None
+    if str(data.get("subtype") or "").strip().lower() in ARC_GATED_SUBTYPES:
+        return None
+    elements = data.get("content_elements")
+    paragraphs = [p for p in (_plain(e.get("content")) for e in (elements if isinstance(elements, list) else [])
+                              if isinstance(e, dict) and e.get("type") == "text") if len(p) >= 20]
+    if not paragraphs:
+        return None
+    served = _plain(_strip_scripts(html))
+    if any(p[:ARC_PROBE_CHARS] in served for p in paragraphs[:ARC_PROBE_PARAGRAPHS]):
+        return None   # the page prints its story, and trafilatura reads it there
+    body = _arc_elements_html(elements)
+    return "<html><body><article>%s</article></body></html>" % body if body else None
+
+
 # Templates that keep the wire credit only in the data the page carries. Seven West Media pages
 # (7news.com.au, perthnow.com.au, thewest.com.au) pass the article to the browser in window.PAGE_DATA,
 # and the article's own object names where the copy came from in its "source" field: AAP, AP, Reuters,
@@ -177,9 +310,11 @@ EMBEDDED_SOURCE_MAX_CHARS = 60
 GENERIC_BYLINE_RE = re.compile(
     r"(?i)^\s*(?:(?:digital|online|web|editorial|news|wire)\s+)?"
     r"(?:staff(?:\s+(?:writers?|reporters?))?|desk|newsdesk|newsroom|wires?|wire\s+services|reporters?)\s*$")
+# (pattern, the tag opening it): searched through _tag_finditer, the rest of the tag after the first
+# attribute at most 1,000 characters (64 at most on the saved pages), so hostile markup costs linear time.
 _PAGE_URL_RES = (
-    re.compile(r'(?i)<meta\b[^>]*\bproperty="og:url"[^>]*\bcontent="([^"]+)"'),
-    re.compile(r'(?i)<link\b[^>]*\brel="canonical"[^>]*\bhref="([^"]+)"'),
+    (re.compile(r'(?i)<meta\b[^>]*\bproperty="og:url"[^>]{0,1000}\bcontent="([^"]+)"'), re.compile(r"(?i)<meta\b")),
+    (re.compile(r'(?i)<link\b[^>]*\brel="canonical"[^>]{0,1000}\bhref="([^"]+)"'), re.compile(r"(?i)<link\b")),
 )
 
 
@@ -274,8 +409,8 @@ def embedded_source(html: str, url: Optional[str] = None) -> Optional[Tuple[str,
     if not html:
         return None
     urls = [url] if url else []
-    for rx in _PAGE_URL_RES:
-        m = rx.search(html)
+    for rx, start in _PAGE_URL_RES:
+        m = next(_tag_finditer(rx, start, html), None)
         if m:
             urls.append(unescape(m.group(1)))
     for _name, cid_re, id_key, field, house in EMBEDDED_SOURCE_RULES:
@@ -471,24 +606,69 @@ def prose_blocks_html(html: str) -> Optional[str]:
         lxml_html.tostring(n, encoding="unicode") for n in nodes)
 
 
+# What these two patterns find is found by _strip_scripts and _paragraphs, which give the same results
+# in linear time: run with finditer or sub, each unclosed opening tag made the search run to the end of
+# the page again (a page of 20,000 "<script>" took minutes).
 _P_RE = re.compile(r"(?is)<p\b[^>]*>(.*?)</p>")
 _SCRIPT_RE = re.compile(r"(?is)<(script|style|noscript)\b.*?</\1>")
+_SCRIPT_OPEN_RE = re.compile(r"(?i)<(script|style|noscript)\b")
+_SCRIPT_CLOSE_RES = {name: re.compile(r"(?i)</%s>" % name) for name in ("script", "style", "noscript")}
+_P_OPEN_RE = re.compile(r"(?i)<p\b")
+_P_CLOSE_RE = re.compile(r"(?i)</p>")
+
+
+def _strip_scripts(html: str) -> str:
+    """_SCRIPT_RE.sub(" ", html): each script, style and noscript element replaced by a space. An opening
+    tag with no closing tag after it is left alone, and so is every later one of its name."""
+    out, pos, last, unclosed = [], 0, 0, set()
+    while True:
+        m = _SCRIPT_OPEN_RE.search(html, pos)
+        if not m:
+            break
+        name = m.group(1).lower()
+        close = None if name in unclosed else _SCRIPT_CLOSE_RES[name].search(html, m.end())
+        if close is None:
+            unclosed.add(name)
+            pos = m.end()
+            continue
+        out.append(html[last:m.start()])
+        out.append(" ")
+        last = pos = close.end()
+    out.append(html[last:])
+    return "".join(out)
+
+
+def _paragraphs(html: str):
+    """The contents of the page's paragraph elements, as _P_RE.finditer finds them (group 1)."""
+    pos = 0
+    while True:
+        m = _P_OPEN_RE.search(html, pos)
+        if not m:
+            return
+        gt = html.find(">", m.end())
+        if gt < 0:
+            return
+        close = _P_CLOSE_RE.search(html, gt + 1)
+        if not close:
+            return
+        yield html[gt + 1:close.start()]
+        pos = close.end()
 
 
 def paragraph_prose_chars(html: Optional[str]) -> int:
     """Running text the page holds in its own paragraph elements, scripts and styles aside."""
     if not html:
         return 0
-    stripped = _SCRIPT_RE.sub(" ", html)
-    return sum(prose_chars(re.sub(r"\s+", " ", unescape(TAG_RE.sub(" ", m.group(1)))))
-               for m in _P_RE.finditer(stripped))
+    stripped = _strip_scripts(html)
+    return sum(prose_chars(re.sub(r"\s+", " ", unescape(_untag(p))))
+               for p in _paragraphs(stripped))
 
 
 def consent_wall(html: Optional[str], text: Optional[str], headline: Optional[str] = None) -> bool:
     """True when the extracted text is a consent or cookie wall and not the article (see CONSENT_TITLE_RE)."""
     if not text:
         return False
-    title_hit = bool(html and CONSENT_TITLE_RE.search(html))
+    title_hit = bool(html and _title_search(CONSENT_TITLE_RE, html))
     if not title_hit:
         if not CONSENT_TEXT_RE.search(text):
             return False
@@ -511,9 +691,9 @@ def detect_unreadable(html: Optional[str], text: Optional[str],
     or a body without MIN_PROSE_CHARS of running text. Works on the body alone when html is None, as in
     the classify stage, which has only the stored body."""
     if not text or len(text) < SHORT_BODY_CHARS:
-        m = (CHALLENGE_TITLE_RE.search(html) if html else None) or CHALLENGE_TEXT_RE.search(text or "")
+        m = (_title_search(CHALLENGE_TITLE_RE, html) if html else None) or CHALLENGE_TEXT_RE.search(text or "")
         if m:
-            return True, "challenge page: %s" % re.sub(r"\s+", " ", TAG_RE.sub("", m.group(0))).strip()[:60]
+            return True, "challenge page: %s" % re.sub(r"\s+", " ", _untag(m.group(0), "")).strip()[:60]
     if consent_wall(html, text, headline):
         return True, "consent wall"
     # A body under EMPTY_BODY_CHARS is the fetch stage's extraction_empty case and is judged there; the
@@ -537,6 +717,8 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
     except Exception:
         doc = None
     if doc is None:
+        # A page trafilatura finds nothing in at all can still be an Arc story drawn in the browser.
+        out["text"] = arc_story_text(html)
         return out
     if isinstance(doc, dict):
         get = doc.get
@@ -558,6 +740,9 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
         if release and len(release) > len(out["text"] or ""):
             # The headline is printed above the release on the page, as other outlets' copies carry it.
             out["text"] = "%s\n%s" % (headline.strip(), release) if headline else release
+    story = arc_story_text(html)
+    if story and prose_chars(story) > prose_chars(out["text"]):
+        out["text"] = story
     if prose_chars(out["text"]) < FALLBACK_PROSE_CHARS:
         alt = _fallback_text(html, url)
         if alt and prose_chars(alt) >= max(MIN_PROSE_CHARS, 2 * prose_chars(out["text"])):
@@ -567,9 +752,9 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
 
 def jsonld_authors(html: str) -> Optional[str]:
     """Best effort author from JSON-LD when trafilatura finds none."""
-    for m in re.finditer(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', html or "", re.S | re.I):
+    for block in _jsonld_scripts(html or ""):
         try:
-            data = json.loads(m.group(1))
+            data = json.loads(block)
         except Exception:
             continue
         items = data if isinstance(data, list) else [data]
@@ -588,21 +773,71 @@ def jsonld_authors(html: str) -> Optional[str]:
     return None
 
 
+# Elements whose class, id or data attribute names a label. Matched through _tag_finditer, so a page of
+# unclosed tags costs linear time: with finditer, 4,000 repetitions of '<div class="piano-' took 76
+# seconds. The attribute value is tested by lookaheads and then taken whole, so a tag that fails after
+# it is not tried again at every keyword in the value, and the rest of the tag after the value is at
+# most LABEL_TAG_REST_CHARS long (the longest on the 4,019 saved pages was 564). On every saved page
+# page_labels returns exactly what the earlier unbounded pattern gave.
+LABEL_TAG_REST_CHARS = 2000
+_LABEL_TAGS = r"(?:div|span|p|a|section|header|aside|small|em|strong|h[1-6]|li)"
+_LABEL_START_RE = re.compile(r"(?i)<" + _LABEL_TAGS + r"\b")
 LABEL_CLASS_RE = re.compile(
-    r'(?i)<(?:div|span|p|a|section|header|aside|small|em|strong|h[1-6]|li)\b[^>]*\b(?:class|id|data-[a-z-]+)="'
+    r'(?i)<' + _LABEL_TAGS + r'\b[^>]*\b(?:class|id|data-[a-z-]+)="'
     r'(?![^"]*(?:widget|sidebar|taboola|outbrain|recommend|related|footer|nav|menu|promo-list|trending|most-read|'
     r'newsletter|banner|ad-slot|adslot|ad-container|dfp|rail|carousel|ticker|links-list|marketplace|comment))'
-    r'[^"]*(?:sponsor|sponsored|branded|brand-content|native|partner|advertorial|studio|paid|promoted|kicker|eyebrow|'
+    r'(?=[^"]*(?:sponsor|sponsored|branded|brand-content|native|partner|advertorial|studio|paid|promoted|kicker|eyebrow|'
     r'overline|section-name|article-tag|tagline|disclaimer|disclosure|supplement|pubbli|publi|anzeige|reklam|'
-    r'author|byline|bio)'
-    r'[^"]*"[^>]*>(.{0,400}?)</'
+    r'author|byline|bio))'
+    r'[^"]*"[^>]{0,%d}>(.{0,400}?)</' % LABEL_TAG_REST_CHARS
 )
+# Searched through _tag_finditer, with at most 1,000 characters between the name and the content
+# attribute (88 at most on the saved pages), so hostile markup costs linear time.
 META_RE = re.compile(
     r'(?i)<meta\b[^>]*(?:name|property)="(?:article:section|article:tag|section|category|keywords|og:type|'
-    r'article:content_tier|dc\.type|sailthru\.tags|parsely-section|parsely-tags|news_keywords|sponsor|sponsored)"[^>]*content="([^"]{0,300})"'
+    r'article:content_tier|dc\.type|sailthru\.tags|parsely-section|parsely-tags|news_keywords|sponsor|sponsored)"[^>]{0,1000}content="([^"]{0,300})"'
 )
 TITLE_RE = re.compile(r'(?is)<title[^>]*>(.*?)</title>')
 TAG_RE = re.compile(r'<[^>]+>')
+_TITLE_START_RE = re.compile(r"(?i)<title")
+_META_START_RE = re.compile(r"(?i)<meta\b")
+_JSONLD_OPEN_RE = re.compile(r"(?i)<script[^>]+application/ld\+json[^>]*>")
+_JSONLD_START_RE = re.compile(r"(?i)<script")
+_SCRIPT_CLOSE_RE = re.compile(r"(?i)</script>")
+
+
+def _untag(text: str, repl: str = " ") -> str:
+    """TAG_RE.sub(repl, text) in linear time. No tag opens after the last ">", and TAG_RE.sub tried
+    every "<" there against the whole rest of the text (a run of 100,000 took minutes)."""
+    end = text.rfind(">")
+    return text if end < 0 else TAG_RE.sub(repl, text[:end + 1]) + text[end + 1:]
+
+
+def _title(html: str):
+    """TITLE_RE.search(html) in linear time: when the first title tag has no closing tag after it, no
+    later one has either, and search tried each of them to the end of the page."""
+    m = _TITLE_START_RE.search(html)
+    return TITLE_RE.match(html, m.start()) if m else None
+
+
+def _title_search(rx, html: str):
+    """rx.search(html) for a pattern opening "<title[^>]*>" (CHALLENGE_TITLE_RE, CONSENT_TITLE_RE)."""
+    return next(_tag_finditer(rx, _TITLE_START_RE, html), None)
+
+
+def _jsonld_scripts(html: str):
+    """The contents of the page's JSON-LD script elements, as the pattern
+    <script[^>]+application/ld\\+json[^>]*>(.*?)</script> (re.S, re.I) finds them, in linear time."""
+    pos = 0
+    while True:
+        m = next(_tag_finditer(_JSONLD_OPEN_RE, _JSONLD_START_RE, html, pos), None)
+        if not m:
+            return
+        close = _SCRIPT_CLOSE_RE.search(html, m.end())
+        if not close:
+            return
+        yield html[m.end():close.start()]
+        pos = close.end()
 
 # A byline is a name, sometimes a desk or a wire co-credit. It is never a slab of page chrome.
 AUTHOR_MAX_CHARS = 80
@@ -638,7 +873,7 @@ def clean_author(value: Optional[str]) -> Optional[str]:
     """
     if not value:
         return None
-    text = TAG_RE.sub(" ", unescape(value))
+    text = _untag(unescape(value))
     text = re.sub(r"\s+", " ", text).strip()
     text = AUTHOR_TRAILING_JUNK_RE.sub("", text).strip().strip(",;|-").strip()
     if not text or AUTHOR_JUNK_RE.search(text):
@@ -676,17 +911,17 @@ def page_labels(html: str, url: Optional[str] = None) -> str:
     if not html:
         return ""
     parts = []
-    m = TITLE_RE.search(html)
+    m = _title(html)
     if m:
-        parts.append(TAG_RE.sub(" ", m.group(1)).strip())
+        parts.append(_untag(m.group(1)).strip())
     src = embedded_source(html, url)
     if src:
         parts.append("source: %s" % src[0])
-    for m in META_RE.finditer(html):
+    for m in _tag_finditer(META_RE, _META_START_RE, html):
         parts.append(m.group(1))
-    for m in re.finditer(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', html, re.S | re.I):
+    for block in _jsonld_scripts(html):
         try:
-            data = json.loads(m.group(1))
+            data = json.loads(block)
         except Exception:
             continue
         items = data if isinstance(data, list) else [data]
@@ -702,8 +937,8 @@ def page_labels(html: str, url: Optional[str] = None) -> str:
                 if v:
                     parts.append("%s: %s" % (key, v))
     seen = 0
-    for m in LABEL_CLASS_RE.finditer(html):
-        txt = TAG_RE.sub(" ", m.group(1))
+    for m in _tag_finditer(LABEL_CLASS_RE, _LABEL_START_RE, html):
+        txt = _untag(m.group(1))
         txt = re.sub(r"\s+", " ", txt).strip()
         if txt:
             parts.append(txt)

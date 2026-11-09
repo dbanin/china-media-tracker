@@ -150,7 +150,7 @@ def _ts(iso: Optional[str]) -> Optional[float]:
         return None
     try:
         t = dt.datetime.fromisoformat(iso.replace("Z", "+00:00"))
-    except ValueError:
+    except (ValueError, AttributeError, TypeError):  # not a date string (a number from a relay bundle)
         return None
     if t.tzinfo is None:
         t = t.replace(tzinfo=dt.timezone.utc)

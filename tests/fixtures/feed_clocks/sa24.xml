@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+<channel>
+<title>صحافة 24 نت </title>
+<link>https://sa24.co</link>
+<description>Fixture</description>
+<language>en-us</language>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+<item>
+<title>Item 1</title>
+<link>https://sa24.co/item-1</link>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+</item>
+<item>
+<title>Item 2</title>
+<link>https://sa24.co/item-2</link>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+</item>
+<item>
+<title>Item 3</title>
+<link>https://sa24.co/item-3</link>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+</item>
+<item>
+<title>Item 4</title>
+<link>https://sa24.co/item-4</link>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+</item>
+<item>
+<title>Item 5</title>
+<link>https://sa24.co/item-5</link>
+<pubDate>Mon, 09 Nov 2026 22:50:55 GMT</pubDate>
+</item>
+</channel>
+</rss>

@@ -246,8 +246,9 @@ RULESET_VERSION = "2026.10.2"
 # stored before it existed). Bump it whenever pipeline/extract.py reads an outlet's template
 # differently, and list the template in extract.EXTRACTION_CHANGES: a body of that template stored
 # under an older version is extracted again from the saved page, or fetched again politely, before it
-# is classified (classify_rules.ensure_body). Templates not listed keep their bodies.
-EXTRACT_VERSION = "2026.10.1"
+# is classified (classify_rules.ensure_body), and a page of it that found no text is fetched once more
+# (fetch_articles.stale_empty_candidates). Templates not listed keep their bodies.
+EXTRACT_VERSION = "2026.11.1"
 
 # Reference sources (sources/reference.yaml, pipeline/reference.py): at most this many article pages of
 # theirs are fetched per run, newest first, and the stored body of an item no state copy was paired
