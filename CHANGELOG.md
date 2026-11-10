@@ -4,6 +4,54 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Feed overflow, full input watch and slow host judging (2026-11-09, evening)
+
+MISSED_ESTIMATOR_VERSION 2026-11-09: the published estimate of items missed restarts from this day, and older
+estimates stay in the database. RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, EXTRACT_VERSION, the data schema
+(20) and ASSET_VERSION are unchanged.
+
+- Why feeds overflow. The workflow is scheduled hourly, but on 2026-11-08 GitHub created 7 runs from its hourly
+  schedule, and in the week to 2026-11-09 each feed was polled 41 times, about every four hours. A feed that lists
+  fewer hours than that loses the items in between: Antara's latest news feed lists about 3.6 hours.
+- Feed paging (pipeline/feed_paging.py, sources/feed_paging.yaml). A poll whose first page does not reach back to
+  the feed's previous successful poll now reads the feed's older pages until an entry is dated at or before that
+  poll (its clock offset applied). WordPress feeds are recognised by their generator and paged with ?paged=N;
+  other forms are recorded with the evidence they were checked on (New Straits Times, Berita Harian, Harian Metro,
+  Antara's numbered latest news listing, PR Newswire's release list, Europa Press press releases), and feeds that
+  do not page are recorded too (IOL, RIA Novosti, Rossiyskaya Gazeta, Alwihda). A page is read only through the
+  robots.txt check, the per domain pace and the declared user agent, and reading stops on a repeated or newer
+  page, a host asking more than 10 seconds between requests, 90 seconds for one feed, 5 minutes before the stage
+  deadline or 300 page requests in the run. Live on 2026-11-09 a paged read took Antara from 8 to about 12 hours
+  back in 13 requests, PR Newswire from under an hour to 10 hours, and New Straits Times, Berita Harian and Harian
+  Metro to 31 hours.
+- Estimator 2026-11-09. A poll counts everything it read; a poll whose pages reached back is not counted as full;
+  undated listing items are left out of the estimate; and a full poll's estimate is reduced by the share of its
+  links the outlet's other feeds or sitemap carried back past the previous poll. Re-estimated on the snapshot week
+  with the real poll times, the share of feed items missed falls from 61 to about 1 percent at Antara, 53 to 2 at
+  Utusan Malaysia, 41 to under 1 at Astro Awani (latest feed of 25 items and five section feeds), 37 to 15 at
+  Adnkronos (latest feed of 20 items and four section feeds), and to about zero at SANA, Village Voice, Europa
+  Press, PR Newswire, Media Prima and Italpress. Not fixed: IOL (41 percent) and RIA Novosti (32 percent) offer no
+  page, sitemap or listing the crawler may read, so only more frequent runs would help them.
+- Input watch, every input. pipeline/input_watch.py now watches every polled input that carried state origin or
+  unchecked state sourcing items in the last 56 days: 519 inputs carrying 4,415 of 4,501 items (98 percent) on the
+  snapshot, against 25 carrying 58 percent; the other 86 items are on inputs no longer polled. Inputs too small to
+  judge alone are pooled by country (84 percent of items can be judged). Silence is judged on days with an item
+  (beta geometric), staleness against the input's own habit, a rise in fetch losses by a one sided Fisher test,
+  and a new rule flags an input losing 90 percent or more of 10 or more items at fetch. Only problems new in the
+  last day warn, ranked by items at stake; ongoing ones (30 dark inputs carrying 86 items, 51 degraded) make one
+  notice. Replayed over the 191 fetch runs since 2026-10-13 it gives 2.5 warnings a run, each a real event.
+- Weekly feed check, slow hosts. An outlet's check stops at its first feed that answers, feeds are fetched oldest
+  evidence first, a feed whose host's next allowed request falls after the deadline is not started, and an outlet
+  cut short is judged on its fetches plus results the hourly collection recorded within 24 hours, never older.
+  Death needs fresh failing evidence for every feed, measured to the day of the oldest record used. The report
+  gives each outlet's verdict and the evidence for each feed. Replayed on the snapshot it judges all 1,619 outlets
+  in one run, against 1,268 to 1,274, with the same verdict wherever both judged; uy_telemundo is judged alive.
+- Telemundo Uruguay: teledoce.com's /rss and /feed both redirect to /feed/ and read live 10 minutes apart gave the
+  same items, so the two are replaced by /feed/, halving the 600 second waits its robots.txt asks for.
+- Discovery rotates the feeds of an outlet on a slow host by the hour shifted by the six hour block, so the hours
+  that wait out sleeping hosts take turns too; by the hour alone they always read the first feed, which is why
+  teledoce.com's second feed had not been read since 2026-10-31.
+
 ## Input fixes after the input stress test (2026-11-09)
 
 The tracker's inputs (feeds, feed clocks, page extraction, reference sources and the weekly feed check) were

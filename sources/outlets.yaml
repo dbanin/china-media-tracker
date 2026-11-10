@@ -121,8 +121,11 @@
   country: ITA
   language: it
   feeds:
-  - https://www.adnkronos.com/RSS_PrimaPagina.xml
+  - https://www.adnkronos.com/RSS_Ultimora.xml
   - https://www.adnkronos.com/RSS_Esteri.xml
+  - https://www.adnkronos.com/RSS_Politica.xml
+  - https://www.adnkronos.com/RSS_Economia.xml
+  - https://www.adnkronos.com/RSS_Cronaca.xml
   section_feeds:
   - url: https://www.adnkronos.com/immediapress
     kind: press_release
@@ -143,7 +146,7 @@
       label: IMMEDIAPRESS
       readable: true
   tier: agency
-  notes: Runs the Immediapress release wire that has carried Xinhua Silk Road releases. Immediapress has no working feed; items surface through page fetches of the main feeds. Verified 2026-09-02.
+  notes: Runs the Immediapress release wire that has carried Xinhua Silk Road releases. Immediapress has no working feed; items surface through page fetches of the main feeds. Verified 2026-09-02. Feeds changed 2026-11-09. In the week to 2026-11-09 the front page feed RSS_PrimaPagina.xml (12 items) was saturated on 12 of 35 polls, with about 242 items estimated missed beside 289 new; its ?page=2 answers items twelve days old, and the monthly sitemaps carry no titles. The latest news feed RSS_Ultimora.xml (20 items, all 12 of the front page feed among them) replaced it, and the politics, economy and crime feeds were added beside the foreign feed. On 2026-11-09 the four carried all 20 items of RSS_Ultimora.xml, with windows of 5.7 to 60 hours, verified with the collector's feed reader.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Adnkronos
@@ -8840,7 +8843,7 @@
       label: Comunicados
       readable: true
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. From 2026-11-09 a saturated poll of the press release feed (ch=137) is followed by the Comunicados listing pages (sources/feed_paging.yaml).
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/europa-press-bias-and-credibility/
   ownership: private
@@ -12432,7 +12435,7 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02. Feeds changed 2026-11-09. In the 28 days to 2026-11-09 the terkini feed was saturated on 91 of 193 polls, with about 6,845 items estimated missed beside 6,366 new, and the world feed dunia.xml had stopped updating (5 new items in those 28 days; on 2026-11-09 the newest of its 20 items was five days old). dunia.xml was replaced by the international section feed dunia-internasional.xml (20 items over 10 hours) and the business feed ekonomi-bisnis.xml (20 items over 3.6 hours) was added, both verified 2026-11-09 with robots.txt allowing the crawler. Antara lists no sitemap in robots.txt and answers HTTP 404 at the usual Google News sitemap addresses, so none is registered.
+  notes: Verified 2026-09-02. Feeds changed 2026-11-09. In the 28 days to 2026-11-09 the terkini feed was saturated on 91 of 193 polls, with about 6,845 items estimated missed beside 6,366 new, and the world feed dunia.xml had stopped updating (5 new items in those 28 days; on 2026-11-09 the newest of its 20 items was five days old). dunia.xml was replaced by the international section feed dunia-internasional.xml (20 items over 10 hours) and the business feed ekonomi-bisnis.xml (20 items over 3.6 hours) was added, both verified 2026-11-09 with robots.txt allowing the crawler. Antara lists no sitemap in robots.txt and answers HTTP 404 at the usual Google News sitemap addresses, so none is registered. From 2026-11-09 a saturated poll of the terkini feed is followed by the numbered listing /terkini/N (sources/feed_paging.yaml) until it reaches back to the previous poll.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Antara_(news_agency)
   ownership: state
@@ -19202,7 +19205,7 @@
     sections: []
   tier: national_daily
   network: media_prima
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. From 2026-11-09 a saturated poll is followed by the feed's next pages, ?paged=N counted from 1 (sources/feed_paging.yaml).
   audience_rank: 3
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/malaysia
   political_leaning: centre_right
@@ -19287,7 +19290,7 @@
     sections: []
   tier: national_daily
   network: media_prima
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. From 2026-11-09 a saturated poll is followed by the feed's next pages, ?paged=N counted from 1 (sources/feed_paging.yaml).
   audience_rank: 4
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/malaysia
   political_leaning: centre_right
@@ -19350,7 +19353,7 @@
       readable: false
   tier: national_daily
   network: media_prima
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. From 2026-11-09 a saturated poll is followed by the feed's next pages, ?paged=N counted from 1 (sources/feed_paging.yaml).
   audience_rank: 6
   political_leaning: centre
   leaning_source: https://mediabiasfactcheck.com/new-straits-times/
@@ -19477,7 +19480,7 @@
       label: PR NEWSWIRE (EN)
       readable: true
   tier: national_daily
-  notes: Verified 2026-09-02. Section feeds added 2026-11-09. In the 28 days to 2026-11-09 the main feed (10 items) was saturated on 116 of 200 polls, with about 2,775 items estimated missed beside 1,383 new. Utusan has no Google News sitemap (robots.txt points at a Yoast index of post sitemaps, and /news-sitemap.xml answers HTTP 404), so the world (category/luar-negara, 10 items over 11.2 hours) and economy (category/ekonomi, 10 items over 8.4 hours) section feeds were added, both verified 2026-11-09.
+  notes: Verified 2026-09-02. Section feeds added 2026-11-09. In the 28 days to 2026-11-09 the main feed (10 items) was saturated on 116 of 200 polls, with about 2,775 items estimated missed beside 1,383 new. Utusan has no Google News sitemap (robots.txt points at a Yoast index of post sitemaps, and /news-sitemap.xml answers HTTP 404), so the world (category/luar-negara, 10 items over 11.2 hours) and economy (category/ekonomi, 10 items over 8.4 hours) section feeds were added, both verified 2026-11-09. From 2026-11-09 a saturated poll of any of its WordPress feeds is followed by the feed's next pages (?paged=N, pipeline/feed_paging.py) until it reaches back to the previous poll.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/Utusan_Malaysia
   ownership: private
@@ -23524,7 +23527,7 @@
       label: Спецпроекты
       readable: false
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Checked 2026-11-09 for a way past its 100 item feed. ?page=2 repeats it, /lenta/?page=2 repeats /lenta/, the lenta loader sits under /services/ which robots.txt disallows, and the article sitemaps carry no titles, so none is used.
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/russia/news-and-media/
   political_leaning: state_controlled
@@ -28583,14 +28586,15 @@
   country: URY
   language: es
   feeds:
-  - https://www.teledoce.com/rss
-  - https://www.teledoce.com/feed
+  - https://www.teledoce.com/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: 'Verified 2026-09-02. 2026-11-09: /rss and /feed both answer 301 to /feed/ and read live 10 minutes apart
+    gave the same 10 items shifted by one new story, so they are one stream; replaced by /feed/. teledoce.com asks
+    600 s between requests, and each old URL cost two such slots (the redirect and its target).'
   audience_rank: 5
   rank_source: https://www.similarweb.com/top-websites/uruguay/news-and-media/
   political_leaning: unassessed
@@ -29256,7 +29260,7 @@
       label: português
       readable: false
   tier: distribution_wire
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. From 2026-11-09 a saturated poll of news-releases-list.rss is followed by the release list at 100 a page (sources/feed_paging.yaml) until it reaches back to the previous poll; the news sitemap's 300 items covered about 3 hours at the weekday peak.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/PR_Newswire
@@ -30706,7 +30710,7 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Checked 2026-11-09 for a way past its 30 item feed. Page parameters repeat the feed, /rss/news answers 404, and the HTML pages and sitemaps answer 403 to the crawler, so none is used.
   audience_rank: 1
   rank_source: https://www.scimagomedia.com/rankings.php?country=South+Africa
   political_leaning: centre
@@ -34491,9 +34495,14 @@
   country: MYS
   language: ms
   feeds:
-  - https://www.astroawani.com/rss.xml
+  - https://www.astroawani.com/rss/latest/public
+  - https://www.astroawani.com/rss/international/public
+  - https://www.astroawani.com/rss/national/public
+  - https://www.astroawani.com/rss/politics/public
+  - https://www.astroawani.com/rss/business/public
+  - https://www.astroawani.com/rss/entertainment/public
   tier: broadcaster
-  notes: Added 2026-09-23 from the readership research.
+  notes: Added 2026-09-23 from the readership research. Feeds changed 2026-11-09. In the week to 2026-11-09 rss.xml (10 items) was saturated on 20 of 35 polls, with about 176 items estimated missed beside 256 new. robots.txt disallows every URL with a query string, so the feed cannot be paged; the site's feed directory (/rss) lists a latest feed of 25 items (8.7 hours on the evening of 2026-11-09, every item of rss.xml among them) and section feeds whose windows run 15 to 116 hours. latest replaced rss.xml, and the international, national, politics, business and entertainment feeds were added. Together they carried all 25 items of latest, verified 2026-11-09 with the collector's feed reader.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/malaysia
   political_leaning: unassessed

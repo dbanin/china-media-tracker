@@ -35,6 +35,11 @@ MAX_MISSED_ESTIMATE = 500.0
 # MISSED_SPAN_DAYS (never under MISSED_SPAN_MIN_HOURS), or MISSED_MIN_SPAN_HOURS when that is shorter
 # or fewer than three full windows are on record, so a window stamped within minutes cannot imply
 # hundreds of items an hour while a busy feed whose windows always span under an hour keeps its rate.
+# From 2026-11-09 the window is everything one poll read: a saturated first page is followed by the feed's
+# next pages (pipeline/feed_paging.py), a poll whose pages reached back to the previous poll is not
+# saturated, an undated listing's new items are taken off the estimate, and what is left is scaled by the
+# part of the stream the outlet's other feeds that reached back carry (feed_paging.cover_for; before, the
+# outlet's news sitemap alone).
 MISSED_MIN_SPAN_HOURS = 2.0
 MISSED_SPAN_DAYS = 3
 MISSED_SPAN_MIN_HOURS = 0.25
@@ -850,7 +855,12 @@ def _take_turns(entries: List[Dict]) -> List[Dict]:
     slow = [i for i, fe in enumerate(entries) if fe.get("type", "rss") == "rss" and _slow_host(fe["url"])]
     if len(slow) < 2:
         return entries
-    k = int(_slow_feeds["started"] // 3600) % len(slow)
+    # By the hour, shifted by the block of SLOW_FEED_PATIENT_EVERY_HOURS: the hours that wait out the sleepers
+    # (_patience_ends) are multiples of that block, so the hour alone gave every one of them the same turn,
+    # and the second feed of an outlet with two or three on a slow host was never read in them (teledoce.com's
+    # /feed was last read on 2026-10-31 while /rss was read daily).
+    hour = int(_slow_feeds["started"] // 3600)
+    k = (hour + hour // SLOW_FEED_PATIENT_EVERY_HOURS) % len(slow)
     turned = [entries[i] for i in slow[k:] + slow[:k]]
     out = list(entries)
     for i, fe in zip(slow, turned):
@@ -885,6 +895,61 @@ def _clock_pass(conn, counts: Dict, now: Optional[dt.datetime] = None) -> Dict[s
     return clocks
 
 
+# Feed paging (pipeline/feed_paging.py): within run(), a saturated first page of an RSS feed is followed by
+# the feed's next pages until the stream reaches back to the feed's previous successful poll. What the
+# workers need is set up once per run, before they start: the previous poll of every feed (the shared
+# collector's included, previous_poll), the clock offsets the run learned, and for an outlet paged by an
+# undated listing, its links on record (PAGING_KNOWN_DAYS).
+PAGING_KNOWN_DAYS = 3
+_paging: Dict = {"on": False}
+
+
+def _paging_setup(conn, outlets: List[Dict], clocks: Dict[str, Dict], deadline: Optional[float],
+                  now: Optional[dt.datetime] = None) -> None:
+    from pipeline import feed_paging
+    now = now or dt.datetime.now(dt.timezone.utc)
+    forms = feed_paging.load_forms()
+    since = {}
+    for url, last_ok in conn.execute("SELECT feed_url, last_ok FROM feed_health WHERE last_ok IS NOT NULL"):
+        since[url] = _aware(last_ok)
+    known = {}
+    listed = {f["feed"] for f in forms.values() if f.get("type") == feed_paging.PAGE}
+    cutoff = (now - dt.timedelta(days=PAGING_KNOWN_DAYS)).isoformat()
+    for o in outlets:
+        urls = [fe["url"] for fe in registry.feed_entries(o)]
+        if registry.is_shared(o):
+            for u in urls:
+                logged = _aware(store.last_poll_at(conn, u) or "")
+                if logged and (since.get(u) is None or logged > since[u]):
+                    since[u] = logged
+        if listed.intersection(urls):
+            known[o["id"]] = {h for (h,) in conn.execute(
+                "SELECT url_hash FROM articles WHERE outlet_id=? AND discovered_at>=?", (o["id"], cutoff))}
+    offsets = {u: p.get("offset_hours") or 0.0 for u, p in (clocks or {}).items()}
+    _paging.update(on=True, forms=forms, since=since, known=known, offsets=offsets, deadline=deadline,
+                   budget=feed_paging.Budget())
+
+
+def _read_back(outlet: Dict, url: str, r: Dict) -> Dict:
+    """The feed's first page, followed by its next pages when it is saturated (feed_paging.read_back);
+    outside run() the first page alone."""
+    if not _paging.get("on") or not r or not r.get("ok"):
+        return r
+    from pipeline import feed_paging
+    form = feed_paging.form_for(url, r, _paging["forms"])
+    if form is None:
+        return r
+    try:
+        return feed_paging.read_back(url, r, _paging["since"].get(url), form,
+                                     offset_hours=_paging["offsets"].get(url, 0.0),
+                                     known=_paging["known"].get(outlet["id"]), deadline=_paging["deadline"],
+                                     budget=_paging["budget"])
+    except Exception as exc:  # noqa: BLE001  a paging failure leaves the first page, never the outlet's poll
+        out = dict(r)
+        out["paging_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+        return out
+
+
 def poll_outlet(outlet: Dict) -> List[Dict]:
     out = []
     for fe in _take_turns(registry.feed_entries(outlet)):
@@ -897,7 +962,7 @@ def poll_outlet(outlet: Dict) -> List[Dict]:
                 from pipeline import news_sitemap  # a Google News sitemap read as a feed
                 r = news_sitemap.fetch_entries(fe["url"])
             else:
-                r = fetch_feed(fe["url"])
+                r = _read_back(outlet, fe["url"], fetch_feed(fe["url"]))
         else:
             from pipeline import section_pages  # section index pages without a feed
             r = section_pages.fetch_entries(fe["url"], fe.get("type"))
@@ -941,6 +1006,11 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     # Each feed's clock (clock_profiles, the note above CLOCK_DAYS), learned once per run; the items of the
     # window that arrived before their feed's profile held are judged now.
     clocks = _clock_pass(conn, counts)
+    try:
+        _paging_setup(conn, outlets, clocks, deadline)
+    except Exception as exc:  # noqa: BLE001  discovery goes on with first pages only
+        _paging.update(on=False)
+        counts["paging_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
     stopped = threading.Event()
 
     def poll(o):
@@ -960,8 +1030,11 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
             counts["outlets_polled"] += 1
             # What the outlet's Google News sitemap listed this run, for the RSS saturation estimate, and the
             # titles on record, loaded at the sitemap's turn (pipeline/news_sitemap.py, the note there).
-            from pipeline import news_sitemap
-            covered = news_sitemap.cover([g["result"] for g in group if g.get("type") == news_sitemap.NEWS_SITEMAP])
+            from pipeline import feed_paging, news_sitemap
+            # What the outlet's other feeds of this poll listed, each with how far back it reached: a saturated
+            # editorial feed's loss is scaled by the part of the stream the feeds reaching back carry
+            # (feed_paging.cover_for, the note there; the sitemap is one of them, news_sitemap's rule).
+            srcs = feed_paging.sources(group, _paging.get("offsets"))
             titles = None
             for g in group:
                 if g.get("deferred"):
@@ -972,8 +1045,13 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                 counted = dict(counts)
                 try:
                     prev = store.feed_health_row(conn, feed_url)
-                    store.record_feed_health(conn, outlet["id"], feed_url, r["ok"], r["error"], len(r["entries"]),
+                    # A paged read (feed_paging) is one poll; the feed's window is its first page.
+                    first = r.get("first_entries", len(r["entries"]))
+                    store.record_feed_health(conn, outlet["id"], feed_url, r["ok"], r["error"], first,
                                              newest_entry_time(r["entries"]))
+                    if r.get("paging_error"):
+                        counts["paging_errors"] = counts.get("paging_errors", 0) + 1
+                        counts["last_paging_error"] = "%s: %s" % (feed_url, r["paging_error"])
                     if not r["ok"]:
                         continue
                     counts["feeds_ok"] += 1
@@ -990,6 +1068,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         section = False
                         counts["section_feeds_guarded"] += 1
                     linked, new_here, times = 0, 0, []
+                    linked_first, paged_undated = 0, 0      # the first page's links; undated new items of next pages
                     clock, polled_at = clocks.get(feed_url), g.get("polled_at") or dt.datetime.now(dt.timezone.utc)
                     stamps = [_entry_time(e) for e in r["entries"]]
                     generation = generation_stamps(stamps, clock, polled_at)
@@ -999,7 +1078,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                     if is_map:
                         known = news_sitemap.known_hashes(conn, [e.get("link") for e in r["entries"]])
                         titles = news_sitemap.known_titles(conn, outlet["id"]) if titles is None else titles
-                    for entry in r["entries"]:
+                    for index, entry in enumerate(r["entries"]):
                         link = entry.get("link")
                         if link is not None and not isinstance(link, str):
                             counts["entries_malformed"] = counts.get("entries_malformed", 0) + 1
@@ -1008,6 +1087,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         if not link or not link.startswith("http"):
                             continue
                         linked += 1
+                        linked_first += 1 if index < first else 0
                         counts["items_seen"] += 1
                         links.append(link)
                         if is_map:
@@ -1074,6 +1154,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                                         counts["near_duplicates"] += 1
                             continue
                         new_here += 1
+                        paged_undated += 1 if index >= first and _entry_time(entry) is None else 0
                         counts["items_new"] += 1
                         if item["published_raw"] is not None:
                             fixed = ("clock_generation" if item["published_at"] is None else
@@ -1094,12 +1175,29 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
                         prev = previous_poll(conn, feed_url, prev)
                     history = feed_history(conn, feed_url, outlet_id=outlet["id"]) if linked and new_here >= linked else None
                     saturated, missed = saturation(prev, linked, new_here, times, history=history)
-                    if covered is not None and not is_map and kind == registry.EDITORIAL:
-                        # The sitemap listed what this RSS poll lost, except the part of the stream it leaves out.
-                        saturated, missed, scaled = news_sitemap.covered_saturation(prev, saturated, missed, links, covered)
-                        counts["saturation_covered"] = counts.get("saturation_covered", 0) + (1 if scaled else 0)
+                    paging = r.get("paging")
+                    if paging:
+                        feed_paging.tally(counts, paging)
+                        if paging["reached"]:
+                            # The pages read reached back to the previous poll (an entry dated at or before it, or one
+                            # on record): the window covered the gap, even when every entry was new to the database.
+                            saturated, missed = False, 0.0
+                        elif saturated:
+                            # The rate and the gap come from the dated entries; an undated listing's new items fell
+                            # in the gap and were taken.
+                            missed = round(max(0.0, missed - paged_undated), 2)
+                    if saturated and not is_map and kind == registry.EDITORIAL:
+                        # The outlet's other feeds that reached back (its sitemap among them) listed what this poll
+                        # lost, except the part of the stream they leave out (feed_paging.cover_for).
+                        last_ok = _aware(prev["last_ok"]) if prev is not None and prev["last_ok"] else None
+                        cover = feed_paging.cover_for(feed_url, last_ok, srcs)
+                        if cover is not None:
+                            saturated, missed, scaled = news_sitemap.covered_saturation(prev, saturated, missed, links, cover)
+                            counts["saturation_covered"] = counts.get("saturation_covered", 0) + (1 if scaled else 0)
                     counts["feeds_saturated"] += 1 if saturated else 0
-                    store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked, new_here, saturated, missed)
+                    # feed_polls.entries is the feed's window, its first page (feed_history reads it per poll).
+                    store.record_feed_poll(conn, outlet["id"], outlet["country"], feed_url, linked_first, new_here,
+                                           saturated, missed)
                     if shared:
                         store.log_feed_poll(conn, feed_url, config.COLLECTOR, store.utcnow(), outlet["id"], outlet["country"],
                                             linked, new_here, times, prev["last_ok"] if prev is not None else None,
@@ -1126,6 +1224,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     finally:
         stopped.set()
         pool.shutdown(wait=False, cancel_futures=True)
+        _paging.update(on=False)
     section_pages.aap_finish(conn)
     counts["outlets_skipped"] = counts["outlets"] - counts["outlets_polled"]
     store.finish_stage(conn, log_id, True, counts)

@@ -1,0 +1,93 @@
+# How a feed is read back past its first page when a poll of it is saturated (pipeline/feed_paging.py).
+#
+# A WordPress feed (its generator element names wordpress.org) is paged with ?paged=N without an entry here.
+# Each entry below was checked live through the tracker's own helpers (robots.txt, the per domain rate
+# limiter, the crawler's user agent), and every page is checked again whenever it is read.
+#
+#   feed       the feed URL exactly as the registry (sources/outlets.yaml) lists it
+#   type       rss: the feed's next pages in the same format; page: the outlet's numbered HTML listing of its
+#              latest items, read for the links matching `links`
+#   pages      the page URL with {n} for the page number; null turns paging off for the feed
+#   page1      for a listing whose first page has no number in its URL
+#   first      the first page number read after the feed's own page
+#   max_pages  pages read at most in one poll (at most 12; default 5)
+#   verified   the day the form was checked; evidence: what the check found
+
+- feed: https://www.antaranews.com/rss/terkini.xml
+  type: page
+  pages: https://www.antaranews.com/terkini/{n}
+  first: 3
+  max_pages: 12
+  links: '^https://www\.antaranews\.com/(berita|foto|video|infografik)/\d+/'
+  verified: '2026-11-09'
+  evidence: The feed ignores page parameters (terkini.xml?page=2 and ?paged=2 repeat its 50 items). The listing
+    /terkini/N shows 15 items a page, newest first, in the same order as the feed (page 3 holds the feed's
+    items 31 to 45, page 4 starts inside its last five), and robots.txt allows it. Its "most read" boxes sit
+    in an aside, which the reader leaves out.
+
+- feed: https://www.prnewswire.com/rss/news-releases-list.rss
+  type: page
+  pages: https://www.prnewswire.com/news-releases/news-releases-list/?page={n}&pagesize=100
+  first: 1
+  max_pages: 6
+  links: '^https://www\.prnewswire\.com/news-releases/[^/?#]+-\d{9}\.html$'
+  verified: '2026-11-09'
+  evidence: The feed's 20 items covered 28 minutes at 23:00 UTC on 2026-11-09 and it ignores ?page=2 (the same
+    20 items). The release list takes page and pagesize, 100 releases a page newest first (page 2 ran from
+    15:34 to 13:08 ET), and its first page holds the feed's items. robots.txt allows it.
+
+- feed: https://www.europapress.es/rss/rss.aspx?ch=137
+  type: page
+  page1: https://www.europapress.es/comunicados/
+  pages: https://www.europapress.es/comunicados/{n}/
+  first: 1
+  max_pages: 6
+  links: '^https://www\.europapress\.es/comunicados/[^/]+/noticia-comunicado-[^/]+-\d{14}\.html$'
+  verified: '2026-11-09'
+  evidence: The press release feed lists 10 items and ignores &page=2 and &p=2. The Comunicados listing shows
+    15 releases a page, newest first, and page 2 follows page 1 to the minute (15:09:56, then 15:09:31);
+    its first page holds the feed's items. robots.txt allows it.
+
+- feed: https://www.nst.com.my/feed
+  type: rss
+  pages: https://www.nst.com.my/feed?paged={n}
+  first: 1
+  max_pages: 4
+  verified: '2026-11-09'
+  evidence: Not WordPress, but the feed takes ?paged=N counted from 0 (?paged=1 is the second page, its first
+    item 11:45 after the feed's last at 12:24; ?paged=2 starts at 07:56, after ?paged=1's last at 07:57).
+    ?page=1 repeats the feed. 50 items a page.
+
+- feed: https://www.bharian.com.my/feed
+  type: rss
+  pages: https://www.bharian.com.my/feed?paged={n}
+  first: 1
+  max_pages: 4
+  verified: '2026-11-09'
+  evidence: The same platform as the New Straits Times. ?paged=1 starts where the feed ends (one item shared)
+    and ?page=1 repeats the feed. The feed writes Malaysian time marked +0000; the collector's clock offset
+    for the feed applies to the pages too.
+
+- feed: https://www.hmetro.com.my/feed
+  type: rss
+  pages: https://www.hmetro.com.my/feed?paged={n}
+  first: 1
+  max_pages: 4
+  verified: '2026-11-09'
+  evidence: As Berita Harian; ?paged=1 starts where the feed ends (one item shared).
+
+# Checked and found not to page (2026-11-09), recorded so they are not tried again.
+- feed: https://www.iol.co.za/rss
+  pages: null
+  evidence: ?page=2, ?paged=2 and ?section=news repeat the same 30 items; /rss/news and /news/rss/ answer 404;
+    the HTML pages and the sitemaps answer 403 to the crawler.
+- feed: https://ria.ru/export/rss2/archive/index.xml
+  pages: null
+  evidence: ?page=2 repeats 98 of the 100 items, /lenta/?page=2 repeats /lenta/, the lenta loader is under the
+    /services/ path robots.txt disallows, and the article sitemaps carry no titles.
+- feed: https://rg.ru/xml/index.xml
+  pages: null
+  evidence: ?page=2 repeats the feed; the outlet's Google News sitemap covers it.
+- feed: https://www.alwihdainfo.com/feed/
+  pages: null
+  evidence: A Ghost feed; ?paged=2 repeats its 15 items.

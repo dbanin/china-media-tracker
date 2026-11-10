@@ -269,11 +269,25 @@ def test_feeds_on_a_slow_host_take_turns_by_the_hour(feed_state):
     entries = [{"url": "https://lovinmalta.example/feed", "type": "rss"},
                {"url": "https://quick.example/feed", "type": "rss"},
                {"url": "https://lovinmalta.example/news/feed", "type": "rss"}]
-    fetch_feeds._slow_feeds["started"] = 3600.0 * 10
-    assert fetch_feeds._take_turns(entries) == entries
+    turned = ["https://lovinmalta.example/news/feed", "https://quick.example/feed", "https://lovinmalta.example/feed"]
     fetch_feeds._slow_feeds["started"] = 3600.0 * 11
-    assert [e["url"] for e in fetch_feeds._take_turns(entries)] == [
-        "https://lovinmalta.example/news/feed", "https://quick.example/feed", "https://lovinmalta.example/feed"]
+    assert fetch_feeds._take_turns(entries) == entries
+    fetch_feeds._slow_feeds["started"] = 3600.0 * 10
+    assert [e["url"] for e in fetch_feeds._take_turns(entries)] == turned
+
+
+def test_the_hours_that_wait_out_slow_hosts_take_turns_too(feed_state):
+    """Discovery waits out sleeping feeds only in hours that are multiples of SLOW_FEED_PATIENT_EVERY_HOURS;
+    by the hour alone each of them gave the first feed the turn, so the second was never read in them."""
+    entries = [{"url": "https://lovinmalta.example/feed", "type": "rss"},
+               {"url": "https://lovinmalta.example/news/feed", "type": "rss"}]
+    every = fetch_feeds.SLOW_FEED_PATIENT_EVERY_HOURS
+    firsts = set()
+    for block in range(4):
+        fetch_feeds._slow_feeds["started"] = 3600.0 * every * block
+        assert fetch_feeds._patience_ends(fetch_feeds._slow_feeds["started"]) is None
+        firsts.add(fetch_feeds._take_turns(entries)[0]["url"])
+    assert firsts == {e["url"] for e in entries}
 
 
 def test_a_deferred_feed_is_counted_and_leaves_no_health_record(monkeypatch, tmp_path):

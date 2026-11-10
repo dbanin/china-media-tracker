@@ -354,7 +354,14 @@ day publishes in batches: a poll of it whose entries are stamped within an
 hour of one another counts only the batches that fell wholly between it and the
 previous successful poll, none when that poll came less than one batch
 interval earlier. Until 2026-10-12 the rate was taken over the window alone
-and five such batch feeds were booked about 15,000 phantom misses. Each day's
+and five such batch feeds were booked about 15,000 phantom misses. Since
+2026-11-09 a poll whose first page does not reach back to the previous poll
+reads the feed's older pages (WordPress feeds, and listings recorded with
+evidence for a few outlets), within a small budget of requests per run and
+under the same robots.txt check and pace; a poll whose pages reach back is not
+counted as full, and the estimate of one that does not is reduced by the share
+of its items the outlet's other feeds or sitemap carried back past that poll.
+Each day's
 poll record names the estimator that made it, and the older estimates cannot be
 made again because single poll times were not kept, so the published estimate
 counts only the polls made by the current estimator, from the day it was first

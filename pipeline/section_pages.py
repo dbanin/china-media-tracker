@@ -362,3 +362,61 @@ def aap_entries(section_url: str) -> Dict:
     # seen counts on its publication day, not the day of this run (fetch_feeds, store.backfill_day).
     return {"ok": True, "entries": entries, "status": listing["status"], "error": None, "keyword_gate": True,
             "backfill": True}
+
+
+# A numbered listing page of an outlet's latest items (Antara's /terkini/4, PR Newswire's news release list,
+# Europa Press's /comunicados/2/), read by pipeline/feed_paging.py to reach back past a saturated feed. The
+# links kept are those matching the listing's article pattern (sources/feed_paging.yaml), in page order,
+# outside the page's aside, nav, header and footer: a "most read" box repeats the same older items on every
+# page and would read as the stream reaching back. The title is the heading inside the link when it has one
+# (PR Newswire's link also wraps the release time and its summary), else the link's longest text. The page is
+# fetched like a section page: robots.txt, the per domain rate limiter, the crawler's user agent.
+def listing_links(html: str, page_url: str, pattern: str) -> List[Dict]:
+    """The article links of one listing page, as feed entries, first occurrence first."""
+    from lxml import html as lhtml
+    try:
+        doc = lhtml.fromstring(html)
+    except Exception:
+        return []
+    for el in doc.xpath("//aside|//nav|//header|//footer"):
+        parent = el.getparent()
+        if parent is not None:
+            parent.remove(el)
+    rx = re.compile(pattern)
+    order, titles = [], {}
+    for a in doc.iter("a"):
+        href = a.get("href")
+        if not href or href.startswith(("#", "mailto:", "javascript:")):
+            continue
+        url = urljoin(page_url, href).split("#")[0]
+        if not rx.search(url):
+            continue
+        heading = next(iter(a.xpath(".//h1|.//h2|.//h3|.//h4")), None)
+        if heading is not None:
+            for small in heading.xpath(".//small|.//time"):
+                small.drop_tree()
+            title = " ".join((heading.text_content() or "").split())
+        else:
+            title = " ".join((a.text_content() or "").split())
+        if url not in titles:
+            order.append(url)
+            titles[url] = ""
+        if (heading is not None and title) or len(title) > len(titles[url]):
+            titles[url] = title
+    return [{"link": u, "title": titles[u][:300], "summary": "", "published_parsed": None}
+            for u in order if len(titles[u]) >= MIN_TITLE_CHARS]
+
+
+def listing_entries(url: str, pattern: str) -> Dict:
+    """Fetch one listing page and return {ok, entries, status, error}, like fetch_entries."""
+    from pipeline import fetch_articles
+    allowed, why = fetch_articles.can_fetch(url)
+    if not allowed:
+        return {"ok": False, "entries": [], "status": None, "error": why}
+    html, status, err = fetch_articles.get_page(url)
+    if html is None:
+        return {"ok": False, "entries": [], "status": status, "error": err}
+    entries = listing_links(html, url, pattern)
+    if not entries:
+        return {"ok": False, "entries": [], "status": status, "error": "no_article_links"}
+    return {"ok": True, "entries": entries, "status": status, "error": None}

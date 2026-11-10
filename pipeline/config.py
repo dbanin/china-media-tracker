@@ -235,7 +235,7 @@ DATA_STALE_HOURS = 24
 # publishers and short windows and cannot be recomputed, since single poll times are not kept). The
 # export reports the estimate only from rows made by this version, from the first day it was used.
 # Bump it whenever the estimator changes meaning.
-MISSED_ESTIMATOR_VERSION = "2026-10-12"
+MISSED_ESTIMATOR_VERSION = "2026-11-09"   # 2026-11-09: a poll counts what its paged reads and the outlet's other feeds brought in (pipeline/feed_paging.py)
 
 # Current ruleset version. Bump in CHANGELOG.md whenever signatures.yaml or diplomats.yaml changes meaning.
 # Must match ruleset_version in signatures.yaml: a label records the version the signatures carried,

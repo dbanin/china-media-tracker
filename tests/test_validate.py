@@ -301,11 +301,11 @@ def test_each_outlet_is_saved_as_it_arrives_so_a_killed_run_keeps_its_work(tmp_p
     real = v.save_outlet
     calls = []
 
-    def save_then_die(conn, oid, group):
+    def save_then_die(conn, oid, group, **kw):
         if len(calls) == 3:
             raise KeyboardInterrupt("the step's timeout")
         calls.append(oid)
-        real(conn, oid, group)
+        real(conn, oid, group, **kw)
 
     monkeypatch.setattr(v, "save_outlet", save_then_die)
     out = tmp_path / "v.json"
@@ -445,3 +445,307 @@ def test_an_outlet_read_through_its_news_sitemap_is_judged_on_it_too(tmp_path, m
     assert by_id["kr_sm"]["active"] is True and by_id["kr_dead"]["active"] is False
     rows = dict(_ro(db).execute("SELECT feed_url, last_entries FROM feed_health WHERE feed_url LIKE '%news.xml'"))
     assert rows["https://sm.test/news.xml"] == 40
+
+
+# ---------------------------------------------------------------------------
+# outlets whose feeds cannot all be fetched inside the deadline (2026-11-09, evening)
+# ---------------------------------------------------------------------------
+
+NOW = dt.datetime(2026, 11, 16, 3, 30, tzinfo=dt.timezone.utc)
+
+
+def _ago(hours, now=None):
+    return ((now or NOW) - dt.timedelta(hours=hours)).replace(microsecond=0).isoformat()
+
+
+def _health(last_checked, ok, last_ok=None, failures=80):
+    """A feed_health row as load_state reads it."""
+    return {"last_checked": last_checked, "last_ok": last_checked if ok else last_ok,
+            "consecutive_failures": 0 if ok else 5, "total_failures": failures, "total_checks": 200,
+            "last_error": None if ok else "http_403"}
+
+
+TELE = {"id": "uy_t", "feeds": ["https://slow.test/rss", "https://slow.test/feed"], "active": True}
+
+
+def _ok(url):
+    return {"ok": True, "entries": [{}] * 10, "status": 200, "error": None, "elapsed": 0.0}
+
+
+def test_feeds_go_least_recently_checked_first_and_a_manual_check_keeps_registry_order():
+    """Discovery reached only teledoce.com/rss from 2026-10-31 to 2026-11-09, so the weekly check starts with /feed;
+    a feed never checked comes before both, and ties keep registry order."""
+    o = {"id": "x", "feeds": ["https://a.test/1", "https://a.test/2", "https://a.test/3"]}
+    seen = {"https://a.test/1": "2026-11-08T18:59:10+00:00", "https://a.test/2": "2026-10-31T00:23:21+00:00"}
+    assert [u for u, _ in v.feed_order(o, seen)] == ["https://a.test/3", "https://a.test/2", "https://a.test/1"]
+    assert [u for u, _ in v.feed_order(o, {})] == o["feeds"], "no record at all: registry order"
+    assert [u for u, _ in v.feed_order(o)] == o["feeds"]
+
+
+def test_a_manual_check_still_fetches_every_feed(monkeypatch):
+    got = []
+    monkeypatch.setattr(v, "fetch_feed", lambda url: got.append(url) or _ok(url))
+    rows = v.check_outlet(TELE)
+    assert got == TELE["feeds"] and [r["fetched"] for r in rows] == [True, True]
+
+
+def test_the_weekly_check_stops_at_the_first_feed_that_answers(monkeypatch):
+    """One working feed keeps an outlet alive, so a second request proves nothing more; the other feeds are
+    reported as not fetched, never given a result."""
+    got = []
+    monkeypatch.setattr(v, "fetch_feed", lambda url: got.append(url) or _ok(url))
+    seen = {"https://slow.test/rss": "2026-11-08T18:59:10+00:00", "https://slow.test/feed": "2026-10-31T00:23:21+00:00"}
+    rows = v.check_outlet(TELE, last_checked=seen, until_ok=True)
+    assert got == ["https://slow.test/feed"]
+    assert rows[1] == {"outlet_id": "uy_t", "feed_url": "https://slow.test/rss", "fetched": False, "reason": "outlet_alive"}
+    assert v.fetched_rows(rows) == rows[:1]
+    verdict = v.judge(TELE, rows, {}, NOW)
+    assert verdict["verdict"] == "alive" and verdict["decided_on"] == ["https://slow.test/feed"]
+    rss = [e for e in verdict["evidence"] if e["feed_url"] == "https://slow.test/rss"][0]
+    assert rss["source"] == "not_fetched" and rss["why_not_fetched"] == "outlet_alive"
+
+
+def test_a_failing_feed_does_not_stop_the_check_and_a_dead_outlet_is_still_found_dead(tmp_path, monkeypatch):
+    """Stopping at the first answer must not stop at a failure: an outlet whose feeds all fail has every feed
+    fetched, and with a long silence on record it is deactivated as before."""
+    dead = _outlet("it_dead", ["https://dead.test/a", "https://dead.test/b", "https://dead.test/c"])
+    alive = _outlet("it_alive", ["https://alive.test/a", "https://alive.test/b"])
+    got = []
+
+    def fetch(url):
+        got.append(url)
+        return _ok(url) if "alive.test" in url else _failing()(url)
+
+    db, saved = _harness(tmp_path, monkeypatch, [dead, alive], fetch)
+    out = tmp_path / "v.json"
+    v.run(apply=True, json_out=str(out))
+    report = json.loads(out.read_text())
+    assert sorted(u for u in got if "dead.test" in u) == dead["feeds"]
+    assert len([u for u in got if "alive.test" in u]) == 1
+    assert report["newly_inactive"] == ["it_dead"] and report["outlets"]["it_dead"]["verdict"] == "dead"
+    assert all(e["source"] == "fetched" for e in report["outlets"]["it_dead"]["evidence"])
+    assert report["outlets"]["it_alive"]["verdict"] == "alive"
+    assert {o["id"]: o for o in saved["o"]}["it_alive"]["active"] is True
+    stamped = {r[0] for r in _ro(db).execute("SELECT outlet_id FROM outlet_validation")}
+    assert stamped == {"it_dead", "it_alive"}, "both judged on this run's fetches"
+    total = dict(_ro(db).execute("SELECT feed_url, total_checks FROM feed_health WHERE feed_url LIKE '%alive.test%'"))
+    assert sorted(total.values()) == [90, 91], "only the feed fetched gets a health record from this run"
+
+
+class _RP:
+    def __init__(self, delay):
+        self.delay = delay
+
+    def crawl_delay(self, name):
+        return self.delay
+
+    def can_fetch(self, name, url):
+        return True
+
+
+def test_a_feed_whose_crawl_delay_slot_falls_past_the_deadline_is_not_fetched(monkeypatch):
+    """teledoce.com asks 600 s between requests: once one request is made, the next cannot come before an 11 minute
+    deadline that is closer than that, so the check does not start it (it would sleep past the run's end)."""
+    monkeypatch.setitem(fa._robots_cache, "slow.test", ("ok", _RP(600)))
+    monkeypatch.setitem(fa._last_request, "slow.test", time.time())
+    got = []
+    monkeypatch.setattr(v, "fetch_feed", lambda url: got.append(url) or _failing()(url))
+    rows = v.check_outlet(TELE, until_ok=True, deadline=time.time() + 60)
+    assert got == [] and [r["reason"] for r in rows] == ["crawl_delay_past_deadline"] * 2
+    rows = v.check_outlet(TELE, until_ok=True, deadline=time.time() + 700)
+    assert got == TELE["feeds"], "a slot before the deadline is waited for"
+    monkeypatch.setitem(fa._robots_cache, "fast.test", ("allow_all", None))
+    assert v._slot_past("https://fast.test/rss", time.time() - 1) is False, "an ordinary host is never past it"
+
+
+def test_a_fresh_recorded_success_judges_an_outlet_the_run_could_not_fetch():
+    history = {"https://slow.test/rss": _health(_ago(8.5), True),
+               "https://slow.test/feed": _health("2026-10-31T00:23:21+00:00", True)}
+    verdict = v.judge(TELE, [], history, NOW, "2026-09-01", unfetched_reason="run_ended")
+    assert verdict["verdict"] == "alive_recorded" and verdict["decided_on"] == ["https://slow.test/rss"]
+    by = {e["feed_url"]: e for e in verdict["evidence"]}
+    assert by["https://slow.test/rss"]["source"] == "recorded" and by["https://slow.test/rss"]["age_hours"] == 8.5
+    stale = by["https://slow.test/feed"]
+    assert stale["source"] == "not_fetched" and stale["record_ok"] is True and stale["record_age_hours"] > 24 * 7
+    assert verdict["decision"] is None
+
+
+def test_an_outlet_whose_only_evidence_is_old_is_not_judged_alive_on_it():
+    """A success recorded 30 hours ago, or six days ago, is not taken as current: the outlet is neither alive nor
+    dead on it, and nothing is decided."""
+    for hours in (24.5, 30, 6 * 24):
+        history = {u: _health(_ago(hours), True) for u in TELE["feeds"]}
+        verdict = v.judge(TELE, [], history, NOW, "2026-09-01")
+        assert verdict["verdict"] == "not_judged" and verdict["decision"] is None, hours
+        assert all(e["source"] == "not_fetched" and e["record_ok"] for e in verdict["evidence"])
+    assert v.judge(TELE, [], {u: _health(_ago(24), True) for u in TELE["feeds"]}, NOW)["verdict"] == "alive_recorded"
+
+
+def test_a_record_dated_after_the_run_or_unreadable_is_no_evidence():
+    for stamp in (_ago(-2), "garbage", None):
+        history = {u: _health(stamp, True) for u in TELE["feeds"]}
+        assert v.judge(TELE, [], history, NOW)["verdict"] == "not_judged", stamp
+
+
+def test_a_dead_outlet_the_run_could_not_fetch_is_found_dead_on_fresh_records():
+    """Every feed failing on a check at most RECORDED_FRESH_HOURS old, with a month of silence and enough failures
+    on record, is dead; the reason says which records it rests on."""
+    history = {u: _health(_ago(3), False, last_ok="2026-10-10T00:00:00+00:00") for u in TELE["feeds"]}
+    verdict = v.judge(TELE, [], history, NOW, "2026-09-01", unfetched_reason="run_ended")
+    assert verdict["verdict"] == "dead" and verdict["as_of"] == "2026-11-16"
+    action, why = verdict["decision"]
+    assert action == "deactivate" and why.endswith(" (auto)")
+    assert "not fetched this run, judged on the check on record: https://slow.test/rss %s" % _ago(3) in why
+    assert "last success 2026-10-10" in why
+
+
+def test_a_failure_on_record_measures_the_silence_to_its_own_day_not_to_today():
+    """A record from yesterday shows the silence up to yesterday only. last_ok eight days before today is seven
+    before the record: not yet past DEAD_AFTER_DAYS on the evidence, so not dead."""
+    now = dt.datetime(2026, 11, 16, 2, 0, tzinfo=dt.timezone.utc)
+    history = {u: _health("2026-11-15T22:00:00+00:00", False, last_ok="2026-11-08T12:00:00+00:00") for u in TELE["feeds"]}
+    verdict = v.judge(TELE, [], history, now, "2026-09-01")
+    assert verdict["verdict"] == "not_dead" and verdict["as_of"] == "2026-11-15" and verdict["decision"] is None
+    fetched = [{"feed_url": u, "fetched": True, "ok": False, "error": "http_403"} for u in TELE["feeds"]]
+    assert v.judge(TELE, fetched, history, now, "2026-09-01")["verdict"] == "dead", "fetched today, it is past"
+
+
+def test_missing_or_stale_evidence_never_kills_an_outlet():
+    """One feed failed this run and the other has no fresh result: however long the recorded silence, the outlet
+    is not judged, because the other feed may be working."""
+    rows = [{"feed_url": "https://slow.test/feed", "fetched": True, "ok": False, "error": "http_403"},
+            {"feed_url": "https://slow.test/rss", "fetched": False, "reason": "crawl_delay_past_deadline"}]
+    dead = _health(_ago(1), False, last_ok="2026-09-01T00:00:00+00:00")
+    for other in (None, _health(_ago(30), False, last_ok="2026-09-01T00:00:00+00:00")):
+        history = {"https://slow.test/feed": dead}
+        if other:
+            history["https://slow.test/rss"] = other
+        verdict = v.judge(TELE, rows, history, NOW, "2026-09-01")
+        assert verdict["verdict"] == "not_judged" and verdict["decision"] is None
+        rss = [e for e in verdict["evidence"] if e["feed_url"] == "https://slow.test/rss"][0]
+        assert rss["source"] == "not_fetched" and rss["why_not_fetched"] == "crawl_delay_past_deadline"
+    history = {"https://slow.test/feed": dead, "https://slow.test/rss": _health(_ago(2), True)}
+    assert v.judge(TELE, rows, history, NOW, "2026-09-01")["verdict"] == "alive_recorded", \
+        "a failure this run and a fresh success on the other feed: alive on the record"
+
+
+def test_only_a_verdict_on_this_runs_fetches_stamps_the_validation():
+    fetched = {"feed_url": "u", "source": "fetched", "ok": False}
+    recorded = {"feed_url": "w", "source": "recorded", "ok": True}
+    assert v.stamps_validation({"verdict": "alive", "evidence": [fetched, recorded]})
+    assert v.stamps_validation({"verdict": "dead", "evidence": [fetched]})
+    assert not v.stamps_validation({"verdict": "alive_recorded", "evidence": [fetched, recorded]})
+    assert not v.stamps_validation({"verdict": "dead", "evidence": [fetched, dict(recorded, ok=False)]})
+    assert not v.stamps_validation({"verdict": "not_judged", "evidence": [fetched]})
+
+
+def _slow_harness(tmp_path, monkeypatch, outlets, rows):
+    """run() over these outlets with sleepy.test asleep on a ten minute Crawl-delay until release is set, and
+    feed_health rows {url: (last_checked, last_ok, consecutive_failures, total_failures)} stamped from the clock."""
+    from pipeline import store
+    release = threading.Event()
+
+    class Clock:
+        time = staticmethod(time.time)
+        sleep = staticmethod(lambda s: release.wait(s))
+
+    monkeypatch.setattr(fa, "time", Clock)
+    monkeypatch.setitem(fa._last_request, "sleepy.test", time.time() + 600)
+    got = []
+
+    def fetch(url):
+        got.append(url)
+        if "sleepy.test" in url:
+            fa._rate_wait("sleepy.test")
+        return _failing()(url)
+
+    saved = {}
+    monkeypatch.setattr(config, "COLLECTOR", "hosted")
+    monkeypatch.setattr(registry, "load_outlets", lambda *a, **k: outlets)
+    monkeypatch.setattr(registry, "save_outlets", lambda os_, *a, **k: saved.setdefault("o", os_))
+    monkeypatch.setattr(v, "fetch_feed", fetch)
+    db = tmp_path / "t.db"
+    conn = store.connect(db)
+    for url, (checked, last_ok, cf, tf) in rows.items():
+        oid = [o["id"] for o in outlets if url in o["feeds"]][0]
+        conn.execute("INSERT INTO feed_health(feed_url, outlet_id, last_checked, last_ok, consecutive_failures, "
+                     "total_checks, total_failures, last_error) VALUES (?,?,?,?,?,?,?,?)",
+                     (url, oid, checked, last_ok, cf, 200, tf, None if cf == 0 else "http_403"))
+    conn.commit()
+    monkeypatch.setattr(store, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(v, "registry_dates", lambda *a, **k: {})
+    monkeypatch.setattr(v, "measured_from", lambda o, dates, t: "2026-08-01")
+    monkeypatch.setattr(v, "SLEEP_PATIENCE_SECONDS", 0)
+    return db, saved, got, release
+
+
+def test_a_slow_host_outlet_asleep_at_the_end_is_judged_on_its_fresh_record(tmp_path, monkeypatch):
+    """uy_telemundo: two feeds on a host asking ten minutes, every week left asleep and never judged. Now the feed
+    checked longest ago is tried first, and when the run ends with it asleep, the other feed's success recorded
+    by discovery hours ago judges the outlet alive, said so in the report with its age. It keeps its place first
+    in the check order for a live attempt next week."""
+    now = dt.datetime.now(dt.timezone.utc)
+    slow = _outlet("uy_slow", ["https://sleepy.test/rss", "https://sleepy.test/feed"])
+    rows = {"https://sleepy.test/rss": (_ago(8.5, now), _ago(8.5, now), 0, 0),
+            "https://sleepy.test/feed": (_ago(9 * 24, now), _ago(9 * 24, now), 0, 0)}
+    others = [_outlet("o%d" % i) for i in range(3)]
+    db, saved, got, release = _slow_harness(tmp_path, monkeypatch, [slow] + others, rows)
+    out = tmp_path / "v.json"
+    try:
+        v.run(apply=True, json_out=str(out), workers=1, deadline_minutes=0.5)
+    finally:
+        release.set()
+    report = json.loads(out.read_text())
+    assert [u for u in got if "sleepy" in u] == ["https://sleepy.test/feed"], "the feed checked longest ago goes first"
+    entry = report["outlets"]["uy_slow"]
+    assert entry["verdict"] == "alive_recorded" and entry["decided_on"] == ["https://sleepy.test/rss"]
+    by = {e["feed_url"]: e for e in entry["evidence"]}
+    assert by["https://sleepy.test/rss"]["source"] == "recorded" and 8.4 <= by["https://sleepy.test/rss"]["age_hours"] <= 8.6
+    assert by["https://sleepy.test/feed"]["source"] == "not_fetched" and by["https://sleepy.test/feed"]["why_not_fetched"] == "run_ended"
+    assert report["outlets_judged_on_record"] == 1 and report["verdicts"]["alive_recorded"] == 1
+    assert report["outlets_checked"] == 4 and report["unchecked"]["asleep"] == [] and "uy_slow" not in report["dead_candidates"]
+    assert report["newly_inactive"] == [] and "o" not in saved, "nothing deactivated, the registry not rewritten"
+    ro = _ro(db)
+    assert ro.execute("SELECT 1 FROM outlet_validation WHERE outlet_id='uy_slow'").fetchone() is None
+    assert ro.execute("SELECT total_checks FROM feed_health WHERE feed_url='https://sleepy.test/rss'").fetchone()[0] == 200, \
+        "a recorded result is read, never written again as this run's"
+
+
+def test_a_dead_slow_host_outlet_is_found_dead_on_fresh_records_and_a_stale_one_is_left(tmp_path, monkeypatch):
+    now = dt.datetime.now(dt.timezone.utc)
+    dead = _outlet("sl_dead", ["https://sleepy.test/a", "https://sleepy.test/b"])
+    stale = _outlet("sl_stale", ["https://sleepy.test/c"])
+    long_ago = "2026-09-01T00:00:00+00:00"
+    rows = {"https://sleepy.test/a": (_ago(2, now), long_ago, 40, 80), "https://sleepy.test/b": (_ago(3, now), long_ago, 40, 80),
+            "https://sleepy.test/c": (_ago(30, now), long_ago, 40, 80)}
+    db, saved, got, release = _slow_harness(tmp_path, monkeypatch, [dead, stale], rows)
+    out = tmp_path / "v.json"
+    try:
+        v.run(apply=True, json_out=str(out), workers=2, deadline_minutes=0.5)
+    finally:
+        release.set()
+    report = json.loads(out.read_text())
+    assert report["newly_inactive"] == ["sl_dead"]
+    why = {o["id"]: o for o in saved["o"]}["sl_dead"]["inactive_reason"]
+    assert "judged on the check on record" in why and "https://sleepy.test/b" in why
+    assert report["outlets"]["sl_stale"]["verdict"] == "not_judged"
+    assert report["outlets"]["sl_stale"]["evidence"][0]["record_age_hours"] >= 29.9
+    assert {o["id"]: o for o in saved["o"]}["sl_stale"]["active"] is True
+    assert report["unchecked"]["asleep"] == ["sl_stale"]
+
+
+def test_the_report_names_the_evidence_of_every_outlet(tmp_path, monkeypatch):
+    outlets = [_outlet("o%d" % i) for i in range(8)]
+    db, saved = _harness(tmp_path, monkeypatch, outlets, _failing(0.5), dead_history=False)
+    out = tmp_path / "v.json"
+    v.run(json_out=str(out), workers=1, deadline_minutes=1.0 / 60)
+    report = json.loads(out.read_text())
+    assert list(report["outlets"]) == [o["id"] for o in outlets]
+    for oid, entry in report["outlets"].items():
+        assert entry["verdict"] in v.JUDGED + ("not_judged",)
+        assert [e["feed_url"] for e in entry["evidence"]] == ["https://%s.test/rss" % oid]
+        assert all(e["source"] in ("fetched", "recorded", "not_fetched") for e in entry["evidence"])
+    never = [oid for oid, e in report["outlets"].items() if e["evidence"][0].get("why_not_fetched") == "not_started"]
+    assert never and all(report["outlets"][oid]["verdict"] == "not_judged" for oid in never)
+    assert set(never) <= set(report["unchecked"]["deadline"])
+    assert report["recorded_fresh_hours"] == v.RECORDED_FRESH_HOURS
