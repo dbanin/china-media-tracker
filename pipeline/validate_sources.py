@@ -37,6 +37,13 @@ slot past the deadline, or it was asleep or in flight when the run ended) is jud
 feed_health, which hourly discovery writes, when that result is at most RECORDED_FRESH_HOURS old; an older
 result is reported and never used. Every outlet's verdict names the evidence it rested on (judge()). An
 outlet judged with a recorded result is not stamped in outlet_validation, so it starts first again next week.
+
+Since 2026-11-11 the check has no cron of its own. The workflow is triggered every 15 minutes and GitHub keeps
+one queued run, so a run asked to validate at a fixed minute was nearly always replaced by a later trigger
+before it started. The first scheduled run after the week begins (WEEK_STARTS, Monday 03:30 UTC as before)
+validates instead: due() reads when an outlet was last stamped and when a check was last started (run_log,
+stage validate), and a check that started and stamped nothing is tried again after RETRY_AFTER_HOURS, not
+on every run.
 """
 import argparse
 import collections
@@ -83,6 +90,13 @@ RECORDED_FRESH_HOURS = 24.0
 # is_dead holds. not_dead: every feed failed, but is_dead does not hold (yet). not_judged: no feed answered and
 # a feed has neither a fetch this run nor a fresh record, so the outlet is neither alive nor dead on evidence.
 JUDGED = ("alive", "alive_recorded", "dead", "not_dead")
+# The week of the check begins on this weekday (Monday is 0), hour and minute, UTC: the slot the check's own
+# cron had until 2026-11-11. A check is due once a week has begun in which no outlet was stamped (due()).
+WEEK_STARTS = (0, 3, 30)
+# A check that started and stamped no outlet (it broke at once) is started again only after this long, so a
+# broken check costs one short collection a day (the validate run collects for 20 minutes, not 35), not every one.
+RETRY_AFTER_HOURS = 20.0
+RUN_STAGE = "validate"
 
 
 def is_dead(results, history, today, started=None):
@@ -263,6 +277,42 @@ def _hours_before(stamp, now):
         t = t.replace(tzinfo=dt.timezone.utc)
     hours = (now - t).total_seconds() / 3600.0
     return hours if hours >= 0 else None
+
+
+def week_start(now):
+    """The latest start of a check week (WEEK_STARTS) at or before now."""
+    weekday, hour, minute = WEEK_STARTS
+    shifted = now - dt.timedelta(hours=hour, minutes=minute)
+    day = shifted.date() - dt.timedelta(days=(shifted.weekday() - weekday) % 7)
+    return dt.datetime.combine(day, dt.time(hour, minute), tzinfo=dt.timezone.utc)
+
+
+def due(conn, now=None):
+    """(whether the weekly check is due, why). Due when no outlet was stamped and no check finished since the
+    week began, unless a check was started within RETRY_AFTER_HOURS. Reads only; a table not made yet reads
+    as no record. A stamp or start that cannot be read, or lies after now, counts as none."""
+    import sqlite3
+    now = now or dt.datetime.now(dt.timezone.utc)
+    start = week_start(now)
+    since = (now - start).total_seconds() / 3600.0
+
+    def latest(sql):
+        try:
+            return conn.execute(sql).fetchone()[0]
+        except sqlite3.OperationalError:
+            return None
+
+    stamped = latest("SELECT MAX(last_validated) FROM %s" % CHECKS_TABLE)
+    finished = latest("SELECT MAX(started_at) FROM run_log WHERE stage='%s' AND ok=1" % RUN_STAGE)
+    tried = latest("SELECT MAX(started_at) FROM run_log WHERE stage='%s'" % RUN_STAGE)
+    for what, stamp in (("an outlet was validated", stamped), ("a check finished", finished)):
+        age = _hours_before(stamp, now)
+        if age is not None and age <= since:
+            return False, "%s at %s, in the week that began %s" % (what, stamp, start.isoformat())
+    age = _hours_before(tried, now)
+    if age is not None and age < RETRY_AFTER_HOURS:
+        return False, "a check started at %s stamped nothing; the next try is %g hours after it" % (tried, RETRY_AFTER_HOURS)
+    return True, "no check since the week began %s (last outlet validated %s)" % (start.isoformat(), stamped or "never")
 
 
 def recorded_result(row, now):
@@ -449,6 +499,15 @@ def run(apply=False, json_out=None, workers=12, deadline_minutes=DEADLINE_MINUTE
     except Exception as exc:  # store may not exist yet on a fresh checkout
         conn = None
         print("feed health history unavailable (%s); reporting only" % exc, file=sys.stderr)
+    # The start is recorded before any outlet is checked, so a check that breaks is not started again by
+    # every run of the week (due()).
+    log_id = None
+    if conn is not None:
+        try:
+            log_id = store.start_stage(conn, now.strftime("%Y%m%dT%H%M%SZ") + "-validate", RUN_STAGE)
+        except Exception as exc:
+            conn.rollback()
+            print("check not recorded in run_log (%s)" % exc, file=sys.stderr)
     order = check_order(to_check, validated, last_checked)
 
     # Paced like discovery (fetch_feeds.run): a thread sleeping through a long Crawl-delay hands its
@@ -585,6 +644,17 @@ def run(apply=False, json_out=None, workers=12, deadline_minutes=DEADLINE_MINUTE
         for oid, (action, why) in sorted(decisions.items()):
             print("would mark inactive with --apply: %s  (%s)" % (oid, why))
 
+    if log_id is not None:
+        try:
+            store.finish_stage(conn, log_id, True, {
+                "outlets_to_check": len(order), "outlets_checked": len(judged), "outlets_judged_on_record": len(on_record),
+                "outlets_skipped_deadline": len(skipped), "outlets_left_asleep": len(asleep), "outlet_errors": len(errors),
+                "feeds_fetched": len(results), "feeds_failing": len(results) - ok, "newly_inactive": len(changed),
+                "applied": bool(apply)})
+        except Exception as exc:
+            conn.rollback()
+            print("check not finished in run_log (%s)" % exc, file=sys.stderr)
+
     if json_out:
         report_outlets = {}
         for o in order:
@@ -617,7 +687,14 @@ if __name__ == "__main__":
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--deadline-minutes", type=float, default=DEADLINE_MINUTES,
                     help="start no outlet after this many minutes (0: no deadline)")
+    ap.add_argument("--due", action="store_true",
+                    help="print whether the weekly check is due (due: or not due:, with the reason) and check nothing")
     args = ap.parse_args()
+    if args.due:
+        from pipeline import store
+        is_due, why = due(store.connect())
+        print("%s: %s" % ("due" if is_due else "not due", why))
+        sys.exit(0)
     run(apply=args.apply, json_out=args.json_out, workers=args.workers, deadline_minutes=args.deadline_minutes)
     # A worker still asleep on a long Crawl-delay, or still fetching at the deadline, would hold the
     # interpreter's exit until it wakes (the pool's threads are joined at exit), up to ten minutes past

@@ -749,3 +749,87 @@ def test_the_report_names_the_evidence_of_every_outlet(tmp_path, monkeypatch):
     assert never and all(report["outlets"][oid]["verdict"] == "not_judged" for oid in never)
     assert set(never) <= set(report["unchecked"]["deadline"])
     assert report["recorded_fresh_hours"] == v.RECORDED_FRESH_HOURS
+
+
+# ---------------------------------------------------------------------------
+# When the weekly check is due (due(), read by the workflow before a scheduled collection)
+# ---------------------------------------------------------------------------
+
+def _utc(text):
+    return dt.datetime.fromisoformat(text).replace(tzinfo=dt.timezone.utc)
+
+
+def test_the_check_week_begins_on_monday_at_0330_utc():
+    assert v.week_start(_utc("2026-11-11T12:00:00")) == _utc("2026-11-09T03:30:00")      # a Wednesday
+    assert v.week_start(_utc("2026-11-09T03:30:00")) == _utc("2026-11-09T03:30:00")      # the minute it begins
+    assert v.week_start(_utc("2026-11-09T03:29:00")) == _utc("2026-11-02T03:30:00")      # Monday, a minute before
+    assert v.week_start(_utc("2026-11-15T23:59:00")) == _utc("2026-11-09T03:30:00")      # Sunday night
+
+
+def _due_db(tmp_path, stamps=(), runs=()):
+    from pipeline import store
+    conn = store.connect(tmp_path / "d.db")
+    v.load_state(conn)
+    for oid, at in stamps:
+        conn.execute("INSERT INTO %s(outlet_id, last_validated) VALUES (?, ?)" % v.CHECKS_TABLE, (oid, at))
+    for started, ok in runs:
+        conn.execute("INSERT INTO run_log(run_id, stage, started_at, ok) VALUES ('r', ?, ?, ?)", (v.RUN_STAGE, started, ok))
+    conn.commit()
+    return conn
+
+
+def test_the_check_is_due_once_a_week_has_begun_with_no_outlet_validated(tmp_path):
+    conn = _due_db(tmp_path, stamps=[("a", "2026-11-02T03:50:00+00:00"), ("b", "2026-11-08T22:00:00+00:00")])
+    assert v.due(conn, _utc("2026-11-09T03:29:00"))[0] is False        # still last week, which has its check
+    is_due, why = v.due(conn, _utc("2026-11-09T03:52:00"))
+    assert is_due and "2026-11-09T03:30:00" in why and "2026-11-08T22:00:00" in why
+    assert v.due(conn, _utc("2026-11-14T18:00:00"))[0] is True         # every trigger was dropped until Saturday
+
+
+def test_the_check_is_not_due_again_in_a_week_that_has_one(tmp_path):
+    conn = _due_db(tmp_path, stamps=[("a", "2026-11-09T04:10:00+00:00")])
+    for now in ("2026-11-09T04:11:00", "2026-11-12T00:00:00", "2026-11-16T03:29:00"):
+        is_due, why = v.due(conn, _utc(now))
+        assert not is_due and "an outlet was validated" in why
+    assert v.due(conn, _utc("2026-11-16T03:30:00"))[0] is True
+
+
+def test_a_database_with_no_check_on_record_is_due(tmp_path):
+    from pipeline import store
+    conn = store.connect(tmp_path / "fresh.db")                       # outlet_validation not made yet
+    is_due, why = v.due(conn, _utc("2026-11-11T12:00:00"))
+    assert is_due and "never" in why
+    assert v.due(sqlite3.connect(":memory:"), _utc("2026-11-11T12:00:00"))[0] is True     # no run_log either
+
+
+def test_a_check_that_broke_before_it_validated_anything_is_tried_again_after_a_day_not_every_run(tmp_path):
+    conn = _due_db(tmp_path, stamps=[("a", "2026-11-02T04:00:00+00:00")], runs=[("2026-11-09T04:00:00+00:00", None)])
+    is_due, why = v.due(conn, _utc("2026-11-09T05:00:00"))
+    assert not is_due and "stamped nothing" in why
+    assert v.due(conn, _utc("2026-11-09T23:59:00"))[0] is False
+    assert v.due(conn, _utc("2026-11-10T00:00:00"))[0] is True         # RETRY_AFTER_HOURS later
+
+
+def test_a_check_that_finished_counts_for_its_week_even_with_no_outlet_stamped(tmp_path):
+    conn = _due_db(tmp_path, runs=[("2026-11-09T04:00:00+00:00", 1)])
+    is_due, why = v.due(conn, _utc("2026-11-12T00:00:00"))
+    assert not is_due and "a check finished" in why
+    assert v.due(conn, _utc("2026-11-16T04:00:00"))[0] is True
+
+
+def test_stamps_that_cannot_be_read_or_lie_in_the_future_count_as_none(tmp_path):
+    conn = _due_db(tmp_path, stamps=[("a", "not a date")], runs=[("2027-01-01T00:00:00+00:00", 1)])
+    assert v.due(conn, _utc("2026-11-11T12:00:00"))[0] is True
+
+
+def test_a_run_records_itself_so_the_week_has_its_check(tmp_path, monkeypatch):
+    outlets = [_outlet("o%d" % i) for i in range(3)]
+    db, saved = _harness(tmp_path, monkeypatch, outlets, _failing(0.0), dead_history=False)
+    v.run(json_out=str(tmp_path / "v.json"), workers=1)
+    conn = sqlite3.connect(str(db))
+    rows = conn.execute("SELECT stage, ok, started_at, finished_at, counts FROM run_log WHERE stage=?", (v.RUN_STAGE,)).fetchall()
+    assert len(rows) == 1 and rows[0][1] == 1 and rows[0][3]
+    counts = json.loads(rows[0][4])
+    assert counts["outlets_to_check"] == 3 and counts["applied"] is False
+    now = dt.datetime.now(dt.timezone.utc)
+    assert v.due(conn, now)[0] is False and v.due(conn, now + dt.timedelta(days=7, minutes=1))[0] is True

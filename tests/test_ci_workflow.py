@@ -135,6 +135,49 @@ def test_validate_runs_fit_inside_the_job_timeout():
     assert 3 + 20 + 5 + validate["timeout-minutes"] < job["timeout-minutes"]
 
 
+def test_collection_is_triggered_every_15_minutes_off_the_hour():
+    """GitHub drops most scheduled triggers (7 of about 27 started on 2026-11-08), so four an hour are asked
+    for to get about one run an hour; none on the hour, where the queue is longest."""
+    crons = [c["cron"] for c in _on(_load("pipeline.yml"))["schedule"]]
+    assert "7,22,37,52 * * * *" in crons and "17 * * * *" not in crons
+    minutes = [int(m) for m in crons[0].split()[0].split(",")]
+    assert len(minutes) == 4 and 0 not in minutes
+    assert [b - a for a, b in zip(minutes, minutes[1:])] == [15, 15, 15]
+
+
+def test_one_run_at_a_time_and_a_run_under_way_is_never_cancelled():
+    wf = _load("pipeline.yml")
+    assert wf["concurrency"] == {"group": "tracker-database", "cancel-in-progress": False}
+
+
+def test_the_weekly_check_has_no_trigger_of_its_own_and_runs_when_it_is_due():
+    """A run asked to validate at a fixed minute would be replaced by the next trigger before it started
+    (one queued run per concurrency group), so the first scheduled collect run of the week validates."""
+    wf = _load("pipeline.yml")
+    assert not [c["cron"] for c in _on(wf)["schedule"] if c["cron"].split()[4] != "*"]
+    requested = wf["jobs"]["pipeline"]["env"]["STAGE_REQUESTED"]
+    assert "'validate'" not in requested and "github.event.inputs.stage" in requested     # by hand still
+    assert "validate" in _on(wf)["workflow_dispatch"]["inputs"]["stage"]["options"]
+    step = _step("Validate too, when the weekly feed check is due")
+    assert step["if"] == "github.event_name == 'schedule' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'"
+    assert "python -m pipeline.validate_sources --due" in step["run"]
+    assert '"due:"*) echo "STAGE=validate" >> "$GITHUB_ENV"' in step["run"]
+    assert "::warning" in step["run"]                   # no answer: collect, and say so
+    assert "continue-on-error" not in step and "|| answer=" in step["run"]
+    # the database is there to be asked, and the answer comes before the collection it shortens
+    due = _index("Validate too, when")
+    assert _index("Fall back to the snapshot or seed") < due < _index("Discover, fetch, classify")
+    assert _index("Collect only, since the tests failed") < due
+
+
+def test_the_due_answer_is_one_the_workflow_can_read(tmp_path):
+    env = {"PATH": __import__("os").environ["PATH"], "TRACKER_DB_PATH": str(tmp_path / "t.db")}
+    out = subprocess.run([__import__("sys").executable, "-m", "pipeline.validate_sources", "--due"], cwd=str(ROOT),
+                         env=env, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip().splitlines()[-1].startswith("due: ")       # a new database has no check on record
+
+
 def test_workflows_have_no_dashes_of_the_wrong_kind():
     for name in ("pipeline.yml", "tests.yml"):
         text = (WORKFLOWS / name).read_text(encoding="utf-8")

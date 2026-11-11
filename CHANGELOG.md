@@ -4,6 +4,31 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Collection every 15 minutes, weekly feed check by a due rule (2026-11-11)
+
+No version changes: RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, EXTRACT_VERSION, MISSED_ESTIMATOR_VERSION, the
+data schema (20) and ASSET_VERSION are unchanged. No stored label or count is altered.
+
+The workflow now asks for a collection run at 7, 22, 37 and 52 minutes past every hour, where it asked for one at 17
+past. GitHub drops most scheduled triggers: on 2026-11-08 it started 7 of about 27, so feeds were read about every
+four hours and the busiest (IOL, RIA Novosti) listed more new items between reads than they hold. Four triggers an
+hour are meant to yield about one run an hour. Runs still never overlap (one concurrency group, a run under way is
+never cancelled), each still honours robots.txt, the per domain pace and the declared user agent, and the daily model
+call ceiling and monthly budget are untouched, so more runs spend the same allowance earlier in the day and no more.
+Expected effect on the data: shorter gaps between reads of each feed, so fewer items lost to overflow and a lower
+estimate of items missed from the first full day under the new schedule; a week of runs is needed before the effect
+on IOL and RIA Novosti can be read. The Actions page will show more cancelled runs, because a trigger that arrives
+while one run is under way and another waits replaces the waiting one.
+
+The weekly feed check loses its own trigger (Monday 03:30 UTC). With four triggers an hour a run that carried the
+request to validate would nearly always be replaced before it started. In its place the first scheduled collect run
+after Monday 03:30 UTC validates as well: validate_sources.due reads the database for an outlet validated, or a check
+finished, since the week began, and the workflow asks it after the database is restored. A check now records itself
+in run_log as the stage validate, so meta.last_runs gains a validate entry. A check that breaks before it validates
+anything is tried again after 20 hours, not by every run. An export that is due goes first, a run whose tests failed
+never validates, and a question that cannot be answered leaves the run collecting with a warning. The check can
+still be started by hand.
+
 ## Feed overflow, full input watch and slow host judging (2026-11-09, evening)
 
 MISSED_ESTIMATOR_VERSION 2026-11-09: the published estimate of items missed restarts from this day, and older

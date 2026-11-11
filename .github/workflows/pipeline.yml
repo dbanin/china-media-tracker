@@ -4,22 +4,27 @@ name: pipeline
 # never wait behind each other: GitHub keeps at most one queued run per concurrency group and
 # cancels the older one, which is how separate collect and export workflows cancelled each other.
 #
-#   hourly at :17     collect: discover, fetch, classify
+#   every 15 minutes  collect: discover, fetch, classify. GitHub drops most scheduled triggers (7 of
+#                     about 27 started on 2026-11-08, so feeds were read every four hours and the busy
+#                     ones overflowed between reads), and a run takes about 36 minutes, so four
+#                     triggers an hour are asked for to get about one run an hour. A trigger that
+#                     arrives while a run is waiting replaces it and the replaced one shows as cancelled.
 #   daily at 02:00    the same, then export: rollups, site data, snapshot, Pages deploy
 #   any scheduled run exports if the published site data is more than 12 hours old, because
-#   GitHub drops many scheduled runs (the 02:00 slot often never fires) and the site must still
-#   update every day
-#   Mondays at 03:30  the same, then validate: check every feed, deactivate dead outlets
+#   the 02:00 trigger is often dropped or replaced and the site must still update every day
+#   weekly            the same, then validate: check every feed, deactivate dead outlets. It has no
+#                     trigger of its own, since one would nearly always be replaced before it started:
+#                     the first scheduled collect run after Monday 03:30 UTC validates
+#                     (python -m pipeline.validate_sources --due)
 #
 # Run workflow lets the owner pick a stage by hand. The test suite also runs on every push and pull
 # request (tests.yml), so a failing test shows up before it can hold back an export.
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "7,22,37,52 * * * *"
     - cron: "0 2 * * *"
     - cron: "41 13 * * *"
-    - cron: "30 3 * * 1"
   workflow_dispatch:
     inputs:
       stage:
@@ -63,10 +68,10 @@ jobs:
       TRACKER_LLM_MONTHLY_BUDGET_USD: ${{ vars.TRACKER_LLM_MONTHLY_BUDGET_USD }}
       GH_TOKEN: ${{ github.token }}
       # Scheduled runs send the model stage through the Batches API at half price; the results come
-      # back on the next hourly run. A run started by hand is synchronous unless its box is ticked.
+      # back on the next scheduled run. A run started by hand is synchronous unless its box is ticked.
       BATCH_LLM: ${{ github.event.inputs.batch || (github.event_name == 'schedule' && 'true') || 'false' }}
       RELIABILITY: ${{ github.event.inputs.reliability }}
-      STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || (github.event.schedule == '30 3 * * 1' && 'validate') || 'collect' }}
+      STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || 'collect' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -161,6 +166,20 @@ jobs:
         # when a snapshot exists but cannot be read (scripts/db_restore.sh).
         # The relay on the owner's machine was retired on 2026-10-22: no relay bundle is ingested.
         run: scripts/db_restore.sh
+      - name: Validate too, when the weekly feed check is due
+        # Only a scheduled collect run: an export goes first and the next run validates, and a run whose
+        # tests failed does not change the registry. The database says whether a check was made since
+        # Monday 03:30 UTC, so this comes after the restore and before collection, which is shorter on
+        # a validate run. A question that cannot be answered leaves the run collecting, with a warning.
+        if: github.event_name == 'schedule' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'
+        run: |
+          answer=$(python -m pipeline.validate_sources --due | tail -n 1) || answer=""
+          echo "weekly feed check: ${answer:-no answer}"
+          case "$answer" in
+            "due:"*) echo "STAGE=validate" >> "$GITHUB_ENV" ;;
+            "not due:"*) ;;
+            *) echo "::warning title=Weekly feed check::could not tell whether the check is due; this run only collects" ;;
+          esac
       - name: Ingest session labels, if any
         # Labels the same model produced outside the API (data/labels/*.jsonl). Applied once to
         # articles still waiting for the model; a bad file must never stop the daily update.

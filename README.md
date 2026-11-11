@@ -154,12 +154,23 @@ live sites, so the user agent identifies a real person. Set
 Repository: https://github.com/dbanin/china-media-tracker. Live site:
 https://dbanin.github.io/china-media-tracker/, rebuilt and deployed by the
 pipeline workflow every day, scheduled for 02:00 UTC, from data the same
-workflow gathers on an hourly schedule. There is one workflow on purpose:
-GitHub keeps at most one queued run per concurrency group and cancels the
-older one, so separate collect and export workflows used to cancel each other. GitHub Actions delays scheduled runs
-under load, often by one to four hours, so the real cadence is looser than
-the schedule and every run's actual time is in the run log. The weekly feed
-validation is the same workflow's Monday run.
+workflow gathers. Collection is triggered every 15 minutes (at 7, 22, 37 and
+52 past the hour) because GitHub Actions drops most scheduled triggers under
+load: on 2026-11-08 it started 7 of about 27 hourly ones, so feeds were read
+about every four hours and the busiest overflowed between reads. Four triggers
+an hour are asked for to get about one run an hour; a run takes about 36
+minutes and runs never overlap, so the real cadence is looser than the
+schedule and every run's actual time is in the run log. There is one workflow
+on purpose: GitHub keeps at most one queued run per concurrency group and
+cancels the older one, so separate collect and export workflows used to cancel
+each other. For the same reason a trigger that arrives while one run is under
+way and another is waiting replaces the waiting one, which the Actions page
+shows as cancelled; nothing is lost, since the next run reads the same feeds.
+The weekly feed validation has no trigger of its own, because a run asked to
+validate at a fixed minute would usually be replaced before it started: the
+first scheduled collect run after Monday 03:30 UTC validates as well
+(`python -m pipeline.validate_sources --due` reads the database for a check
+made since then).
 
 Set up on 2026-09-04: Pages deploys from Actions, workflows have write
 permission, the `TRACKER_CONTACT` variable holds the crawler contact address,
