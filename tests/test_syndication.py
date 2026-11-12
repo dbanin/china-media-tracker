@@ -621,14 +621,17 @@ def test_the_committed_entries_after_the_stress_test():
     # One agreement listed once per monitored outlet it covers: Fairfax (3 papers) and Nanfang with Antara (2 services).
     keys = {(e["source_url"], syn.partner_label(e), e["kind"], e["signed_on"]) for e in by_id.values()}
     assert len(by_id) == 51 and len(keys) == 48
-    # Every outlet id is a registry outlet that is collected; the one outlet outside the registry is marked.
+    # Every outlet id is a registry outlet that is collected, or was until the weekly feed check retired it
+    # (mv_psmnews on 2026-11-12; the event study ends such an outlet's window at inactive_since); the one
+    # outlet outside the registry is marked.
     from pipeline import registry
     outlets = {o["id"]: o for o in registry.load_outlets()}
     for e in by_id.values():
         if e.get("unmonitored"):
             assert e["outlet_name"] and not e.get("outlet_id")
         else:
-            assert outlets[e["outlet_id"]]["active"], e["id"]
+            o = outlets[e["outlet_id"]]
+            assert o["active"] or (o["inactive_since"] and o["inactive_reason"].endswith("(auto)")), e["id"]
             assert outlets[e["outlet_id"]]["country"] != "CHN", e["id"]
 
 

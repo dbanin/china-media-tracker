@@ -136,7 +136,9 @@ def test_coverage_expansion_outlets_registered():
     for country, ids in COVERAGE_ADDED_2026_10_17.items():
         for oid in ids:
             o = by_id[oid]
-            assert o["country"] == country and o["active"] is True, oid
+            # registered, and active unless the weekly feed check has retired it since (ug_watchdog on 2026-11-12)
+            assert o["country"] == country, oid
+            assert o["active"] is True or (o["inactive_since"] > "2026-10-17" and o["inactive_reason"].endswith("(auto)")), oid
             assert o.get("collector") == "hosted", oid
             # a language with its own keyword list, never Chinese
             assert o["language"] in langs and o["language"] != "zh", oid

@@ -4,6 +4,38 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Each run starts the next, an hour after it began (2026-11-12)
+
+No version changes: RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, EXTRACT_VERSION, MISSED_ESTIMATOR_VERSION, the
+data schema (20) and ASSET_VERSION are unchanged. No stored label or count is altered.
+
+The 15 minute triggers of 2026-11-11 did not give more runs. GitHub started five to eight scheduled runs a day from
+2026-10-19 to 2026-11-12, the same with 24 triggers a day as with 96, and five in the 26 hours after the change, so
+feeds were still read every four to eight hours. The workflow no longer depends on the scheduler for its cadence: a
+run that ends well on main starts the next one itself (the new job next, scripts/next_run.py, with the token GitHub
+gives every run and actions: write on that job alone). It waits until an hour after the run began, lists the
+workflow's runs, and dispatches a collect run unless a run created after this one is already waiting, which then
+goes next and carries the chain on. The wait holds the concurrency group, so no run starts sooner than an hour after
+the one before began, scheduled or started by hand: feeds are read at most once an hour, as the hourly cron asked
+before GitHub stopped honouring it. robots.txt, the per domain pace and the declared user agent are as before.
+
+A chained run is treated as a scheduled one (the dispatch input chained, AUTOMATIC in the workflow): the model stage
+goes through the Batches API, it exports when the site data is more than 12 hours old and validates when the weekly
+check is due. The daily model call ceiling and the monthly budget are untouched, so up to 24 runs a day spend the
+same allowance earlier in the day and no more. A run that fails or is cancelled starts nothing, and the script never
+fails a run: a dispatch that does not go through prints a warning. The 15 minute triggers stay and restart the chain
+whenever it breaks. The owner stops it by setting the repository variable TRACKER_CHAIN to off. Expected effect on
+the data: each feed read about hourly from the first full day of chained runs, so fewer items lost to overflow at
+the busiest feeds (IOL, RIA Novosti) and a lower estimate of items missed; a week of runs is needed before that can
+be read. In Actions a run now shows about an hour, the wait included, and a run started by hand may wait behind it.
+
+The first weekly feed check since 2026-10-12 ran on 2026-11-12 and retired 38 outlets (1,581 of 2,175 are active).
+Five tests were pinned to the registry as it stood before and failed on it, which would have stopped the next
+export; they now accept an outlet the check has retired. One published figure had moved with it: the methodology's
+account of the relay gap gives, per country, outlets dropped of those that were active on 2026-10-22, and counted
+the active ones from today's registry, so Italy went from 2 of 23 to 2 of 21. It now counts the outlets active that
+day (active now, or made inactive on a later day), and the figures are again those of 2026-10-22.
+
 ## Collection every 15 minutes, weekly feed check by a due rule (2026-11-11)
 
 No version changes: RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, EXTRACT_VERSION, MISSED_ESTIMATOR_VERSION, the

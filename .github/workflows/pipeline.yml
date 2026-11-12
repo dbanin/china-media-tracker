@@ -6,16 +6,21 @@ name: pipeline
 #
 #   every 15 minutes  collect: discover, fetch, classify. GitHub drops most scheduled triggers (7 of
 #                     about 27 started on 2026-11-08, so feeds were read every four hours and the busy
-#                     ones overflowed between reads), and a run takes about 36 minutes, so four
-#                     triggers an hour are asked for to get about one run an hour. A trigger that
-#                     arrives while a run is waiting replaces it and the replaced one shows as cancelled.
+#                     ones overflowed between reads). Four triggers an hour did not change that, so the
+#                     runs chain (after each run, below) and these triggers restart a broken chain. A
+#                     trigger that arrives while a run is waiting replaces it and the replaced one shows
+#                     as cancelled.
 #   daily at 02:00    the same, then export: rollups, site data, snapshot, Pages deploy
-#   any scheduled run exports if the published site data is more than 12 hours old, because
+#   any scheduled or chained run exports if the published site data is more than 12 hours old, because
 #   the 02:00 trigger is often dropped or replaced and the site must still update every day
 #   weekly            the same, then validate: check every feed, deactivate dead outlets. It has no
 #                     trigger of its own, since one would nearly always be replaced before it started:
-#                     the first scheduled collect run after Monday 03:30 UTC validates
+#                     the first scheduled or chained collect run after Monday 03:30 UTC validates
 #                     (python -m pipeline.validate_sources --due)
+#   after each run    the job next starts the following run an hour after this one began. GitHub's
+#                     scheduler starts five to eight runs a day whatever the cron asks for (24 triggers
+#                     a day until 2026-11-11 and 96 since gave the same count), so the runs chain and
+#                     the cron only restarts a broken chain. A chained run is treated as a scheduled one.
 #
 # Run workflow lets the owner pick a stage by hand. The test suite also runs on every push and pull
 # request (tests.yml), so a failing test shows up before it can hold back an export.
@@ -40,6 +45,10 @@ on:
         description: "Send the model stage through the Message Batches API: half price, submitted now and collected by later runs (scheduled runs always do)"
         default: true
         type: boolean
+      chained:
+        description: "Set by the workflow when it starts its own next run, which is then treated as a scheduled one. Leave unticked."
+        type: boolean
+        default: false
 
 concurrency:
   group: tracker-database
@@ -57,6 +66,8 @@ jobs:
     # Pinned: ubuntu-latest moves to a new release on its own schedule (Ubuntu 26 from 2026-10-19).
     runs-on: ubuntu-24.04
     timeout-minutes: 55
+    outputs:
+      started: ${{ steps.clock.outputs.started }}
     # ANTHROPIC_API_KEY is given only to the two steps that call the model, not to every step (pip
     # installs included).
     env:
@@ -67,12 +78,18 @@ jobs:
       TRACKER_SESSION_GRACE_DAYS: ${{ vars.TRACKER_SESSION_GRACE_DAYS }}
       TRACKER_LLM_MONTHLY_BUDGET_USD: ${{ vars.TRACKER_LLM_MONTHLY_BUDGET_USD }}
       GH_TOKEN: ${{ github.token }}
-      # Scheduled runs send the model stage through the Batches API at half price; the results come
-      # back on the next scheduled run. A run started by hand is synchronous unless its box is ticked.
+      # Scheduled runs, and the runs they chain, send the model stage through the Batches API at half price;
+      # the results come back on a later run. A run started by hand is synchronous unless its box is ticked.
       BATCH_LLM: ${{ github.event.inputs.batch || (github.event_name == 'schedule' && 'true') || 'false' }}
       RELIABILITY: ${{ github.event.inputs.reliability }}
       STAGE_REQUESTED: ${{ github.event.inputs.stage || (github.event.schedule == '0 2 * * *' && 'export') || 'collect' }}
+      # A scheduled run, or one the job next dispatched: these export when the site data is stale and
+      # validate when the weekly check is due. A run the owner starts by hand does what its form says.
+      AUTOMATIC: ${{ github.event_name == 'schedule' || github.event.inputs.chained == 'true' }}
     steps:
+      - name: Note when this run began
+        id: clock
+        run: echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -87,7 +104,7 @@ jobs:
       - name: Pick the stage, exporting whenever the site data is stale
         run: |
           stage="$STAGE_REQUESTED"
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$stage" = "collect" ]; then
+          if [ "$AUTOMATIC" = "true" ] && [ "$stage" = "collect" ]; then
             # The site data at the branch tip, not in the commit that triggered the run: a run that waited
             # in the queue behind an export must see that export, or it exports again.
             git fetch --quiet origin "$GITHUB_REF_NAME" || echo "fetch failed; reading the checked out meta.json"
@@ -167,11 +184,11 @@ jobs:
         # The relay on the owner's machine was retired on 2026-10-22: no relay bundle is ingested.
         run: scripts/db_restore.sh
       - name: Validate too, when the weekly feed check is due
-        # Only a scheduled collect run: an export goes first and the next run validates, and a run whose
+        # Only a scheduled or chained collect run: an export goes first and the next run validates, and a run whose
         # tests failed does not change the registry. The database says whether a check was made since
         # Monday 03:30 UTC, so this comes after the restore and before collection, which is shorter on
         # a validate run. A question that cannot be answered leaves the run collecting, with a warning.
-        if: github.event_name == 'schedule' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'
+        if: env.AUTOMATIC == 'true' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'
         run: |
           answer=$(python -m pipeline.validate_sources --due | tail -n 1) || answer=""
           echo "weekly feed check: ${answer:-no answer}"
@@ -331,3 +348,24 @@ jobs:
             const existing = issues.data.find(i => i.title === title);
             if (existing) await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});
             else await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["pipeline-failure"]});
+
+  next:
+    # Starts the following run an hour after this one began (scripts/next_run.py), because GitHub's
+    # scheduler starts far fewer runs than the cron asks for. The wait holds the concurrency group, so
+    # feeds are read at most once an hour. Only on main and only after a run that ended well: a failed
+    # or cancelled run starts nothing and the cron restarts the chain. The owner stops the chain by
+    # setting the repository variable TRACKER_CHAIN to off. This job alone may start a run.
+    needs: pipeline
+    if: needs.pipeline.result == 'success' && github.ref == 'refs/heads/main' && vars.TRACKER_CHAIN != 'off'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Start the next run an hour after this one began
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STARTED: ${{ needs.pipeline.outputs.started }}
+        run: python3 scripts/next_run.py --started "$STARTED"

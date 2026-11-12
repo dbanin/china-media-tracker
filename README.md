@@ -158,9 +158,18 @@ workflow gathers. Collection is triggered every 15 minutes (at 7, 22, 37 and
 52 past the hour) because GitHub Actions drops most scheduled triggers under
 load: on 2026-11-08 it started 7 of about 27 hourly ones, so feeds were read
 about every four hours and the busiest overflowed between reads. Four triggers
-an hour are asked for to get about one run an hour; a run takes about 36
-minutes and runs never overlap, so the real cadence is looser than the
-schedule and every run's actual time is in the run log. There is one workflow
+an hour did not help: GitHub started five to eight scheduled runs a day both
+before and after (24 triggers a day until 2026-11-11, 96 since). So from
+2026-11-12 the runs chain. A run that ends well starts the next one itself, an
+hour after it began (the job `next`, `scripts/next_run.py`), and that run is
+treated as a scheduled one: it sends the model stage through the Batches API,
+exports when the site data is stale and validates when the weekly check is
+due. The wait holds the concurrency group, so feeds are read at most once an
+hour whoever starts the run, and a run shows about an hour in Actions though
+its work takes about 36 minutes. A run that fails or is cancelled starts
+nothing; the scheduled triggers stay and restart the chain. The owner stops
+the chain by setting the repository variable `TRACKER_CHAIN` to `off`. Every
+run's actual time is in the run log. There is one workflow
 on purpose: GitHub keeps at most one queued run per concurrency group and
 cancels the older one, so separate collect and export workflows used to cancel
 each other. For the same reason a trigger that arrives while one run is under
@@ -168,7 +177,7 @@ way and another is waiting replaces the waiting one, which the Actions page
 shows as cancelled; nothing is lost, since the next run reads the same feeds.
 The weekly feed validation has no trigger of its own, because a run asked to
 validate at a fixed minute would usually be replaced before it started: the
-first scheduled collect run after Monday 03:30 UTC validates as well
+first scheduled or chained collect run after Monday 03:30 UTC validates as well
 (`python -m pipeline.validate_sources --due` reads the database for a check
 made since then).
 
@@ -178,7 +187,8 @@ and a write deploy key lets the owner's machine push. Still to add by the
 owner at the time, and added since: the `ANTHROPIC_API_KEY` secret, which
 switches on the verification stage. Optional variables: `TRACKER_LLM_MODEL`,
 `TRACKER_LLM_DAILY_CEILING`, `TRACKER_LLM_MONTHLY_BUDGET_USD`,
-`TRACKER_SESSION_GRACE_DAYS`.
+`TRACKER_SESSION_GRACE_DAYS`, `TRACKER_CHAIN` (`off` stops each run from
+starting the next).
 
 Some outlets answer 403 or time out for GitHub's runner addresses while
 their feeds work from an ordinary network. Those carry `collector:

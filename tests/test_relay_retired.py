@@ -8,6 +8,7 @@ days after it, and says what it left behind; the methodology discloses the gap.
 """
 import datetime as dt
 import inspect
+import re
 
 import yaml
 
@@ -37,9 +38,10 @@ def test_the_relay_outlets_are_kept_inactive_with_the_reason_and_the_day():
     by_id = {o["id"]: o for o in outlets}
     for oid in ("ck_cinews", "ki_bpa", "it_agi", "ng_sun", "us_seattletimes"):
         assert registry.relay_dropped(by_id[oid]), oid
-    # the registry file states it in the same words for every one of them
+    # the registry file states it in the same words for every one of them, quoted or not: the weekly feed
+    # check rewrites the file and drops the quotes (first seen on 2026-11-12)
     text = (config.ROOT / "sources" / "outlets.yaml").read_text(encoding="utf-8")
-    assert text.count("inactive_reason: '%s'" % REASON) == 123
+    assert len(re.findall(r"(?m)^  inactive_reason: '?%s'?$" % re.escape(REASON), text)) == 123
 
 
 def test_the_countries_left_unmonitored_are_the_cook_islands_and_kiribati():
@@ -131,6 +133,19 @@ def test_known_limits_disclose_the_gap_with_every_country_it_touches():
     assert "Every monitored outlet was one of them in Cook Islands (1) and Kiribati (1), so they are no longer monitored" in gap
     assert "87 countries keep other outlets but lose some" in gap and "Italy 2 of 23" in gap and "United States 3 of 44" in gap
     assert chr(0x2013) not in gap and chr(0x2014) not in gap
+
+
+def test_the_gap_counts_are_those_of_the_day_and_a_later_weekly_check_does_not_shrink_them():
+    """The check of 2026-11-12 retired 38 more outlets and the text went from Italy 2 of 23 to 2 of 21."""
+    import copy
+    outlets = copy.deepcopy(registry.load_outlets())
+    before = methodology.relay_gap_text(outlets)
+    kept = next(o for o in outlets if o.get("active") and registry.export_country(o) == "ITA")
+    kept.update(active=False, inactive_since="2026-12-07", inactive_reason="every feed failed (auto)")
+    assert methodology.relay_gap_text(outlets) == before
+    # one that was already inactive on the day was not active on it
+    kept["inactive_since"] = "2026-10-12"
+    assert "Italy 2 of 22" in methodology.relay_gap_text(outlets)
 
 
 def test_the_methodology_states_the_stop_in_its_table_and_its_collection_section(tmp_path, monkeypatch):

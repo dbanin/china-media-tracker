@@ -159,7 +159,7 @@ def test_the_weekly_check_has_no_trigger_of_its_own_and_runs_when_it_is_due():
     assert "'validate'" not in requested and "github.event.inputs.stage" in requested     # by hand still
     assert "validate" in _on(wf)["workflow_dispatch"]["inputs"]["stage"]["options"]
     step = _step("Validate too, when the weekly feed check is due")
-    assert step["if"] == "github.event_name == 'schedule' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'"
+    assert step["if"] == "env.AUTOMATIC == 'true' && env.STAGE == 'collect' && env.TESTS_FAILED != '1'"
     assert "python -m pipeline.validate_sources --due" in step["run"]
     assert '"due:"*) echo "STAGE=validate" >> "$GITHUB_ENV"' in step["run"]
     assert "::warning" in step["run"]                   # no answer: collect, and say so
@@ -176,6 +176,133 @@ def test_the_due_answer_is_one_the_workflow_can_read(tmp_path):
                          env=env, capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip().splitlines()[-1].startswith("due: ")       # a new database has no check on record
+
+
+# ---------------------------------------------------------------------------
+# the job next and scripts/next_run.py: each run starts the following one
+# ---------------------------------------------------------------------------
+
+def _next_run():
+    spec = importlib.util.spec_from_file_location("next_run", ROOT / "scripts" / "next_run.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _Done:
+    def __init__(self, stdout="", returncode=0, stderr=""):
+        self.stdout, self.returncode, self.stderr = stdout, returncode, stderr
+
+
+def _fake_gh(runs, own_created="2026-11-12T10:00:00Z", list_fails=False, dispatch_fails=False):
+    calls = []
+
+    def gh(args):
+        calls.append(list(args))
+        if args[0] == "api" and "/workflows/" in args[1]:
+            return _Done(returncode=1, stderr="HTTP 502") if list_fails else _Done(json.dumps({"workflow_runs": runs}))
+        if args[0] == "api":
+            return _Done(json.dumps({"id": 100, "created_at": own_created}))
+        return _Done(returncode=1, stderr="HTTP 403") if dispatch_fails else _Done()
+    return gh, calls
+
+
+def test_a_run_that_ends_well_starts_the_next_one_and_only_that_job_may():
+    wf = _load("pipeline.yml")
+    assert list(wf["jobs"]) == ["pipeline", "next"]
+    job = wf["jobs"]["next"]
+    assert job["needs"] == "pipeline" and job["runs-on"] == "ubuntu-24.04"
+    # not after a failed or cancelled run, not on a branch, and the owner's variable stops it
+    assert job["if"] == "needs.pipeline.result == 'success' && github.ref == 'refs/heads/main' && vars.TRACKER_CHAIN != 'off'"
+    assert job["permissions"] == {"contents": "read", "actions": "write"}
+    assert wf["permissions"]["actions"] == "read"           # the job that holds the database cannot start a run
+    step = job["steps"][-1]
+    assert step["run"] == 'python3 scripts/next_run.py --started "$STARTED"'
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}", "STARTED": "${{ needs.pipeline.outputs.started }}"}
+    assert "secrets." not in json.dumps(job)
+    # the wait is at most the floor, and the job outlasts it
+    assert job["timeout-minutes"] * 60 > _next_run().FLOOR_SECONDS
+    pipeline = wf["jobs"]["pipeline"]
+    assert pipeline["outputs"] == {"started": "${{ steps.clock.outputs.started }}"}
+    assert pipeline["steps"][0]["id"] == "clock" and 'started=$(date +%s)' in pipeline["steps"][0]["run"]
+    assert pipeline["timeout-minutes"] == 55
+
+
+def test_a_chained_run_is_treated_as_a_scheduled_one():
+    wf = _load("pipeline.yml")
+    inputs = _on(wf)["workflow_dispatch"]["inputs"]
+    assert inputs["chained"]["type"] == "boolean" and inputs["chained"]["default"] is False
+    env = wf["jobs"]["pipeline"]["env"]
+    assert env["AUTOMATIC"] == "${{ github.event_name == 'schedule' || github.event.inputs.chained == 'true' }}"
+    assert '[ "$AUTOMATIC" = "true" ] && [ "$stage" = "collect" ]' in _step("Pick the stage")["run"]
+    assert "GITHUB_EVENT_NAME" not in _step("Pick the stage")["run"]
+    # the form's stage defaults to export and a hand run is synchronous unless batch is set, so the
+    # dispatch names all three: without them every chained run would export and pay full price
+    fields = dict(_next_run().FIELDS)
+    assert inputs["stage"]["default"] == "export"
+    assert fields == {"stage": "collect", "batch": "true", "chained": "true"}
+    assert set(fields) <= set(inputs)
+
+
+def test_the_wait_ends_an_hour_after_the_run_began():
+    n = _next_run()
+    assert n.FLOOR_SECONDS == 3600
+    assert n.wait_seconds("1000", 1000 + 36 * 60) == 24 * 60
+    assert n.wait_seconds(1000, 1000 + 3600) == 0 and n.wait_seconds(1000, 1000 + 9000) == 0
+    assert n.wait_seconds("1000", 1000) == 3600
+    for unread in ("", None, "soon", "0", "-5", str(10 ** 12)):      # no time, or one in the future
+        assert n.wait_seconds(unread, 5000) == n.DEFAULT_WAIT
+    assert 0 < n.DEFAULT_WAIT < n.FLOOR_SECONDS
+
+
+def test_the_next_run_is_dispatched_after_the_wait_as_a_chained_collect_on_the_same_branch():
+    n = _next_run()
+    gh, calls = _fake_gh([{"id": 100, "status": "in_progress", "created_at": "2026-11-12T10:00:00Z"},
+                          {"id": 99, "status": "completed", "created_at": "2026-11-12T09:00:00Z"}])
+    slept = []
+    env = {"GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "100", "GITHUB_REF_NAME": "main"}
+    assert n.main(["--started", "1000"], now=lambda: 1000 + 40 * 60, sleep=slept.append, gh=gh, env=env) == 0
+    assert slept == [20 * 60]
+    assert calls[-1] == ["workflow", "run", "pipeline.yml", "--repo", "o/r", "--ref", "main",
+                         "-f", "stage=collect", "-f", "batch=true", "-f", "chained=true"]
+    assert len([c for c in calls if c[0] == "workflow"]) == 1
+
+
+def test_nothing_is_dispatched_when_a_run_is_already_waiting(capsys):
+    """GitHub keeps one waiting run per group: a dispatch would cancel a run the owner started by hand."""
+    n = _next_run()
+    for status in ("pending", "queued", "waiting", "requested"):
+        gh, calls = _fake_gh([{"id": 101, "status": status, "event": "workflow_dispatch", "created_at": "2026-11-12T10:20:00Z"},
+                              {"id": 100, "status": "in_progress", "created_at": "2026-11-12T10:00:00Z"}])
+        assert n.start_next("o/r", "100", "main", gh=gh) == "waiting"
+        assert not [c for c in calls if c[0] == "workflow"]
+    assert "run 101 is already waiting" in capsys.readouterr().out
+
+
+def test_a_leftover_queued_run_older_than_this_one_does_not_stop_the_chain():
+    """Run 43097088498 sat queued with no jobs from 2026-11-11 while later runs came and went."""
+    n = _next_run()
+    gh, calls = _fake_gh([{"id": 100, "status": "in_progress", "created_at": "2026-11-12T10:00:00Z"},
+                          {"id": 7, "status": "queued", "event": "schedule", "created_at": "2026-11-11T20:36:49Z"}])
+    assert n.start_next("o/r", 100, "main", gh=gh) == "dispatched"
+    assert n.waiting([{"id": 100, "status": "queued", "created_at": "2026-11-12T10:00:01Z"}], "100", "2026-11-12T10:00:00Z") == []
+
+
+def test_a_list_that_cannot_be_read_dispatches_anyway_and_a_failed_dispatch_never_fails_the_run(capsys):
+    n = _next_run()
+    gh, calls = _fake_gh([], list_fails=True)
+    assert n.start_next("o/r", "100", "main", gh=gh) == "dispatched"
+    assert "::warning title=Next run::could not list the runs (HTTP 502)" in capsys.readouterr().out
+    gh, calls = _fake_gh([], dispatch_fails=True)
+    env = {"GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "100", "GITHUB_REF_NAME": "main"}
+    assert n.main(["--started", "1000"], now=lambda: 9999, sleep=lambda s: None, gh=gh, env=env) == 0
+    assert "the next run was not dispatched (HTTP 403); the schedule starts the next one" in capsys.readouterr().out
+
+    def broken(args):
+        raise OSError("gh is not installed")
+    assert n.main(["--started", "x"], now=lambda: 9999, sleep=lambda s: None, gh=broken, env=env) == 0
+    assert n.main(["--started", "1000"], now=lambda: 9999, sleep=lambda s: None, gh=gh, env={}) == 0     # no environment
+    assert "::warning title=Next run::" in capsys.readouterr().out
 
 
 def test_workflows_have_no_dashes_of_the_wrong_kind():

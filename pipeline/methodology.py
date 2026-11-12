@@ -653,7 +653,9 @@ def _country_list(items) -> str:
 def relay_gap_text(outlets) -> str:
     """The known gap the retired relay left (config.RELAY_RETIRED_ON): the outlets made inactive that day
     (registry.relay_dropped), the countries where they were every active outlet, and the countries that keep
-    other outlets, each with its count, all read from the registry."""
+    other outlets, each with its count, all read from the registry. The outlets that were active that day are
+    those active now and those made inactive on a later day (the weekly feed check retires outlets), so the
+    counts stay those of the day and do not shrink with each later check."""
     dropped = [o for o in outlets if registry.relay_dropped(o)]
     day = config.RELAY_RETIRED_ON
     if not day:
@@ -674,7 +676,7 @@ def relay_gap_text(outlets) -> str:
         c = registry.export_country(o)
         by_country[c] = by_country.get(c, 0) + 1
     for o in outlets:
-        if o.get("active"):
+        if o.get("active") or str(o.get("inactive_since") or "")[:10] > day:
             c = registry.export_country(o)
             registered_active[c] = registered_active.get(c, 0) + 1
     name = lambda c: registry.country_name(c)
