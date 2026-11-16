@@ -4247,7 +4247,9 @@
   political_leaning: centre_left
   leaning_source: https://www.thenassauguardian.com/news/election-observers-raise-concerns-of-media-bias-favoring-plp/article_73d58ab9-c581-450a-9422-34c9665b2743.html
   ownership: unassessed
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-05 (auto)
+  inactive_since: '2026-11-16'
 - id: bs_zns
   name: ZNS Bahamas
   country: BHS
@@ -30902,7 +30904,9 @@
   political_leaning: unassessed
   ownership: unassessed
   collector: both
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-05 (auto)
+  inactive_since: '2026-11-16'
 - id: ye_yemenpress_ar
   name: Yemen Press Agency Arabic
   country: YEM
@@ -34619,7 +34623,9 @@
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/TV_Azteca
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-05 (auto)
+  inactive_since: '2026-11-16'
 - id: pe_infobae
   name: Infobae
   country: PER
@@ -36480,7 +36486,9 @@
   - https://akhbardakhla.com/feed/
   tier: regional
   notes: Added 2026-09-28 from the readership research.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-06 (auto)
+  inactive_since: '2026-11-16'
 - id: yt_info976
   name: Info 976
   country: MYT
