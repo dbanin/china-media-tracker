@@ -13,6 +13,11 @@ from typing import Dict, Optional, Tuple
 import trafilatura
 
 HARD_PAYWALL_JSONLD = re.compile(r'"isAccessibleForFree"\s*:\s*("?)(false|False|no)\1', re.IGNORECASE)
+# The WordPress membership plugin WP-Members prints this box in place of a post's body for a reader who
+# is not signed in, under whatever opening the site shows (Assabah of Morocco: "you can read the article
+# after subscribing, or free after watching an advertisement"). The box is only there when text is held
+# back, so it counts at any length of opening.
+RESTRICTED_BOX_RE = re.compile(r'(?i)<div\b[^>]{0,200}\bid="wpmem_restricted_msg"')
 
 INTERSTITIAL_MARKERS = [
     # class or id fragments used by common paywall vendors
@@ -60,6 +65,8 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
         return False, None
     if HARD_PAYWALL_JSONLD.search(html):
         return True, "schema.org isAccessibleForFree false"
+    if RESTRICTED_BOX_RE.search(html):
+        return True, "members only box: wpmem_restricted_msg"
     m = _interstitial_re.search(html)
     if m and (not body_text or len(body_text) < SHORT_BODY_CHARS):
         return True, "interstitial marker with short body: %s" % m.group(0)[:60]
@@ -137,8 +144,22 @@ EXTRACTION_CHANGES = (
 )
 
 
+# The last version that changed how a page of any template is read. 2026.11.2 reads an article a page
+# carries as data or as plain sibling paragraphs (_fallback_text) and tells three more challenge pages
+# by their markup (CHALLENGE_MARKUP). A page that held no article text under an older version is
+# fetched once more (fetch_articles.second_chance_candidates); a later change to one template, listed
+# above, does not start that over.
+GENERAL_EXTRACTION_VERSION = "2026.11.2"
+
+
 def _version_key(version: str) -> Tuple[int, ...]:
     return tuple(int(x) for x in version.split("."))
+
+
+def before_general_change(version: Optional[str]) -> bool:
+    """True for a page read under an extraction older than GENERAL_EXTRACTION_VERSION (None: before
+    versions were recorded on failed pages)."""
+    return not version or _version_key(version) < _version_key(GENERAL_EXTRACTION_VERSION)
 
 
 def stale_extraction(url: Optional[str], version: Optional[str]) -> Optional[str]:
@@ -465,8 +486,50 @@ def wire_author(author: Optional[str], source: Optional[str]) -> Optional[str]:
 # The first two are repaired here, from the served page only: an embedded article marked premium is
 # paywalled, and a page carrying any paywall marker is never read from its embedded data. The last two
 # are recorded as failed and never classified (detect_unreadable).
+#
+# Since 2026.11.2 three more readings of the served page are tried, on a page where neither the first
+# extraction nor the older fallbacks find MIN_PROSE_CHARS of running text (trafilatura returns no
+# document at all for some pages whose article is plainly there). Sized on two failed pages of every
+# outlet with at least three such failures in the 2026-11-18 snapshot, fetched again that day:
+#   - the articleBody of the page's schema.org metadata (jsonld_article_body), from the entry whose
+#     headline is in the page's own title: The Sun of Malaysia prints the story nowhere else in the
+#     served document;
+#   - the article object of a Next.js page's __NEXT_DATA__ (next_data_article_html): RUV of Iceland and
+#     Mosaique FM of Tunisia draw the story in the browser from it;
+#   - the element whose own paragraphs hold the most running text (paragraph_container_text): the
+#     Jamaica Observer and the Taipei Times print the story as plain sibling paragraphs that
+#     trafilatura returns nothing for.
+# None of them is tried on a page that carries any paywall marker, and the Next.js article is left alone
+# when one of its own fields marks it as paid. A page that shows an opening of the story is never
+# filled in from its data: what a reader is shown is what is read. On the 4,020 saved pages the three
+# readings changed no body that had been read; they read 5 pages that had held nothing.
 PRUNE_XPATH = ["//*[contains(@class,'RelatedArticle')]"]
 _EMBEDDED_ARTICLE_RE = re.compile(r'<article-component\b[^>]*?\s:article="([^"]*)"', re.S)
+_NEXT_DATA_RE = re.compile(r'(?i)<script\b[^>]{0,300}\bid="__NEXT_DATA__"[^>]{0,300}>')
+# The article object is looked for this many levels below pageProps (RUV: data.article, Mosaique FM:
+# pagedata.article), its fields are walked this deep, and at most this many paragraph fields are joined.
+NEXT_DATA_ARTICLE_DEPTH = 4
+NEXT_DATA_LIST_ITEMS = 20
+NEXT_DATA_WALK_DEPTH = 8
+NEXT_DATA_MAX_PARTS = 400
+# Fields of the article object that hold something other than the story.
+NEXT_DATA_SKIP_KEY_RE = re.compile(
+    r"(?i)relat|recommend|embed|more|next|prev|nav|menu|footer|comment|custom|live|clip|author|tag|topic|"
+    r"parent|seo|image|media|caption|promo|advert|\bads?\b|newsletter|teaser")
+# Fields that mark the story as paid when set: it is then never read from the data.
+NEXT_DATA_GATED_KEY_RE = re.compile(r"(?i)premium|paywall|paid|locked|subscri|member|restrict|plus\b")
+JSONLD_MAX_NODES = 5000
+JSONLD_HEADLINE_CHARS = 40
+# paragraph_container_text: the fewest prose paragraphs a story block holds, and the page furniture
+# whose paragraphs are never a story.
+PARAGRAPH_CONTAINER_MIN = 3
+FURNITURE_TAGS = ("nav", "header", "footer", "aside", "form", "figure", "figcaption", "button", "select",
+                  "dialog", "template", "blockquote")
+FURNITURE_ATTR_RE = re.compile(
+    r"(?i)foot|cookie|consent|gdpr|privacy|comment|disqus|side-?bar|\baside|relat|recommend|newsletter|"
+    r"subscri|sign-?up|login|copyright|disclaimer|legal|\bterms|menu|\bnav|widget|promo|advert|\bads?\b|"
+    r"sponsor|popup|modal|overlay|banner|share|social|breadcrumb|\bbio\b|author|teaser|most-?(?:read|popular)|"
+    r"trending|latest|popular|ticker|carousel|slider|\btags?\b|about")
 
 # A prose line is running text: at least PROSE_LINE_WORDS words, or, in a script written without
 # spaces, at least PROSE_LINE_CHARS characters. Menu items, section names, bylines, datelines and share
@@ -492,6 +555,17 @@ CHALLENGE_TEXT_RE = re.compile(
     r"(?i)javascript is disabled in your browser|please enable javascript to (?:proceed|continue)|"
     r"unusual traffic from your (?:computer )?network|has been blocked temporarily|"
     r"verify (?:that )?you are (?:a )?human|checking (?:if the site connection is secure|your browser before)")
+# Challenge pages that say nothing a reader could quote: a script, a spinner and the vendor's name. Told
+# by their markup, on a page of at most CHALLENGE_PAGE_MAX_CHARS with no article text. Seen on
+# 2026-11-18: TASS (Servicepipe, 2,172 characters), Japan Today (Akamai, a refresh to the same address
+# with a bm-verify token, 2,951) and ISNA (ArvanCloud, "Transferring to the website...", 6,138). The
+# tracker neither runs the script nor follows the token; the site's answer is recorded and kept.
+CHALLENGE_MARKUP = (
+    ("Servicepipe", re.compile(r"(?i)servicepipe\.tech/loaders|<js-challenge-loader\b")),
+    ("Akamai", re.compile(r"(?i)http-equiv=\"refresh\"[^>]{0,400}[?&]bm-verify=")),
+    ("ArvanCloud", re.compile(r"(?i)error-section__subtitle--waiting\">\s*Transferring to the website")),
+)
+CHALLENGE_PAGE_MAX_CHARS = 20000
 
 # A consent or cookie wall served in place of the article, at any length: Seznam (Novinky.cz, Seznam
 # Zpravy) answers automated clients with a 21,041 character page titled "Nastavení souhlasu s
@@ -550,35 +624,53 @@ def embedded_article(html: str) -> Optional[Dict]:
     return data if isinstance(data, dict) else None
 
 
-def _fallback_text(html: str, url: Optional[str]) -> Optional[str]:
-    """The best of the other readings of a page whose first extraction found little running text:
-    trafilatura's precision mode, and the embedded article of a free, unmarked page."""
+def _fallback_text(html: str, url: Optional[str], found: int = 0) -> Optional[str]:
+    """The best of the other readings of a page whose first extraction found little running text (found
+    characters of it): trafilatura's precision mode and the joined typography blocks. When neither those
+    nor the first extraction found MIN_PROSE_CHARS, so that the page as read holds no article at all, and
+    it carries no paywall marker, also the article it holds as data (embedded_article,
+    next_data_article_html, jsonld_article_body) or as plain sibling paragraphs
+    (paragraph_container_text). A page that shows an opening and withholds the rest is left as it is
+    read: on the saved pages Assabah of Morocco printed 300 to 600 characters above a subscription box
+    and carried the whole story in its metadata."""
     best, best_n = None, 0
+
+    def offer(t):
+        nonlocal best, best_n
+        if t and prose_chars(t) > best_n:
+            best, best_n = t, prose_chars(t)
+
+    def read(fragment):
+        try:
+            return trafilatura.extract("<html><body><article>%s</article></body></html>" % fragment,
+                                       include_comments=False, include_tables=False, favor_recall=True)
+        except Exception:
+            return None
+
     try:
         doc = trafilatura.bare_extraction(html, url=url, include_comments=False, include_tables=False,
                                           favor_precision=True, prune_xpath=PRUNE_XPATH)
         t = (doc.get("text") if isinstance(doc, dict) else getattr(doc, "text", None)) if doc is not None else None
     except Exception:
         t = None
-    if t and prose_chars(t) > best_n:
-        best, best_n = t, prose_chars(t)
-    art = embedded_article(html)
-    if art and not art.get("premium") and isinstance(art.get("body"), str) and not detect_paywall(html, None)[0]:
-        try:
-            t = trafilatura.extract("<html><body><article>%s</article></body></html>" % art["body"],
-                                    include_comments=False, include_tables=False, favor_recall=True)
-        except Exception:
-            t = None
-        if t and prose_chars(t) > best_n:
-            best, best_n = t, prose_chars(t)
+    offer(t)
     blocks = prose_blocks_html(html)
     if blocks:
         try:
             t = trafilatura.extract(blocks, include_comments=False, include_tables=False, favor_recall=True)
         except Exception:
             t = None
-        if t and prose_chars(t) > best_n:
-            best, best_n = t, prose_chars(t)
+        offer(t)
+    if max(found, best_n) >= MIN_PROSE_CHARS or detect_paywall(html, None)[0]:
+        return best
+    art = embedded_article(html)
+    if art and isinstance(art.get("body"), str):
+        offer(read(art["body"]))
+    fragment = next_data_article_html(html)
+    if fragment:
+        offer(read(fragment))
+    offer(jsonld_article_body(html))
+    offer(paragraph_container_text(html))
     return best
 
 
@@ -604,6 +696,167 @@ def prose_blocks_html(html: str) -> Optional[str]:
         return None
     return "<html><body><article>%s</article></body></html>" % "".join(
         lxml_html.tostring(n, encoding="unicode") for n in nodes)
+
+
+
+def _letters(text) -> str:
+    """Letters and digits of a headline, lower case, for comparing two renderings of it."""
+    return re.sub(r"[\W_]+", "", unescape(text if isinstance(text, str) else "")).casefold()
+
+
+def jsonld_article_body(html: str) -> Optional[str]:
+    """The articleBody of the page's schema.org metadata as plain text, one paragraph a line where the
+    field marks them, or None. Only an entry whose headline is in the page's own <title> is read (the
+    longest, when several are): the Macau Daily Times prints one old story's entry on every page.
+    Never called on a page with a paywall marker (_fallback_text): some paid sites put the whole story
+    there for search engines."""
+    m = _title(html or "")
+    title = _letters(_untag(m.group(1))) if m else ""
+    if not title:
+        return None
+    best = ""
+    for block in _jsonld_scripts(html or ""):
+        try:
+            data = json.loads(block, strict=False)
+        except Exception:
+            continue
+        stack, seen = [data], 0
+        while stack and seen < JSONLD_MAX_NODES:
+            it = stack.pop()
+            seen += 1
+            if isinstance(it, list):
+                stack.extend(it)
+            elif isinstance(it, dict):
+                body = it.get("articleBody")
+                head = _letters(it.get("headline") or it.get("name"))[:JSONLD_HEADLINE_CHARS]
+                if isinstance(body, str) and len(body) > len(best) and len(head) >= 8 and head in title:
+                    best = body
+                if isinstance(it.get("@graph"), list):
+                    stack.extend(it["@graph"])
+    if not best.strip():
+        return None
+    text = unescape(best)
+    if "<" in text:
+        text = _untag(re.sub(r"(?i)</p\s*>|<br\s*/?>|</div\s*>|</h[1-6]\s*>", "\n", text))
+    lines = (re.sub(r"[^\S\n]+", " ", s).strip() for s in unescape(text).split("\n"))
+    return "\n".join(s for s in lines if s) or None
+
+
+def _next_data(html: str):
+    """The parsed __NEXT_DATA__ payload of a Next.js page, or None."""
+    m = _NEXT_DATA_RE.search(html or "")
+    if not m:
+        return None
+    end = html.find("</script>", m.end())
+    if end < 0:
+        return None
+    try:
+        return json.loads(html[m.end():end])
+    except ValueError:
+        return None
+
+
+def _find_article(node, depth: int = 0):
+    """The first object stored under the key "article" within NEXT_DATA_ARTICLE_DEPTH levels, breadth
+    first, or None."""
+    level = [node]
+    for _ in range(NEXT_DATA_ARTICLE_DEPTH):
+        nxt = []
+        for it in level:
+            if isinstance(it, dict):
+                art = it.get("article")
+                if isinstance(art, dict):
+                    return art
+                nxt.extend(v for v in it.values() if isinstance(v, (dict, list)))
+            elif isinstance(it, list):
+                nxt.extend(v for v in it[:NEXT_DATA_LIST_ITEMS] if isinstance(v, (dict, list)))
+        level = nxt
+    return None
+
+
+def next_data_article_html(html: str) -> Optional[str]:
+    """The markup of the story a Next.js page carries as data and draws in the browser: the fields of
+    props.pageProps' article object that hold paragraphs (a string with a <p> element), in page order,
+    joined. Fields named for other things than the story (related items, embeds of other stories, menus,
+    tags, authors, live feeds: NEXT_DATA_SKIP_KEY_RE) are passed over. None when the page has no such
+    object, when it holds no paragraphs, or when one of its own fields marks it as paid
+    (NEXT_DATA_GATED_KEY_RE)."""
+    data = _next_data(html)
+    props = (data.get("props") or {}).get("pageProps") if isinstance(data, dict) else None
+    art = _find_article(props) if isinstance(props, dict) else None
+    if not art:
+        return None
+    for k, v in art.items():
+        if NEXT_DATA_GATED_KEY_RE.search(k) and v and str(v).lower() not in ("false", "0", "free", "none", "no"):
+            return None
+    parts = []
+
+    def walk(node, depth):
+        if depth > NEXT_DATA_WALK_DEPTH or len(parts) >= NEXT_DATA_MAX_PARTS:
+            return
+        if isinstance(node, str):
+            if _P_OPEN_RE.search(node):
+                parts.append(node)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v, depth + 1)
+        elif isinstance(node, dict):
+            for k, v in node.items():
+                if v and not NEXT_DATA_SKIP_KEY_RE.search(k):
+                    walk(v, depth + 1)
+
+    walk(art, 0)
+    return "\n".join(parts) or None
+
+
+def paragraph_container_text(html: str) -> Optional[str]:
+    """The paragraphs of the element whose own <p> children hold the most running text, one a line, when
+    at least PARAGRAPH_CONTAINER_MIN of them are prose and together they reach MIN_PROSE_CHARS. A story
+    printed as plain sibling paragraphs sits in one such element; teasers of other stories, each in its
+    own box, do not add up. Page furniture is not looked at: navigation, headers, footers, asides and
+    forms, and any element whose class or id names a footer, comments, a consent notice, related or
+    recommended items, a newsletter box and the like (FURNITURE_ATTR_RE), judged on the element and on
+    what encloses it up to the page's <article> or <main>."""
+    if not html or not _P_OPEN_RE.search(html):
+        return None
+    try:
+        from lxml import html as lxml_html
+        doc = lxml_html.fromstring(html)
+    except Exception:
+        return None
+    by_parent: Dict = {}
+    for p in doc.iter("p"):
+        parent = p.getparent()
+        if parent is not None:
+            by_parent.setdefault(parent, []).append(p)
+
+    def is_furniture(el) -> bool:
+        # Up to the enclosing <article> or <main>: inside one, only what lies between it and the
+        # paragraphs counts (the Jamaica Observer's article sits in a "widget" column like its sidebars).
+        while el is not None:
+            if el.tag in FURNITURE_TAGS or FURNITURE_ATTR_RE.search(
+                    "%s %s" % (el.get("class") or "", el.get("id") or "")):
+                return True
+            if el.tag in ("article", "main"):
+                return False
+            el = el.getparent()
+        return False
+
+    best, best_n = None, 0
+    for parent, ps in by_parent.items():
+        if len(ps) < PARAGRAPH_CONTAINER_MIN or is_furniture(parent):
+            continue
+        lines = []
+        for p in ps:
+            for bad in p.xpath(".//script|.//style|.//noscript"):
+                bad.drop_tree()
+            line = re.sub(r"\s+", " ", p.text_content()).strip()
+            if line:
+                lines.append(line)
+        sizes = [prose_chars(line) for line in lines]
+        if sum(1 for n in sizes if n) >= PARAGRAPH_CONTAINER_MIN and sum(sizes) > best_n:
+            best, best_n = lines, sum(sizes)
+    return "\n".join(best) if best and best_n >= MIN_PROSE_CHARS else None
 
 
 # What these two patterns find is found by _strip_scripts and _paragraphs, which give the same results
@@ -686,7 +939,8 @@ def consent_wall(html: Optional[str], text: Optional[str], headline: Optional[st
 
 def detect_unreadable(html: Optional[str], text: Optional[str],
                       headline: Optional[str] = None) -> Tuple[bool, Optional[str]]:
-    """(True, reason) when what was extracted is not an article: a bot or script challenge page, a
+    """(True, reason) when what was extracted is not an article: a bot or script challenge page (told by
+    its title, its text or its markup, CHALLENGE_MARKUP), a
     consent or cookie wall at any length (given the headline, only when the body carries little of it),
     or a body without MIN_PROSE_CHARS of running text. Works on the body alone when html is None, as in
     the classify stage, which has only the stored body."""
@@ -694,6 +948,10 @@ def detect_unreadable(html: Optional[str], text: Optional[str],
         m = (_title_search(CHALLENGE_TITLE_RE, html) if html else None) or CHALLENGE_TEXT_RE.search(text or "")
         if m:
             return True, "challenge page: %s" % re.sub(r"\s+", " ", _untag(m.group(0), "")).strip()[:60]
+        if html and len(html) <= CHALLENGE_PAGE_MAX_CHARS:
+            for vendor, rx in CHALLENGE_MARKUP:
+                if rx.search(html):
+                    return True, "challenge page: %s" % vendor
     if consent_wall(html, text, headline):
         return True, "consent wall"
     # A body under EMPTY_BODY_CHARS is the fetch stage's extraction_empty case and is judged there; the
@@ -716,20 +974,19 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
         )
     except Exception:
         doc = None
-    if doc is None:
-        # A page trafilatura finds nothing in at all can still be an Arc story drawn in the browser.
-        out["text"] = arc_story_text(html)
-        return out
-    if isinstance(doc, dict):
-        get = doc.get
-    else:
-        get = lambda k, d=None: getattr(doc, k, d)  # noqa: E731
-    out["text"] = get("text") or None
-    out["title"] = get("title") or None
-    out["author"] = clean_author(get("author"))
-    out["date"] = get("date") or None
-    out["sitename"] = get("sitename") or None
-    out["description"] = get("description") or None
+    if doc is not None:
+        if isinstance(doc, dict):
+            get = doc.get
+        else:
+            get = lambda k, d=None: getattr(doc, k, d)  # noqa: E731
+        out["text"] = get("text") or None
+        out["title"] = get("title") or None
+        out["author"] = clean_author(get("author"))
+        out["date"] = get("date") or None
+        out["sitename"] = get("sitename") or None
+        out["description"] = get("description") or None
+    # A page trafilatura finds nothing in at all can still be an Arc story drawn in the browser, or carry
+    # its article in one of the forms _fallback_text reads, so the other readings run on it too.
     ppr = press_release_payload(html)
     if ppr:
         headline, body_html = ppr
@@ -741,10 +998,10 @@ def extract(html: str, url: Optional[str] = None) -> Dict:
             # The headline is printed above the release on the page, as other outlets' copies carry it.
             out["text"] = "%s\n%s" % (headline.strip(), release) if headline else release
     story = arc_story_text(html)
-    if story and prose_chars(story) > prose_chars(out["text"]):
+    if story and (out["text"] is None or prose_chars(story) > prose_chars(out["text"])):
         out["text"] = story
     if prose_chars(out["text"]) < FALLBACK_PROSE_CHARS:
-        alt = _fallback_text(html, url)
+        alt = _fallback_text(html, url, prose_chars(out["text"]))
         if alt and prose_chars(alt) >= max(MIN_PROSE_CHARS, 2 * prose_chars(out["text"])):
             out["text"] = alt
     return out

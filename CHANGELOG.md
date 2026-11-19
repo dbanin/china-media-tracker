@@ -4,6 +4,74 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Extraction 2026.11.2, data schema 21, wider feed coverage (2026-11-18)
+
+EXTRACT_VERSION goes from 2026.11.1 to 2026.11.2, the data schema from 20 to 21 and ASSET_VERSION from 94 to 95.
+RULESET_VERSION, GATE_VERSION, PROMPT_VERSION and MISSED_ESTIMATOR_VERSION are unchanged. No stored label or count is
+altered: an article already read keeps its text and its label, and the estimate of items missed is computed as
+before.
+
+Extraction. Three more readings are tried when the first extraction and the older fallbacks find too little running
+text: the articleBody of a schema.org object whose headline is in the page title (The Sun of Malaysia), the article
+object in the data of a Next.js page (RUV of Iceland, Mosaique FM of Tunisia), and the element whose own paragraphs
+hold the most running text (Jamaica Observer, Taipei Times). None is tried on a page that carries a paywall marker,
+the Next.js article is skipped when a field marks it as paid, and a page that shows only an opening is never filled
+in from its data, so no paywall is read around. On the 4,020 saved pages they changed no body that had been read and
+read 5 pages that had held nothing. The WP-Members box (Assabah of Morocco) now counts as a paywall marker at any
+length. Three more bot challenge pages are told by their markup (Servicepipe at TASS, Akamai at Japan Today,
+ArvanCloud at ISNA), and a challenge page is recorded as unreadable: challenge page at any length and is final: the
+tracker does not run the script or come back for the page. Expected effect on the data: more articles with full
+text at the outlets named and at sites built the same way, so more of their gate-relevant items reach the model; a
+few rows move from extraction_empty to unreadable: challenge page.
+
+Retries. A page that held no article text was final after one fetch. It now gets a second fetch 6 hours or more
+after the first, within 7 days, and only at an outlet where some page was read in that window (Europa Press served
+65 empty pages among 1,565 read). When the extraction version changes, pages of any age that held no text under an
+older version are fetched once more, newest first: 2,170 pages of 91 outlets on the snapshot of 2026-11-18. Every
+processed row is stamped with the extraction version that read it. Two per domain limits stop a run early: 3
+challenge pages in a row, or 10 pages in a row with no text (the four Stuff sites of New Zealand), and the run
+reports them as skipped_challenged and skipped_no_text. Expected effect on the data: over the next days part of the
+1,877 gate-relevant fetches recorded as extraction_empty become read articles, and fewer requests go to a site that
+answers every one with a challenge. robots.txt, the per domain pace and the declared user agent are as before.
+
+Data schema 21. The warning on feed overflow used every poll since collection began, so a country stayed warned
+after its reads became hourly on 2026-11-13: on 2026-11-18 the all-poll share of items missed was 7.7 percent
+against 1.3 to 2.8 percent on each day since. Each country in latest.json gains feed_recent (days, first_day,
+last_day, polls, sat, miss, mpolls, mnew, saturation_share, miss_share) over the 7 complete days before the export
+day (FEED_RECENT_DAYS), and meta.feed_saturation gains recent. The warning text now states the recent share beside
+the all-poll one and says when it is under the level at which a country is warned (8 of the 31 countries warned on
+2026-11-18); a country whose recent share alone is over the level is warned as well. The site and the methodology
+carry the same clause. Expected effect on the data: no count changes; a reader can tell a country whose recent
+counts are close to complete from one still losing items.
+
+Feed paging. sources/feed_paging.yaml gains 12 WordPress feeds that page with ?paged= but do not name wordpress.org
+in their generator line (El Nuevo Diario of the Dominican Republic, Leadership, Balkanweb, Daily Trust, Jornal
+Economico, Veja, El Ciudadano, Gulf Insider, Ghanaian Times, Siasat in Urdu, Extra of Bonaire, BusinessDay) and 8
+listing pages read behind a saturated feed (Mehr, Hamshahri, Khabar Online, Al Manar, TV3 of Lithuania, MK, Al
+Mashhad Al Araby, Avaz), each verified on 2026-11-18 with the collector's own reader, and records 7 feeds found not
+to page (ISNA, UzA in two languages, El Balad, 24.hu, Poder360, Sangbad Pratidin). A paging file that does not parse
+now prints a warning and is read as empty; it used to raise an error in discovery. El Balad gains 12 section feeds
+and Masrawy 6, since neither pages. Expected effect on the data: fewer saturated polls and a lower estimate of items
+missed for the 20 feeds; the 7 others stay as they are and remain in the warning.
+
+Feeds. Item links given as a path alone are now resolved against the feed address, so SRNA of Bosnia and
+Workpoint Today of Thailand are read for the first time; their first poll will look saturated once. The feeds of 8
+outlets whose registered address had frozen or answered an index of feeds are replaced: Delfi of Lithuania,
+Alsumaria (seven section feeds), The Daily Star of Bangladesh (five), The Wall Street Journal (two public feeds;
+its article pages answer HTTP 401, which is left as the site's choice), Minuto Uno, El Dia of Argentina, TN8 of
+Nicaragua and The Manila Times (one feed, since its robots.txt asks 600 seconds between requests; the registered
+feed's newest item was of 2026-07-16). Le Comte of Tunisia gains its Atom feed, and NHK (jp_nhk_ja) gains the six
+other category feeds at the same address, since its top news feed holds 7 items. Thirteen outlets gain their news
+sitemap, which lists every recent article: Delfi, The Daily Star, Minuto Uno, El Dia, Le Comte, CNN,
+Red Uno of Bolivia, Yahoo News Singapore, B.T. of Denmark, ILNA, MeinBezirk, Republic and RTVC (31 outlets are now
+read this way, from 18). Three outlets whose feeds answer again are active again, Bhutan Times, Republic of India
+and RTVC Noticias of Colombia, so 1,580 of 2,175 outlets are active, from 1,577; the weekly check retires any of
+them the runner cannot read. Every address was read back from the registry with the collector's readers on
+2026-11-18. Expected effect on the data: items from 11 outlets that gave none or stale ones, and fuller counts at
+the busy outlets with a sitemap. An outlet read through a news sitemap is gated on titles across the whole site, so
+more gate-relevant items wait for an article fetch and for the model; the daily call ceiling and the monthly budget
+are untouched.
+
 ## Each run starts the next, an hour after it began (2026-11-12)
 
 No version changes: RULESET_VERSION, GATE_VERSION, PROMPT_VERSION, EXTRACT_VERSION, MISSED_ESTIMATOR_VERSION, the

@@ -6,10 +6,10 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "94";
+  var ASSET_VERSION = "95";
   /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
      pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
-  var KNOWN_SCHEMA = 20;
+  var KNOWN_SCHEMA = 21;
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -524,6 +524,14 @@
     return "an estimated " + (miss || 0) + " were missed" + (mpolls < polls ? " over " + mpolls + " of these polls" : "") + " (estimated since " + since + ")";
   }
   function intComma(n) { return n === null || n === undefined ? "n/a" : Number(n).toLocaleString("en-US"); }
+  /* The share of feed items missed over the last complete days alone (meta.feed_saturation.recent), as a
+     clause: the figures beside it cover every poll on record, the days feeds were read less often included.
+     Empty when the export carries no such block or the estimate does not cover those days. */
+  function recentMissed(fs) {
+    var r = fs && fs.recent;
+    if (!r || !r.mpolls || r.miss_share === null || r.miss_share === undefined) return "";
+    return "over the " + r.days + " days to " + r.last_day + " an estimated " + (100 * r.miss_share).toFixed(1) + " percent of feed items were missed (" + intComma(r.miss) + " against " + intComma(r.mnew) + " found)";
+  }
 
   /* --------------------------------------------------------------- content
      content.json carries every piece of reader-facing prose this page shows: the definitions in
@@ -714,7 +722,7 @@
          detail rather than something that changes how today's map should be read: they live in the
          Technical notes block inside the methodology section (renderTechnicalNotes), not here. */
       var fs = m.feed_saturation;
-      if (fs && fs.polls && fs.saturated) parts.push(intComma(fs.saturated) + " of " + intComma(fs.polls) + " feed polls returned a full window with nothing seen before, so items were lost between polls: " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + ". Countries where this passes " + Math.round((fs.warning_share || 0.25) * 100) + " percent of polls carry a warning.");
+      if (fs && fs.polls && fs.saturated) parts.push(intComma(fs.saturated) + " of " + intComma(fs.polls) + " feed polls returned a full window with nothing seen before, so items were lost between polls: " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + "." + (recentMissed(fs) ? " " + recentMissed(fs).charAt(0).toUpperCase() + recentMissed(fs).slice(1) + "." : "") + " A country carries a warning when an estimated " + Math.round((fs.missed_warning_share || 0.1) * 100) + " percent or more of its feed items were missed, or when " + Math.round((fs.warning_share || 0.25) * 100) + " percent of its polls came back full.");
       if ((m.llm_sampling_days || []).length) parts.push("On " + plural(m.llm_sampling_days.length, "day") + " the model call ceiling bound, and the articles sent were a random draw with the same fraction in every country.");
       /* One line per provisional or withheld research measure, in the full notes only, never the short strip. */
       if (MS) Array.prototype.push.apply(parts, MS.noticeLines(m.measures));
@@ -3129,7 +3137,7 @@
       ["Routes of state origin", (m.routes || []).map(function (r) { return lowerLabel(r.label) + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
       ["Undetermined, excluded from the counts", undeterminedMethodText(m)],
       ["Release sections searched", rs && rs.outlets_active ? intComma(rs.outlets_active - (rs.not_searched || 0)) + " of " + intComma(rs.outlets_active) + " active outlets; " + intComma(rs.found || 0) + " found, " + intComma(rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
-      ["Feed polls with nothing seen before", fs && fs.polls ? intComma(fs.saturated) + " of " + intComma(fs.polls) + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) : "not yet measured"],
+      ["Feed polls with nothing seen before", fs && fs.polls ? intComma(fs.saturated) + " of " + intComma(fs.polls) + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + (recentMissed(fs) ? "; " + recentMissed(fs) : "") : "not yet measured"],
       ["Relay on the owner's machine", rc ? C.relayOutletsSummary(rc) + "; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
       ["Human review coverage", pct(m.review_coverage) + " of classified articles (" + m.articles_reviewed + ")"],
       ["Relevance gate version", (m.gate_version || "not recorded") + (m.gate_applies_forward_only ? ", applying to items discovered after each gate change; earlier rejections are not re-examined and are pruned after three days, except a random 2 percent kept permanently for the gate audit" : "")],
@@ -3471,7 +3479,7 @@
     helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
               monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes,
               showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings,
-              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, navHidden: navHidden, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION, stakeLines: stakeLines, stakeAbsenceNote: stakeAbsenceNote, selectionLine: selectionLine}};
+              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, navHidden: navHidden, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION, stakeLines: stakeLines, stakeAbsenceNote: stakeAbsenceNote, selectionLine: selectionLine, recentMissed: recentMissed}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
     openView(d);

@@ -181,3 +181,46 @@ def test_a_parser_exception_of_any_kind_is_caught(monkeypatch):
         raise RuntimeError("parser bug")
     monkeypatch.setattr(feeds_util.feedparser, "parse", explode)
     assert feeds_util.fetch_feed("https://fp.test/x.xml")["error"] == "parse_error: RuntimeError"
+
+
+PATHS = (b'<?xml version="1.0"?><rss><channel>'
+         b'<item><title>China one</title><link>/news/1449484</link></item>'
+         b'<item><title>China two</title><link> //cdn.fp.test/two </link></item>'
+         b'<item><title>China three</title><link>https://fp.test/three</link></item>'
+         b'<item><title>China four</title><link>www.fp.test/four</link></item>'
+         b'<item><title>China five</title><link>mailto:desk@fp.test</link></item>'
+         b'<item><title>China six</title></item>'
+         b'</channel></rss>')
+
+
+def test_item_links_that_are_paths_alone_are_resolved_against_the_feed(monkeypatch):
+    """srna.rs/rss and workpointtoday.com/feed/ list every item as a path. feedparser parses bytes and has
+    no address to resolve against, discovery keeps only http links, and so both feeds were read for weeks
+    without one item. Only a link that starts with a slash is touched."""
+    from pipeline import feeds_util
+    _serve(monkeypatch, {"https://www.fp.test/en/rss": PATHS})
+    r = feeds_util.fetch_feed("https://www.fp.test/en/rss")
+    assert r["ok"]
+    assert [e.get("link") for e in r["entries"]] == [
+        "https://www.fp.test/news/1449484", "https://cdn.fp.test/two", "https://fp.test/three",
+        "www.fp.test/four", "mailto:desk@fp.test", None]
+
+
+def test_a_path_link_is_resolved_against_the_address_that_answered(monkeypatch):
+    from pipeline import feeds_util, fetch_articles as fa
+    _serve(monkeypatch, {"http://fp.test/rss": PATHS})
+
+    class _Moved:
+        status_code, headers, content, url = 200, {}, PATHS, "https://news.fp.test/feeds/all.xml"
+    monkeypatch.setattr(fa, "polite_get", lambda url, headers=None, timeout=None: _Moved())
+    r = feeds_util.fetch_feed("http://fp.test/rss")
+    assert r["entries"][0]["link"] == "https://news.fp.test/news/1449484"
+
+
+def test_resolved_links_reach_discovery(conn, monkeypatch):
+    from pipeline import feeds_util
+    _serve(monkeypatch, {"https://www.fp.test/en/rss": PATHS})
+    r = feeds_util.fetch_feed("https://www.fp.test/en/rss")
+    counts = _run(conn, monkeypatch, [("https://www.fp.test/en/rss", r)])
+    assert set(_urls(conn)) == {"https://www.fp.test/news/1449484", "https://cdn.fp.test/two", "https://fp.test/three"}
+    assert counts["items_new"] == 3

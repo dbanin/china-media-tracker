@@ -2643,13 +2643,16 @@
   country: ARG
   language: es
   feeds:
-  - https://www.eldia.com/rss/mundo.xml
+  - https://www.eldia.com/.rss
+  news_sitemaps:
+  - https://www.eldia.com/news_1.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: regional
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The world feed at /rss/mundo.xml still answers but stopped updating (newest item 2026-09-03). It is replaced by the site feed the home page advertises
+    (/.rss, 30 items), and the Google News sitemap in robots.txt is added (284 items over two days), both verified 2026-11-18 with the collector's readers.
   political_leaning: centre_right
   leaning_source: https://en.wikipedia.org/wiki/El_D%C3%ADa_(La_Plata)
   ownership: private
@@ -2723,13 +2726,17 @@
   country: ARG
   language: es
   feeds:
-  - https://www.minutouno.com/rss/mundo.xml
+  - https://www.minutouno.com/rss/pages/mundo.xml
+  - https://www.minutouno.com/rss/pages/home.xml
+  news_sitemaps:
+  - https://www.minutouno.com/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The world feed at /rss/mundo.xml still answers but stopped updating (newest item 2020-03-04). It is replaced by the current world and home feeds under
+    /rss/pages/ (20 items each), and the Google News sitemap in robots.txt is added (312 items over two days), all verified 2026-11-18 with the collector's readers.
   audience_rank: 6
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/argentina
   political_leaning: unassessed
@@ -3814,7 +3821,13 @@
   country: BGD
   language: en
   feeds:
-  - https://www.thedailystar.net/rss.xml
+  - https://www.thedailystar.net/news/rss.xml
+  - https://www.thedailystar.net/news/world/rss.xml
+  - https://www.thedailystar.net/news/bangladesh/rss.xml
+  - https://www.thedailystar.net/business/rss.xml
+  - https://www.thedailystar.net/opinion/rss.xml
+  news_sitemaps:
+  - https://www.thedailystar.net/googlenews.xml
   section_feeds:
   - url: https://www.thedailystar.net/supplements
     kind: partner
@@ -3830,7 +3843,9 @@
       label: Supplements
       readable: true
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The site feed at /rss.xml still answers but stopped updating (newest item 2026-06-01). It is replaced by the section feeds for news, world, Bangladesh,
+    business and opinion (10 items each, all with items of 2026-11-18), and the Google News sitemap in robots.txt is added (364 items over two days), all verified 2026-11-18 with the collector's readers.
+    The front page feed is not used because it stopped in 2022.
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/prothomalo.com/
   political_leaning: centre_right
@@ -4536,12 +4551,15 @@
   language: es
   feeds:
   - https://www.reduno.com.bo/rss
+  news_sitemaps:
+  - https://www.reduno.com.bo/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The feed at /rss still answers but stopped updating (newest item 2022-04-07), and no current feed was found. The news sitemap in robots.txt
+    carried 316 items over two days on 2026-11-18, verified with the collector's sitemap reader. The RSS address stays listed because the registry requires one.
   audience_rank: 7
   rank_source: https://www.lostiempos.com/tendencias/interesante/20171015/tiempos-segundo-medio-bolivia-mas-leido-web
   political_leaning: centre_right
@@ -5296,16 +5314,14 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Reactivated 2026-11-18. Inactive from 2026-10-05 after the feed failed on every check from 2026-09-27 and answered HTTP 500 to a re-test on 2026-10-17, a server fault and not
+    a refusal. On 2026-11-18 the feed answered with 12 items, the newest dated 2026-11-16, and an article page gave its text. If the runner cannot read it, the weekly check retires it again.
   audience_rank: 4
   rank_source: https://www.similarweb.com/website/thebhutanese.bt/
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Media_of_Bhutan
-  active: false
-  inactive_reason: 'every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-09-27 (auto); re-tested from the owner''s network on 2026-10-17: HTTP 500, so
-    it stays inactive'
-  inactive_since: '2026-10-05'
+  active: true
 - id: bt_businessbhutan
   name: Business Bhutan
   country: BTN
@@ -6445,22 +6461,22 @@
   language: es
   feeds:
   - https://www.rtvcnoticias.com/rss.xml
+  news_sitemaps:
+  - https://www.rtvcnoticias.com/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Reactivated 2026-11-18 with a Google News sitemap. Inactive from 2026-10-17 because the feed froze on 2026-05-30 and the site advertises no other feed. The news sitemap in robots.txt
+    carried 11 items over two days on 2026-11-18, verified with the collector's sitemap reader, and an article page gave its text. The RSS address stays listed because the registry requires one.
   political_leaning: state_controlled
   leaning_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   ownership: state
   ownership_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   government_stance: state_controlled
   stance_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
-  active: false
-  inactive_reason: 'the feed https://www.rtvcnoticias.com/rss.xml is frozen: on 2026-10-17 it still listed the same 10 entries, the newest dated 2026-05-30, and the homepage advertises no other feed, so
-    the outlet has delivered nothing new since; replace the feed to reactivate it'
-  inactive_since: '2026-10-17'
+  active: true
 - id: co_semana
   name: Semana
   country: COL
@@ -8012,12 +8028,15 @@
   language: da
   feeds:
   - https://www.bt.dk/bt/seneste/rss
+  news_sitemaps:
+  - https://www.bt.dk/news-sitemap.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The latest-news feed holds 10 items and every one of them was new on 25 of its 140 reads in the week to 2026-11-18, so items were being
+    missed between reads. The news sitemap in robots.txt carried 414 items over two days on 2026-11-18, verified with the collector's sitemap reader, and is read beside the feed.
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/denmark/news-and-media/
   political_leaning: centre_right
@@ -13249,20 +13268,21 @@
   language: en
   feeds:
   - https://www.republicworld.com/rss/world-news.xml
+  news_sitemaps:
+  - https://www.republicworld.com/sitemaps/sitemaps-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Reactivated 2026-11-18 with a Google News sitemap. Inactive from 2026-10-17 because the world feed froze on 2026-08-19 and the site advertises no other feed. The news sitemap
+    in robots.txt carried 135 items over two days on 2026-11-18, verified with the collector's sitemap reader, and an article page gave its text. The RSS address stays listed because the registry requires
+    one.
   political_leaning: right
   leaning_source: https://en.wikipedia.org/wiki/Republic_TV
   ownership: private
   ownership_source: https://india.mom-gmr.org/en/media/
-  active: false
-  inactive_reason: 'the feed https://www.republicworld.com/rss/world-news.xml is frozen: on 2026-10-17 it still listed the same 34 entries, the newest dated 2026-08-19, and the homepage advertises no other
-    feed, so the outlet has delivered nothing new since; replace the feed to reactivate it'
-  inactive_since: '2026-10-17'
+  active: true
 - id: in_scroll
   name: Scroll.in
   country: IND
@@ -13679,12 +13699,15 @@
   language: fa
   feeds:
   - https://www.ilna.ir/rss
+  news_sitemaps:
+  - https://www.ilna.ir/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The feed holds 30 items and every one of them was new on 26 of its 135 reads in the week to 2026-11-18, so items were being missed between
+    reads. The news sitemap in robots.txt carried 1,000 items on 2026-11-18, the most the reader takes from one file, verified with the collector's sitemap reader, and is read beside the feed.
   political_leaning: centre_left
   leaning_source: https://en.wikipedia.org/wiki/Worker_House
   ownership: state
@@ -13962,13 +13985,21 @@
   country: IRQ
   language: ar
   feeds:
-  - https://www.alsumaria.tv/rss/news
+  - https://www.alsumaria.tv/Rss/iraq-latest-news/ar
+  - https://www.alsumaria.tv/Rss/NewsHighlights/ar
+  - https://www.alsumaria.tv/Rss/News/ar/1/%D8%B3%D9%8A%D8%A7%D8%B3%D8%A9
+  - https://www.alsumaria.tv/Rss/News/ar/49/%D8%AF%D9%88%D9%84%D9%8A%D8%A7%D8%AA
+  - https://www.alsumaria.tv/Rss/News/ar/4/%D8%A7%D9%82%D8%AA%D8%B5%D8%A7%D8%AF
+  - https://www.alsumaria.tv/Rss/News/ar/48/%D9%85%D8%AD%D9%84%D9%8A%D8%A7%D8%AA
+  - https://www.alsumaria.tv/Rss/News/ar/16/%D8%A3%D9%85%D9%86
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The address registered since September is a list of Alsumaria's 24 feeds, not a feed, so the outlet's articles were not read. It is replaced by seven
+    feeds from that list, the latest Iraq news and the highlights (20 items each) and the politics, international, economy, local and security sections (10 items each), all with items of 2026-11-18 and verified
+    with the collector's feed reader.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/shafaq.com/
   political_leaning: unassessed
@@ -14981,7 +15012,7 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. NHK is monitored as jp_nhk_ja, which reads the feeds at news.web.nhk, so this second entry stays inactive (noted 2026-11-18).
   political_leaning: unassessed
   ownership: public_service
   ownership_source: https://en.wikipedia.org/wiki/NHK
@@ -14996,14 +15027,22 @@
   feeds:
   - https://news.web.nhk/n-data/conf/na/rss/cat0.xml
   - https://news.web.nhk/n-data/conf/na/rss/cat6.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat1.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat2.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat3.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat4.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat5.xml
+  - https://news.web.nhk/n-data/conf/na/rss/cat7.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02. Feeds replaced 2026-11-09. NHK moved its news site to news.web.nhk. The old main feed (www.nhk.or.jp/rss/news/cat0.xml) had been refused by robots.txt since 2026-09-28, and
-    the old international feed (www3.nhk.or.jp/rss/news/cat6.xml) still answered but its newest item was from 2026-08-08. The same two feeds at news.web.nhk (cat0, 7 items over 11 hours, and cat6, 130 items
-    over 144 hours) were verified 2026-11-09; robots.txt allows the crawler and the article pages serve their text without a login.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-09. NHK moved its news site to news.web.nhk. The old main feed (www.nhk.or.jp/rss/news/cat0.xml) had been refused by robots.txt since 2026-09-28, and the
+    old international feed (www3.nhk.or.jp/rss/news/cat6.xml) still answered but its newest item was from 2026-08-08. The same two feeds at news.web.nhk (cat0, 7 items over 11 hours, and cat6, 130 items over
+    144 hours) were verified 2026-11-09; robots.txt allows the crawler and the article pages serve their text without a login. Six more feeds added 2026-11-18, the other categories at the same address (cat1
+    to cat5 and cat7, 13 to 143 items each, five of them with items of that day), verified with the collector's feed reader. The top news feed holds 7 items, so the category feeds carry what it drops between
+    reads.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
   political_leaning: centre_right
@@ -17061,14 +17100,17 @@
   country: LTU
   language: lt
   feeds:
-  - https://www.delfi.lt/rss/feeds/daily.xml
-  - https://www.delfi.lt/rss/feeds/uzsienyje.xml
+  - https://feed.delfi.lt/v2/channel/global-lt?format=rss
+  news_sitemaps:
+  - https://www.delfi.lt/news/sitemap/latest.xml
   release_sections:
     searched_on: '2026-09-15'
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The two addresses registered since September are lists of Delfi's feeds, not feeds, so the outlet's articles were never read. They are replaced by
+    the feed that list names Global LT latest articles (50 items covering about a day), and the Google News sitemap in robots.txt is added (739 items over two days), both verified 2026-11-18 with the collector's
+    readers.
   audience_rank: 2
   rank_source: https://gemius.com/lt/blogas/gemiusaudience-2026-rugpjucio-menesio-apzvalga/
   political_leaning: centre_right
@@ -20463,13 +20505,14 @@
   country: NIC
   language: es
   feeds:
-  - https://www.tn8.tv/feed/
+  - https://www.tn8.ni/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feed replaced 2026-11-18. The outlet moved from tn8.tv to tn8.ni, and the old feed still answers but stopped updating (newest item 2026-08-31). The feed at www.tn8.ni/feed/ carried
+    10 items of 2026-11-18, verified with the collector's feed reader. The news sitemap there answers HTTP 403 and is left alone.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Nicaragua
   political_leaning: unassessed
@@ -22182,13 +22225,15 @@
   country: PHL
   language: en
   feeds:
-  - https://www.manilatimes.net/news/world/feed
+  - https://www.manilatimes.net/news/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: unreachable
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feed replaced 2026-11-18. The world feed at /news/world/feed still answers but stopped updating (newest item 2026-07-16). It is replaced by the news feed at /news/feed/, which
+    carried 50 items covering about a day on 2026-11-18, verified with the collector's feed reader. robots.txt asks for 600 seconds between requests, which the collector keeps, so one feed is read and not
+    two.
   audience_rank: 7
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/the-manila-times/
@@ -24771,13 +24816,16 @@
   language: en
   feeds:
   - https://sg.news.yahoo.com/rss/
+  news_sitemaps:
+  - https://sg.news.yahoo.com/news-sitemap.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: aggregator
   network: yahoo
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The feed has listed the same 5 items since 2026-09-24. The news sitemap at /news-sitemap.xml, which robots.txt allows but does not list,
+    carried 342 items over two days on 2026-11-18, verified with the collector's sitemap reader. The RSS address stays listed because the registry requires one.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Yahoo
@@ -27513,6 +27561,9 @@
   language: fr
   feeds:
   - https://www.leconomistemaghrebin.com/feed/
+  - https://www.leconomistemaghrebin.com/feed/atom/
+  news_sitemaps:
+  - https://www.leconomistemaghrebin.com/sitemap-news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: found
@@ -27523,7 +27574,8 @@
       label: Communiqués
       readable: false
   tier: business
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Atom feed and Google News sitemap added 2026-11-18. The feed at /feed/ answers but has listed the same ten items since 2025-12-23. The Atom feed at /feed/atom/ carried 10 current
+    items and the news sitemap in robots.txt 56 items over two days on 2026-11-18, both verified with the collector's readers. The old feed stays listed in case it resumes.
   political_leaning: unassessed
   ownership: private
   ownership_source: https://fr.wikipedia.org/wiki/Presse_en_Tunisie
@@ -29087,12 +29139,15 @@
   feeds:
   - http://rss.cnn.com/rss/edition_world.rss
   - http://rss.cnn.com/rss/cnn_world.rss
+  news_sitemaps:
+  - https://www.cnn.com/sitemap/news.xml
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The two feeds on rss.cnn.com still answer but stopped updating on 2023-09-18, and the site advertises no other feed. The news sitemap in
+    robots.txt carried 194 items over two days on 2026-11-18, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/united-states
   political_leaning: centre_left
@@ -29934,15 +29989,17 @@
   country: USA
   language: en
   feeds:
-  - https://feeds.a.dj.com/rss/RSSWorldNews.xml
-  - https://feeds.a.dj.com/rss/RSSMarketsMain.xml
+  - https://feeds.content.dowjones.io/public/rss/RSSWorldNews
+  - https://feeds.content.dowjones.io/public/rss/RSSMarketsMain
   release_sections:
     searched_on: '2026-09-15'
     status: blocked
     sections: []
   tier: business
   network: news_corp
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The two feeds on feeds.a.dj.com still answer but stopped updating on 2025-01-27. They are replaced by the same two feeds at their current addresses
+    on feeds.content.dowjones.io, World News (73 items) and Markets (61 items), verified 2026-11-18 with the collector's feed reader. Article pages answer HTTP 401 to the crawler, which is the site's choice
+    and is left as it is, so the four other feeds on that host are not added.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/wall-street-journal/
   ownership: private
@@ -33859,8 +33916,16 @@
   feeds:
   - https://www.masrawy.com/rss/feed/25/news
   - https://www.masrawy.com/rss/feed/202/news
+  - https://www.masrawy.com/rss/feed/35/news
+  - https://www.masrawy.com/rss/feed/206/news
+  - https://www.masrawy.com/rss/feed/204/news
+  - https://www.masrawy.com/rss/feed/205/news
+  - https://www.masrawy.com/rss/feed/382/news
+  - https://www.masrawy.com/rss/feed/211/news
   tier: national_daily
-  notes: Added 2026-09-23 from the readership research.
+  notes: 'Added 2026-09-23 from the readership research. Section feeds added 2026-11-18: the main feed lists 10 items in a date format the collector does not read, was full of new items on 59 polls from
+    2026-11-13 to 2026-11-17 and takes no page parameter. The outlet''s feed index (https://www.masrawy.com/rss) lists section feeds of 10 items each; added are Egypt (35), economy (206), governorates
+    (204), incidents (205), science and technology (382) and essays (211). Not added: sport (577, 579) and two sections with no recent items (207, 209).'
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
   political_leaning: unassessed
@@ -33873,9 +33938,25 @@
   language: ar
   feeds:
   - https://www.elbalad.news/rss.aspx
+  - https://www.elbalad.news/rss.aspx?id=1
+  - https://www.elbalad.news/rss.aspx?id=2
+  - https://www.elbalad.news/rss.aspx?id=3
+  - https://www.elbalad.news/rss.aspx?id=4
+  - https://www.elbalad.news/rss.aspx?id=5
+  - https://www.elbalad.news/rss.aspx?id=6
+  - https://www.elbalad.news/rss.aspx?id=7
+  - https://www.elbalad.news/rss.aspx?id=8
+  - https://www.elbalad.news/rss.aspx?id=9
+  - https://www.elbalad.news/rss.aspx?id=10
+  - https://www.elbalad.news/rss.aspx?id=14
+  - https://www.elbalad.news/rss.aspx?id=17
   tier: national_daily
   notes: 'Added 2026-09-23 from the readership research. On both collectors (collector: both) since 2026-10-17: 67 of the hosted runner''s 71 polls from 2026-10-01 to 2026-10-11 found the feed saturated,
-    and the sitemap its robots.txt lists (https://www.elbalad.news/sitemaps.xml) carried no Google News entries on 2026-10-17, so the relay''s hourly polls are added.'
+    and the sitemap its robots.txt lists (https://www.elbalad.news/sitemaps.xml) carried no Google News entries on 2026-10-17, so the relay''s hourly polls are added. Section feeds added 2026-11-18: under
+    hourly reads from 2026-11-13 to 2026-11-17 the main feed (20 items, under an hour of output) was saturated on 90 polls with about 2,733 items estimated missed, the most of any feed, and it takes no
+    page parameter. The twelve section feeds rss.aspx?id=N (1 to 10, 14 and 17; 20 items each) together carried all 20 of the main feed''s items on two readings that day and each reaches back several
+    hours. Not added: id 0 and ?cat=1 (the main feed again), 2065 and 2069 (repeat sections 5 and 10), 11 to 13 (no items since October or earlier), 15, 2066, 4022 and 4023 (20 items over several days) and
+    16 (empty).'
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
   political_leaning: unassessed
@@ -36384,8 +36465,12 @@
   language: de
   feeds:
   - https://www.meinbezirk.at/rss
+  news_sitemaps:
+  - https://www.meinbezirk.at/sitemap_news.xml
   tier: regional
-  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed.
+  notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Google News sitemap added 2026-11-18. The feed holds 25 items
+    and every one of them was new on 36 of its 138 reads in the week to 2026-11-18, so items were being missed between reads. The news sitemap at /sitemap_news.xml, which robots.txt allows but does not list,
+    carried 931 items over two days on 2026-11-18, verified with the collector's sitemap reader, and is read beside the feed.
   audience_rank: 6
   political_leaning: unassessed
   ownership: private

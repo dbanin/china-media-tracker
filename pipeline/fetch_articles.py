@@ -39,6 +39,22 @@ TRANSIENT_FAIL_PREFIXES = ("http_429", "http_5", "ConnectionError", "ReadTimeout
                            "exception:", "unknown", "refetch_")
 RETRY_ATTEMPT_LIMIT = 3
 RETRY_WINDOW_DAYS = 7
+# A page served with no article in it as read: nothing extracted, or menus only. It can be a passing
+# fault of the site (Europa Press served 65 such pages in bursts among 1,565 read) or a page a later
+# reading can read, so it gets the two further tries of second_attempt_candidates and
+# second_chance_candidates. A challenge page, a consent wall, a redirect that leads nowhere and a
+# refusal are the site's own answer and stay final.
+NO_TEXT_REASONS = ("extraction_empty", "unreadable: no article text")
+NO_TEXT_SQL = "(fail_reason='extraction_empty' OR fail_reason LIKE 'unreadable: no article text%')"
+SECOND_ATTEMPT_AFTER_HOURS = 6
+# A site that answers with its challenge page is refusing the crawler. After this many of them in a row
+# from one domain in one run, the pages of it waiting for another try are left alone for the run.
+CHALLENGE_REASON = "unreadable: challenge page"
+CHALLENGE_STREAK = 3
+# And after this many pages in a row that were fetched for second_chance_candidates and held no article
+# text again, the rest of the domain's are not asked for: the new reading does not read its pages
+# (the four Stuff sites of New Zealand build theirs in the browser).
+NO_TEXT_STREAK = 10
 
 
 def domain_of(url: str) -> str:
@@ -488,14 +504,17 @@ def process_article(conn_factory, row) -> Dict:
                 fields["body_hash"] = store.save_body(row["url_hash"], text)
                 fields["body_chars"] = len(text)
             out.update(status="paywalled", reason=pw_reason)
+        elif unreadable and un_reason.startswith("challenge page"):
+            # The site's challenge page, at any length (ISNA's and TASS's hold under 100 characters and
+            # were recorded as empty extractions until 2026.11.2). Final: the site is refusing the
+            # crawler, so the article is not fetched again.
+            fields.update(status="failed", fail_reason="unreadable: %s" % un_reason)
+            out.update(status="failed", reason="unreadable: %s" % un_reason)
         elif not text or len(text) < 200:
-            # Stamped with the extraction it failed under, so a later change to its template retries it
-            # once (retry_candidates) and a row that failed under the current one is not taken again.
-            fields.update(status="failed", fail_reason="extraction_empty", extract_version=config.EXTRACT_VERSION)
+            fields.update(status="failed", fail_reason="extraction_empty")
             out.update(status="failed", reason="extraction_empty")
         elif unreadable:
-            # A challenge page or menus with no running text: not the article, so never classified.
-            # The reason is final, not transient, so the article is not retried.
+            # A consent wall or menus with no running text: not the article, so never classified.
             fields.update(status="failed", fail_reason="unreadable: %s" % un_reason)
             out.update(status="failed", reason="unreadable: %s" % un_reason)
         else:
@@ -507,9 +526,10 @@ def process_article(conn_factory, row) -> Dict:
             # existing label was made on this very text (classify_rules.ensure_body).
             import hashlib
             out["text_hash"] = hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
-        if fields.get("body_hash"):
-            # The extraction this body was made under (extract.stale_extraction).
-            fields["extract_version"] = config.EXTRACT_VERSION
+        # The extraction a saved body was made under (extract.stale_extraction), and the one a failed
+        # page failed under: a later change to how its template, or every page, is read takes it once
+        # more (retry_candidates), and a page that failed under the current one is not taken for that.
+        fields["extract_version"] = config.EXTRACT_VERSION
         store.update_article(conn, article_id, **fields)
         if fields.get("body_hash"):
             # Body fingerprint for near-duplicate linking (pipeline.body_dups), computed here where the
@@ -526,17 +546,54 @@ def process_article(conn_factory, row) -> Dict:
         conn.close()
 
 
-def retry_candidates(conn) -> List:
-    """Recently discovered articles whose last failure looks transient and that have attempts left."""
-    since = (time.time() - RETRY_WINDOW_DAYS * 86400)
+def _iso_ago(seconds: float) -> str:
     import datetime as dt
-    since_iso = dt.datetime.fromtimestamp(since, dt.timezone.utc).isoformat()
+    return dt.datetime.fromtimestamp(time.time() - seconds, dt.timezone.utc).isoformat()
+
+
+def retry_candidates(conn) -> List:
+    """Articles to fetch again, each once in the list: recently discovered ones whose last failure
+    looks transient and that have attempts left, then the pages that held no article text (the three
+    rules below)."""
     rows = conn.execute(
         "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<? AND discovered_at>=? ORDER BY discovered_at",
-        (RETRY_ATTEMPT_LIMIT, since_iso),
+        (RETRY_ATTEMPT_LIMIT, _iso_ago(RETRY_WINDOW_DAYS * 86400)),
     ).fetchall()
     out = [r for r in rows if r["fail_reason"] and r["fail_reason"].startswith(TRANSIENT_FAIL_PREFIXES)]
-    return out + stale_empty_candidates(conn)
+    out += second_attempt_candidates(conn) + stale_empty_candidates(conn) + second_chance_candidates(conn)
+    seen = set()
+    return [r for r in out if not (r["id"] in seen or seen.add(r["id"]))]
+
+
+def second_attempt_candidates(conn) -> List:
+    """Recent articles whose one fetch found no article text (NO_TEXT_REASONS), from an outlet with a
+    page read in the same RETRY_WINDOW_DAYS: fetched a second time, SECOND_ATTEMPT_AFTER_HOURS or more
+    after the first. An outlet whose pages are read serves an empty one now and then; an outlet none of
+    whose pages are read would only be asked twice for each."""
+    since = _iso_ago(RETRY_WINDOW_DAYS * 86400)
+    return conn.execute(
+        "SELECT * FROM articles a WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<2 AND discovered_at>=?"
+        " AND fetched_at<=? AND " + NO_TEXT_SQL +
+        " AND EXISTS (SELECT 1 FROM articles b WHERE b.outlet_id=a.outlet_id AND b.discovered_at>=?"
+        " AND b.status IN ('fetched', 'classified')) ORDER BY discovered_at",
+        (since, _iso_ago(SECOND_ATTEMPT_AFTER_HOURS * 3600), since)).fetchall()
+
+
+def second_chance_candidates(conn) -> List:
+    """Articles of any age that held no article text (NO_TEXT_REASONS) under an extraction older than
+    the last change to how every page is read (extract.GENERAL_EXTRACTION_VERSION), newest first:
+    fetched once more. The fetch stamps the row with the current version whatever it finds, so each is
+    taken once per such change. On the 2026-11-18 snapshot: 2,170 pages of 91 outlets."""
+    rows = conn.execute(
+        "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<? AND " + NO_TEXT_SQL +
+        " AND (extract_version IS NULL OR extract_version<>?) ORDER BY discovered_at DESC",
+        (RETRY_ATTEMPT_LIMIT, config.EXTRACT_VERSION)).fetchall()
+    return [r for r in rows if extract.before_general_change(r["extract_version"])]
+
+
+def waits_for_another_try(row) -> bool:
+    """True for a row taken again after a fetch that found no article text."""
+    return row["status"] == "failed" and (row["fail_reason"] or "").startswith(NO_TEXT_REASONS)
 
 
 def stale_empty_candidates(conn) -> List:
@@ -581,7 +638,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
         items.sort(key=lambda r: first[fetch_key(r["url"]) or r["url"]])
     prime_fetch_keys(conn, rows)
     counts = {"queued": len(rows), "retried": len(retries), "domains": len(by_domain), "fetched": 0, "paywalled": 0,
-              "failed": 0, "blocked_robots": 0, "skipped_deadline": 0, "slow_domains": {}}
+              "failed": 0, "blocked_robots": 0, "skipped_deadline": 0, "skipped_challenged": 0, "skipped_no_text": 0,
+              "slow_domains": {}}
     lock = threading.Lock()
     # A domain whose robots.txt sets a Crawl-delay above the minimum (AsiaOne asks for 60 seconds)
     # used to hold its worker asleep for the whole run, and a handful of them would starve every
@@ -589,9 +647,24 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
     # _rate_wait). A slow domain gets what fits in the budget (about 35 fetches in 35 minutes at 60
     # seconds); the remainder stays queued, without spending an attempt, for the next run.
     permits = threading.BoundedSemaphore(workers)
+    retry_ids = {r["id"] for r in retries}
 
     def worker(items):
+        challenges = misses = 0
         for r in items:
+            again = r["id"] in retry_ids and waits_for_another_try(r)
+            chance = again and extract.before_general_change(r["extract_version"])
+            if (again and challenges >= CHALLENGE_STREAK) or (chance and misses >= NO_TEXT_STREAK):
+                # The domain is answering with its challenge page, or with pages the new reading does
+                # not read either: the pages waiting for another try are not asked for. One waiting on
+                # the change to how pages are read has had its turn.
+                if chance:
+                    c2 = store.connect()
+                    store.update_article(c2, r["id"], extract_version=config.EXTRACT_VERSION)
+                    c2.commit(); c2.close()
+                with lock:
+                    counts["skipped_challenged" if challenges >= CHALLENGE_STREAK else "skipped_no_text"] += 1
+                continue
             gap = domain_gap(domain_of(r["url"]))
             if gap > config.MIN_SECONDS_PER_DOMAIN:
                 with lock:
@@ -610,6 +683,10 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
                                      fetched_at=store.utcnow(), fetch_attempts=r["fetch_attempts"] + 1)
                 c2.commit(); c2.close()
                 res = {"status": "failed"}
+            reason = res.get("reason") or ""
+            challenges = challenges + 1 if reason.startswith(CHALLENGE_REASON) else 0
+            if chance:
+                misses = misses + 1 if reason.startswith(NO_TEXT_REASONS + (CHALLENGE_REASON,)) else 0
             with lock:
                 counts[res["status"]] = counts.get(res["status"], 0) + 1
                 if res.get("copied_from"):

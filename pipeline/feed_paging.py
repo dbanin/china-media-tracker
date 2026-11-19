@@ -80,7 +80,8 @@ _forms_lock = threading.Lock()
 
 def load_forms(path: Path = PAGING_PATH) -> Dict[str, Dict]:
     """The recorded paging forms by feed URL, read once per version of the file. A malformed entry is
-    skipped (the feed keeps its first page), never fatal to discovery."""
+    skipped (the feed keeps its first page), never fatal to discovery; a file that does not parse at all
+    is reported once as a workflow warning and read as empty."""
     import yaml
     try:
         st = os.stat(str(path))
@@ -90,8 +91,13 @@ def load_forms(path: Path = PAGING_PATH) -> Dict[str, Dict]:
     with _forms_lock:
         if _forms_cache["key"] == key:
             return _forms_cache["forms"]
-    with open(str(path), "r", encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh) or []
+    try:
+        with open(str(path), "r", encoding="utf-8") as fh:
+            raw = yaml.safe_load(fh) or []
+    except (OSError, yaml.YAMLError) as e:
+        print("::warning title=Feed paging::%s could not be read (%s); only WordPress feeds are paged this run"
+              % (Path(path).name, " ".join(str(e).split())[:200]), flush=True)
+        raw = []
     forms = {}
     for f in raw if isinstance(raw, list) else []:
         form = valid_form(f)

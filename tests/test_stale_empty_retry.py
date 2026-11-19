@@ -5,6 +5,9 @@ from pipeline import config, extract, fetch_articles, lookalike, store
 def _db(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
     monkeypatch.setattr(config, "EXTRACT_VERSION", "2026.11.1")
+    # No change to how every page is read since versions were recorded: only the listed templates count
+    # here (the second chance after such a change is tested in test_no_text_retry.py).
+    monkeypatch.setattr(extract, "GENERAL_EXTRACTION_VERSION", "2026.9.1")
     monkeypatch.setattr(extract, "EXTRACTION_CHANGES", (
         ("2026.10.1", "https://old.test/", "an older change"),
         ("2026.11.1", "https://www.chosun.test/", "Arc story payload"),
@@ -19,7 +22,7 @@ def _db(tmp_path, monkeypatch):
         ("chosun_403", "https://www.chosun.test/e", "http_403", None, 1, 1),
         ("old_before", "https://old.test/a", "extraction_empty", None, 1, 1),
         ("old_after", "https://old.test/b", "extraction_empty", "2026.10.1", 1, 1),
-        ("unlisted", "https://other.test/a", "extraction_empty", None, 1, 1),
+        ("unlisted", "https://other.test/a", "extraction_empty", "2026.10.1", 1, 1),
     )
     for name, url, reason, version, attempts, gate in rows:
         ids[name] = store.insert_discovered(conn, {"url": url, "outlet_id": "kr_x", "country": "KOR", "language": "ko",

@@ -76,6 +76,204 @@
   verified: '2026-11-09'
   evidence: As Berita Harian; ?paged=1 starts where the feed ends (one item shared).
 
+# WordPress feeds whose generator line does not name wordpress.org, so they were never paged automatically.
+# Each was read on 2026-11-18 with the collector's own helpers: ?paged=2 and ?paged=3 answered older items
+# with no repeats (the counts are items a page). Hourly reads from 2026-11-13 to 2026-11-17 still found each
+# saturated.
+- feed: https://elnuevodiario.com.do/feed/
+  type: rss
+  pages: https://elnuevodiario.com.do/feed/?paged={n}
+  first: 2
+  max_pages: 6
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 55 polls from 2026-11-13 to 2026-11-17 with about 320 items
+    estimated missed, the most of the feeds in this group.
+
+- feed: https://leadership.ng/feed/
+  type: rss
+  pages: https://leadership.ng/feed/?paged={n}
+  first: 2
+  max_pages: 6
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 29 polls from 2026-11-13 to 2026-11-17, about 161 items estimated
+    missed.
+
+- feed: https://www.balkanweb.com/feed/
+  type: rss
+  pages: https://www.balkanweb.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 17 polls from 2026-11-13 to 2026-11-17, about 35 items estimated
+    missed.
+
+- feed: https://dailytrust.com/feed/
+  type: rss
+  pages: https://dailytrust.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 14 items a page. ?paged=2 continued the feed and ?paged=4 was older again, but the site caches
+    its pages apart. On two readings ?paged=3 held ten items newer than ?paged=2 and four of its links. The
+    reader's order check stops there (not_older), so a saturated poll usually gains the second page only.
+    Saturated on 6 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://jornaleconomico.pt/feed/
+  type: rss
+  pages: https://jornaleconomico.pt/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 9 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://veja.abril.com.br/feed/
+  type: rss
+  pages: https://veja.abril.com.br/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 20 items a page. Saturated on 3 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://www.elciudadano.com/feed/
+  type: rss
+  pages: https://www.elciudadano.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 2 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://www.gulf-insider.com/feed/
+  type: rss
+  pages: https://www.gulf-insider.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 8 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://www.ghanaiantimes.com.gh/feed/
+  type: rss
+  pages: https://www.ghanaiantimes.com.gh/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 5 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://urdu.siasat.com/feed/
+  type: rss
+  pages: https://urdu.siasat.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 10 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://extraboneiru.com/feed/
+  type: rss
+  pages: https://extraboneiru.com/feed/?paged={n}
+  first: 2
+  verified: '2026-11-18'
+  evidence: 10 items a page. Saturated on 6 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://businessday.ng/feed/
+  type: rss
+  pages: https://businessday.ng/feed/?paged={n}
+  first: 2
+  max_pages: 10
+  verified: '2026-11-18'
+  evidence: The generator names WordPress, so the feed was paged already, but it lists 5 items a page and
+    the automatic five pages reach back 25 items. Saturated on 31 polls from 2026-11-13 to 2026-11-17. ?paged=2
+    and ?paged=3 answered older items (one link shared, the feed having moved between the requests).
+
+# Feeds that take no page parameter, read back through the outlet's own numbered listing of its latest
+# items (checked 2026-11-18 with the collector's helpers; robots.txt allows each listing URL).
+- feed: https://www.mehrnews.com/rss
+  type: page
+  pages: https://www.mehrnews.com/archive?pi={n}
+  first: 1
+  max_pages: 6
+  links: '^https://www\.mehrnews\.com/news/\d+/'
+  verified: '2026-11-18'
+  evidence: The feed ignores page parameters. /archive?pi=1 listed 21 to 29 of the feed's 30 items on three
+    readings, and pi=2, pi=3 and pi=4 each listed about 30 older items with no repeats. About 1,032 items were
+    estimated missed from 2026-11-13 to 2026-11-17, the third most of any feed.
+
+- feed: https://www.hamshahrionline.ir/rss
+  type: page
+  pages: https://www.hamshahrionline.ir/archive?pi={n}
+  first: 1
+  max_pages: 5
+  links: '^https://www\.hamshahrionline\.ir/news/\d+/'
+  verified: '2026-11-18'
+  evidence: The same platform as Mehr. /archive?pi=1 listed all 30 of the feed's items, pi=2 listed 32 older
+    and pi=3 27 older, with no repeats.
+
+- feed: https://www.khabaronline.ir/rss
+  type: page
+  pages: https://www.khabaronline.ir/archive?pi={n}
+  first: 1
+  max_pages: 5
+  links: '^https://www\.khabaronline\.ir/news/\d+/'
+  verified: '2026-11-18'
+  evidence: The same platform as Mehr. /archive?pi=1 listed all 30 of the feed's items in the feed's order,
+    pi=2 listed 30 older and pi=3 29 older, with no repeats. Saturated on 27 polls from 2026-11-13 to 2026-11-17.
+
+- feed: https://www.almanar.com.lb/rss
+  type: page
+  page1: https://www.almanar.com.lb/24-hour-news
+  pages: https://www.almanar.com.lb/24-hour-news/page/{n}/
+  first: 1
+  max_pages: 8
+  links: '^https://www\.almanar\.com\.lb/article/\d+/?'
+  verified: '2026-11-18'
+  evidence: The feed lists 10 items and ignores page parameters. The site's 24 hour news listing held 9 of
+    the feed's 10 items and /24-hour-news/page/2/ listed 9 older ones with no repeats. About 188 items were
+    estimated missed from 2026-11-13 to 2026-11-17.
+
+- feed: https://www.tv3.lt/rss/sarasas/0
+  type: page
+  page1: https://www.tv3.lt/rubrika/naujienos/naujausi-straipsniai
+  pages: https://www.tv3.lt/rubrika/naujienos/naujausi-straipsniai?page={n}
+  first: 1
+  max_pages: 4
+  links: '^https://www\.tv3\.lt/naujiena/'
+  verified: '2026-11-18'
+  evidence: The feed lists 15 items. The newest articles listing held 50 items with all 15 of the feed, and
+    ?page=2 listed 50 older ones with no repeats. About 72 items were estimated missed from 2026-11-13 to
+    2026-11-17.
+
+- feed: https://www.mk.ru/rss/news/index.xml
+  type: page
+  page1: https://www.mk.ru/news/
+  pages: https://www.mk.ru/news/{n}/
+  first: 1
+  max_pages: 3
+  links: '^https://www\.mk\.ru/[a-z-]+/\d{4}/\d{2}/\d{2}/[^/]+\.html$'
+  verified: '2026-11-18'
+  evidence: The feed lists 75 items, about 19 of them on www.mk.ru and the rest on the regional editions
+    (yar.mk.ru and others). /news/ lists the www items newest first, about 145 a page, with the feed's www items
+    at its head in the feed's order; /news/2/ and /news/3/ each listed about 140 older ones. Every page closes
+    with the same 29 older links (a side column, about a sixth of the page, under the half that stops the
+    reading), which are usually on record, so the reading ends after the first page with its links added. The
+    listing closes the gap for www.mk.ru only; the regional editions have no listing here. About 1,444 items
+    were estimated missed from 2026-11-13 to 2026-11-17, the second most of any feed.
+
+- feed: https://almashhadalaraby.com/rss/main
+  type: page
+  page1: https://almashhadalaraby.com/news
+  pages: https://almashhadalaraby.com/news?page={n}
+  first: 1
+  max_pages: 5
+  links: '^https://almashhadalaraby\.com/news/\d+$'
+  verified: '2026-11-18'
+  evidence: The feed lists 10 items and ignores page parameters. /news listed 34 links with all 10 of the
+    feed's items at its head in the feed's order; ?page=2 and ?page=3 each listed about 19 older ones beside
+    a side column of 18 links that every page repeats (18 of 37, just under the half that stops the reading,
+    so on some polls the reading ends after the first page). About 139 items were estimated missed from
+    2026-11-13 to 2026-11-17.
+
+- feed: https://avaz.ba/rss
+  type: page
+  page1: https://avaz.ba/najnovije
+  pages: https://avaz.ba/najnovije?page={n}
+  first: 1
+  max_pages: 1
+  links: '^https://avaz\.ba/[a-z-]+/[a-z-]+/\d+/'
+  verified: '2026-11-18'
+  evidence: The feed lists 10 items and ignores page parameters. The newest items listing (/najnovije) held 30
+    items with all 10 of the feed's at its head. It has one page (?page=2 repeats it and /najnovije/2 answers
+    404), so one page is read. About 56 items were estimated missed from 2026-11-13 to 2026-11-17.
+
 # Checked and found not to page (2026-11-09), recorded so they are not tried again.
 - feed: https://www.iol.co.za/rss
   pages: null
@@ -91,3 +289,34 @@
 - feed: https://www.alwihdainfo.com/feed/
   pages: null
   evidence: A Ghost feed; ?paged=2 repeats its 15 items.
+
+# Checked and found not to page (2026-11-18).
+- feed: https://www.isna.ir/rss
+  pages: null
+  evidence: The feed ignores page parameters. /archive, /archive?pi=2 and the home page answer the crawler a
+    6 KB interstitial that links only /cdn-cgi/ assets, a challenge, which is honoured and never run. The
+    outlet's section feeds (tp/24, tp/17, tp/34) are registered instead. About 680 items were estimated missed
+    from 2026-11-13 to 2026-11-17.
+- feed: https://uza.uz/rss
+  pages: null
+  evidence: The feed ignores page parameters. /uz/posts is built in the browser and its markup carries no
+    article links; the home page lists 26 posts and has no numbered pages.
+- feed: https://uza.uz/uz/rss
+  pages: null
+  evidence: As https://uza.uz/rss.
+- feed: https://www.elbalad.news/rss.aspx
+  pages: null
+  evidence: The feed ignores page parameters (?paged=2, ?page=2 and ?p=2 repeat its 20 items). The category
+    pages do page (category/1?page=2) but repeat a top block of 10 and a side column, 30 of 59 links, which is
+    at the share that stops the reading. The outlet's twelve section feeds (rss.aspx?id=N) are registered
+    instead; together they carried all 20 items of the main feed.
+- feed: https://24.hu/feed/
+  pages: null
+  evidence: The generator names WordPress but ?paged=2 and ?paged=3 repeat the feed's 10 items.
+- feed: https://www.poder360.com.br/feed/
+  pages: null
+  evidence: The generator names WordPress but ?paged=2 and ?paged=3 repeat the feed's 10 items.
+- feed: https://www.sangbadpratidin.in/feed/
+  pages: null
+  evidence: The generator names WordPress but the site's robots.txt disallows the feed's ?paged= URLs, which
+    is honoured.

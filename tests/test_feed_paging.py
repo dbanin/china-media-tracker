@@ -78,14 +78,31 @@ def test_malformed_recorded_forms_are_skipped():
     assert fp.valid_form({"feed": FEED, "pages": "https://x.test/{n}", "max_pages": 99})["max_pages"] == fp.MAX_PAGES_LIMIT
 
 
+def test_a_forms_file_that_does_not_parse_is_read_as_empty_with_a_warning(tmp_path, capsys):
+    """An unquoted colon in an evidence line once made the whole file unreadable; discovery must go on."""
+    bad = tmp_path / "feed_paging.yaml"
+    bad.write_text("- feed: https://x.test/feed\n  pages: null\n  evidence: cached apart: twice\n", encoding="utf-8")
+    assert fp.load_forms(bad) == {}
+    assert "::warning title=Feed paging::feed_paging.yaml could not be read" in capsys.readouterr().out
+
+
 def test_the_recorded_forms_file_loads_and_names_registered_feeds():
+    import yaml
     forms = fp.load_forms()
     feeds = {fe["url"] for o in registry.load_outlets() for fe in registry.feed_entries(o)}
     paged = [f for f in forms.values() if f.get("pages")]
-    assert len(paged) >= 6
-    assert all(f["feed"] in feeds for f in paged), [f["feed"] for f in paged if f["feed"] not in feeds]
+    assert len(paged) >= 24
+    assert all(f["feed"] in feeds for f in forms.values()), [f["feed"] for f in forms.values() if f["feed"] not in feeds]
     raw = Path(fp.PAGING_PATH).read_text(encoding="utf-8")
     assert "–" not in raw and "—" not in raw
+    # every entry in the file is a valid form (none dropped as malformed), and a listing's pattern keeps
+    # to the feed's own site
+    entries = yaml.safe_load(raw)
+    assert len(entries) == len(forms)
+    for f in paged:
+        assert f["pages"].split("/")[2] == f["feed"].split("/")[2] or f["type"] == fp.PAGE, f["feed"]
+        if f["type"] == fp.PAGE:
+            assert f["links"].startswith("^https://"), f["feed"]
 
 
 # --- read_back ------------------------------------------------------------------------------------------------

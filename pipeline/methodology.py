@@ -1256,6 +1256,10 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         saturation_text = "%d of %d polls; an estimated %d items missed over the %d polls estimated since %s" % (
             fs.get("saturated", 0), fs["polls"], fs.get("missed_estimate", 0), fs["estimated_polls"],
             fs.get("missed_estimate_since") or fs.get("estimator"))
+        fr = fs.get("recent") or {}
+        if fr.get("mpolls") and fr.get("miss_share") is not None:
+            saturation_text += "; over the %d days to %s an estimated %.1f percent of items missed (%d against %d found)" % (
+                fr["days"], fr["last_day"], 100.0 * fr["miss_share"], fr["miss"], fr["mnew"])
     else:
         saturation_text = "%d of %d polls; items missed not yet estimated by the estimator of %s" % (
             fs.get("saturated", 0), fs["polls"], fs.get("estimator") or "2026-10-12")

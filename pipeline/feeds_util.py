@@ -1,11 +1,30 @@
 """Shared feed fetching. One place for the user agent, timeouts and parsing."""
 import time
 from typing import Dict, Optional
+from urllib.parse import urljoin
 
 import feedparser
 import requests
 
 from pipeline import config
+
+
+def _resolve_links(entries, base: str) -> None:
+    """Make an item link that is a path alone (/news/1449484, //host/item) a full address, against the
+    address that answered. feedparser is given the feed's bytes and not its address, so it leaves such a link
+    as it is, and discovery keeps only links that start with http: every item of a feed that lists its items
+    this way was dropped on every poll (srna.rs/rss and workpointtoday.com/feed/, polled from September to
+    2026-11-18 without one item). Only a link that starts with a slash is resolved; anything else that is not
+    an address (a bare host name, mailto:, javascript:) is left for discovery to drop, as before."""
+    if not isinstance(base, str) or not base.startswith("http"):
+        return
+    for entry in entries:
+        try:
+            link = entry.get("link")
+            if isinstance(link, str) and link.strip().startswith("/"):
+                entry["link"] = urljoin(base, link.strip())
+        except Exception:  # noqa: BLE001  an entry that is not a mapping is discovery's to skip
+            continue
 
 
 def fetch_feed(url: str, timeout: int = config.FEED_TIMEOUT, respect_robots: bool = True) -> Dict:
@@ -61,4 +80,5 @@ def fetch_feed(url: str, timeout: int = config.FEED_TIMEOUT, respect_robots: boo
         if parsed.get("bozo") and parsed.get("bozo_exception"):
             err = "parse_error: %s" % type(parsed["bozo_exception"]).__name__
         return {"ok": False, "entries": [], "status": resp.status_code, "error": err, "elapsed": time.time() - started}
+    _resolve_links(entries, getattr(resp, "url", None) or url)
     return {"ok": True, "entries": entries, "status": resp.status_code, "error": None, "elapsed": time.time() - started, "feed": parsed.get("feed", {})}

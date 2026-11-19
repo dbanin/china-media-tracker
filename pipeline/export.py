@@ -331,6 +331,29 @@ def missed_estimate_since(conn) -> Optional[str]:
                         (config.MISSED_ESTIMATOR_VERSION,)).fetchone()[0]
 
 
+def feed_recent_window(export_day: str) -> Tuple[str, str]:
+    """The config.FEED_RECENT_DAYS complete days before the export day, as (first day, last day). The export
+    day itself is partial and is left out."""
+    day = dt.date.fromisoformat(export_day)
+    return ((day - dt.timedelta(days=config.FEED_RECENT_DAYS)).isoformat(), (day - dt.timedelta(days=1)).isoformat())
+
+
+def _feed_recent(t: Dict, first: str, last: str) -> Dict:
+    """One recent-window block: polls, saturated polls, the estimate and the shares, as _derive words them."""
+    seen = t["miss"] + t["mnew"]
+    return {"days": config.FEED_RECENT_DAYS, "first_day": first, "last_day": last,
+            "polls": t["polls"], "sat": t["sat"], "miss": t["miss"], "mpolls": t["mpolls"], "mnew": t["mnew"],
+            "saturation_share": round(t["sat"] / float(t["polls"]), 4) if t["polls"] else None,
+            "miss_share": round(t["miss"] / float(seen), 4) if t["mpolls"] and seen else None}
+
+
+def _percent(share: float) -> str:
+    """A share as a percentage for a sentence: whole above 10 percent, one decimal below it, where a whole
+    number would round 9.6 up to the warning level."""
+    p = 100.0 * share
+    return "%d" % round(p) if p >= 10 else ("%.1f" % p)
+
+
 def missed_text(miss: int, mpolls: int, polls: int, since: Optional[str]) -> str:
     """The estimated items missed, worded with the polls it covers and the day it starts."""
     if not mpolls:
@@ -729,8 +752,10 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             t["pending"] += r["llm_pending"]
             t["tdisc"] += r["top_discovered"]; t["ttarget"] += r["top_target"]; t["tchina"] += r["top_china"]; t["ta"] += r["top_a"]; t["tb"] += r["top_b"]
     miss_since = missed_estimate_since(conn)
+    recent_first, recent_last = feed_recent_window(today.isoformat())
+    recent = defaultdict(lambda: {"polls": 0, "sat": 0, "miss": 0, "mpolls": 0, "mnew": 0})
     for r in _feed_poll_days(conn, outlets):
-        for target, ok in ((all_time, True), (last30, r["date"] >= since30)):
+        for target, ok in ((all_time, True), (last30, r["date"] >= since30), (recent, recent_first <= r["date"] <= recent_last)):
             if ok:
                 t = target[r["country"]]
                 t["polls"] += r["polls"] or 0; t["sat"] += r["sat"] or 0; t["miss"] += int(round(r["miss"] or 0))
@@ -789,6 +814,9 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
             "top_route": carriers.get(country, {}).get("top_route"),
             "all_time": _derive(dict(all_time[country]), len(active), visible),
             "last_30d": _derive(dict(last30[country]), len(active), visible),
+            # The feed polls of the last complete days alone (feed_recent_window): all_time mixes in the days
+            # feeds were read less often, so it says what the totals lost, and this what is being lost now.
+            "feed_recent": _feed_recent(recent[country], recent_first, recent_last),
             "reviewed_all_time": _reviewed_block(conn, country, None),
             "reviewed_last_30d": _reviewed_block(conn, country, since30),
             "warnings": [],
@@ -823,10 +851,24 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         ms = at["miss_share"]
         missed_high = at["mpolls"] >= 10 and ms is not None and ms >= config.FEED_MISSED_WARNING_SHARE
         sat_high = at["polls"] >= 10 and at["sat"] / float(at["polls"]) >= config.FEED_SATURATION_WARNING_SHARE
+        # The same share over the last complete days, stated in the warning: a country warned on every poll
+        # on record may have stopped losing items since its feeds are read hourly, and one that began to
+        # lose them lately is warned though its share over every poll is still low.
+        fr = entry["feed_recent"]
+        rs = fr["miss_share"]
+        recent_known = fr["mpolls"] >= 10 and rs is not None
+        recent_high = recent_known and rs >= config.FEED_MISSED_WARNING_SHARE
+        recent_text = ""
+        if recent_known:
+            recent_text = "; over the %d days to %s the estimate is %s percent of its items (%d missed against %d found)%s" % (
+                fr["days"], fr["last_day"], _percent(rs), fr["miss"], fr["mnew"],
+                "" if recent_high else ", under the level at which a country is warned, so its recent counts are closer to complete")
         if missed_high or (sat_high and ms is not None):
-            entry["warnings"].append({"type": "feed_saturation", "text": "an estimated %d percent of this country's feed items were lost between polls: %s, against %d found; %d percent of its feed polls came back as a full window with nothing seen before, so its counts understate what its outlets published" % (round(100.0 * ms), missed_text(at["miss"], at["mpolls"], at["polls"], miss_since), at["mnew"], round(100.0 * at["sat"] / at["polls"]))})
+            entry["warnings"].append({"type": "feed_saturation", "text": "an estimated %d percent of this country's feed items were lost between polls: %s, against %d found; %d percent of its feed polls came back as a full window with nothing seen before, so its counts understate what its outlets published%s" % (round(100.0 * ms), missed_text(at["miss"], at["mpolls"], at["polls"], miss_since), at["mnew"], round(100.0 * at["sat"] / at["polls"]), recent_text)})
         elif sat_high:
-            entry["warnings"].append({"type": "feed_saturation", "text": "%d percent of feed polls came back as a full window with nothing seen before, so items were lost between polls; %s" % (round(100.0 * at["sat"] / at["polls"]), missed_text(at["miss"], at["mpolls"], at["polls"], miss_since))})
+            entry["warnings"].append({"type": "feed_saturation", "text": "%d percent of feed polls came back as a full window with nothing seen before, so items were lost between polls; %s%s" % (round(100.0 * at["sat"] / at["polls"]), missed_text(at["miss"], at["mpolls"], at["polls"], miss_since), recent_text)})
+        elif recent_high:
+            entry["warnings"].append({"type": "feed_saturation", "text": "an estimated %s percent of this country's feed items were lost between polls over the %d days to %s (%d missed against %d found), so its recent counts understate what its outlets published" % (_percent(rs), fr["days"], fr["last_day"], fr["miss"], fr["mnew"])})
         # Only relay only outlets go uncollected while the relay is silent. Shared outlets are still
         # polled by the hosted runner, so their counts are not incomplete, only exposed to its gaps.
         if relayed:
@@ -872,7 +914,8 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                                        "top_outlets": 0, "top_outlets_ranked": False, "languages": [], "language_support": "none",
                                        "theme_language_support": "none", "relay_outlets": 0, "shared_outlets": 0, "release_sections": release_summary([]),
                                        "top_carrier": None, "top_route": None,
-                                       "all_time": _derive(_empty_country(), 0, visible), "last_30d": _derive(_empty_country(), 0, visible), "warnings": []}
+                                       "all_time": _derive(_empty_country(), 0, visible), "last_30d": _derive(_empty_country(), 0, visible),
+                                       "feed_recent": _feed_recent(recent[g["country"]], recent_first, recent_last), "warnings": []}
 
     # World totals include the worldwide distribution stratum: its items reached audiences. Its
     # outlets are not in the per outlet denominator, which counts the newsrooms monitored.
@@ -1919,6 +1962,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
             route_totals[model_only.counted_route(r[0], r[1])] -= r[2]
     sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), %s FROM feed_polls" % _MISS_SQL,
                        {"est": config.MISSED_ESTIMATOR_VERSION}).fetchone()
+    recent_first, recent_last = feed_recent_window(latest.get("window_end_30d") or _today())
+    rsat = conn.execute("SELECT COALESCE(SUM(polls), 0) polls, COALESCE(SUM(saturated), 0) sat, %s FROM feed_polls "
+                        "WHERE date>=:first AND date<=:last" % _MISS_SQL,
+                        {"est": config.MISSED_ESTIMATOR_VERSION, "first": recent_first, "last": recent_last}).fetchone()
+    recent = _feed_recent({k: rsat[k] or 0 for k in ("polls", "sat", "miss", "mpolls", "mnew")}, recent_first, recent_last)
     first_discovered = (conn.execute("SELECT MIN(discovered_at) FROM articles").fetchone()[0] or "")[:10] or None
     return {
         "schema_version": config.SCHEMA_VERSION,
@@ -2076,7 +2124,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
                             "estimated_new_items": sat[4] or 0,
                             "missed_share": (round((sat[2] or 0) / float((sat[2] or 0) + (sat[4] or 0)), 4)
                                              if sat[3] and (sat[2] or 0) + (sat[4] or 0) else None),
-                            "missed_warning_share": config.FEED_MISSED_WARNING_SHARE},
+                            "missed_warning_share": config.FEED_MISSED_WARNING_SHARE,
+                            # The same figures over the last complete days alone (feed_recent_window), in the
+                            # country blocks' key names: what is being lost now, where the figures above say
+                            # what every poll on record lost.
+                            "recent": recent},
         "release_sections": release_summary(outlets),
         # Byline flags against the persona list. A match, cited to a published report, never a
         # finding, and nothing in the categories or counts above depends on it. A failure there is
