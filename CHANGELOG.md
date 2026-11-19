@@ -4,6 +4,42 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## SRNA items read at the address the site serves, subscriber notice counted as a paywall (2026-11-19)
+
+No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. The extraction rules
+added here apply only to SRNA's page markup, and none of the 4,020 pages saved before 2026-11-19 carries it, so no
+stored body, label or count reads differently.
+
+SRNA. The first runs after the feed's item links were resolved (2026-11-18) stored 31 items and fetched 9 that passed
+the gate; all 9 failed with HTTP 404. The feed lists each item at /news/<number>, an address the site does not answer.
+The site serves the story at /en/novost/<number>/<any words> (the words are not checked: the page answers 200 under
+any words and 404 under none), so the feed reader now rewrites each SRNA item link to /en/novost/<number>/news
+(pipeline/feeds_util.py). A one-time step in discovery (articles.url.srna_served_address) moves the stored rows that
+have no text to the same address, so no item is stored twice, and puts the rows that failed with 404 back in the fetch
+queue; its counts are in the discover stage's record as srna_readdressed. Expected effect on the data: the items that
+failed are fetched again at the served address (among the 9, three on Xi Jinping at APEC and one on China Media
+Group), and SRNA items are read from now on.
+
+SRNA's page. The element that holds the story also holds the section name, the date and time, and a strip of other
+stories with their openings, and extraction returned all of it as the body (4,202 characters for a story of 2,742).
+Those three parts are pruned (extract.PRUNE_XPATH). Some stories show the opening paragraph and, in place of the rest,
+a line saying the complete news is for subscribers of the agency's news service (2 of 7 sampled). That line is now a
+paywall marker (subscriber notice: restriction): the item is recorded as paywalled and only the opening shown is kept.
+The feed's description carries the whole text of such a story; it is not used, because what a reader is shown is what
+is read. Two saved pages with synthetic text in the same markup are added to the fixtures, one of them to the golden
+set (21 pages). Expected effect on the data: SRNA bodies hold the story alone, and an item whose page shows the notice
+is counted as paywalled.
+
+Registry. SRNA's language is corrected from sr to en: the feed is the agency's English service (its language tag is
+en-US, every item is in English, and /sr/rss answers with the same feed), and no feed of the Serbian service was
+found. The stored items are retagged at the next discovery and the 22 gated out under the Serbian terms are gated
+again in English; on the snapshot of 2026-11-19 none of them passes. The note on The Wall Street Journal is corrected,
+and so is the previous entry here, which said its article pages answer HTTP 401: the collector never requests them.
+wsj.com/robots.txt disallows every page to crawlers it does not name, so no article page is fetched and the collector
+records each item that passes the gate as blocked by robots.txt (15 in the first day). That is the site's choice and
+is left as it is. The two feeds, on another host whose robots.txt allows them, stay registered. Expected effect on the
+data: none from the notes; SRNA items are gated with the English terms from now on.
+
 ## Extraction 2026.11.2, data schema 21, wider feed coverage (2026-11-18)
 
 EXTRACT_VERSION goes from 2026.11.1 to 2026.11.2, the data schema from 20 to 21 and ASSET_VERSION from 94 to 95.

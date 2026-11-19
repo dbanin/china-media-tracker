@@ -18,6 +18,13 @@ HARD_PAYWALL_JSONLD = re.compile(r'"isAccessibleForFree"\s*:\s*("?)(false|False|
 # after subscribing, or free after watching an advertisement"). The box is only there when text is held
 # back, so it counts at any length of opening.
 RESTRICTED_BOX_RE = re.compile(r'(?i)<div\b[^>]{0,200}\bid="wpmem_restricted_msg"')
+# SRNA of Bosnia shows the opening paragraph of some stories and, in place of the rest, a line that says the
+# complete news is for subscribers of its news service, inside a link to the service's sign-in page (2 of 7
+# stories sampled on 2026-11-19; the others are shown whole and carry no such line). The line is only
+# there when text is held back, so it counts at any length of opening. The sign-in link alone does not
+# count: it is in the header of every page.
+SUBSCRIBER_NOTICE_RE = re.compile(
+    r'(?i)<a\b[^>]{0,300}\bhref="[^"]{0,200}/prijava/[^"]{0,200}"[^>]{0,100}>\s*<p\b[^>]{0,100}\bclass="restriction"')
 
 INTERSTITIAL_MARKERS = [
     # class or id fragments used by common paywall vendors
@@ -67,6 +74,8 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
         return True, "schema.org isAccessibleForFree false"
     if RESTRICTED_BOX_RE.search(html):
         return True, "members only box: wpmem_restricted_msg"
+    if SUBSCRIBER_NOTICE_RE.search(html):
+        return True, "subscriber notice: restriction"
     m = _interstitial_re.search(html)
     if m and (not body_text or len(body_text) < SHORT_BODY_CHARS):
         return True, "interstitial marker with short body: %s" % m.group(0)[:60]
@@ -503,7 +512,16 @@ def wire_author(author: Optional[str], source: Optional[str]) -> Optional[str]:
 # when one of its own fields marks it as paid. A page that shows an opening of the story is never
 # filled in from its data: what a reader is shown is what is read. On the 4,020 saved pages the three
 # readings changed no body that had been read; they read 5 pages that had held nothing.
-PRUNE_XPATH = ["//*[contains(@class,'RelatedArticle')]"]
+#
+#
+# SRNA of Bosnia (first read 2026-11-19) prints, inside the element that holds the story, the section name,
+# the date and time, and a strip of other stories with their openings, and extraction returned all of it
+# as the body (4,202 characters for a story of 2,742). Those three parts are pruned. No page saved before
+# that day carries the markup, so no stored body reads differently.
+PRUNE_XPATH = ["//*[contains(@class,'RelatedArticle')]",
+               "//main[@id='single-main']/div[contains(@class,'title-container')]",
+               "//main[@id='single-main']//div[@class='date-time']",
+               "//main[@id='single-main']//section[@id='categories']"]
 _EMBEDDED_ARTICLE_RE = re.compile(r'<article-component\b[^>]*?\s:article="([^"]*)"', re.S)
 _NEXT_DATA_RE = re.compile(r'(?i)<script\b[^>]{0,300}\bid="__NEXT_DATA__"[^>]{0,300}>')
 # The article object is looked for this many levels below pageProps (RUV: data.article, Mosaique FM:

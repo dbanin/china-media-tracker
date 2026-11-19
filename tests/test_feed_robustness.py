@@ -217,6 +217,63 @@ def test_a_path_link_is_resolved_against_the_address_that_answered(monkeypatch):
     assert r["entries"][0]["link"] == "https://news.fp.test/news/1449484"
 
 
+SRNA = (b'<?xml version="1.0"?><rss><channel><link></link>'
+        b'<item><title>China one</title><link>/news/1449761</link><guid>/news/1449761</guid></item>'
+        b'<item><title>China two</title><link>https://www.srna.rs/news/1449728/</link></item>'
+        b'<item><title>China three</title><link>https://www.srna.rs/en/novost/1449484/a-headline</link></item>'
+        b'<item><title>China four</title><link>/newsroom/12</link></item>'
+        b'</channel></rss>')
+
+
+def test_srna_item_links_are_rewritten_to_the_address_the_site_serves(conn, monkeypatch):
+    """srna.rs/rss lists each item as /news/<number>, which the site answers with 404; the story is at
+    /en/novost/<number>/<any words>. Only that form of link, on that host, is rewritten."""
+    from pipeline import feeds_util
+    _serve(monkeypatch, {"https://www.srna.rs/rss": SRNA, "https://www.fp.test/rss": SRNA})
+    r = feeds_util.fetch_feed("https://www.srna.rs/rss")
+    assert [e.get("link") for e in r["entries"]] == [
+        "https://www.srna.rs/en/novost/1449761/news", "https://www.srna.rs/en/novost/1449728/news",
+        "https://www.srna.rs/en/novost/1449484/a-headline", "https://www.srna.rs/newsroom/12"]
+    other = feeds_util.fetch_feed("https://www.fp.test/rss")
+    assert other["entries"][0]["link"] == "https://www.fp.test/news/1449761"
+    counts = _run(conn, monkeypatch, [("https://www.srna.rs/rss", r)])
+    assert "https://www.srna.rs/en/novost/1449761/news" in _urls(conn) and counts["items_new"] == 4
+
+
+def test_srna_rows_stored_under_the_dead_address_take_the_served_one_once(conn, monkeypatch):
+    """The rows of 2026-11-18 and 19: the feed listing an item again must find its row, and a row that
+    failed with the site's 404 is fetched again at the address that answers."""
+    def add(url, status, reason=None, relevant=1, attempts=0):
+        conn.execute("INSERT INTO articles(url, url_hash, outlet_id, country, language, discovered_at, status, "
+                     "fail_reason, http_status, gate_relevant, fetch_attempts) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                     (url, store.url_hash(url), "ba_srna", "BIH", "sr", store.utcnow(), status, reason,
+                      404 if reason == "http_404" else None, relevant, attempts))
+    add("https://www.srna.rs/news/1449761", "failed", "http_404", attempts=2)
+    add("https://www.srna.rs/news/1449728", "gated_out", relevant=0)
+    add("https://www.srna.rs/news/1449484", "failed", "timeout", attempts=1)
+    add("https://www.srna.rs/news/1449485", "failed", "http_404", attempts=1)
+    add("https://www.srna.rs/en/novost/1449485/news", "fetched")          # already stored where it is served
+    add("https://www.fp.test/news/7", "failed", "http_404", attempts=1)
+    conn.commit()
+    counts = _run(conn, monkeypatch, [])
+    assert counts["srna_readdressed"] == {"moved": 3, "queued": 1}
+    rows = _urls(conn)
+    a = rows["https://www.srna.rs/en/novost/1449761/news"]
+    assert (a["status"], a["fail_reason"], a["http_status"], a["fetch_attempts"]) == ("queued", None, None, 0)
+    assert a["url_hash"] == store.url_hash("https://www.srna.rs/en/novost/1449761/news")
+    assert rows["https://www.srna.rs/en/novost/1449728/news"]["status"] == "gated_out"
+    b = rows["https://www.srna.rs/en/novost/1449484/news"]
+    assert (b["status"], b["fail_reason"], b["fetch_attempts"]) == ("failed", "timeout", 1)
+    assert rows["https://www.srna.rs/news/1449485"]["status"] == "failed"
+    assert rows["https://www.fp.test/news/7"]["status"] == "failed" and len(rows) == 6
+    # the feed lists the first two again: both rows are found, neither is stored twice
+    _serve(monkeypatch, {"https://www.srna.rs/rss": SRNA})
+    from pipeline import feeds_util
+    again = _run(conn, monkeypatch, [("https://www.srna.rs/rss", feeds_util.fetch_feed("https://www.srna.rs/rss"))])
+    assert "srna_readdressed" not in again
+    assert again["items_new"] == 2 and len(_urls(conn)) == 8       # the feed's other two items alone
+
+
 def test_resolved_links_reach_discovery(conn, monkeypatch):
     from pipeline import feeds_util
     _serve(monkeypatch, {"https://www.fp.test/en/rss": PATHS})

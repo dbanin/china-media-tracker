@@ -1,4 +1,5 @@
 """Shared feed fetching. One place for the user agent, timeouts and parsing."""
+import re
 import time
 from typing import Dict, Optional
 from urllib.parse import urljoin
@@ -23,6 +24,27 @@ def _resolve_links(entries, base: str) -> None:
             link = entry.get("link")
             if isinstance(link, str) and link.strip().startswith("/"):
                 entry["link"] = urljoin(base, link.strip())
+        except Exception:  # noqa: BLE001  an entry that is not a mapping is discovery's to skip
+            continue
+
+
+# SRNA of Bosnia lists every item of srna.rs/rss as /news/<number>, an address its own site answers with 404:
+# the nine pages fetched after the links were first resolved (2026-11-18) all failed that way. The site serves
+# the story at /en/novost/<number>/<any words>, where the words are the headline in its own links and are not
+# checked (checked 2026-11-19: the page answers 200 under any words and 404 under none). The link is rewritten
+# to that address with the one word "news", so an item keeps one address when its headline is edited.
+_SRNA_ITEM_RE = re.compile(r"^https?://(?:www\.)?srna\.rs/news/(\d+)/?$")
+_SRNA_PAGE = "https://www.srna.rs/en/novost/%s/news"
+
+
+def _repair_links(entries) -> None:
+    """Rewrite an item link the publisher's own site does not answer to the address it serves the item at."""
+    for entry in entries:
+        try:
+            link = entry.get("link")
+            m = _SRNA_ITEM_RE.match(link.strip()) if isinstance(link, str) else None
+            if m:
+                entry["link"] = _SRNA_PAGE % m.group(1)
         except Exception:  # noqa: BLE001  an entry that is not a mapping is discovery's to skip
             continue
 
@@ -81,4 +103,5 @@ def fetch_feed(url: str, timeout: int = config.FEED_TIMEOUT, respect_robots: boo
             err = "parse_error: %s" % type(parsed["bozo_exception"]).__name__
         return {"ok": False, "entries": [], "status": resp.status_code, "error": err, "elapsed": time.time() - started}
     _resolve_links(entries, getattr(resp, "url", None) or url)
+    _repair_links(entries)
     return {"ok": True, "entries": entries, "status": resp.status_code, "error": None, "elapsed": time.time() - started, "feed": parsed.get("feed", {})}

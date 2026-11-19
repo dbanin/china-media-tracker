@@ -216,5 +216,16 @@
   "chars": 578,
   "note": "Chosun Ilbo (Arc XP): the served page holds no article text, only the Fusion.globalContent payload the browser draws it from; the story is read from the payload's content_elements (extract.arc_story_html), never on a page marked paywalled or members only.",
   "synthetic": true
+ },
+ {
+  "name": "en_ba_srna",
+  "url": "https://www.srna.rs/en/novost/1449728/news",
+  "language": "en",
+  "author": "Srna; Novinska agencija Republike Srpske",
+  "date": "2026-11-19",
+  "title": "Vali | KAVE MARUMOMUBOPU FOR JESULE - BOPO KOLECOVEP FIZI ZIHULA POTOP NEW DOJIPOHUM",
+  "chars": 2742,
+  "note": "SRNA of Bosnia: the element that holds the story also holds the section name, the date and time and a strip of other stories with their openings; they are pruned (extract.PRUNE_XPATH) and the body is the story alone.",
+  "synthetic": true
  }
 ]

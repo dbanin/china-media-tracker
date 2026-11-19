@@ -4408,7 +4408,7 @@
 - id: ba_srna
   name: SRNA
   country: BIH
-  language: sr
+  language: en
   feeds:
   - https://www.srna.rs/rss
   release_sections:
@@ -4416,7 +4416,10 @@
     status: none_found
     sections: []
   tier: agency
-  notes: Verified 2026-09-02.
+  notes: Verified 2026-09-02. Language corrected 2026-11-19 from sr to en. The feed is the agency's English service (its language tag is en-US and every item is in English; /sr/rss and /rss?lang=sr answer
+    with the same feed), and no feed of the Serbian service was found. The feed lists each item at /news/<number>, an address the site answers with 404. The story is served at /en/novost/<number>/<any
+    words>, and item links are rewritten to that address (pipeline/feeds_util.py). Some stories show the opening paragraph and a line that the complete news is for subscribers of the news service (2
+    of 7 sampled on 2026-11-19). Those are recorded as paywalled and only the opening is kept, although the feed's description carries the whole story.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
@@ -29998,8 +30001,8 @@
   tier: business
   network: news_corp
   notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The two feeds on feeds.a.dj.com still answer but stopped updating on 2025-01-27. They are replaced by the same two feeds at their current addresses
-    on feeds.content.dowjones.io, World News (73 items) and Markets (61 items), verified 2026-11-18 with the collector's feed reader. Article pages answer HTTP 401 to the crawler, which is the site's choice
-    and is left as it is, so the four other feeds on that host are not added.
+    on feeds.content.dowjones.io, World News (73 items) and Markets (61 items), verified 2026-11-18 with the collector's feed reader. The site's robots.txt disallows every page of wsj.com to crawlers it does not name, so no article page is fetched and each gate relevant item is recorded as blocked by robots.txt (15 in the first
+    day), which is the site's choice and is left as it is. The four other feeds on that host are not added for that reason. Corrected 2026-11-19, the note first said the pages answer HTTP 401.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/wall-street-journal/
   ownership: private

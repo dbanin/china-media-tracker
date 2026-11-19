@@ -19,6 +19,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from typing import Dict, List, Optional, Tuple
 
 from pipeline import boilerplate, extract, gate, registry, store
+from pipeline import feeds_util
 from pipeline.feeds_util import fetch_feed
 
 TITLE_JACCARD_THRESHOLD = 0.7
@@ -895,6 +896,39 @@ def _clock_pass(conn, counts: Dict, now: Optional[dt.datetime] = None) -> Dict[s
     return clocks
 
 
+def _readdress_srna(conn, counts: Dict) -> None:
+    """Once per database: the SRNA rows stored on 2026-11-18 and 19 under the address its feed lists, which
+    the site answers with 404 (feeds_util._repair_links), take the address the site serves. The feed listing
+    an item again then finds its row instead of storing it twice, and the rows that failed with that 404 are
+    queued to be fetched where the story is. None of them holds a body (none was ever read). A row whose
+    served address another row already holds is left as it is. A failure is recorded and leaves the rows
+    to the next run; discovery goes on."""
+    conn.commit()       # a failure below rolls back this step alone, its record included
+    try:
+        if not store._once(conn, "articles.url.srna_served_address", lambda c: c.execute(
+                "SELECT 1 FROM articles WHERE url LIKE '%srna.rs/news/%' LIMIT 1").fetchone()):
+            return
+        moved = queued = 0
+        for r in conn.execute("SELECT id, url, status, fail_reason FROM articles "
+                              "WHERE url LIKE '%srna.rs/news/%' AND body_hash IS NULL").fetchall():
+            entry = {"link": r["url"]}
+            feeds_util._repair_links([entry])
+            h = store.url_hash(entry["link"])
+            if entry["link"] == r["url"] or conn.execute("SELECT 1 FROM articles WHERE url_hash=?", (h,)).fetchall():
+                continue
+            conn.execute("UPDATE articles SET url=?, url_hash=? WHERE id=?", (entry["link"], h, r["id"]))
+            moved += 1
+            if r["status"] == "failed" and r["fail_reason"] == "http_404":
+                conn.execute("UPDATE articles SET status='queued', fail_reason=NULL, http_status=NULL, "
+                             "fetched_at=NULL, fetch_attempts=0 WHERE id=?", (r["id"],))
+                queued += 1
+        conn.commit()
+        counts["srna_readdressed"] = {"moved": moved, "queued": queued}
+    except Exception as exc:  # noqa: BLE001  the rows keep the address they have
+        conn.rollback()
+        counts["srna_readdress_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+
+
 # Feed paging (pipeline/feed_paging.py): within run(), a saturated first page of an RSS feed is followed by
 # the feed's next pages until the stream reaches back to the feed's previous successful poll. What the
 # workers need is set up once per run, before they start: the previous poll of every feed (the shared
@@ -1006,6 +1040,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     # Each feed's clock (clock_profiles, the note above CLOCK_DAYS), learned once per run; the items of the
     # window that arrived before their feed's profile held are judged now.
     clocks = _clock_pass(conn, counts)
+    _readdress_srna(conn, counts)
     try:
         _paging_setup(conn, outlets, clocks, deadline)
     except Exception as exc:  # noqa: BLE001  discovery goes on with first pages only

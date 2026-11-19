@@ -82,3 +82,35 @@ def test_press_release_payload_is_never_read_on_a_page_with_a_paywall_marker():
 def test_press_release_payload_needs_the_paid_release_route():
     html = _page("en_sg_straitstimes_ppr_xinhua").replace("routes/ArticlePPR/ArticlePPR", "routes/Article/Article")
     assert extract.press_release_payload(html) is None
+
+
+SRNA_OTHER = ("RIPECIFE ZUKOKO", "SAPIPUH: JATESAKE", "HEMUCI: I LUFOLED")   # the headline lists and the strip
+
+
+def test_srna_story_is_read_without_the_other_stories_on_its_page():
+    """SRNA prints the section name, the time and other stories' openings inside the element that holds the story."""
+    html = _page("en_ba_srna")
+    assert all(other in html for other in SRNA_OTHER)
+    text = extract.extract(html, "https://www.srna.rs/en/novost/1449728/news")["text"]
+    assert text.startswith("KAVE MARUMOMUBOPU FOR JESULE - BOPO KOLECOVEP FIZI ZIHULA POTOP NEW DOJIPOHUM\nDULISIGE, NOVEMBER 19 /SRNA/")
+    assert text.endswith("and buhatinomicevar of Jojen Honic.")
+    assert not any(other in text for other in SRNA_OTHER)
+    assert not extract.detect_paywall(html, text)[0]
+
+
+def test_srna_subscriber_notice_is_a_paywall_and_only_the_opening_is_kept():
+    """Some SRNA stories show the opening paragraph and a line that the rest is for subscribers."""
+    html = _page("en_ba_srna_subscriber_notice")
+    text = extract.extract(html, "https://www.srna.rs/en/novost/1449761/news")["text"]
+    assert extract.detect_paywall(html, text) == (True, "subscriber notice: restriction")
+    assert extract.detect_paywall(html, "x" * 5000)[0]              # at any length of opening
+    assert text.startswith("PALILU: TEBUV, XI AND SATEP SET ZOGILA FOR NEW GAPOD PAKAL\nVOHEL MOVO, NOVEMBER 19 /SRNA/")
+    assert text.endswith("COMPLETE NEWS AVAILABLE TO SUBSCRIBERS OF THE SRNA AGENCY NEWS SERVICE")
+    assert not any(other in text for other in SRNA_OTHER)
+
+
+def test_srna_sign_in_link_alone_is_not_a_paywall():
+    """Every SRNA page links to the news service's sign-in page from its header."""
+    html = _page("en_ba_srna")
+    assert "/prijava/redakcijski-servis/login" in html
+    assert not extract.SUBSCRIBER_NOTICE_RE.search(html)
