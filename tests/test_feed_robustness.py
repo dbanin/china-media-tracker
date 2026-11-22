@@ -274,6 +274,36 @@ def test_srna_rows_stored_under_the_dead_address_take_the_served_one_once(conn, 
     assert again["items_new"] == 2 and len(_urls(conn)) == 8       # the feed's other two items alone
 
 
+def test_srna_rows_paywalled_for_the_subscriber_notice_are_queued_again_once(conn, monkeypatch):
+    """The rows of 2026-11-20 to 22: their pages showed the notice when fetched and show the whole text now."""
+    from pipeline import extract
+
+    def add(n, outlet, status, reason=None, attempts=1):
+        url = "https://www.srna.rs/en/novost/%d/news" % n
+        conn.execute("INSERT INTO articles(url, url_hash, outlet_id, country, language, discovered_at, status, "
+                     "fail_reason, gate_relevant, fetch_attempts) VALUES (?,?,?,?,?,?,?,?,1,?)",
+                     (url, store.url_hash(url), outlet, "BIH", "sr", store.utcnow(), status, reason, attempts))
+        return url
+    held = add(1, "ba_srna", "paywalled", extract.SUBSCRIBER_NOTICE)
+    also = add(2, "ba_srna", "paywalled", extract.SUBSCRIBER_NOTICE, attempts=2)
+    marker = add(3, "ba_srna", "paywalled", "paywall marker: subscribe to continue")
+    read = add(4, "ba_srna", "fetched")
+    elsewhere = add(5, "xx_other", "paywalled", extract.SUBSCRIBER_NOTICE)
+    conn.commit()
+    counts = _run(conn, monkeypatch, [])
+    assert counts["srna_notices_requeued"] == 2 and "srna_notices_requeue_error" not in counts
+    rows = _urls(conn)
+    for url in (held, also):
+        assert (rows[url]["status"], rows[url]["fail_reason"], rows[url]["fetch_attempts"]) == ("queued", None, 0)
+    assert rows[marker]["status"] == "paywalled" and rows[read]["status"] == "fetched"
+    assert (rows[elsewhere]["status"], rows[elsewhere]["fail_reason"]) == ("paywalled", extract.SUBSCRIBER_NOTICE)
+    # a later story left paywalled (the feed no longer listed it) is not queued by every run that follows
+    late = add(6, "ba_srna", "paywalled", extract.SUBSCRIBER_NOTICE)
+    conn.commit()
+    again = _run(conn, monkeypatch, [])
+    assert "srna_notices_requeued" not in again and _urls(conn)[late]["status"] == "paywalled"
+
+
 def test_resolved_links_reach_discovery(conn, monkeypatch):
     from pipeline import feeds_util
     _serve(monkeypatch, {"https://www.fp.test/en/rss": PATHS})

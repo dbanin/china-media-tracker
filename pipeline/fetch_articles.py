@@ -482,6 +482,19 @@ def process_article(conn_factory, row) -> Dict:
             labels = extract.page_labels(html, url)
             jsonld_author = None if (ex["author"] or row["author"]) else extract.jsonld_authors(html)
             wire = extract.embedded_source(html, url)
+        if paywalled and pw_reason == extract.SUBSCRIBER_NOTICE:
+            # SRNA shows the opening of a new story and a line that the rest is for subscribers, while its
+            # public feed carries the whole text. By the owner's decision of 2026-11-22 the feed's text is
+            # the body of such a story (pipeline/feed_text.py, where the conditions are). The feed is read
+            # outside the lock: it is a request.
+            from pipeline import feed_text
+            whole = feed_text.whole_story(row, html, text)
+            if whole:
+                with _extract_lock:
+                    text = whole
+                    paywalled, pw_reason = extract.detect_paywall(html, text)
+                    unreadable, un_reason = extract.detect_unreadable(html, text, row["title"])
+                out["feed_text"] = not paywalled
         raw_path = store.save_raw_html(row["url_hash"], html)
         fields = dict(http_status=http_status, fetched_at=store.utcnow(), raw_html_path=raw_path,
                       fetch_attempts=row["fetch_attempts"] + 1, page_labels=labels or None)
@@ -691,6 +704,8 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
                 counts[res["status"]] = counts.get(res["status"], 0) + 1
                 if res.get("copied_from"):
                     counts["copied"] = counts.get("copied", 0) + 1
+                if res.get("feed_text"):
+                    counts["feed_text"] = counts.get("feed_text", 0) + 1
 
     with ThreadPoolExecutor(max_workers=workers + config.SLOW_DOMAIN_THREADS) as pool:
         list(pool.map(paced(permits, worker), by_domain.values()))

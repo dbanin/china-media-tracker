@@ -4418,8 +4418,10 @@
   tier: agency
   notes: Verified 2026-09-02. Language corrected 2026-11-19 from sr to en. The feed is the agency's English service (its language tag is en-US and every item is in English; /sr/rss and /rss?lang=sr answer
     with the same feed), and no feed of the Serbian service was found. The feed lists each item at /news/<number>, an address the site answers with 404. The story is served at /en/novost/<number>/<any
-    words>, and item links are rewritten to that address (pipeline/feeds_util.py). Some stories show the opening paragraph and a line that the complete news is for subscribers of the news service (2
-    of 7 sampled on 2026-11-19). Those are recorded as paywalled and only the opening is kept, although the feed's description carries the whole story.
+    words>, and item links are rewritten to that address (pipeline/feeds_util.py). The page of a new story shows the opening paragraph and a line that the complete news is for subscribers of the news
+    service; the line is gone some hours later (8 of 21 stories fetched 2026-11-20 to 22 carried it, all fetched within 73 minutes of publication). The feed's description carries the whole story from the
+    start, and by the owner's decision of 2026-11-22 it is the body of a story whose page shows the line (pipeline/feed_text.py). Where the feed no longer lists the story it is recorded as paywalled
+    with the opening.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state

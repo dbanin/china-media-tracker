@@ -4,6 +4,51 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## SRNA subscriber stories take the feed's text (2026-11-22)
+
+No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. Only an SRNA page that
+shows the subscriber notice is read differently, no other outlet's markup carries the notice, and the SRNA rows
+already stored are handled by the one-time step below, so no stored body, label or count of another outlet changes.
+
+Decision. Until now an SRNA story whose page showed the opening paragraph and the line that the complete news is for
+subscribers was recorded as paywalled with the opening alone, although the agency's public feed carries the whole text
+in the item's description (the entry of 2026-11-19, which said the description is not used because what a reader is
+shown is what is read). On 2026-11-22 the owner decided that the feed's text is the body of such a story. It is the
+one exception to that rule and it holds only where a page shows this notice: the text is the one the agency gives
+every reader of its feed, nothing is asked of the sign-in page, and every other paywall marker is treated as before.
+Expected effect on the data: none by itself; the two paragraphs below are how it is applied.
+
+What the notice is. It is on the page of a new story and gone some hours later. Of the 21 SRNA stories fetched from
+2026-11-20 to 22, the 8 fetched 43 to 73 minutes after publication carried it and the 13 fetched 3 hours 25 minutes or
+more after publication did not, and four pages asked for again on 2026-11-22, between 3 hours and 3 days old and one
+of them among the 8, all showed the whole text. On four stories the feed's text, under the page's headline and without
+the desk's sign-off ("/end/tp/sg", which the page does not print), was the text the page showed later, character for
+character but for where lines break (624, 1,922, 2,742 and 3,875 characters). Expected effect on the data: none; this
+is the measurement the change rests on.
+
+Fetch. When a fetched page shows the notice, the fetch stage reads the feed the item came from again
+(pipeline/feed_text.py): once per run, with the same reader as discovery (robots.txt, the pacing per domain, the
+project's user agent), and only a feed on the page's own site. The description is not kept at discovery, where only
+its first 2,000 characters are stored for the gate. The item is found by its address, and the feed's text is used only
+when it is the page's story with more to it: every line the page shows from the feed's first paragraph on must be the
+feed's own paragraphs, in order, with more of them to come. The body is then what the page shows ahead of that
+paragraph (the headline) and the feed's paragraphs, the sign-off dropped, and the item is recorded as fetched.
+Anything else (the feed no longer lists the item, the feed does not answer, the opening reads differently) leaves it
+paywalled with the opening, as before. The saved page still carries the notice, and classification reads the saved
+page beside the body, so the paywall check (extract.detect_paywall) no longer counts the notice against a body that
+holds the page's opening, goes on past it and does not hold the notice's words; for the page's own text, a body
+without the opening or no body it answers as before. The fetch stage's record counts these items as feed_text.
+Expected effect on the data: new SRNA stories are stored whole and classified on their full text in the run that
+discovers them, where 8 of 21 were paywalled; SRNA's paywalled count stops growing.
+
+Stored rows. A one-time step in discovery (articles.status.srna_subscriber_notice) puts the SRNA rows recorded as
+paywalled for the notice back in the fetch queue, 8 on the snapshot of 2026-11-22; its count is in the discover
+stage's record as srna_notices_requeued. The feed no longer lists them, and their pages show the whole text now. One
+whose page still shows the notice and is no longer in the feed is paywalled again and is not queued a second time. 13
+tests are added (tests/test_feed_text.py and one in tests/test_feed_robustness.py); the page they read is the
+synthetic one already in the fixtures and the feed paragraphs are made up. Expected effect on the data: those rows are
+read whole from their pages at the next run and move from paywalled to fetched, then to a label.
+
 ## SRNA items read at the address the site serves, subscriber notice counted as a paywall (2026-11-19)
 
 No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. The extraction rules

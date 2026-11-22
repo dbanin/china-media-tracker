@@ -23,8 +23,21 @@ RESTRICTED_BOX_RE = re.compile(r'(?i)<div\b[^>]{0,200}\bid="wpmem_restricted_msg
 # stories sampled on 2026-11-19; the others are shown whole and carry no such line). The line is only
 # there when text is held back, so it counts at any length of opening. The sign-in link alone does not
 # count: it is in the header of every page.
+#
+# The notice is on the page of a new story and gone some hours later: of 21 stories fetched from 2026-11-19
+# to 21, the 8 fetched 43 to 73 minutes after publication carried it and the 13 fetched 3 hours 25 minutes or
+# more after publication did not, and four pages asked for again on 2026-11-22 (three hours to three days
+# after publication, two of them recorded with the notice) showed the whole text. The agency's public feed
+# carries the whole text from the start, and since 2026-11-22, by the owner's decision, that text is the body
+# of a story whose page shows the notice (pipeline/feed_text.py). So the notice counts against a body that
+# stops where the page stops, and not against one that goes on past the opening the page shows
+# (past_subscriber_notice): the page saved with such a body still carries the notice.
 SUBSCRIBER_NOTICE_RE = re.compile(
-    r'(?i)<a\b[^>]{0,300}\bhref="[^"]{0,200}/prijava/[^"]{0,200}"[^>]{0,100}>\s*<p\b[^>]{0,100}\bclass="restriction"')
+    r'(?i)<a\b[^>]{0,300}\bhref="[^"]{0,200}/prijava/[^"]{0,200}"[^>]{0,100}>\s*<p\b[^>]{0,100}\bclass="restriction"'
+    r'[^>]{0,100}>([^<]{0,300})')
+SUBSCRIBER_NOTICE = "subscriber notice: restriction"
+_PARAGRAPH_OPEN_RE = re.compile(r"(?i)<p\b")
+NOTICE_OPENING_SPAN = 8000     # characters ahead of the notice in which the paragraph it follows opens
 
 INTERSTITIAL_MARKERS = [
     # class or id fragments used by common paywall vendors
@@ -74,8 +87,8 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
         return True, "schema.org isAccessibleForFree false"
     if RESTRICTED_BOX_RE.search(html):
         return True, "members only box: wpmem_restricted_msg"
-    if SUBSCRIBER_NOTICE_RE.search(html):
-        return True, "subscriber notice: restriction"
+    if SUBSCRIBER_NOTICE_RE.search(html) and not past_subscriber_notice(html, body_text):
+        return True, SUBSCRIBER_NOTICE
     m = _interstitial_re.search(html)
     if m and (not body_text or len(body_text) < SHORT_BODY_CHARS):
         return True, "interstitial marker with short body: %s" % m.group(0)[:60]
@@ -86,6 +99,35 @@ def detect_paywall(html: str, body_text: Optional[str]) -> Tuple[bool, Optional[
     if art is not None and art.get("premium"):
         return True, "embedded article marked premium"
     return False, None
+
+
+def one_line(text: Optional[str]) -> str:
+    """The text with every run of white space, line breaks included, as one space."""
+    return " ".join((text or "").split())
+
+
+def subscriber_notice(html: str) -> Optional[Tuple[str, str]]:
+    """(opening, notice) of a page that carries the subscriber notice (SUBSCRIBER_NOTICE_RE): the paragraph the
+    page shows ahead of the notice and the notice's own words, each as one line. None without the notice."""
+    m = SUBSCRIBER_NOTICE_RE.search(html or "")
+    if not m:
+        return None
+    ahead = html[max(0, m.start() - NOTICE_OPENING_SPAN):m.start()]
+    opens = [p.start() for p in _PARAGRAPH_OPEN_RE.finditer(ahead)]
+    opening = one_line(unescape(_untag(ahead[opens[-1]:]))) if opens else ""
+    return opening, one_line(unescape(m.group(1)))
+
+
+def past_subscriber_notice(html: str, body_text: Optional[str]) -> bool:
+    """Whether a body goes on past the opening that a page with the subscriber notice shows, so it is not
+    that page's teaser: it holds the opening, more text after it, and not the notice's words. The text the
+    page itself yields never does (it ends with the notice, or with the opening)."""
+    parts = subscriber_notice(html)
+    body = one_line(body_text)
+    if not parts or not parts[0] or not parts[1] or parts[1] in body:
+        return False
+    at = body.find(parts[0])
+    return at >= 0 and len(body) > at + len(parts[0])
 
 
 # Outlet templates whose article text trafilatura cannot see as served. Each fix is keyed on the

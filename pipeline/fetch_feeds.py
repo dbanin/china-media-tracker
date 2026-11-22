@@ -929,6 +929,29 @@ def _readdress_srna(conn, counts: Dict) -> None:
         counts["srna_readdress_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
 
 
+def _requeue_srna_notices(conn, counts: Dict) -> None:
+    """Once per database: the SRNA items recorded as paywalled with the opening alone, because their pages
+    showed the subscriber notice when fetched (extract.SUBSCRIBER_NOTICE_RE; 8 from 2026-11-20 to 22), are
+    queued to be fetched again. The feed no longer lists them, and their pages show the whole text now: the
+    notice is gone some hours after publication. One whose page still shows it takes the feed's text where
+    the feed lists it (pipeline/feed_text.py) and is otherwise paywalled again. A failure is recorded and
+    leaves the rows to the next run; discovery goes on."""
+    conn.commit()       # a failure below rolls back this step alone, its record included
+    try:
+        held = ("ba_srna", extract.SUBSCRIBER_NOTICE)
+        where = "outlet_id=? AND status='paywalled' AND fail_reason=?"
+        if not store._once(conn, "articles.status.srna_subscriber_notice", lambda c: c.execute(
+                "SELECT 1 FROM articles WHERE %s LIMIT 1" % where, held).fetchone()):
+            return
+        done = conn.execute("UPDATE articles SET status='queued', fail_reason=NULL, fetch_attempts=0 WHERE %s" % where,
+                            held)
+        conn.commit()
+        counts["srna_notices_requeued"] = done.rowcount
+    except Exception as exc:  # noqa: BLE001  the rows stay as they are
+        conn.rollback()
+        counts["srna_notices_requeue_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+
+
 # Feed paging (pipeline/feed_paging.py): within run(), a saturated first page of an RSS feed is followed by
 # the feed's next pages until the stream reaches back to the feed's previous successful poll. What the
 # workers need is set up once per run, before they start: the previous poll of every feed (the shared
@@ -1041,6 +1064,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     # window that arrived before their feed's profile held are judged now.
     clocks = _clock_pass(conn, counts)
     _readdress_srna(conn, counts)
+    _requeue_srna_notices(conn, counts)
     try:
         _paging_setup(conn, outlets, clocks, deadline)
     except Exception as exc:  # noqa: BLE001  discovery goes on with first pages only

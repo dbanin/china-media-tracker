@@ -423,6 +423,13 @@ warning marker and named in the data notice and in meta.json under
 `paywall_flagged_countries`. Its numbers are not comparable to the rest.
 The remedy is to add more open Canadian outlets, not to bypass anything.
 
+One exception, decided by the owner on 2026-11-22. SRNA of Bosnia shows only
+the opening of a new story on its page for the first hours, with a line that
+the complete news is for subscribers, while its public feed carries the whole
+text. For a page that shows that line the feed's text is the body
+(`pipeline/feed_text.py`). Nothing is asked of the sign-in page, and every
+other paywall marker is treated as before.
+
 Licensed archive check. To look behind some paywalls without crossing them,
 the owner ran the tracker's state origin signatures and model triggers
 (pipeline/signatures.yaml) as a rules only screen over licensed ProQuest
