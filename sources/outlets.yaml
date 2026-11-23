@@ -260,7 +260,9 @@
   leaning_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/List_of_newspapers_in_Italy
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-12 (auto)
+  inactive_since: '2026-11-23'
 - id: it_italpress
   name: Italpress
   country: ITA
@@ -2735,8 +2737,8 @@
     status: none_found
     sections: []
   tier: national_daily
-  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The world feed at /rss/mundo.xml still answers but stopped updating (newest item 2020-03-04). It is replaced by the current world and home feeds under
-    /rss/pages/ (20 items each), and the Google News sitemap in robots.txt is added (312 items over two days), all verified 2026-11-18 with the collector's readers.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The world feed at /rss/mundo.xml still answers but stopped updating (newest item 2020-03-04). It is replaced by the current world and home feeds
+    under /rss/pages/ (20 items each), and the Google News sitemap in robots.txt is added (312 items over two days), all verified 2026-11-18 with the collector's readers.
   audience_rank: 6
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/argentina
   political_leaning: unassessed
@@ -4417,11 +4419,10 @@
     sections: []
   tier: agency
   notes: Verified 2026-09-02. Language corrected 2026-11-19 from sr to en. The feed is the agency's English service (its language tag is en-US and every item is in English; /sr/rss and /rss?lang=sr answer
-    with the same feed), and no feed of the Serbian service was found. The feed lists each item at /news/<number>, an address the site answers with 404. The story is served at /en/novost/<number>/<any
-    words>, and item links are rewritten to that address (pipeline/feeds_util.py). The page of a new story shows the opening paragraph and a line that the complete news is for subscribers of the news
-    service; the line is gone some hours later (8 of 21 stories fetched 2026-11-20 to 22 carried it, all fetched within 73 minutes of publication). The feed's description carries the whole story from the
-    start, and by the owner's decision of 2026-11-22 it is the body of a story whose page shows the line (pipeline/feed_text.py). Where the feed no longer lists the story it is recorded as paywalled
-    with the opening.
+    with the same feed), and no feed of the Serbian service was found. The feed lists each item at /news/<number>, an address the site answers with 404. The story is served at /en/novost/<number>/<any words>,
+    and item links are rewritten to that address (pipeline/feeds_util.py). The page of a new story shows the opening paragraph and a line that the complete news is for subscribers of the news service; the
+    line is gone some hours later (8 of 21 stories fetched 2026-11-20 to 22 carried it, all fetched within 73 minutes of publication). The feed's description carries the whole story from the start, and
+    by the owner's decision of 2026-11-22 it is the body of a story whose page shows the line (pipeline/feed_text.py). Where the feed no longer lists the story it is recorded as paywalled with the opening.
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
@@ -6473,8 +6474,8 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02. Reactivated 2026-11-18 with a Google News sitemap. Inactive from 2026-10-17 because the feed froze on 2026-05-30 and the site advertises no other feed. The news sitemap in robots.txt
-    carried 11 items over two days on 2026-11-18, verified with the collector's sitemap reader, and an article page gave its text. The RSS address stays listed because the registry requires one.
+  notes: Verified 2026-09-02. Reactivated 2026-11-18 with a Google News sitemap. Inactive from 2026-10-17 because the feed froze on 2026-05-30 and the site advertises no other feed. The news sitemap in
+    robots.txt carried 11 items over two days on 2026-11-18, verified with the collector's sitemap reader, and an article page gave its text. The RSS address stays listed because the registry requires one.
   political_leaning: state_controlled
   leaning_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2025/colombia
   ownership: state
@@ -11867,7 +11868,9 @@
   ownership: private
   ownership_source: https://hch.tv/nosotros/
   collector: both
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-09 (auto)
+  inactive_since: '2026-11-23'
 - id: hn_hondudiario
   name: Hondudiario
   country: HND
@@ -14003,8 +14006,8 @@
     sections: []
   tier: broadcaster
   notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The address registered since September is a list of Alsumaria's 24 feeds, not a feed, so the outlet's articles were not read. It is replaced by seven
-    feeds from that list, the latest Iraq news and the highlights (20 items each) and the politics, international, economy, local and security sections (10 items each), all with items of 2026-11-18 and verified
-    with the collector's feed reader.
+    feeds from that list, the latest Iraq news and the highlights (20 items each) and the politics, international, economy, local and security sections (10 items each), all with items of 2026-11-18 and
+    verified with the collector's feed reader.
   audience_rank: 2
   rank_source: https://www.similarweb.com/website/shafaq.com/
   political_leaning: unassessed
@@ -15043,11 +15046,11 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02. Feeds replaced 2026-11-09. NHK moved its news site to news.web.nhk. The old main feed (www.nhk.or.jp/rss/news/cat0.xml) had been refused by robots.txt since 2026-09-28, and the
-    old international feed (www3.nhk.or.jp/rss/news/cat6.xml) still answered but its newest item was from 2026-08-08. The same two feeds at news.web.nhk (cat0, 7 items over 11 hours, and cat6, 130 items over
-    144 hours) were verified 2026-11-09; robots.txt allows the crawler and the article pages serve their text without a login. Six more feeds added 2026-11-18, the other categories at the same address (cat1
-    to cat5 and cat7, 13 to 143 items each, five of them with items of that day), verified with the collector's feed reader. The top news feed holds 7 items, so the category feeds carry what it drops between
-    reads.
+  notes: Verified 2026-09-02. Feeds replaced 2026-11-09. NHK moved its news site to news.web.nhk. The old main feed (www.nhk.or.jp/rss/news/cat0.xml) had been refused by robots.txt since 2026-09-28, and
+    the old international feed (www3.nhk.or.jp/rss/news/cat6.xml) still answered but its newest item was from 2026-08-08. The same two feeds at news.web.nhk (cat0, 7 items over 11 hours, and cat6, 130 items
+    over 144 hours) were verified 2026-11-09; robots.txt allows the crawler and the article pages serve their text without a login. Six more feeds added 2026-11-18, the other categories at the same address
+    (cat1 to cat5 and cat7, 13 to 143 items each, five of them with items of that day), verified with the collector's feed reader. The top news feed holds 7 items, so the category feeds carry what it drops
+    between reads.
   audience_rank: 1
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/japan
   political_leaning: centre_right
@@ -17248,7 +17251,9 @@
   leaning_source: https://en.wikipedia.org/wiki/Le_Quotidien_(Luxembourg)
   ownership: private
   ownership_source: https://en.wikipedia.org/wiki/Le_Quotidien_(Luxembourg)
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-10 (auto)
+  inactive_since: '2026-11-23'
 - id: lu_luxtimes
   name: Luxembourg Times
   country: LUX
@@ -20516,8 +20521,8 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02. Feed replaced 2026-11-18. The outlet moved from tn8.tv to tn8.ni, and the old feed still answers but stopped updating (newest item 2026-08-31). The feed at www.tn8.ni/feed/ carried
-    10 items of 2026-11-18, verified with the collector's feed reader. The news sitemap there answers HTTP 403 and is left alone.
+  notes: Verified 2026-09-02. Feed replaced 2026-11-18. The outlet moved from tn8.tv to tn8.ni, and the old feed still answers but stopped updating (newest item 2026-08-31). The feed at www.tn8.ni/feed/
+    carried 10 items of 2026-11-18, verified with the collector's feed reader. The news sitemap there answers HTTP 403 and is left alone.
   audience_rank: 3
   rank_source: https://en.wikipedia.org/wiki/Mass_media_in_Nicaragua
   political_leaning: unassessed
@@ -29151,8 +29156,8 @@
     status: none_found
     sections: []
   tier: broadcaster
-  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The two feeds on rss.cnn.com still answer but stopped updating on 2023-09-18, and the site advertises no other feed. The news sitemap in
-    robots.txt carried 194 items over two days on 2026-11-18, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one.
+  notes: Verified 2026-09-02. Google News sitemap added 2026-11-18. The two feeds on rss.cnn.com still answer but stopped updating on 2023-09-18, and the site advertises no other feed. The news sitemap
+    in robots.txt carried 194 items over two days on 2026-11-18, verified with the collector's sitemap reader. The RSS addresses stay listed because the registry requires one.
   audience_rank: 2
   rank_source: https://reutersinstitute.politics.ox.ac.uk/digital-news-report/2026/united-states
   political_leaning: centre_left
@@ -30003,8 +30008,9 @@
   tier: business
   network: news_corp
   notes: Verified 2026-09-02. Feeds replaced 2026-11-18. The two feeds on feeds.a.dj.com still answer but stopped updating on 2025-01-27. They are replaced by the same two feeds at their current addresses
-    on feeds.content.dowjones.io, World News (73 items) and Markets (61 items), verified 2026-11-18 with the collector's feed reader. The site's robots.txt disallows every page of wsj.com to crawlers it does not name, so no article page is fetched and each gate relevant item is recorded as blocked by robots.txt (15 in the first
-    day), which is the site's choice and is left as it is. The four other feeds on that host are not added for that reason. Corrected 2026-11-19, the note first said the pages answer HTTP 401.
+    on feeds.content.dowjones.io, World News (73 items) and Markets (61 items), verified 2026-11-18 with the collector's feed reader. The site's robots.txt disallows every page of wsj.com to crawlers it
+    does not name, so no article page is fetched and each gate relevant item is recorded as blocked by robots.txt (15 in the first day), which is the site's choice and is left as it is. The four other feeds
+    on that host are not added for that reason. Corrected 2026-11-19, the note first said the pages answer HTTP 401.
   political_leaning: centre_right
   leaning_source: https://mediabiasfactcheck.com/wall-street-journal/
   ownership: private
@@ -30592,7 +30598,9 @@
   ownership_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
   government_stance: state_controlled
   stance_source: https://en.wikipedia.org/wiki/Vietnam_News_Agency
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-10 (auto)
+  inactive_since: '2026-11-23'
 - id: vn_vna
   name: Vietnam News Agency
   country: VNM
@@ -31345,7 +31353,9 @@
   ownership_source: https://rsf.org/en/country/zambia
   government_stance: state_controlled
   stance_source: https://rsf.org/en/country/zambia
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-11 (auto)
+  inactive_since: '2026-11-23'
 - id: zm_zambiamonitor
   name: Zambia Monitor
   country: ZMB
@@ -33929,8 +33939,8 @@
   - https://www.masrawy.com/rss/feed/211/news
   tier: national_daily
   notes: 'Added 2026-09-23 from the readership research. Section feeds added 2026-11-18: the main feed lists 10 items in a date format the collector does not read, was full of new items on 59 polls from
-    2026-11-13 to 2026-11-17 and takes no page parameter. The outlet''s feed index (https://www.masrawy.com/rss) lists section feeds of 10 items each; added are Egypt (35), economy (206), governorates
-    (204), incidents (205), science and technology (382) and essays (211). Not added: sport (577, 579) and two sections with no recent items (207, 209).'
+    2026-11-13 to 2026-11-17 and takes no page parameter. The outlet''s feed index (https://www.masrawy.com/rss) lists section feeds of 10 items each; added are Egypt (35), economy (206), governorates (204),
+    incidents (205), science and technology (382) and essays (211). Not added: sport (577, 579) and two sections with no recent items (207, 209).'
   audience_rank: 2
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
   political_leaning: unassessed
@@ -33959,9 +33969,9 @@
   notes: 'Added 2026-09-23 from the readership research. On both collectors (collector: both) since 2026-10-17: 67 of the hosted runner''s 71 polls from 2026-10-01 to 2026-10-11 found the feed saturated,
     and the sitemap its robots.txt lists (https://www.elbalad.news/sitemaps.xml) carried no Google News entries on 2026-10-17, so the relay''s hourly polls are added. Section feeds added 2026-11-18: under
     hourly reads from 2026-11-13 to 2026-11-17 the main feed (20 items, under an hour of output) was saturated on 90 polls with about 2,733 items estimated missed, the most of any feed, and it takes no
-    page parameter. The twelve section feeds rss.aspx?id=N (1 to 10, 14 and 17; 20 items each) together carried all 20 of the main feed''s items on two readings that day and each reaches back several
-    hours. Not added: id 0 and ?cat=1 (the main feed again), 2065 and 2069 (repeat sections 5 and 10), 11 to 13 (no items since October or earlier), 15, 2066, 4022 and 4023 (20 items over several days) and
-    16 (empty).'
+    page parameter. The twelve section feeds rss.aspx?id=N (1 to 10, 14 and 17; 20 items each) together carried all 20 of the main feed''s items on two readings that day and each reaches back several hours.
+    Not added: id 0 and ?cat=1 (the main feed again), 2065 and 2069 (repeat sections 5 and 10), 11 to 13 (no items since October or earlier), 15, 2066, 4022 and 4023 (20 items over several days) and 16
+    (empty).'
   audience_rank: 3
   rank_source: https://www.similarweb.com/top-websites/egypt/news-and-media/
   political_leaning: unassessed
@@ -36474,8 +36484,8 @@
   - https://www.meinbezirk.at/sitemap_news.xml
   tier: regional
   notes: Added 2026-09-23 from the readership research. Monitored in place of a more-read outlet that refuses the crawler or publishes no feed. Google News sitemap added 2026-11-18. The feed holds 25 items
-    and every one of them was new on 36 of its 138 reads in the week to 2026-11-18, so items were being missed between reads. The news sitemap at /sitemap_news.xml, which robots.txt allows but does not list,
-    carried 931 items over two days on 2026-11-18, verified with the collector's sitemap reader, and is read beside the feed.
+    and every one of them was new on 36 of its 138 reads in the week to 2026-11-18, so items were being missed between reads. The news sitemap at /sitemap_news.xml, which robots.txt allows but does not
+    list, carried 931 items over two days on 2026-11-18, verified with the collector's sitemap reader, and is read beside the feed.
   audience_rank: 6
   political_leaning: unassessed
   ownership: private
@@ -37624,7 +37634,9 @@
   - https://ebis.co.sz/feed/
   tier: broadcaster
   notes: Added 2026-09-28 from the readership research.
-  active: true
+  active: false
+  inactive_reason: every feed failed on every check from the GitHub Actions runner for more than 7 days; last success 2026-11-14 (auto)
+  inactive_since: '2026-11-23'
 - id: sz_eswatinidailynews
   name: Eswatini Daily News
   country: SWZ
