@@ -377,7 +377,8 @@ def test_the_template_reads_the_same_with_every_measure_off(tmp_path, monkeypatc
 
 def test_the_measures_file():
     specs = measures.load_config()
-    assert [s["id"] for s in specs] == ["alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication"]
+    assert [s["id"] for s in specs] == ["alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication",
+                                        "exposure"]
     on = {s["id"]: s["enabled"] for s in specs}
     assert on["engagement"] is False and on["syndication"] is True    # syndication on since 2026-10-28 (D7)
     assert all(on[i] for i in ("alteration", "speed", "doctrine", "spikes", "calendar"))

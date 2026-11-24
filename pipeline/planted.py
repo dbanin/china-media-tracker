@@ -68,7 +68,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import yaml
 
-from pipeline import config, store
+from pipeline import config, freshness, store
 
 HEAD_CHARS = 400
 BYLINE_WORDS = ("by", "por", "par", "von", "door", "av", "af", "di")
@@ -858,8 +858,10 @@ def main(argv=None):
         deadline = time.monotonic() + args.budget_seconds if args.budget_seconds else None
         print(json.dumps(scan(conn, full=args.full, deadline=deadline)))
     elif args.cmd == "pending":
+        freshness.guard(conn, "planted pending")       # a stale local copy is warned about (pipeline/freshness.py)
         print(json.dumps({"rows": pending_rows(conn)}, ensure_ascii=False, indent=1))
     else:
+        freshness.guard(conn, "planted recurring")
         print(json.dumps({"window_days": args.days, "rows": recurring_bylines(conn, args.days)}, ensure_ascii=False, indent=1))
     conn.close()
     return 0

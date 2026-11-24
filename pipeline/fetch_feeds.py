@@ -952,6 +952,47 @@ def _requeue_srna_notices(conn, counts: Dict) -> None:
         counts["srna_notices_requeue_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
 
 
+def _drop_broken_addresses(conn, counts: Dict) -> None:
+    """Once per database: the rows stored under an item link the reader now drops (feeds_util.broken_link,
+    Libero's /news/<id>/undefined/ entries: 129 rows from 2026-09-03 to 2026-11-12, 108 failed with 404
+    and 21 gated out) are deleted, and each one's discovery is taken off its day of record, so neither the
+    discovered nor the gate relevant denominator nor the failed count holds an address that was never an
+    item. Only a row holding nothing else is deleted: no body, no label ever, no human review, status
+    failed or gated_out; any other is kept and counted. The title group of a deleted row lives on in its
+    other members (dup_group_id is a key, as after a gated-out prune). A failure is recorded and leaves the
+    rows to the next run; discovery goes on."""
+    conn.commit()       # a failure below rolls back this step alone, its record included
+    try:
+        like = "(url LIKE '%/undefined/' OR url LIKE '%/undefined')"
+        if not store._once(conn, "articles.url.broken_template_address", lambda c: c.execute(
+                "SELECT 1 FROM articles WHERE %s LIMIT 1" % like).fetchone()):
+            return
+        deleted = kept = relevant = 0
+        for r in conn.execute("SELECT id, url, outlet_id, country, status, body_hash, gate_relevant, day_of_record, "
+                              "discovered_at FROM articles WHERE %s" % like).fetchall():
+            if not feeds_util.broken_link(r["url"]):
+                continue
+            held = r["body_hash"] is not None or r["status"] not in ("failed", "gated_out") or conn.execute(
+                "SELECT 1 FROM classifications WHERE article_id=? UNION ALL SELECT 1 FROM human_reviews WHERE article_id=? "
+                "LIMIT 1", (r["id"], r["id"])).fetchone()
+            if held:
+                kept += 1
+                continue
+            day, rel = (r["day_of_record"] or r["discovered_at"] or "")[:10], 1 if r["gate_relevant"] else 0
+            conn.execute("UPDATE daily_outlet_discovery SET discovered=MAX(discovered-1, 0), "
+                         "gate_relevant=MAX(gate_relevant-?, 0) WHERE date=? AND outlet_id=?", (rel, day, r["outlet_id"]))
+            conn.execute("UPDATE daily_discovery SET discovered=MAX(discovered-1, 0), "
+                         "gate_relevant=MAX(gate_relevant-?, 0) WHERE date=? AND country=?", (rel, day, r["country"]))
+            conn.execute("DELETE FROM articles WHERE id=?", (r["id"],))
+            deleted += 1
+            relevant += rel
+        conn.commit()
+        counts["broken_addresses_dropped"] = {"deleted": deleted, "gate_relevant": relevant, "kept": kept}
+    except Exception as exc:  # noqa: BLE001  the rows stay as they are
+        conn.rollback()
+        counts["broken_addresses_drop_error"] = "%s: %s" % (type(exc).__name__, str(exc)[:200])
+
+
 # Feed paging (pipeline/feed_paging.py): within run(), a saturated first page of an RSS feed is followed by
 # the feed's next pages until the stream reaches back to the feed's previous successful poll. What the
 # workers need is set up once per run, before they start: the previous poll of every feed (the shared
@@ -1065,6 +1106,7 @@ def run(conn, run_id: str, outlets: Optional[List[Dict]] = None, workers: int = 
     clocks = _clock_pass(conn, counts)
     _readdress_srna(conn, counts)
     _requeue_srna_notices(conn, counts)
+    _drop_broken_addresses(conn, counts)
     try:
         _paging_setup(conn, outlets, clocks, deadline)
     except Exception as exc:  # noqa: BLE001  discovery goes on with first pages only

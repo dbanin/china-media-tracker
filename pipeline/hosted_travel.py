@@ -50,7 +50,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import yaml
 
-from pipeline import classify_rules, store
+from pipeline import classify_rules, freshness, store
 
 PATTERNS_PATH = Path(__file__).with_name("hosted_travel.yaml")
 CLASSES = ("state_host", "unnamed_host")
@@ -758,6 +758,7 @@ def main(argv=None):
         deadline = time.monotonic() + args.budget_seconds if args.budget_seconds else None
         print(json.dumps(scan(conn, full=args.full, deadline=deadline)))
     else:
+        freshness.guard(conn, "hosted_travel list")    # a stale local copy is warned about (pipeline/freshness.py)
         print(json.dumps({"rows": _article_rows(conn)[:args.limit]}, ensure_ascii=False, indent=1))
     conn.close()
     return 0

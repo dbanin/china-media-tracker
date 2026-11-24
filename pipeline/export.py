@@ -45,6 +45,8 @@ from pipeline import themes as themes_mod
 from pipeline import recall_audit
 from pipeline import placements
 from pipeline import model_only
+from pipeline import state_issuers
+from pipeline import input_watch
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
@@ -149,7 +151,8 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
     outlets = outlets if outlets is not None else registry.load_outlets()
     top_ids, _ = registry.top_outlets(outlets)
     wire_ids = registry.distribution_wire_ids(outlets)
-    wires = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0}
+    wires = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0,
+             state_issuers.S: 0, state_issuers.H: 0}
     # Underlying items: title groups joined through body text links (pipeline.body_dups).
     from pipeline import body_dups
     items = body_dups.item_groups(conn)
@@ -243,9 +246,62 @@ def rebuild_rollups(conn, outlets: Optional[List[Dict]] = None) -> Dict:
             "distribution_wire_articles": wires["articles"], "distribution_wires": wires}
 
 
+# Underlying items (pipeline/body_dups.item_groups) are counted for these labels, each on its own. Any other
+# code a label is read under (undetermined, U, and any group held out of every count like it) has none: it
+# is in no count, so it is in no count of items either. PAID_KEY holds the state origin items with a
+# placement on the paid release route (placements.PAID_RELEASE_ROUTES), and the placements behind them.
+ITEM_CATEGORIES = ("A", "B")
+PAID_KEY = "Ap"
+# The field names meta.findings.items and meta.underlying_items give each key.
+ITEM_NAMES = {"A": "state_origin", "B": "unchecked", PAID_KEY: "paid_release"}
+# The labels withheld with unchecked state sourcing when it may not be shown (relay_visible).
+RELAY_CATEGORIES = ("B",)
+# How many of the largest items per label meta.underlying_items lists.
+LARGEST_ITEMS = 10
+
+
+def _item_keys(row) -> List[str]:
+    """The keys a counted placement adds to: its label, and PAID_KEY for a state origin placement on the
+    paid release route. Empty for a label in no count."""
+    cat = row["m_cat"]
+    if cat not in ITEM_CATEGORIES:
+        return []
+    route = row["route"] if "route" in row.keys() else None
+    return [cat, PAID_KEY] if cat == "A" and route in placements.PAID_RELEASE_ROUTES else [cat]
+
+
+def _item_pass(rows, items: Dict[int, int], wire_ids) -> Tuple[Dict, Dict, Dict]:
+    """One pass over the counted placements: ({day: {country: {key: set of item ids}}}, {day: {country:
+    {key: placements}}}, {item id: {key: its placements}}), with wires under the worldwide stratum."""
+    ids: Dict = defaultdict(lambda: defaultdict(lambda: {c: set() for c in ITEM_CATEGORIES}))
+    n: Dict = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    groups: Dict = {}
+    for r in rows:
+        keys = _item_keys(r)
+        if not keys:
+            continue
+        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
+        g = r["dup_group_id"] or r["id"]
+        item = items.get(g, g)
+        d = _day(r)
+        for k in keys:
+            ids[d][country].setdefault(k, set()).add(item)
+            n[d][country][k] += 1
+            e = groups.setdefault(item, {}).setdefault(k, {"placements": 0, "outlets": set(), "countries": set(),
+                                                           "first": d, "last": d, "lead": None})
+            e["placements"] += 1
+            e["outlets"].add(r["outlet_id"])
+            e["countries"].add(country)
+            e["first"], e["last"] = min(e["first"], d), max(e["last"], d)
+            if e["lead"] is None or (d, r["id"]) < (e["lead"]["day"], e["lead"]["id"]):
+                e["lead"] = {"day": d, "id": r["id"], "outlet_id": r["outlet_id"], "title": r["title"]}
+    return ids, n, groups
+
+
 def underlying_item_ids(conn, outlets: Optional[List[Dict]] = None, rows: Optional[List[Dict]] = None) -> Dict:
     """Per day and country, the underlying item ids behind the state origin (A) and unchecked state
-    sourcing (B) counts: {day: {country: {"A": set, "B": set}}}, wires under the worldwide stratum.
+    sourcing (B) counts, and behind the state origin on the paid release route (PAID_KEY): {day: {country:
+    {"A": set, "B": set, "Ap": set}}}, wires under the worldwide stratum ("Ap" only where it has ids).
 
     daily_counts.n_unique_items is distinct within one day and country only, so summing it over a window
     or across countries counted a story placed on several days, or in several countries, once for each.
@@ -255,41 +311,163 @@ def underlying_item_ids(conn, outlets: Optional[List[Dict]] = None, rows: Option
     from pipeline import body_dups
     items = body_dups.item_groups(conn)
     wire_ids = registry.distribution_wire_ids(outlets if outlets is not None else registry.load_outlets())
-    out: Dict = defaultdict(lambda: defaultdict(lambda: {"A": set(), "B": set()}))
-    for r in (rows if rows is not None else article_rows(conn)):
-        if r["m_cat"] not in ("A", "B"):
-            continue
-        country = registry.WORLDWIDE if r["outlet_id"] in wire_ids else r["country"]
-        g = r["dup_group_id"] or r["id"]
-        out[_day(r)][country][r["m_cat"]].add(items.get(g, g))
+    return _item_pass(rows if rows is not None else article_rows(conn), items, wire_ids)[0]
+
+
+_index_cache: Dict = {}
+
+
+def item_index(conn, outlets: List[Dict]) -> Dict:
+    """Everything the export states about underlying items, from one pass over the counted placements:
+    {"ids", "n", "groups"} as _item_pass returns them. latest.json, the findings and meta.underlying_items
+    read it, so the pass runs once per export; it is made again when the stored labels or rows change
+    (placements._fingerprint) or another connection asks."""
+    from pipeline import body_dups
+    wire_ids = registry.distribution_wire_ids(outlets)
+    fp = (placements._fingerprint(conn), tuple(sorted(wire_ids)))
+    hit = _index_cache.get("index")
+    if hit and hit[0] is conn and hit[1] == fp:
+        return hit[2]
+    ids, n, groups = _item_pass(article_rows(conn), body_dups.item_groups(conn), wire_ids)
+    out = {"ids": ids, "n": n, "groups": groups}
+    _index_cache["index"] = (conn, fp, out)
     return out
 
 
-def _distinct_items(item_ids: Dict, since: Optional[str] = None) -> Tuple[Dict[str, Dict[str, set]], Dict[str, set]]:
-    """Unions of underlying_item_ids over the days from `since` (all days when None): per country, and
-    for the world across every country and the worldwide stratum."""
-    per = defaultdict(lambda: {"A": set(), "B": set()})
-    world = {"A": set(), "B": set()}
+def _distinct_items(item_ids: Dict, since: Optional[str] = None, until: Optional[str] = None,
+                    n: Optional[Dict] = None) -> Tuple[Dict[str, Dict], Dict]:
+    """Unions of underlying_item_ids over the days since <= day < until (either end open when None): per
+    country, and for the world across every country and the worldwide stratum. With n (item_index's
+    placements) each block also carries the placements under "n": {key: placements}."""
+    per: Dict = defaultdict(lambda: defaultdict(set))
+    world: Dict = defaultdict(set)
     for d, per_country in item_ids.items():
-        if since and d < since:
+        if (since and d < since) or (until and d >= until):
             continue
         for country, ab in per_country.items():
-            for cat in ("A", "B"):
-                per[country][cat] |= ab[cat]
-                world[cat] |= ab[cat]
+            for key, s in ab.items():
+                per[country][key] |= s
+                world[key] |= s
+            for key, v in ((n or {}).get(d, {}).get(country) or {}).items():
+                per[country].setdefault("n", defaultdict(int))[key] += v
+                world.setdefault("n", defaultdict(int))[key] += v
     return per, world
 
 
-def _set_unique(target: Dict, ab: Dict[str, set]) -> None:
-    """uniqA is the distinct state origin items, uniqAB the distinct items counted per label, so that
-    uniqAB less uniqA is the distinct unchecked state sourcing items, as the interface reads it."""
-    target["uniqA"] = len(ab["A"])
-    target["uniqAB"] = len(ab["A"]) + len(ab["B"])
+def _set_unique(target: Dict, ab: Dict) -> None:
+    """uniq<label> is the distinct items of each counted label (uniqA state origin, uniqB unchecked state
+    sourcing), uniqAB their sum as the interface has read it since schema 12 (uniqAB less uniqA is uniqB),
+    uniqAp the distinct state origin items with a placement on the paid release route, and Ap those
+    placements, when ab carries placements ("n", from _distinct_items)."""
+    for cat in ITEM_CATEGORIES:
+        target["uniq" + cat] = len(ab.get(cat) or ())
+    target["uniqAB"] = target.get("uniqA", 0) + target.get("uniqB", 0)
+    target["uniq" + PAID_KEY] = len(ab.get(PAID_KEY) or ())
+    if "n" in ab:
+        target[PAID_KEY] = (ab.get("n") or {}).get(PAID_KEY, 0)
+
+
+def _fill_item_keys(block: Dict) -> Dict:
+    """A latest.json count block with every item key, zero where the window holds no counted placement."""
+    for k in ["uniq" + c for c in ITEM_CATEGORIES] + ["uniqAB", "uniq" + PAID_KEY, PAID_KEY]:
+        block.setdefault(k, 0)
+    return block
+
+
+def _keeps(distribution: str, country: str) -> bool:
+    """The countries a Distribution mode keeps (docs/compute.js distributionKeeps)."""
+    if distribution == "country":
+        return country != registry.WORLDWIDE
+    if distribution == "wires":
+        return country == registry.WORLDWIDE
+    return True
+
+
+def items_block(index: Dict, since: Optional[str], until: Optional[str], visible: bool = True) -> Dict:
+    """Placements and distinct underlying items over since <= day < until, for each Distribution mode
+    (both, country, wires): {mode: {"state_origin", "state_origin_items", "unchecked", "unchecked_items",
+    "paid_release", "paid_release_items"}}. An item placed in a country and on a wire is one item under
+    both, and one in each of the other two modes, so country plus wires can exceed both. Unchecked state
+    sourcing is None in both fields while it may not be shown."""
+    out = {}
+    for mode in ("both", "country", "wires"):
+        sets: Dict = defaultdict(set)
+        counts: Dict = defaultdict(int)
+        for d, per_country in index["ids"].items():
+            if (since and d < since) or (until and d >= until):
+                continue
+            for country, ab in per_country.items():
+                if not _keeps(mode, country):
+                    continue
+                for key, s in ab.items():
+                    sets[key] |= s
+                for key, v in (index["n"].get(d, {}).get(country) or {}).items():
+                    counts[key] += v
+        block = {}
+        for key in list(ITEM_CATEGORIES) + [PAID_KEY]:
+            name = ITEM_NAMES.get(key, key)
+            hidden = key in RELAY_CATEGORIES and not visible
+            block[name] = None if hidden else counts.get(key, 0)
+            block[name + "_items"] = None if hidden else len(sets.get(key) or ())
+        out[mode] = block
+    return out
+
+
+def largest_items(index: Dict, outlets: List[Dict], visible: bool = True, limit: int = LARGEST_ITEMS) -> Dict:
+    """Per counted label (and the paid release route), the underlying items run by the most outlets, all
+    time: item id, placements, outlets, countries (WLD for the wires), first and last day, and the outlet
+    and title of its first placement. Ties go to more placements, then the earlier first day, then the
+    lower id. Unchecked state sourcing is left out while it may not be shown."""
+    names = {o["id"]: o.get("name", o["id"]) for o in outlets}
+    out = {}
+    for key in list(ITEM_CATEGORIES) + [PAID_KEY]:
+        if key in RELAY_CATEGORIES and not visible:
+            continue
+        rows = [(item, g[key]) for item, g in index["groups"].items() if key in g]
+        rows.sort(key=lambda x: (-len(x[1]["outlets"]), -x[1]["placements"], x[1]["first"], x[0]))
+        out[ITEM_NAMES.get(key, key)] = [
+            {"item": item, "placements": e["placements"], "outlets": len(e["outlets"]),
+             "countries": sorted(e["countries"]), "first_day": e["first"], "last_day": e["last"],
+             "first_outlet": names.get(e["lead"]["outlet_id"], e["lead"]["outlet_id"]),
+             "first_title": e["lead"]["title"]}
+            for item, e in rows[:limit]]
+    return out
+
+
+def underlying_items_meta(conn, outlets: List[Dict], visible: bool = True) -> Dict:
+    """meta.underlying_items: what one underlying item is (placements.item_rule, with every threshold),
+    the keys that carry items in latest.json and the daily files, and, all time and worldwide, each
+    label's placements, items, items placed more than once and the largest items (largest_items)."""
+    index = item_index(conn, outlets)
+    summary = {}
+    for key in list(ITEM_CATEGORIES) + [PAID_KEY]:
+        if key in RELAY_CATEGORIES and not visible:
+            continue
+        gs = [g[key] for g in index["groups"].values() if key in g]
+        multi = [g for g in gs if g["placements"] > 1]
+        summary[ITEM_NAMES.get(key, key)] = {
+            "placements": sum(g["placements"] for g in gs), "items": len(gs),
+            "items_placed_more_than_once": len(multi),
+            "placements_in_those_items": sum(g["placements"] for g in multi),
+            "items_in_more_than_one_outlet": sum(1 for g in gs if len(g["outlets"]) > 1)}
+    return {
+        "rule": placements.item_rule(),
+        "categories": list(ITEM_CATEGORIES),
+        "paid_key": PAID_KEY,
+        "keys": {"uniqA": "distinct state origin items", "uniqB": "distinct unchecked state sourcing items",
+                 "uniqAB": "uniqA plus uniqB", "Ap": "state origin placements on the paid release route",
+                 "uniqAp": "distinct state origin items with a placement on the paid release route"},
+        "all_time": summary,
+        "largest": largest_items(index, outlets, visible),
+        "note": ("A placement is one item published by one outlet; an underlying item is one text, however many "
+                 "outlets, days or countries carried it. Items are counted per label and once per window."),
+    }
 
 
 def _empty_country() -> Dict:
-    # U: undetermined, in no category count (pipeline/model_only.py).
-    return {"A": 0, "B": 0, "C": 0, "N": 0, "U": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
+    # U: undetermined, in no category count (pipeline/model_only.py). S and H: releases of state-owned and of
+    # SAR government issuers, held apart in no category count either (pipeline/state_issuers.py).
+    return {"A": 0, "B": 0, "C": 0, "N": 0, "U": 0, "S": 0, "H": 0, "Ar": 0, "Al": 0, "Ah": 0, "Br": 0, "Bl": 0, "Bh": 0,
             "rev": 0, "cls": 0, "disc": 0, "rel": 0, "fetched": 0, "paywalled": 0, "failed": 0,
             "blocked": 0, "pending": 0, "uniqA": 0, "uniqAB": 0, "tdisc": 0, "ttarget": 0, "tchina": 0, "ta": 0, "tb": 0,
             "polls": 0, "sat": 0, "miss": 0, "mpolls": 0, "mnew": 0}
@@ -298,7 +476,7 @@ def _empty_country() -> Dict:
 def _accumulate(target: Dict, cat: str, scope: str, row) -> None:
     if scope != "all":
         return
-    short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U"}[cat]
+    short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U", "S": "S", "H": "H"}[cat]
     target[short] += row["n"]
     target["cls"] += row["n"]
     target["rev"] += row["n_reviewed"]
@@ -397,7 +575,8 @@ def _reviewed_block(conn, country: Optional[str], since: Optional[str]) -> Dict:
 
 def _wire_counts(conn, outlets: List[Dict]) -> Dict:
     ids = registry.distribution_wire_ids(outlets)
-    out = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0}
+    out = {"articles": 0, "A": 0, "B": 0, "C": 0, "not_relevant": 0, "pending": 0, model_only.CODE: 0,
+           state_issuers.S: 0, state_issuers.H: 0}
     if not ids:
         return out
     marks = ",".join("?" * len(ids))
@@ -760,10 +939,12 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
                 t = target[r["country"]]
                 t["polls"] += r["polls"] or 0; t["sat"] += r["sat"] or 0; t["miss"] += int(round(r["miss"] or 0))
                 t["mpolls"] += r["mpolls"] or 0; t["mnew"] += r["mnew"] or 0
-    # Underlying items are distinct over the whole window, not summed day by day.
-    item_ids = underlying_item_ids(conn, outlets)
-    unique_at, world_at = _distinct_items(item_ids)
-    unique_30, world_30 = _distinct_items(item_ids, since30)
+    # Underlying items are distinct over the whole window, not summed day by day; the paid release route's
+    # placements and items are stated beside them (Ap, uniqAp).
+    index = item_index(conn, outlets)
+    item_ids = index["ids"]
+    unique_at, world_at = _distinct_items(item_ids, n=index["n"])
+    unique_30, world_30 = _distinct_items(item_ids, since30, n=index["n"])
     for country, ab in unique_at.items():
         _set_unique(all_time[country], ab)
     for country, ab in unique_30.items():
@@ -929,6 +1110,10 @@ def build_latest(conn, outlets: List[Dict], gaps: List[Dict], population: Option
         # A story placed in several countries is one underlying item in the world figure.
         _set_unique(t, world_at if scope_key == "all_time" else world_30)
         _derive(t, n_active, visible)
+        _fill_item_keys(t)
+    for v in countries.values():
+        for scope_key in ("all_time", "last_30d"):
+            _fill_item_keys(v[scope_key])
     totals["population"] = sum(v["population"] or 0 for v in countries.values() if v["coverage"] == "monitored")
     # last_30d runs from window_start_30d through window_end_30d, both included, and the last of them is the
     # export day, still partial (window_end_30d_partial). The findings, the map and the ranked list read the
@@ -1076,13 +1261,13 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
         t = per_outlet[r["outlet_id"]]
         # An undetermined state origin label is counted as U, in no category (pipeline/model_only.py).
         cat = model_only.headline_category(r["category"], r["route"], r["method"])
-        short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U"}[cat]
+        short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U", "S": "S", "H": "H"}[cat]
         t[short] += r["n"]; t["cls"] += r["n"]; t["rev"] += r["rev"]
         if cat in ("A", "B"):
             t[cat + ("r" if r["method"] == "rules" else "l")] += r["n"]
     # A copy another row stands for (pipeline/placements.py) is not this outlet's placement: it leaves the
     # counts, so that the outlets' counts add up to their country's, and is listed under not_counted.
-    not_counted = defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0, "U": 0})
+    not_counted = defaultdict(lambda: {"A": 0, "B": 0, "C": 0, "N": 0, "U": 0, "S": 0, "H": 0})
     shadow = sorted(placements.shadowed(conn))
     for i in range(0, len(shadow), 900):
         part = shadow[i:i + 900]
@@ -1093,7 +1278,7 @@ def build_outlets(conn, outlets: List[Dict]) -> Dict:
                    WHERE a.id IN (%s)""" % (model_only.route_sql("c"), ",".join("?" * len(part))), part):
             t = per_outlet[r["outlet_id"]]
             cat = model_only.headline_category(r["category"], r["route"], r["method"])
-            short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U"}[cat]
+            short = {"A": "A", "B": "B", "C": "C", "not_relevant": "N", model_only.CODE: "U", "S": "S", "H": "H"}[cat]
             t[short] -= 1; t["cls"] -= 1; t["rev"] -= 1 if r["rev"] else 0
             if cat in ("A", "B"):
                 t[cat + ("r" if r["method"] == "rules" else "l")] -= 1
@@ -1182,7 +1367,7 @@ def _trigger_sources(trigger_ids):
     return out
 
 
-ORDER = {"A": 0, "B": 1, model_only.CODE: 2, "pending": 3, "C": 4}
+ORDER = {"A": 0, "B": 1, model_only.CODE: 2, state_issuers.S: 2, state_issuers.H: 2, "pending": 3, "C": 4}
 
 
 def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = None) -> Dict[str, List[Dict]]:
@@ -1193,6 +1378,7 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
                   a.status, a.llm_trigger, a.themes, a.gate_terms,
                   c.category, c.method, c.confidence, c.evidence_quote, c.reasoning, c.signatures_fired, c.model_version,
                   c.ruleset_version, c.china_sources_cited, %s AS route, c.issuer_type, c.needs_review,
+                  c.attr_author, c.attr_commissioner, c.attr_state_affil, c.attr_route, c.attr_disclosure, c.attr_verification,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 AND (c.category IN ('A','B','C') OR a.status IN ('awaiting_llm','llm_submitted'))
@@ -1229,6 +1415,9 @@ def build_articles(conn, per_country: int = 80, outlets: Optional[List[Dict]] = 
             "needs_review": r["needs_review"],
             "arrival": classify_rules.arrival_of(r["gate_terms"]),
         }
+        attrs = label_attributes(r)
+        if attrs:
+            entry["attributes"] = attrs     # set only on model labels from prompt 2026-12-01
         if r["id"] in copies:
             entry["copies"] = copies[r["id"]]
             widget = placements.widget_of(r["url"])
@@ -1692,6 +1881,9 @@ def _top_country_last30(conn, outlets: List[Dict], latest: Dict) -> Optional[Dic
         "iso": top_iso,
         "state_origin": by_country[top_iso],
         "underlying": _underlying_in_window(conn, outlets, top_iso, since30, until),
+        # Its state origin on the paid release route (placements.PAID_RELEASE_ROUTES), placements and items.
+        "paid_release": sum(v for k, v in route_counts.items() if k in placements.PAID_RELEASE_ROUTES),
+        "paid_release_items": _underlying_in_window(conn, outlets, top_iso, since30, until, PAID_KEY),
         "share_of_world": round(by_country[top_iso] / world, 4) if world else None,
         "top_outlet": carrier,
         "top_route": route["id"] if route else None,
@@ -1699,20 +1891,20 @@ def _top_country_last30(conn, outlets: List[Dict], latest: Dict) -> Optional[Dic
     }
 
 
-def _underlying_in_window(conn, outlets: List[Dict], iso: str, start: str, end: str) -> Optional[int]:
+def _underlying_in_window(conn, outlets: List[Dict], iso: str, start: str, end: str, key: str = "A") -> Optional[int]:
     """The distinct state origin underlying items of one country on the days start <= day < end, the
     figure written beside its placements: the union of underlying_item_ids over those days, so whatever
     that function counts as one item (syndicated copies, one item over several days) counts once here.
-    None when it cannot be computed, and the sentence then leaves the items out rather than guess."""
+    key PAID_KEY gives the items on the paid release route instead. None when it cannot be computed, and
+    the sentence then leaves the items out rather than guess."""
     try:
-        rows = [r for r in article_rows(conn) if r["country"] == iso]
-        ids = underlying_item_ids(conn, outlets, rows)
+        ids = item_index(conn, outlets)["ids"]
     except Exception:
         return None
     items = set()
     for d, per_country in ids.items():
         if start <= d < end:
-            items |= (per_country.get(iso) or {}).get("A", set())
+            items |= (per_country.get(iso) or {}).get(key, set())
     return len(items)
 
 
@@ -1770,6 +1962,17 @@ def build_findings(conn, outlets: List[Dict], latest: Dict, outlets_json: Dict, 
         # Undetermined items (pipeline/model_only.py): their own figure, never in the totals, shares and top
         # country above, and never rejoining them.
         "undetermined": _undetermined_findings(conn, tot, wld_all, start30, until30),
+        # Releases of state-owned and SAR government issuers (pipeline/state_issuers.py, decisions D13 and D14):
+        # their own figures, never in the totals, shares and top country above.
+        "separate_issuers": state_issuers.findings_block(conn, tot, wld_all, start30, until30),
+        # Placements and distinct underlying items of each counted label, and the state origin on the paid
+        # release route, under each Distribution mode: all time through the last complete day, the span the
+        # site's all time cards count (the export day is partial), and in the same 30 complete days.
+        "items": {"all_time": dict(items_block(item_index(conn, outlets), None, until30, visible),
+                                   window_end=(dt.date.fromisoformat(until30) - dt.timedelta(days=1)).isoformat()),
+                  "last_30d": dict(items_block(item_index(conn, outlets), start30, until30, visible),
+                                   window_start=start30,
+                                   window_end=(dt.date.fromisoformat(until30) - dt.timedelta(days=1)).isoformat())},
         "by_ownership": by_ownership_findings(outlets_json),
         "generated_at": store.utcnow(),
     }
@@ -1951,6 +2154,8 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
             "SELECT route, method, COUNT(*) FROM (SELECT %s AS route, c.method FROM classifications c "
             "WHERE c.is_current=1 AND c.category='A') GROUP BY route, method" % model_only.route_sql("c")):
         k = model_only.counted_route(r[0], r[1])
+        if k is None:
+            continue   # a state-owned or SAR issuer's release, in no route total (pipeline/state_issuers.py)
         route_totals[k] = route_totals.get(k, 0) + r[2]
     # A copy another row stands for is one placement with it (pipeline/placements.py), as on the site.
     shadow = sorted(placements.shadowed(conn))
@@ -1959,7 +2164,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         for r in conn.execute("SELECT route, method, COUNT(*) FROM (SELECT %s AS route, c.method FROM classifications c "
                               "WHERE c.is_current=1 AND c.category='A' AND c.article_id IN (%s)) GROUP BY route, method"
                               % (model_only.route_sql("c"), ",".join("?" * len(part))), part):
-            route_totals[model_only.counted_route(r[0], r[1])] -= r[2]
+            k = model_only.counted_route(r[0], r[1])
+            if k is not None:
+                route_totals[k] -= r[2]
     sat = conn.execute("SELECT COALESCE(SUM(polls), 0), COALESCE(SUM(saturated), 0), %s FROM feed_polls" % _MISS_SQL,
                        {"est": config.MISSED_ESTIMATOR_VERSION}).fetchone()
     recent_first, recent_last = feed_recent_window(latest.get("window_end_30d") or _today())
@@ -1988,6 +2195,11 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         "countries_in_gaps": sum(1 for v in latest["countries"].values() if v.get("coverage") == "gap"),
         # The site marks the data stale when generated_at is older than this (config.DATA_STALE_HOURS).
         "stale_after_hours": config.DATA_STALE_HOURS,
+        # The newest discovery, against the reader's clock on the site (a collector that stopped exports nothing,
+        # and one that runs and finds nothing exports a fresh generated_at), and what the newest input watch
+        # found quiet, with since when (pipeline/input_watch.py site_summary).
+        "last_discovered": conn.execute("SELECT MAX(discovered_at) FROM articles").fetchone()[0],
+        "input_watch": input_watch.site_summary(conn, outlets),
         "themes": themes_mod.catalog(),
         "themes_version": themes_mod.version(),
         # Themes versions and their dates, marked on the theme timeline (pipeline/themes.py HISTORY).
@@ -2070,6 +2282,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         # shared_widgets and duplicate_placements: the stored rows counted as one placement, and the language
         # editions counted as one underlying item, with their counts (pipeline/placements.py).
         **placements.summary(conn, outlets),
+        # What one underlying item is, with every threshold, each label's placements and items all time and
+        # the largest items (underlying_items_meta).
+        "underlying_items": underlying_items_meta(conn, outlets, relay_visible(conn)),
         "llm_budget": dict(llm_cost.month_to_date(conn),
                            budget_usd=config.LLM_MONTHLY_BUDGET_USD,
                            daily_cap_today=(cap := llm_cost.daily_cap(conn, batched=True)["cap"]),
@@ -2111,6 +2326,9 @@ def build_meta(conn, outlets: List[Dict], gaps: List[Dict], latest: Dict, outlet
         # {count, count_last_30d, by_route, check, summary, rule}: the same set as route_totals["unattributed"],
         # excluded from every count and never rejoining state origin (decision D1 as revised).
         "undetermined": model_only.meta_block(conn, *complete_window_30d(latest)),
+        # {groups: {S, H: {count, count_last_30d, by_method, label}}, decided_on, ...}: releases of state-owned
+        # and SAR government issuers held apart from every count (decisions D13 and D14 of 2026-11-24).
+        "separate_issuers": state_issuers.meta_block(conn, *complete_window_30d(latest)),
         "arrivals": [{"id": r, "label": ARRIVAL_LABELS.get(r, r)} for r in classify_rules.ARRIVAL_IDS],
         "arrival_totals": _arrival_totals(conn),
         "relay_collector": relay_status(conn, outlets),
@@ -2182,6 +2400,19 @@ def write_json(path: Path, data) -> None:
         raise
 
 
+def label_attributes(row) -> Optional[Dict]:
+    """The paper's six attributes of a current model label (classify_llm.ATTRIBUTE_COLUMNS) with the category
+    the paper's rule derives from them (classify_llm.derived_category), for the audit files and the article
+    records; None when the label carries none (rules labels, and model labels made before prompt 2026-12-01).
+    The text spans behind them stay in the database: the exports quote one capped sentence per article."""
+    attrs = classify_llm.attributes_of_row(row)
+    if not attrs:
+        return None
+    attrs.pop("evidence", None)
+    attrs["derived_category"] = classify_llm.derived_category(attrs)
+    return attrs
+
+
 def inconsistent_labels(conn) -> Dict:
     """{"total": n, "by_reason": {reason: n}} over the current labels marked needs_review."""
     by_reason = {r[0]: r[1] for r in conn.execute(
@@ -2215,6 +2446,7 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
         """SELECT a.id, a.url, a.url_hash, a.outlet_id, a.country, a.language, a.title, a.published_at, a.discovered_at, a.day_of_record,
                   a.status, a.dup_group_id, a.themes, a.gate_terms, c.category, c.method, c.confidence, c.evidence_quote, c.reasoning,
                   c.signatures_fired, c.china_sources_cited, c.model_version, c.ruleset_version, c.classified_at, c.route, c.issuer_type, c.needs_review,
+                  c.attr_author, c.attr_commissioner, c.attr_state_affil, c.attr_route, c.attr_disclosure, c.attr_verification,
                   (SELECT human_category FROM human_reviews h WHERE h.article_id=a.id ORDER BY h.id DESC LIMIT 1) AS human_category
            FROM articles a LEFT JOIN classifications c ON c.article_id=a.id AND c.is_current=1
            WHERE a.gate_relevant=1 ORDER BY a.id"""
@@ -2235,6 +2467,11 @@ def write_audit_files(conn, audit_dir: Path = config.EXPORT_DIR_AUDIT) -> Dict:
             it.pop("issuer_type", None)     # set only on model labels from prompt 2026-10-17; older lines stay unchanged
         if not it.get("needs_review"):
             it.pop("needs_review", None)    # set only on an inconsistent model reply
+        for col in classify_llm.ATTRIBUTE_COLUMNS.values():
+            it.pop(col, None)
+        attrs = label_attributes(r)
+        if attrs:
+            it["attributes"] = attrs        # set only on model labels from prompt 2026-12-01; older lines stay unchanged
         by_day[_day(r)].append(it)
     written = {}
     for day, items in by_day.items():

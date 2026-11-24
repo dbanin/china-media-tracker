@@ -269,12 +269,23 @@
   language: it
   feeds:
   - https://www.italpress.com/feed/
+  - https://www.italpress.com/category/video-news/video-xinhua/feed/
+  - https://www.italpress.com/speciali/xinhua/feed/
   release_sections:
     searched_on: '2026-09-15'
     status: none_found
     sections: []
   tier: agency
-  notes: Wire agency that has distributed Xinhua material under a cooperation agreement. Verified 2026-09-02.
+  notes: 'Wire agency that has distributed Xinhua material under a cooperation agreement. Verified 2026-09-02. Feed added
+    2026-11-24. Italpress runs Xinhua videos (credited "(XINHUA/ITALPRESS)" and "(Fonte video: Xinhua)") that Libero, Il
+    Tempo and QN carry without the credit. The site feed shows 30 entries of about 140 new items a day (hourly polls,
+    13 to 23 November), and polled 3 to 17 times a day (8 on average, 2 September to 6 October) it lost many: for 10
+    such videos of those weeks the tracker holds Italian copies and no original. The WordPress feed of the Xinhua video
+    category (category/video-news/video-xinhua) held 30 items over 75 hours on 2026-11-24, about ten a day, so hourly
+    polls never overflow it. Verified 2026-11-24 with the collector''s feed reader and page fetcher, robots.txt allowing
+    the crawler; three item pages read in full, each carrying the Xinhua credit the rules read. The feed of the Xinhua
+    section (speciali/xinhua: text and photo items) is added on the same day: it held 30 items over 27 hours, and the
+    site feed missed 2 of its 13 items of 23 November even under hourly polling.'
   political_leaning: unassessed
   ownership: private
   ownership_source: https://it.wikipedia.org/wiki/Italpress
@@ -2018,6 +2029,35 @@
   active: false
   inactive_reason: publishes primarily in Chinese; excluded by project rule because the owner does not read Chinese and machine translation would miss the coding distinctions
   inactive_since: '2026-10-12'
+- id: au_medianet
+  name: Medianet News Hub
+  country: AUS
+  language: en
+  feeds:
+  - https://newshub.medianet.com.au/feed/
+  release_sections:
+    searched_on: '2026-11-24'
+    status: found
+    sections:
+    - url: https://newshub.medianet.com.au/
+      kind: press_release
+      feed: https://newshub.medianet.com.au/feed/
+      label: News Hub
+      readable: true
+  tier: distribution_wire
+  notes: Added 2026-11-24. The public archive of the Medianet release service (medianet.com.au, whose Media Releases
+    link leads to newshub.medianet.com.au). Its WordPress feed held 10 releases over 5.7 hours on 2026-11-24 (about 40
+    a day; a saturated poll is paged with ?paged=N), and release pages read in full without sign in (one read, 4,450
+    characters of text). robots.txt allows the crawler on both hosts (only /wp-admin/ and preview paths are closed).
+    The site search for China listed ten releases from 20 to 24 November, among them Chinese city and district
+    promotions (Hengqin, a Shenzhen district, the Pazhou competition); 7 of the 10 titles were not in the tracker. It
+    also carries GlobeNewswire releases. It is registered as a distribution wire, so its releases count in the
+    worldwide distribution stratum and never in Australia's figures, since the archive is the release host's own site,
+    not a newsroom placement (the AAP releases shown on Australian Community Media pages count as those mastheads' output
+    because they appear on the mastheads' own sites). The keyword gate applies to its items, as to the AAP listing.
+  political_leaning: unassessed
+  ownership: unassessed
+  active: true
 - id: af_afintl
   name: Afghanistan International
   country: AFG

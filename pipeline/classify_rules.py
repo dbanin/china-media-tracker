@@ -7,6 +7,12 @@ Decision rule:
   - any strong signature, or weak signatures from two different groups when a
     Chinese state entity is named somewhere in the article or its page chrome
       -> Category A, confidence 1.0, method rules, no LLM call
+  - a paid release whose own issuer (headline prefix or a line of its own, dateline line, SOURCE line,
+    issued by line or media contact block) is in the registry of state issuers (pipeline/state_issuers.py):
+    a party-state issuer is a strong signature; a state-owned enterprise or state-run institution, or a
+    Hong Kong or Macao SAR body, is stored as a rules label held apart from state origin (decisions D13 and
+    D14 of 2026-11-24, codes S and H) when nothing else says A; a release carrying the shared Beijing
+    contact number and naming no registry issuer is routed to the LLM as an A candidate (D15)
   - one weak signature
       -> routed to the LLM as an A candidate, unless the item arrived through a
          gate-exempt section (press_release, sponsored, partner; fetch_feeds.py
@@ -40,7 +46,7 @@ from typing import Dict, List, Optional, Tuple
 
 import yaml
 
-from pipeline import config, extract, gate, lookalike, store
+from pipeline import config, extract, gate, lookalike, state_issuers, store
 
 BODY_RELEVANCE_MIN_HITS = 3
 BODY_RELEVANCE_MIN_TOTAL = 5
@@ -155,6 +161,11 @@ def _signature_index() -> Dict[str, Tuple[str, str]]:
     idx = {p["id"]: (p["group"], p["strength"]) for pats in sigs["groups"].values() for p in pats}
     idx["diplomat_list_author"] = ("authored_by_state", "strong")
     idx["diplomat_list_name_only"] = ("authored_by_state", "weak")
+    # The issuer of a paid release read against the registry (pipeline/state_issuers.py), and the shared
+    # Beijing contact number, a hint (decision D15).
+    for sid in state_issuers.SIGNATURE_IDS.values():
+        idx[sid] = ("distribution_stamp", "strong")
+    idx[state_issuers.CONTACT_ID] = ("distribution_stamp", "hint")
     return idx
 
 
@@ -1011,8 +1022,17 @@ def evidence_span(text: str, start: int, end: int) -> str:
 
 
 def match_signatures(title: str, body: str, author: Optional[str], sigs: Optional[Dict] = None,
-                     labels: str = "") -> Dict:
-    """Return dict with matches (list of {id, group, strength, scope, span}), exclusions, and decision."""
+                     labels: str = "", arrival: Optional[str] = None) -> Dict:
+    """Return dict with matches (list of {id, group, strength, scope, span}), exclusions, and decision.
+
+    With arrival (classify_rules.arrival_of, given by classify_article and reclassify) a paid release is
+    also read for its own issuer against the registry of state issuers (pipeline/state_issuers.py): a
+    party-state issuer is a strong signature (decision A); a state-owned enterprise or state-run institution
+    gives decision S and a Hong Kong or Macao SAR body decision H (owner decisions D13 and D14), each stored
+    as a rules label with its issuer_type and counted apart from state origin. Any other strong signature,
+    or two weak groups, still decide A. A release with the shared Beijing contact number and no registry
+    issuer gets the hint beijing_release_contact, which sends it to the model (D15). Without arrival (the
+    keyword gate's summary check) no release is read, so the gate is unchanged."""
     sigs = sigs or load_signatures()
     body = body or ""
     author = author or ""
@@ -1078,15 +1098,33 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             matches.append({"id": "diplomat_list_author", "group": "authored_by_state",
                             "strength": "strong", "scope": "head", "span": hit[:120]})
 
-    strong = [m for m in matches if m["strength"] == "strong"]
+    issuer = None
+    if arrival is not None:
+        release = state_issuers.read_release(title, body_clean, author, labels or "", arrival)
+        issuer = release["issuer"]
+        if issuer:
+            matches.append({"id": state_issuers.SIGNATURE_IDS[issuer["position"]], "group": release["signature_group"],
+                            "strength": "strong", "scope": "release", "span": issuer["span"],
+                            "issuer": issuer["issuer"], "issuer_group": issuer["group"]})
+        elif release["contact"]:
+            matches.append({"id": state_issuers.CONTACT_ID, "group": "distribution_stamp", "strength": "hint",
+                            "scope": "release", "span": release["contact"][:200]})
+
+    # A state-owned or SAR issuer is held apart: it decides S or H only when nothing else says A.
+    strong = [m for m in matches if m["strength"] == "strong" and m.get("issuer_group") in (None, "A")]
     weak_groups = {m["group"] for m in matches if m["strength"] == "weak"}  # hints never count
     state_entity = has_state_entity(scopes["any_with_labels"])
     if strong or (len(weak_groups) >= 2 and state_entity):
         decision = "A"
+    elif issuer and issuer["group"] in state_issuers.CODES:
+        decision = issuer["group"]
     elif matches:
         decision = "A_candidate"
     else:
         decision = "none"
+    # The issuer type stored on a rules label: from the registry issuer when it decided the label.
+    issuer_type = issuer["issuer_type"] if issuer and (decision == issuer["group"] or (
+        decision == "A" and issuer["group"] == "A")) else None
 
     triggers = []
     trig_text = "\n".join([title, body_clean])
@@ -1096,7 +1134,8 @@ def match_signatures(title: str, body: str, author: Optional[str], sigs: Optiona
             triggers.append({"id": t_id, "span": evidence_span(trig_text, m.start(), m.end())})
 
     return {"matches": matches, "exclusions": excl, "decision": decision, "triggers": triggers,
-            "state_entity": state_entity, "ruleset_version": sigs["ruleset_version"]}
+            "state_entity": state_entity, "ruleset_version": sigs["ruleset_version"],
+            "issuer": issuer, "issuer_type": issuer_type}
 
 
 def body_relevance(title: str, body: str, language: str, country: Optional[str] = None) -> Tuple[bool, str]:
@@ -1361,19 +1400,25 @@ def classify_article(conn, row, looks: Optional["lookalike.RouteIndex"] = None) 
         withdraw_labels(conn, row["id"])
         store.update_article(conn, row["id"], status=bad[0], fail_reason=bad[1])
         return {"outcome": "unreadable"}
-    res = match_signatures(row["title"], body, row["author"], labels=labels_for(row))
+    arrival = arrival_of(row["gate_terms"])
+    res = match_signatures(row["title"], body, row["author"], labels=labels_for(row), arrival=arrival)
     fired = [m["id"] for m in res["matches"]]
-    if res["decision"] == "A":
-        evidence = res["matches"][0]["span"]
+    if res["decision"] in ("A",) + state_issuers.CODES:
+        # A label of a group held apart (S, H: decisions D13 and D14) is stored as state origin with the
+        # issuer type of its group, and read under its own code (pipeline/model_only.py, route_sql).
+        lead = [m for m in res["matches"] if m.get("issuer")] if res["issuer_type"] else []
+        evidence = (lead or res["matches"])[0]["span"]
+        why = "Deterministic signature match: %s" % ", ".join(fired)
+        if res["issuer_type"]:
+            why += "; release issuer %s (%s, registry group %s)" % (res["issuer"]["name"], res["issuer"]["issuer"], res["issuer"]["group"])
         store.insert_classification(
             conn, row["id"], "rules", "A", 1.0, evidence_quote=evidence,
-            reasoning="Deterministic signature match: %s" % ", ".join(fired),
-            signatures_fired=fired, ruleset_version=res["ruleset_version"],
-            route=route_of(res["matches"]),
+            reasoning=why, signatures_fired=fired, ruleset_version=res["ruleset_version"],
+            route=route_of(res["matches"]), issuer_type=res["issuer_type"],
         )
-        return {"outcome": "A"}
+        return {"outcome": res["decision"]}
     candidate = res["decision"] == "A_candidate"
-    if candidate and arrival_of(row["gate_terms"]) != "editorial_feed":
+    if candidate and arrival != "editorial_feed" and state_issuers.CONTACT_ID not in fired:
         # Section feeds (press_release, sponsored, partner) skip the keyword gate by design
         # (fetch_feeds.py), so a weak signature here is the only thing standing between an
         # unrelated item and a model call. These outlets' own generic paid-content and wire
@@ -1463,7 +1508,7 @@ def run(conn, run_id: str, deadline: Optional[float] = None, status: str = "fetc
         conn.commit()
     relay_dropped = settle_relay_dropped(conn)
     rows = store.articles_by_status(conn, status, limit=100000)
-    counts = {"input": len(rows), "A": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0,
+    counts = {"input": len(rows), "A": 0, "S": 0, "H": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "skipped_deadline": 0,
               "repaired": repaired, "relabelled": relabelled, "body_unavailable": 0, "unreadable": 0,
               "relay_dropped": relay_dropped}
     looks = lookalike.build_index(conn, rows)
@@ -1526,7 +1571,7 @@ def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optiona
         q += " LIMIT ?"
         params.append(limit)
     rows = conn.execute(q, params).fetchall()
-    counts = {"input": len(rows), "A": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0,
+    counts = {"input": len(rows), "A": 0, "S": 0, "H": 0, "llm": 0, "lookalike": 0, "C": 0, "not_relevant": 0, "body_unavailable": 0,
               "unreadable": 0, "skipped_deadline": 0, "kept_llm": 0}
     looks = lookalike.build_index(conn, rows)
     for r in rows:
@@ -1545,8 +1590,8 @@ def reclassify(conn, run_id: str, since: Optional[str] = None, deadline: Optiona
             # a stale body is extracted again first, so the rules read the article and not the old extraction;
             # a kept label made on the stub is marked body_refreshed there and goes back to the model
             body = (ensure_body(conn, r) if stale else store.load_body(r["url_hash"])) or ""
-            res = match_signatures(r["title"], body, r["author"], labels=labels_for(r))
-            if res["decision"] != "A" and not (body and unreadable_reason(conn, r, body, saved_html(r))):
+            res = match_signatures(r["title"], body, r["author"], labels=labels_for(r), arrival=arrival_of(r["gate_terms"]))
+            if res["decision"] not in ("A",) + state_issuers.CODES and not (body and unreadable_reason(conn, r, body, saved_html(r))):
                 if body:
                     # read under the current ruleset and kept: carried forward, so it is not taken again
                     conn.execute("UPDATE classifications SET ruleset_version=? WHERE id=?",

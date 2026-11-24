@@ -162,7 +162,8 @@ def test_passing_same_model_rerun_leaves_counts_provisional(tmp_path, monkeypatc
     """The review's case: a rerun at the same prompt agreeing with itself used to publish."""
     conn = _db(tmp_path, monkeypatch, {"en": 10})
     rerun = {"method": "same_model_rerun", "model_a": "claude-sonnet-5", "model_b": "claude-sonnet-5",
-             "sample_size": 225, "kappa_all": 0.81, "kappa_bc": 0.74, "n_bc": 116, "details": {}}
+             "sample_size": 225, "kappa_all": 0.81, "kappa_bc": 0.74, "n_bc": 116,
+             "details": {"prompt_version": classify_llm.PROMPT_VERSION}}     # a study of the current prompt
     store.record_model_agreement(conn, rerun, [])
     meta = _meta(conn)
     assert meta["relay_publishable"] is False and meta["relay_basis"] is None

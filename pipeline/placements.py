@@ -68,6 +68,39 @@ EDITION_MIN_ANCHORS = 2
 EDITION_GENERIC_SHARE = 0.1
 EDITION_GENERIC_MIN_DAYS = 4
 
+# The paid release route: state origin placements whose text carries a commercial press release
+# distribution service's stamp (PR Newswire, GlobeNewswire) beside a Chinese state issuer (classify_rules
+# ROUTES). One such release is often run by many papers of one chain, so the export states it apart, as
+# placements and as underlying items. Only state origin labels carry a route; unchecked state sourcing has
+# none and is never split this way.
+PAID_RELEASE_ROUTES = ("distribution_stamp",)
+
+# The title pass that forms the title groups (fetch_feeds.link_near_duplicates over store.recent_titles), as
+# the methodology and meta.underlying_items state it: two items of one country discovered within
+# TITLE_WINDOW_DAYS whose titles, cut to words of TITLE_WORD_MIN_CHARS letters or more, have at least
+# TITLE_MIN_WORDS such words and share at least fetch_feeds.TITLE_JACCARD_THRESHOLD of them. tests hold
+# these equal to the code that links.
+TITLE_WINDOW_DAYS = 3
+TITLE_MIN_WORDS = 4
+TITLE_WORD_MIN_CHARS = 3
+
+
+def item_rule() -> Dict:
+    """What joins placements into one underlying item, with every threshold, for meta.underlying_items and
+    the methodology: the title pass, the body pass (pipeline/body_dups.py), the language edition pass
+    (edition_links) and the paid release route."""
+    from pipeline import body_dups, fetch_feeds
+    return {
+        "title": {"same_country": True, "window_days": TITLE_WINDOW_DAYS, "min_words": TITLE_MIN_WORDS,
+                  "word_min_chars": TITLE_WORD_MIN_CHARS, "jaccard": fetch_feeds.TITLE_JACCARD_THRESHOLD},
+        "body": {"different_outlets": True, "window_days": body_dups.WINDOW_DAYS, "min_shingles": body_dups.MIN_SHINGLES,
+                 "shingle_words": body_dups.SHINGLE_WORDS, "signature_bins": body_dups.SIG_BINS,
+                 "jaccard": body_dups.JACCARD_THRESHOLD, "template_similarity": body_dups.TEMPLATE_SIMILARITY},
+        "editions": {"distribution_wires_only": True, "window_hours": EDITION_WINDOW_HOURS,
+                     "min_anchors": EDITION_MIN_ANCHORS, "min_anchors_same_issuer": 1},
+        "paid_release_routes": list(PAID_RELEASE_ROUTES),
+    }
+
 
 def widget_of(url: Optional[str]) -> Optional[Dict]:
     """The shared widget a URL belongs to, as {"id", "name", "network", "prefix"}, or None."""

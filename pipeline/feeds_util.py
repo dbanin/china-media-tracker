@@ -2,7 +2,7 @@
 import re
 import time
 from typing import Dict, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import feedparser
 import requests
@@ -47,6 +47,41 @@ def _repair_links(entries) -> None:
                 entry["link"] = _SRNA_PAGE % m.group(1)
         except Exception:  # noqa: BLE001  an entry that is not a mapping is discovery's to skip
             continue
+
+
+# A link whose last path segment is the word "undefined" is a script's unset value printed into an address,
+# not a page. Libero's old rss.xml listed, beside items such as the "pillole" videos at
+# /news/pillole/<id>/<slug>/, one to five more entries under the same headline at /news/<another id>/undefined/,
+# with no date: 129 such rows under 88 headlines were stored from 2026-09-03 to 2026-11-12, and every one
+# fetched (108) failed with 404. Rechecked 2026-11-24: that address and the pillole one both answer 404 since
+# the site moved to a new system on 2026-11-12 (rss.xml answers 404 too), and the ids differ from the pillole
+# ids (49146852 beside 49146469), so no rewrite reaches a page. Such an entry is dropped before discovery: the
+# item it repeats is stored from its own entry, and a broken address is not an item.
+BROKEN_SEGMENTS = ("undefined",)
+
+
+def broken_link(link) -> bool:
+    """Whether an item link ends in a template placeholder segment (BROKEN_SEGMENTS)."""
+    if not isinstance(link, str):
+        return False
+    try:
+        path = urlsplit(link.strip()).path
+    except ValueError:
+        return False
+    segments = [s for s in path.split("/") if s]
+    return bool(segments) and segments[-1] in BROKEN_SEGMENTS
+
+
+def _drop_broken(entries) -> list:
+    out = []
+    for entry in entries:
+        try:
+            if broken_link(entry.get("link")):
+                continue
+        except Exception:  # noqa: BLE001  an entry that is not a mapping is discovery's to skip
+            pass
+        out.append(entry)
+    return out
 
 
 def fetch_feed(url: str, timeout: int = config.FEED_TIMEOUT, respect_robots: bool = True) -> Dict:
@@ -104,4 +139,8 @@ def fetch_feed(url: str, timeout: int = config.FEED_TIMEOUT, respect_robots: boo
         return {"ok": False, "entries": [], "status": resp.status_code, "error": err, "elapsed": time.time() - started}
     _resolve_links(entries, getattr(resp, "url", None) or url)
     _repair_links(entries)
+    entries = _drop_broken(entries)
+    if not entries:
+        return {"ok": False, "entries": [], "status": resp.status_code, "error": "no_entries: every item link broken",
+                "elapsed": time.time() - started}
     return {"ok": True, "entries": entries, "status": resp.status_code, "error": None, "elapsed": time.time() - started, "feed": parsed.get("feed", {})}

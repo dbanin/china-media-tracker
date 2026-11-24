@@ -81,10 +81,15 @@
      (underlying_items), and a country's figure is the number of distinct ids over the window. world holds
      the same figures across every country kept, where a story placed in several countries is one item.
      A day from an older export carries no ids; its per day figures are then added as they are, and
-     underlyingSummed says that the window's underlying items are a per day sum, an upper bound. */
+     underlyingSummed says that the window's underlying items are a per day sum, an upper bound.
+     Every key of underlying_items is counted the same way, whichever labels the export writes: uniqA and
+     uniqB per label (uniqAB is their sum, as before), and uniqAp the state origin items on the paid release
+     route, whose placements, Ap, are the window's routes in PAID_RELEASE_ROUTES. worldParts holds the world
+     figures of the country outlets alone and of the wires alone, which do not add up to world: an item
+     carried by both is one item in each. */
   function aggregateWindow(months, endDate, windowDays, distribution) {
     var out = {countries: {}, reviewed: {}, routes: {}, arrivals: {}, ceilingDays: [], relayIncompleteDays: [], olderRulesetDays: [],
-               world: {uniqA: 0, uniqAB: 0}, underlyingSummed: false};
+               world: {uniqA: 0, uniqAB: 0, uniqB: 0, uniqAp: 0, Ap: 0}, worldParts: null, underlyingSummed: false};
     if (!endDate) return out;
     var start = windowDays ? shiftDate(endDate, -(windowDays - 1)) : null;
     var keep = function (iso) { return distributionKeeps(distribution, iso); };
@@ -110,8 +115,9 @@
           return;
         }
         var own = ids[c] || (ids[c] = {A: {}, B: {}}), src = items[c] || {};
-        ["A", "B"].forEach(function (cat) {
-          (src[cat] || []).forEach(function (id) { own[cat][id] = 1; worldIds[cat][id] = 1; });
+        Object.keys(src).forEach(function (cat) {
+          var o = own[cat] || (own[cat] = {}), w = worldIds[cat] || (worldIds[cat] = {});
+          (src[cat] || []).forEach(function (id) { o[id] = 1; w[id] = 1; });
         });
       });
       Object.keys(e.reviewed || {}).filter(keep).forEach(function (c) {
@@ -122,16 +128,46 @@
       addNested(out.routes, pickKeys(e.routes, keep));
       addNested(out.arrivals, pickKeys(e.arrivals, keep));
     });
-    var size = function (o) { return Object.keys(o).length; };
+    var size = function (o) { return Object.keys(o || {}).length; };
+    var paidOf = function (c) { return paidReleaseCount(out.routes[c]); };
     Object.keys(out.countries).forEach(function (c) {
       var own = ids[c] || {A: {}, B: {}}, s = summed[c] || {A: 0, B: 0};
       var nA = size(own.A) + s.A, nB = size(own.B) + s.B;
       out.countries[c].uniqA = nA;
+      out.countries[c].uniqB = nB;
       out.countries[c].uniqAB = nA + nB;
+      out.countries[c].uniqAp = size(own.Ap);
+      out.countries[c].Ap = paidOf(c);
     });
     var wA = size(worldIds.A) + worldSummed.A, wB = size(worldIds.B) + worldSummed.B;
-    out.world = {uniqA: wA, uniqAB: wA + wB};
+    var wAp = Object.keys(out.countries).reduce(function (t, c) { return t + out.countries[c].Ap; }, 0);
+    out.world = {uniqA: wA, uniqAB: wA + wB, uniqB: wB, uniqAp: size(worldIds.Ap), Ap: wAp};
+    /* The world of the country outlets alone and of the wires alone, from the same ids (summed days add as they are). */
+    var part = function (keepIso) {
+      var u = {}, sA = 0, sB = 0, ap = 0;
+      Object.keys(out.countries).forEach(function (c) {
+        if (!keepIso(c)) return;
+        var own = ids[c] || {}, s = summed[c] || {A: 0, B: 0};
+        Object.keys(own).forEach(function (cat) { var t = u[cat] || (u[cat] = {}); Object.keys(own[cat]).forEach(function (id) { t[id] = 1; }); });
+        sA += s.A; sB += s.B; ap += out.countries[c].Ap;
+      });
+      var a = size(u.A) + sA, b = size(u.B) + sB;
+      return {uniqA: a, uniqB: b, uniqAB: a + b, uniqAp: size(u.Ap), Ap: ap};
+    };
+    out.worldParts = {country: part(function (c) { return c !== WORLDWIDE_ISO; }), wires: part(function (c) { return c === WORLDWIDE_ISO; })};
     return out;
+  }
+  /* The routes whose state origin placements are paid press releases (pipeline/placements.py
+     PAID_RELEASE_ROUTES, written to meta.underlying_items.rule.paid_release_routes); setPaidReleaseRoutes
+     takes the export's list when it carries one. */
+  var PAID_RELEASE_ROUTES = ["distribution_stamp"];
+  function setPaidReleaseRoutes(list) {
+    if (Array.isArray(list) && list.length) PAID_RELEASE_ROUTES = list.slice();
+    return PAID_RELEASE_ROUTES;
+  }
+  /* State origin placements on the paid release route in one {route: placements} tally (a day's routes[iso]). */
+  function paidReleaseCount(routes) {
+    return PAID_RELEASE_ROUTES.reduce(function (t, id) { return t + ((routes || {})[id] || 0); }, 0);
   }
   function pickKeys(obj, keep) {
     var out = {};
@@ -246,8 +282,10 @@
     if (provisional && !note) note = RELAY_PROVISIONAL;
     /* Underlying items are counted per label, so unchecked sourcing alone is the combined figure less state origin. */
     return {value: value, chinaTotal: china, a: aSel, aAll: a, b: b, c: c, pending: p, undetermined: u, undeterminedLayer: undeterminedLayer, ab: a + b, sparse: sparse, withheld: withheld, provisional: provisional, note: note,
-            underlyingB: Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
-            allItems: allItems, allItemsA: k.ta || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0};
+            underlyingB: typeof k.uniqB === "number" ? k.uniqB : Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0)), allItemsB: k.tb || 0,
+            allItems: allItems, allItemsA: k.ta || 0, allItemsChina: k.tchina || 0, underlying: k.uniqA || 0,
+            /* State origin on the paid release route (aggregateWindow's Ap, uniqAp), in every label. */
+            paidRelease: k.Ap || 0, underlyingPaid: k.uniqAp || 0};
   }
 
   /* State origin in the window for one route or arrival: filter {kind: "route" | "arrival", id}. */
@@ -575,7 +613,10 @@
       var whole = function (v) { return byRoute ? "" : v; };
       var note = mv.note || (byRoute ? "Only state_origin is filtered by the route. The counts that are not split by route are left blank." : "");
       if (agg.underlyingSummed && !byRoute && (mv.underlying || mv.underlyingB)) note = (note ? note + " " : "") + UNDERLYING_SUMMED;
+      /* The paid release route's part of state origin counts every label, so it is left blank for human labels only. */
+      var paid = function (v) { return mode === "reviewed" ? "" : whole(part(v)); };
       rows.push({iso: iso, name: (names && names[iso]) || iso, value: mv.value, fill: cls, state_origin: part(mv.a), state_origin_underlying_items: whole(part(mv.underlying)),
+                 state_origin_paid_release: paid(mv.paidRelease), state_origin_paid_release_underlying_items: paid(mv.underlyingPaid),
                  undetermined: whole(mv.undetermined),
                  unverified_relay: whole(hasB(mv.b)), unverified_relay_underlying_items: whole(hasB(mv.underlyingB)), relay_status: status, official_sourcing_pending: whole(part(mv.pending)), independent: whole(mv.c),
                  china_total: whole(hasB(mv.chinaTotal)), outlets_active: entry.outlets_active, population: entry.population || "",
@@ -689,6 +730,41 @@
             state_origin_wires: w.A || 0, unchecked_wires: withheld ? null : (w.B || 0), independent_wires: w.C || 0,
             china_total_wires: (w.A || 0) + (w.B || 0) + (w.C || 0), pending: sum.pending, pending_wires: w.pending || 0,
             undetermined: sum.U, undetermined_wires: w.U || 0};
+  }
+
+  /* Placements and distinct underlying items over an aggregateWindow result, for one Distribution mode,
+     in the shape of the export's meta.findings.items blocks: state_origin, state_origin_items, unchecked,
+     unchecked_items, paid_release, paid_release_items. Placements are summed over the countries the mode
+     keeps; items come from agg.world (both) or agg.worldParts (country, wires), so an item carried in
+     several countries, on several days or by a wire and a country outlet counts once. withheld nulls
+     unchecked state sourcing. null when agg carries no item figures (exportAllTimeAgg's shape, or no data),
+     and the caller then reads the export's own block. */
+  function itemsInWindow(agg, distribution, withheld) {
+    if (!agg || !agg.countries || !agg.world) return null;
+    var w = distribution === "country" || distribution === "wires" ? (agg.worldParts || {})[distribution] : agg.world;
+    if (!w) return null;
+    var n = {A: 0, B: 0, Ap: 0};
+    distributionIsos(agg.countries, distribution).forEach(function (iso) {
+      var k = agg.countries[iso] || {};
+      n.A += k.A || 0; n.B += k.B || 0; n.Ap += k.Ap || 0;
+    });
+    return {state_origin: n.A, state_origin_items: w.uniqA || 0,
+            unchecked: withheld ? null : n.B, unchecked_items: withheld ? null : (typeof w.uniqB === "number" ? w.uniqB : Math.max(0, (w.uniqAB || 0) - (w.uniqA || 0))),
+            paid_release: n.Ap, paid_release_items: w.uniqAp || 0};
+  }
+
+  /* "2,312 placements of 1,907 distinct underlying items", the two numbers every headline count is stated
+     as; "" when either is missing. A placement is one outlet running the text; an underlying item is the
+     text, however many outlets, days or countries ran it. */
+  function itemsText(placements, items) {
+    if (typeof placements !== "number" || typeof items !== "number") return "";
+    return findingsPlural(placements, "placement") + " of " + findingsPlural(items, "distinct underlying item");
+  }
+  /* The paid release route's part of state origin, "719 placements of 563 distinct underlying items came as
+     paid press releases through a distribution service", or "" when unknown or zero placements. */
+  function paidReleaseText(placements, items) {
+    if (typeof placements !== "number" || typeof items !== "number" || placements <= 0) return "";
+    return itemsText(placements, items) + " came as paid press releases through a distribution service";
   }
 
   /* State-origin articles over a window under the Distribution toggle: the sum of A over the countries
@@ -1473,7 +1549,7 @@
 
   return {EMPTY: EMPTY, UNDETERMINED_LAYER: UNDETERMINED_LAYER, UNDETERMINED_NO_SHARE: UNDETERMINED_NO_SHARE, preliminaryBanner: preliminaryBanner, preliminaryStatuses: preliminaryStatuses, WORLDWIDE_ISO: WORLDWIDE_ISO, WORLDWIDE_NAME: WORLDWIDE_NAME, worldwideLegendLine: worldwideLegendLine,
           DISTRIBUTIONS: DISTRIBUTIONS, DISTRIBUTION_NAMES: DISTRIBUTION_NAMES, distributionKeeps: distributionKeeps, distributionIsos: distributionIsos,
-          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
+          distributionTotals: distributionTotals, distributionFindings: distributionFindings, stateOriginInWindow: stateOriginInWindow, allTimeInWindow: allTimeInWindow, itemsInWindow: itemsInWindow, itemsText: itemsText, paidReleaseText: paidReleaseText, setPaidReleaseRoutes: setPaidReleaseRoutes, paidReleaseCount: paidReleaseCount, topCountryInWindow: topCountryInWindow, topCountriesInWindow: topCountriesInWindow, MIN_SHARE_DENOMINATOR: MIN_SHARE_DENOMINATOR, MIN_ALL_ITEMS_DENOMINATOR: MIN_ALL_ITEMS_DENOMINATOR, MIN_OUTLETS_FOR_OUTPUT_SHARE: MIN_OUTLETS_FOR_OUTPUT_SHARE,
           RELAY_NOT_MEASURED: RELAY_NOT_MEASURED, RELAY_WITHHELD: RELAY_WITHHELD, RELAY_PROVISIONAL: RELAY_PROVISIONAL, UNDERLYING_SUMMED: UNDERLYING_SUMMED,
           emptyCounts: emptyCounts, addInto: addInto, listDays: listDays, dayEntry: dayEntry, shiftDate: shiftDate,
           aggregateWindow: aggregateWindow, aggregateThemes: aggregateThemes, MEASURE_INDEX: MEASURE_INDEX, METRICS: METRICS, BASES: BASES, GRID: GRID, gridMetric: gridMetric, basisAvailable: basisAvailable,

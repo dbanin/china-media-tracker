@@ -2,7 +2,7 @@
    (or under jsc through a shim that defines require, console and process). Each measure's own
    assertions go in tests/smoke_m_<id>.js, written the same way. */
 var M = require("../docs/measures.js");
-var IDS = ["alteration", "speed", "doctrine", "spikes", "engagement", "syndication"];
+var IDS = ["alteration", "speed", "doctrine", "spikes", "engagement", "syndication", "exposure"];
 var MODS = {};
 IDS.forEach(function (id) { MODS[id] = require("../docs/m_" + id + ".js"); });
 function assert(cond, msg) { if (!cond) { console.error("FAIL: " + msg); process.exit(1); } }

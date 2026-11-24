@@ -1,0 +1,512 @@
+# State issuers of paid releases (pipeline/state_issuers.py, schema in state_issuers_schema.json).
+#
+# The rules (pipeline/classify_rules.py) read a paid release (a release wire dateline, an item from an
+# outlet's press release, sponsored or partner section, a release wire named in the page labels or author
+# field, or a SOURCE trailer) for its own issuer, named in one of five places: a header line (the headline's
+# "Issuer:" prefix, or a line that is the issuer's name alone at the top or foot of the text), the dateline
+# line right after the wire stamp, the SOURCE trailer, an "issued by" line, or the media contact block. A
+# body named anywhere else, in a sentence of the release or of a news story, never counts. When the issuer
+# is in this registry the label follows its group, with the pattern id recorded like every signature:
+#
+#   A  party-state issuers: central state media, provincial and city international communication centres,
+#      party committees and their publicity departments, people's governments and their bureaus at every
+#      level, and provincial party dailies. State origin.
+#   S  state-owned enterprises and state-run institutions (state universities, state laboratories), named
+#      only with a public source of state ownership. Owner decision D13 of 2026-11-24: stored, shown on
+#      their own line, never in the state origin count.
+#   H  Hong Kong SAR government and statutory bodies, and Macao SAR government and statutory bodies by the
+#      same rule. Owner decision D14 of 2026-11-24: stored, shown on their own line, never in the state
+#      origin count.
+#
+# Issuers the paper codes as unsettled (state museums, culture exchange centres, unnamed issuers of
+# state-hosted events) are deliberately absent: they stay with the model (D13). So are bodies whose state
+# ownership has no public source, private firms that are partly state held (Gree Electric since 2019), the
+# Hong Kong universities, and government-owned companies of the SARs (MTR, Cyberport).
+#
+# Every entry carries a public source showing the body is party-state (or state-owned for S, or a SAR
+# government or statutory body for H). The sources were looked up on 2026-11-24.
+#
+# Fields:
+#   id           stable identifier, never reused
+#   group        A, S or H
+#   kind         what sort of body (central_state_media, international_communication_centre,
+#                publicity_department, party_committee, government, party_daily, state_owned_enterprise,
+#                state_institution, sar_body)
+#   issuer_type  the issuer type stored on the label (classify_llm.ISSUER_TYPES): A takes state_media,
+#                government, party or diplomatic; S always state_owned_enterprise; H always sar_government
+#   names        exact names and aliases, matched as whole words and as written, or wholly in capitals
+#                (a headline set in capitals); a lower case word never matches a name ("China mobile
+#                gaming" is not China Mobile)
+#   patterns     generic name forms (regex). {place} stands for any place in places (a Chinese province,
+#                autonomous region, municipality or city; never Hong Kong, Macao or Taiwan), {province} for
+#                a province level name only, and {name} for one to three capitalised words, allowed only
+#                beside a term no other state uses (People's Government, CPC, Communist Party of China)
+#   domains      web and mail domains, read only inside a media contact block
+#   china_dateline  true when a pattern needs the release's dateline line to place it in China
+#   source_url, source_title, basis   the public source
+version: "2026-11-24"
+decided_on: "2026-11-24"
+
+places:
+  provinces: [Anhui, Fujian, Gansu, Guangdong, Guizhou, Hainan, Hebei, Heilongjiang, Henan, Hubei, Hunan,
+              Jiangsu, Jiangxi, Jilin, Liaoning, Qinghai, Shaanxi, Shandong, Shanxi, Sichuan, Yunnan, Zhejiang,
+              Guangxi, Guangxi Zhuang, Inner Mongolia, Ningxia, Ningxia Hui, Xinjiang, Xinjiang Uygur,
+              Xinjiang Uyghur, Tibet, Xizang, Beijing, Shanghai, Tianjin, Chongqing]
+  cities: [Shijiazhuang, Tangshan, Qinhuangdao, Handan, Xingtai, Baoding, Zhangjiakou, Chengde, Cangzhou,
+           Langfang, Hengshui, Dingzhou, Xiong'an, Taiyuan, Datong, Yangquan, Changzhi, Jincheng, Shuozhou,
+           Jinzhong, Yuncheng, Xinzhou, Linfen, Lvliang, Hohhot, Baotou, Ordos, Chifeng, Hulunbuir,
+           Shenyang, Dalian, Anshan, Fushun, Benxi, Dandong, Jinzhou, Yingkou, Fuxin, Liaoyang, Panjin,
+           Tieling, Huludao, Changchun, Siping, Tonghua, Yanbian, Harbin, Qiqihar, Mudanjiang, Jiamusi,
+           Daqing, Heihe, Suzhou, Nanjing, Wuxi, Xuzhou, Changzhou, Nantong, Lianyungang, Huai'an, Yancheng,
+           Yangzhou, Zhenjiang, Taizhou, Suqian, Hangzhou, Ningbo, Wenzhou, Jiaxing, Huzhou, Shaoxing,
+           Jinhua, Quzhou, Zhoushan, Lishui, Yiwu, Hefei, Wuhu, Bengbu, Huainan, Ma'anshan, Huaibei,
+           Tongling, Anqing, Huangshan, Chuzhou, Fuyang, Lu'an, Bozhou, Xuancheng, Fuzhou, Xiamen, Putian,
+           Sanming, Quanzhou, Zhangzhou, Nanping, Longyan, Ningde, Nanchang, Jingdezhen, Pingxiang,
+           Jiujiang, Xinyu, Yingtan, Ganzhou, Ji'an, Yichun, Shangrao, Jinan, Qingdao, Zibo, Zaozhuang,
+           Dongying, Yantai, Weifang, Jining, Tai'an, Weihai, Rizhao, Linyi, Dezhou, Liaocheng, Binzhou,
+           Heze, Zhengzhou, Kaifeng, Luoyang, Pingdingshan, Anyang, Hebi, Xinxiang, Jiaozuo, Puyang,
+           Xuchang, Luohe, Sanmenxia, Nanyang, Shangqiu, Xinyang, Zhoukou, Zhumadian, Wuhan, Huangshi,
+           Shiyan, Yichang, Xiangyang, Ezhou, Jingmen, Xiaogan, Jingzhou, Huanggang, Xianning, Suizhou,
+           Enshi, Changsha, Zhuzhou, Xiangtan, Hengyang, Shaoyang, Yueyang, Changde, Zhangjiajie, Yiyang,
+           Chenzhou, Yongzhou, Huaihua, Loudi, Guangzhou, Shenzhen, Zhuhai, Shantou, Foshan, Shaoguan,
+           Zhanjiang, Zhaoqing, Jiangmen, Maoming, Huizhou, Meizhou, Shanwei, Heyuan, Yangjiang, Qingyuan,
+           Dongguan, Zhongshan, Chaozhou, Jieyang, Yunfu, Nanning, Liuzhou, Guilin, Wuzhou, Beihai,
+           Fangchenggang, Qinzhou, Guigang, Yulin, Baise, Hezhou, Hechi, Laibin, Chongzuo, Haikou, Sanya,
+           Danzhou, Chengdu, Zigong, Panzhihua, Luzhou, Deyang, Mianyang, Guangyuan, Suining, Neijiang,
+           Leshan, Nanchong, Meishan, Yibin, Guang'an, Dazhou, Ya'an, Bazhong, Ziyang, Guiyang, Liupanshui,
+           Zunyi, Anshun, Bijie, Tongren, Kunming, Qujing, Yuxi, Baoshan, Zhaotong, Lijiang, Pu'er,
+           Lincang, Xishuangbanna, Lhasa, Shigatse, Xi'an, Tongchuan, Baoji, Xianyang, Weinan, Yan'an,
+           Hanzhong, Ankang, Shangluo, Lanzhou, Jiayuguan, Jinchang, Baiyin, Tianshui, Wuwei, Zhangye,
+           Pingliang, Jiuquan, Qingyang, Dingxi, Longnan, Dunhuang, Xining, Yinchuan, Shizuishan, Guyuan,
+           Zhongwei, Urumqi, Karamay, Turpan, Hami, Kashgar, Hotan, Aksu, Korla, Pinggu, Tongzhou]
+
+issuers:
+  # ---------------------------------------------------------------- A: central state media
+  - id: xinhua_silk_road
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["Xinhua Silk Road", "Xinhua Silk Road Information Service"]
+    domains: [imsilkroad.com]
+    source_url: https://en.wikipedia.org/wiki/Xinhua_News_Agency
+    source_title: Xinhua News Agency (Wikipedia)
+    basis: Xinhua Silk Road is the release service of Xinhua's China Economic Information Service; Xinhua is the state press agency.
+  - id: xinhua_finance
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["Xinhua Finance", "Xinhua Finance Agency"]
+    domains: [cnfin.com]
+    source_url: https://en.wikipedia.org/wiki/Xinhua_News_Agency
+    source_title: Xinhua News Agency (Wikipedia)
+    basis: Xinhua Finance is Xinhua's financial information service; Xinhua is the state press agency.
+  - id: xinhuanet
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["Xinhuanet", "Xinhua Net", "Xinhua News Agency"]
+    domains: [news.cn, xinhuanet.com]
+    source_url: https://en.wikipedia.org/wiki/Xinhuanet
+    source_title: Xinhuanet (Wikipedia)
+    basis: Xinhuanet is the website of Xinhua, the state press agency.
+  - id: cgtn
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["CGTN", "China Global Television Network"]
+    domains: [cgtn.com]
+    source_url: https://en.wikipedia.org/wiki/CGTN
+    source_title: CGTN (Wikipedia)
+    basis: CGTN is the international arm of China Media Group, the state broadcaster under the CPC Central Committee's publicity department.
+  - id: china_media_group
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["China Media Group", "China Central Television", "CCTV", "China Radio International", "CRI Online", "CRIOnline"]
+    domains: [cctv.com, cri.cn]
+    source_url: https://en.wikipedia.org/wiki/China_Media_Group
+    source_title: China Media Group (Wikipedia)
+    basis: China Media Group, which holds CCTV and China Radio International, is the state broadcaster directly under the CPC Central Committee's publicity department.
+  - id: peoples_daily
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["People's Daily", "People's Daily Online", "People's Daily Online Australia", "People.cn", "Haiwai.net", "Haiwainet", "People's Daily Overseas Edition"]
+    domains: [people.cn, people.com.cn, haiwainet.cn]
+    source_url: https://en.wikipedia.org/wiki/People%27s_Daily
+    source_title: People's Daily (Wikipedia)
+    basis: People's Daily is the official newspaper of the CPC Central Committee; People's Daily Online, its Australian edition and Haiwai.net (the Overseas Edition's site) are its outlets.
+  - id: global_times
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["Global Times", "Global Times Online"]
+    domains: [globaltimes.cn]
+    source_url: https://en.wikipedia.org/wiki/Global_Times
+    source_title: Global Times (Wikipedia)
+    basis: The Global Times is a daily published by People's Daily.
+  - id: china_daily
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["China Daily"]
+    domains: [chinadaily.com.cn]
+    source_url: https://en.wikipedia.org/wiki/China_Daily
+    source_title: China Daily (Wikipedia)
+    basis: China Daily is owned by the CPC Central Committee's publicity department.
+  - id: cicg
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["China International Communications Group", "China International Communication Group", "CICG", "China International Publishing Group", "China Report ASEAN", "Beijing Review", "China.org.cn"]
+    domains: [china.org.cn, cicg.org.cn]
+    source_url: https://en.wikipedia.org/wiki/China_International_Communications_Group
+    source_title: China International Communications Group (Wikipedia)
+    basis: CICG is the state publishing group under the CPC Central Committee; China Report ASEAN and Beijing Review are its magazines.
+  - id: china_economic_net
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["China Economic Net", "Economic Daily"]
+    domains: [ce.cn]
+    source_url: https://en.wikipedia.org/wiki/Economic_Daily
+    source_title: Economic Daily (Wikipedia)
+    basis: China Economic Net is the website of Economic Daily, a state newspaper under the CPC Central Committee.
+  - id: china_news_service
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["China News Service", "ECNS"]
+    domains: [chinanews.com.cn, ecns.cn]
+    source_url: https://en.wikipedia.org/wiki/China_News_Service
+    source_title: China News Service (Wikipedia)
+    basis: China News Service is the state news agency now under the United Front Work Department.
+  - id: smg_yicai
+    group: A
+    kind: central_state_media
+    issuer_type: state_media
+    names: ["Shanghai Media Group", "SMG", "Yicai", "Yicai Global", "China Business Network", "ShanghaiEye", "Shanghai Global News Network"]
+    domains: [yicai.com, yicaiglobal.com, smg.cn]
+    source_url: https://en.wikipedia.org/wiki/Shanghai_Media_Group
+    source_title: Shanghai Media Group (Wikipedia)
+    basis: Shanghai Media Group, owner of Yicai (China Business Network), is the state broadcaster of the Shanghai municipal government.
+  # ---------------------------------------------------------------- A: international communication centres
+  - id: international_communication_centre
+    group: A
+    kind: international_communication_centre
+    issuer_type: state_media
+    names: ["iChongqing", "JiangsuNow", "Great Wall International Communication Center", "GWICC", "GDToday", "HolaFujian", "Hainan International Media Center"]
+    patterns:
+      - '{place}(?: Provincial| Municipal| City)? International Communications? Cent(?:er|re)'
+      - 'International Communications? Cent(?:er|re) of (?:the )?{place}'
+    source_url: https://en.wikipedia.org/wiki/International_communication_center
+    source_title: International communication center (Wikipedia)
+    basis: Provincial and city international communication centres are state media institutions set up by China's provinces and cities and supervised by the CPC Central Propaganda Department; the page lists iChongqing, JiangsuNow, GWICC, GDToday, HolaFujian, HIMC and the Shaanxi centre.
+  - id: jxicc
+    group: A
+    kind: international_communication_centre
+    issuer_type: state_media
+    names: ["Jiangxi International Communication Center", "JXICC"]
+    source_url: https://lingua-sinica.org/entity-type/international-communication-center-icc/
+    source_title: International Communication Center (Lingua Sinica)
+    basis: JXICC was launched in April 2024 under the Jiangxi Provincial Party Committee Propaganda Department and is operated by Jiangxi Daily.
+  - id: injiangsu
+    group: A
+    kind: international_communication_centre
+    issuer_type: state_media
+    names: ["inJiangsu", "Jiangsu International Communication Center"]
+    domains: [ourjiangsu.com]
+    source_url: https://www.chinadaily.com.cn/a/202405/22/WS664dcf96a31082fc043c88ff.html
+    source_title: Jiangsu unveils multilingual website and app for global users (China Daily)
+    basis: inJiangsu is the international portal run by the Jiangsu International Communication Center of the provincial broadcaster Jiangsu Broadcasting Corporation.
+  - id: iqingdao
+    group: A
+    kind: international_communication_centre
+    issuer_type: state_media
+    names: ["iQingdao", "IQingdao", "Iqingdao"]
+    domains: [iqingdao.info]
+    source_url: https://briefglance.com/companies/qingdao-international-community-center
+    source_title: Qingdao International Community Center (BriefGlance)
+    basis: iQingdao is the international platform run under Qingdao Daily, the paper of the CPC Qingdao Municipal Committee.
+  # ---------------------------------------------------------------- A: party committees and publicity departments
+  - id: publicity_department
+    group: A
+    kind: publicity_department
+    issuer_type: party
+    names: ["Publicity Department of the CPC Central Committee", "Central Propaganda Department"]
+    patterns:
+      - '(?:Publicity|Propaganda) Department of (?:the )?(?:CPC|CCP|Communist Party of China|Chinese Communist Party) {name}(?: (?:Municipal|Provincial|Prefectural|County|District|City|Regional|Autonomous Region|Autonomous Prefecture|Autonomous County|Banner))? Committee'
+      - '(?:Publicity|Propaganda) Department of (?:the )?{name} (?:Municipal|Provincial|Prefectural|County|District|City|Regional) (?:Party )?Committee(?: of (?:the )?(?:CPC|CCP|Communist Party of China))?'
+      - '(?:CPC |CCP )?{name} (?:Municipal|Provincial|Prefectural|County|District|City|Regional) (?:Party )?Committee(?:[’'']s)? (?:Publicity|Propaganda) Department'
+      - '(?:Publicity|Propaganda) Department of (?:the )?{place}(?: City| Municipality| Province| County| District)?'
+      - '{place}(?: Municipal| Provincial| City)? (?:Publicity|Propaganda) Department'
+    source_url: https://en.wikipedia.org/wiki/Publicity_Department_of_the_Chinese_Communist_Party
+    source_title: Publicity Department of the Chinese Communist Party (Wikipedia)
+    basis: The publicity (propaganda) departments of the CPC's provincial, municipal and county committees are party organs under the Central Publicity Department.
+  - id: party_committee
+    group: A
+    kind: party_committee
+    issuer_type: party
+    patterns:
+      - '(?:CPC|CCP|Communist Party of China) {name} (?:Municipal|Provincial|Prefectural|County|District|City|Regional) Committee'
+      - '{name} (?:Municipal|Provincial|Prefectural|County|District|City|Regional) Committee of (?:the )?(?:CPC|CCP|Communist Party of China)'
+    source_url: https://en.wikipedia.org/wiki/Organization_of_the_Chinese_Communist_Party
+    source_title: Organization of the Chinese Communist Party (Wikipedia)
+    basis: Local committees of the CPC lead each province, city and county.
+  # ---------------------------------------------------------------- A: people's governments and bureaus
+  - id: peoples_government
+    group: A
+    kind: government
+    issuer_type: government
+    patterns:
+      - '(?:(?:Information Office|General Office|Foreign Affairs Office)(?: of the)? )?{name}(?: (?:Municipal|Provincial|Prefectural|County|District|City|Township|Town|Autonomous Region|Autonomous Prefecture|Autonomous County|Banner))? People[’'']s Government'
+      - 'People[’'']s Government of (?:the )?{name}(?: (?:Municipality|Province|City|County|District|Autonomous Region|Prefecture|Township|Town))?'
+    source_url: https://en.wikipedia.org/wiki/Local_government_in_China
+    source_title: Local government in China (Wikipedia)
+    basis: The people's governments are the state administration of each province, city, county, district and township.
+  - id: government_bureau
+    group: A
+    kind: government
+    issuer_type: government
+    names: ["State Council Information Office", "Information Office of the State Council", "Ministry of Commerce of the People's Republic of China", "Ministry of Culture and Tourism of the People's Republic of China", "Ministry of Foreign Affairs of the People's Republic of China"]
+    patterns:
+      - '{place} (?:Municipal|Provincial|City|County|District|Prefectural)(?: (?:[A-Z][\w&,]*|and|of|for)){0,8}? (?:Bureau|Commission|Department|Office|Administration)\b'
+      - '{place}(?: (?:[A-Z][\w&,]*|and|of|for)){1,6}? (?:Bureau|Commission)\b'
+      - '(?:Bureau|Department|Commission|Administration|Office) of (?:[A-Z][\w&]*|and|of|for|the)(?: (?:[A-Z][\w&]*|and|of|for|the)){0,8}?,? of (?:the )?{place}(?: (?:Municipality|Province|City|County|District|Autonomous Region))?'
+      - '{place} (?:Municipal|Provincial) Government'
+      - 'Government of {place}(?: (?:Municipality|Province|City|Autonomous Region))?'
+    source_url: https://en.wikipedia.org/wiki/Local_government_in_China
+    source_title: Local government in China (Wikipedia)
+    basis: Municipal and provincial bureaus, commissions and departments are the working organs of the local people's governments.
+  - id: district_bureau
+    group: A
+    kind: government
+    issuer_type: government
+    china_dateline: true
+    patterns:
+      - '(?:Bureau|Department|Commission|Office) of [A-Z][\w&]*(?: (?:[A-Z][\w&]*|and|of|for)){0,8},? (?:of )?(?:the )?[A-Z][a-z]+ (?:District|County)(?:,? {place}(?: City)?)?'
+    source_url: https://en.wikipedia.org/wiki/Local_government_in_China
+    source_title: Local government in China (Wikipedia)
+    basis: District and county bureaus are the working organs of the district and county people's governments; read only on a release whose dateline places it in China.
+  - id: chinese_mission
+    group: A
+    kind: government
+    issuer_type: diplomatic
+    names: ["Chinese Embassy", "Chinese Consulate General"]
+    patterns:
+      - '(?:Embassy|Consulate[- ]General|Consulate) of (?:the )?People[’'']s Republic of China'
+      - '(?:Embassy|Consulate[- ]General) of China in [A-Z][a-z]+'
+    source_url: https://en.wikipedia.org/wiki/List_of_diplomatic_missions_of_China
+    source_title: List of diplomatic missions of China (Wikipedia)
+    basis: Chinese embassies and consulates are missions of the Ministry of Foreign Affairs.
+  # ---------------------------------------------------------------- A: provincial party dailies
+  - id: party_daily
+    group: A
+    kind: party_daily
+    issuer_type: state_media
+    names: ["Dazhong Daily", "Nanfang Daily", "Jiefang Daily", "Xinhua Daily", "Changjiang Daily", "Shanghai United Media Group"]
+    patterns:
+      - '{province} Daily(?: (?:Press|Newspaper|Media|News) Group)?'
+    source_url: https://en.wikipedia.org/wiki/Party_newspaper
+    source_title: Party newspaper (Wikipedia)
+    basis: Each provincial CPC committee publishes a party daily (Hubei Daily, Guizhou Daily, Dazhong Daily for Shandong, Nanfang Daily for Guangdong, Xinhua Daily for Jiangsu, Jiefang Daily for Shanghai); Changjiang Daily is the paper of the Wuhan committee.
+  # ---------------------------------------------------------------- S: state-owned enterprises and state-run institutions
+  - id: chery
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Chery", "Chery Automobile", "Chery Auto", "Chery International", "LEPAS", "Exeed", "Jetour", "Omoda", "Jaecoo"]
+    domains: [cheryinternational.com, chery.cn, mychery.com]
+    source_url: https://en.wikipedia.org/wiki/Chery
+    source_title: Chery (Wikipedia)
+    basis: Chery is a state-owned carmaker controlled by the Wuhu municipal government; LEPAS, Exeed, Jetour, Omoda and Jaecoo are its brands.
+  - id: changan
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Changan Automobile", "Chongqing Changan Automobile", "Changan Group", "China Changan Automobile Group", "Deepal"]
+    source_url: https://en.wikipedia.org/wiki/Changan_Automobile
+    source_title: Changan Automobile (Wikipedia)
+    basis: Changan is a central state-owned carmaker under the State Council's SASAC.
+  - id: china_eastern
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["China Eastern Airlines", "China Eastern", "CEAir", "China Eastern Air Holding"]
+    domains: [ceair.com]
+    source_url: https://en.wikipedia.org/wiki/China_Eastern_Airlines
+    source_title: China Eastern Airlines (Wikipedia)
+    basis: China Eastern Airlines is controlled by China Eastern Air Holding, a central state-owned enterprise.
+  - id: shanghai_electric
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Shanghai Electric", "Shanghai Electric Group"]
+    source_url: https://en.wikipedia.org/wiki/Shanghai_Electric
+    source_title: Shanghai Electric (Wikipedia)
+    basis: Shanghai Electric is a state-owned enterprise of the Shanghai municipal government.
+  - id: baic
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["BAIC", "BAIC Group", "BAIC Motor", "Beijing Automotive Group", "Foton", "Foton Motor", "BAIC Foton"]
+    source_url: https://en.wikipedia.org/wiki/BAIC_Group
+    source_title: BAIC Group (Wikipedia)
+    basis: BAIC Group, which controls Foton Motor, is a state-owned enterprise of the Beijing municipal government.
+  - id: china_investment_corporation
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["China Investment Corporation"]
+    source_url: https://en.wikipedia.org/wiki/China_Investment_Corporation
+    source_title: China Investment Corporation (Wikipedia)
+    basis: CIC is China's state sovereign wealth fund.
+  - id: gac
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["GAC Group", "GAC Motor", "Guangzhou Automobile Group", "GAC Aion", "GAC International"]
+    source_url: https://en.wikipedia.org/wiki/GAC_Group
+    source_title: GAC Group (Wikipedia)
+    basis: GAC Group is a state-owned enterprise of the Guangzhou municipal government.
+  - id: saic
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["SAIC Motor", "SAIC Motor Corporation"]
+    source_url: https://en.wikipedia.org/wiki/SAIC_Motor
+    source_title: SAIC Motor (Wikipedia)
+    basis: SAIC Motor is a state-owned enterprise of the Shanghai municipal government.
+  - id: dongfeng
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Dongfeng Motor", "Dongfeng Motor Corporation", "Dongfeng Motor Group", "Voyah"]
+    source_url: https://en.wikipedia.org/wiki/Dongfeng_Motor_Corporation
+    source_title: Dongfeng Motor Corporation (Wikipedia)
+    basis: Dongfeng Motor is a central state-owned enterprise.
+  - id: faw
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["FAW Group", "China FAW Group", "Hongqi"]
+    source_url: https://en.wikipedia.org/wiki/FAW_Group
+    source_title: FAW Group (Wikipedia)
+    basis: FAW Group, maker of Hongqi, is a central state-owned enterprise.
+  - id: china_southern_power_grid
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["China Southern Power Grid"]
+    source_url: https://en.wikipedia.org/wiki/China_Southern_Power_Grid
+    source_title: China Southern Power Grid (Wikipedia)
+    basis: China Southern Power Grid is a central state-owned enterprise.
+  - id: state_grid
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["State Grid Corporation of China", "State Grid"]
+    source_url: https://en.wikipedia.org/wiki/State_Grid_Corporation_of_China
+    source_title: State Grid Corporation of China (Wikipedia)
+    basis: State Grid is a central state-owned enterprise.
+  - id: oil_majors
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Sinopec", "China Petrochemical Corporation", "PetroChina", "China National Petroleum Corporation", "CNPC", "CNOOC", "China National Offshore Oil Corporation"]
+    source_url: https://en.wikipedia.org/wiki/Sinopec
+    source_title: Sinopec (Wikipedia)
+    basis: Sinopec, CNPC (parent of PetroChina) and CNOOC are China's central state-owned oil companies.
+  - id: telecom_operators
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["China Mobile", "China Telecom", "China Unicom"]
+    source_url: https://en.wikipedia.org/wiki/China_Mobile
+    source_title: China Mobile (Wikipedia)
+    basis: China Mobile, China Telecom and China Unicom are central state-owned enterprises.
+  - id: state_airlines_shipping
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Air China", "China Southern Airlines", "COSCO Shipping", "China COSCO Shipping"]
+    source_url: https://en.wikipedia.org/wiki/COSCO_Shipping
+    source_title: COSCO Shipping (Wikipedia)
+    basis: Air China, China Southern Airlines and COSCO Shipping are central state-owned enterprises.
+  - id: state_banks
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["Bank of China", "Industrial and Commercial Bank of China", "ICBC", "China Construction Bank", "Agricultural Bank of China", "China Development Bank", "Export-Import Bank of China"]
+    source_url: https://en.wikipedia.org/wiki/Big_Four_(banking)#China
+    source_title: Big Four banks of China (Wikipedia)
+    basis: China's four large commercial banks and its policy banks are state-owned.
+  - id: industrial_soes
+    group: S
+    kind: state_owned_enterprise
+    issuer_type: state_owned_enterprise
+    names: ["CRRC", "COMAC", "Commercial Aircraft Corporation of China", "Aviation Industry Corporation of China", "AVIC", "China Three Gorges Corporation", "China General Nuclear Power Group", "China National Nuclear Corporation", "China Baowu Steel Group", "China Merchants Group", "China Resources", "CITIC Group", "Sinochem", "China State Construction Engineering", "China Communications Construction", "Power Construction Corporation of China", "PowerChina"]
+    source_url: http://en.sasac.gov.cn/directorygroups.html
+    source_title: Directory of central SOEs (SASAC)
+    basis: Each is on the State Council SASAC's directory of central state-owned enterprises.
+  - id: state_universities
+    group: S
+    kind: state_institution
+    issuer_type: state_owned_enterprise
+    names: ["Harbin Institute of Technology", "Tsinghua University", "Peking University", "Zhejiang University", "Fudan University", "Shanghai Jiao Tong University", "University of Science and Technology of China", "Beihang University", "Beijing Institute of Technology", "Northwestern Polytechnical University"]
+    source_url: https://en.wikipedia.org/wiki/Harbin_Institute_of_Technology
+    source_title: Harbin Institute of Technology (Wikipedia)
+    basis: Each is a public university run by the Ministry of Education or the Ministry of Industry and Information Technology; HIT is under MIIT.
+  - id: state_academies
+    group: S
+    kind: state_institution
+    issuer_type: state_owned_enterprise
+    names: ["Chinese Academy of Sciences", "Chinese Academy of Social Sciences"]
+    source_url: https://en.wikipedia.org/wiki/Chinese_Academy_of_Sciences
+    source_title: Chinese Academy of Sciences (Wikipedia)
+    basis: CAS and CASS are state institutions directly under the State Council, running state laboratories.
+  # ---------------------------------------------------------------- H: Hong Kong and Macao SAR bodies
+  - id: hong_kong_tourism_board
+    group: H
+    kind: sar_body
+    issuer_type: sar_government
+    names: ["Hong Kong Tourism Board", "HKTB"]
+    domains: [hktb.com, discoverhongkong.com]
+    source_url: https://en.wikipedia.org/wiki/Hong_Kong_Tourism_Board
+    source_title: Hong Kong Tourism Board (Wikipedia)
+    basis: The HKTB is a government-subvented statutory body set up under the Hong Kong Tourism Board Ordinance.
+  - id: hktdc
+    group: H
+    kind: sar_body
+    issuer_type: sar_government
+    names: ["Hong Kong Trade Development Council", "HKTDC"]
+    domains: [hktdc.com, hktdc.org]
+    source_url: https://en.wikipedia.org/wiki/Hong_Kong_Trade_Development_Council
+    source_title: Hong Kong Trade Development Council (Wikipedia)
+    basis: The HKTDC is a statutory body established under the Hong Kong Trade Development Council Ordinance.
+  - id: hksar_government
+    group: H
+    kind: sar_body
+    issuer_type: sar_government
+    names: ["Government of the Hong Kong Special Administrative Region", "HKSAR Government", "Hong Kong SAR Government", "Hong Kong Government", "Invest Hong Kong", "InvestHK", "Hong Kong Economic and Trade Office", "HKETO", "Brand Hong Kong", "Hong Kong Monetary Authority"]
+    domains: [gov.hk, investhk.gov.hk, hketo.gov.hk]
+    source_url: https://en.wikipedia.org/wiki/Government_of_Hong_Kong
+    source_title: Government of Hong Kong (Wikipedia)
+    basis: InvestHK, the Economic and Trade Offices and Brand Hong Kong are departments or offices of the HKSAR Government; the HKMA is its central banking institution.
+  - id: hk_statutory_bodies
+    group: H
+    kind: sar_body
+    issuer_type: sar_government
+    names: ["Hong Kong Productivity Council", "Hong Kong Science and Technology Parks Corporation", "HKSTP", "Airport Authority Hong Kong", "Hong Kong Export Credit Insurance Corporation", "Hong Kong Arts Development Council", "West Kowloon Cultural District Authority", "Vocational Training Council", "Securities and Futures Commission"]
+    source_url: https://en.wikipedia.org/wiki/List_of_statutory_bodies_of_Hong_Kong
+    source_title: List of statutory bodies of Hong Kong (Wikipedia)
+    basis: Each is a statutory body of the Hong Kong SAR established by ordinance.
+  - id: macao_sar
+    group: H
+    kind: sar_body
+    issuer_type: sar_government
+    names: ["Macao Government Tourism Office", "Macau Government Tourism Office", "MGTO", "Macao Trade and Investment Promotion Institute", "Macau Trade and Investment Promotion Institute", "IPIM", "Government of the Macao Special Administrative Region", "Macao SAR Government", "Macau SAR Government", "Macao Economic and Trade Office"]
+    domains: [macaotourism.gov.mo, ipim.gov.mo, gov.mo]
+    source_url: https://en.wikipedia.org/wiki/Macao_Government_Tourism_Office
+    source_title: Macao Government Tourism Office (Wikipedia)
+    basis: MGTO and IPIM are bodies of the Macao SAR Government; Macao follows the Hong Kong rule (D14).

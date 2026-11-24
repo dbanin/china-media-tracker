@@ -51,6 +51,20 @@
           "pattern": "^https?://"
         }
       },
+      "homepage": {
+        "type": "string",
+        "pattern": "^https?://",
+        "description": "The outlet's homepage, for the exposure measure's reads (pipeline/exposure.py). Optional: without it the root of the host most of the outlet's stored articles live on is read."
+      },
+      "main_sections": {
+        "type": "array",
+        "minItems": 1,
+        "description": "Main section pages of the outlet (its world or news front, not a press release, sponsored or partner section), read beside the homepage by the exposure measure (pipeline/exposure.py) to record which state origin items they link to. Read only while the measure is on, under the same robots.txt and pacing rules as every page.",
+        "items": {
+          "type": "string",
+          "pattern": "^https?://"
+        }
+      },
       "tier": {
         "type": "string",
         "enum": [

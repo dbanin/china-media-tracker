@@ -1033,3 +1033,98 @@
   note: True positive, sponsored placement group, kept by ruleset 2026.10.2 (item 2710645). The article's own JSON-LD
     articleSection files it under Publi-Reportage, and its opening names the Chinese Embassy in Guinea as the organiser.
     A section value of the item itself is a disclosure attached to it.
+# Release issuers read against the registry of state issuers (pipeline/state_issuers.py, sources/state_issuers.yaml,
+# owner decisions D13 to D15 of 2026-11-24). These fixtures are synthetic, written for the rule, not article text:
+# one true positive and one hard negative per place a release names its own issuer.
+- file: synthetic_issuer_dateline_publicity.txt
+  expect_decision: A
+  expect_ids_include:
+  - state_issuer_dateline
+  expect_issuer: publicity_department
+  note: True positive, dateline form. A city publicity department of the CPC opens the text after the wire stamp.
+- file: synthetic_issuer_dateline_private_mention.txt
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_issuer_dateline
+  - state_issuer_header
+  - state_issuer_source_trailer
+  note: Hard negative, dateline form. A private company's release names a people's government and a publicity department
+    inside its sentences; its own issuer, in the dateline line and the SOURCE trailer, is the company.
+- file: synthetic_issuer_header_line.txt
+  expect_decision: A
+  expect_ids_include:
+  - state_issuer_header
+  expect_issuer: publicity_department
+  note: True positive, header form. The issuer's name stands alone on the line above the wire dateline.
+- file: synthetic_issuer_header_reporting.txt
+  arrival: press_release_section
+  expect_decision_not: A
+  expect_ids_exclude:
+  - state_issuer_header
+  - state_issuer_dateline
+  note: Hard negative, header form. Even read as a release section item, the bodies are named only inside sentences.
+- file: synthetic_issuer_title_prefix.txt
+  title: "Hangzhou Investment Promotion Bureau: Hangzhou finds a gateway to the sea in Hong Kong"
+  expect_decision: A
+  expect_ids_include:
+  - state_issuer_header
+  expect_issuer: government_bureau
+  note: True positive, header form. The headline's issuer prefix names a municipal bureau.
+- file: synthetic_issuer_source_trailer_soe.txt
+  expect_decision: S
+  expect_ids_include:
+  - state_issuer_source_trailer
+  expect_issuer: shanghai_electric
+  note: True positive, SOURCE trailer form, group S. A state-owned enterprise's release is held apart (decision D13).
+- file: synthetic_issuer_source_trailer_mention.txt
+  expect_decision_not: S
+  expect_ids_exclude:
+  - state_issuer_source_trailer
+  - state_issuer_dateline
+  note: Hard negative, SOURCE trailer form. A foreign company's release names the state-owned enterprise in its text;
+    its SOURCE line names the company.
+- file: synthetic_issuer_issued_by_sar.txt
+  arrival: sponsored_section
+  expect_decision: H
+  expect_ids_include:
+  - state_issuer_issued_by
+  expect_issuer: hong_kong_tourism_board
+  note: True positive, issued by form, group H. A sponsored section item closes on the tourism board's issued by line
+    (decision D14).
+- file: synthetic_issuer_issued_by_mention.txt
+  arrival: sponsored_section
+  expect_decision_not: H
+  expect_ids_exclude:
+  - state_issuer_issued_by
+  note: Hard negative, issued by form. The words "issued by" sit inside a sentence of reporting.
+- file: synthetic_issuer_media_contact_sar.txt
+  expect_decision: H
+  expect_ids_include:
+  - state_issuer_media_contact
+  expect_issuer: hong_kong_tourism_board
+  note: True positive, media contact form, group H. The contact block gives a mail address at the tourism board's domain.
+- file: synthetic_issuer_media_contact_mention.txt
+  expect_decision_not: H
+  expect_ids_exclude:
+  - state_issuer_media_contact
+  note: Hard negative, media contact form. A travel agency's release names the tourism board's site in its text, not in
+    its contact block.
+- file: synthetic_issuer_contact_number.txt
+  expect_decision: A_candidate
+  expect_ids_include:
+  - beijing_release_contact
+  expect_ids_exclude:
+  - state_issuer_media_contact
+  note: True positive, shared contact number (decision D15). A release naming no registered issuer carries the Beijing
+    number, so it is a candidate for the model and never a label.
+- file: synthetic_issuer_contact_number_reporting.txt
+  expect_decision: none
+  expect_ids_exclude:
+  - beijing_release_contact
+  note: Hard negative, shared contact number. A news story quotes the number; it is not a release.
+- file: synthetic_issuer_dateline_soe.txt
+  expect_decision: S
+  expect_ids_include:
+  - state_issuer_dateline
+  expect_issuer: changan
+  note: True positive, dateline form, group S. A central state-owned carmaker opens the text after the wire stamp.

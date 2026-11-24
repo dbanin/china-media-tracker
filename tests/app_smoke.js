@@ -44,6 +44,35 @@
   var schemas = H.staleLines(m0, gens.concat([{url: "data/daily/2026-10.json", at: plus(30), schema: 12}]), now);
   assert(schemas.length === 1 && /schema versions 12 and 13/.test(schemas[0]), "mixed schema versions: " + schemas);
 
+  /* The newest discovery against the reader's clock: a collector that stopped, whether or not exports still ran. */
+  var mdisc = function (exportH, discH) { var m = meta(exportH); m.last_discovered = new Date(now - discH * 36e5).toISOString(); return m; };
+  assert(H.staleLines(mdisc(10, 11), [], now).length === 0, "an export of ten hours with items an hour older is fresh");
+  var still = H.staleLines(mdisc(2, 30), [], now);
+  assert(still.length === 1 && /No new item has been collected for 30 hours/.test(still[0]) && /while the export still ran/.test(still[0]),
+    "items 30 hours old in a fresh export: collection stopped while exports ran: " + still);
+  var both = H.staleLines(mdisc(80, 80.5), [], now);
+  assert(both.length === 1 && /for 3 days/.test(both[0]) && /and the data was exported at/.test(both[0]) && !/This data was exported/.test(both[0]),
+    "a collector stopped entirely is said once: " + both);
+  /* What the input watch found quiet, with since when. */
+  var iw = {checked_at: "2026-10-17T11:30:00+00:00", quiet: [
+    {level: "collector", id: "discovery", since: "2026-10-16T20:00:00+00:00", checks: ["collector_quiet"]},
+    {level: "country", id: "country:NIU", country: "NIU", since: "2026-10-11T04:00:00+00:00", checks: ["no_poll"]},
+    {level: "input", id: "cl_biobio", name: "BioBioChile", country: "CHL", since: "2026-11-09T22:00:00+00:00", checks: ["no_relevant", "stale_entries"]},
+    {level: "group", id: "group:FJI", country: "FJI", since: null, checks: ["no_relevant"]}]};
+  var names2 = function (c) { return {NIU: "Niue", CHL: "Chile", FJI: "Fiji"}[c] || c; };
+  var ql = H.quietLines(iw, names2);
+  assert(ql.length === 3, "collector, country and outlet lines: " + ql.join(" | "));
+  assert(/^Collection has stopped \(input watch of 2026-10-17 11:30 UTC\): no item discovered from any outlet since 2026-10-16 20:00 UTC/.test(ql[0]), ql[0]);
+  assert(/^A whole country has gone quiet .*Niue: no feed of its outlets has answered since 2026-10-11\. Its recent zeros/.test(ql[1]), ql[1]);
+  assert(/^2 outlets or groups of outlets have gone quiet .*BioBioChile \(Chile\) since 2026-11-09, small outlets of Fiji\./.test(ql[2]), ql[2]);
+  assert(H.quietLines(null).length === 0 && H.quietLines({quiet: []}).length === 0 && H.quietLines({quiet: "x"}).length === 0, "nothing quiet, no line");
+  var many = {quiet: []};
+  for (var qi = 0; qi < 8; qi++) many.quiet.push({level: "input", id: "o" + qi, name: "Outlet " + qi});
+  assert(/^8 outlets have gone quiet: .*Outlet 4, and 3 more\./.test(H.quietLines(many)[0]) && !/Outlet 5/.test(H.quietLines(many)[0]), "five named, the rest counted");
+  assert(/^One outlet has gone quiet: Outlet 0\./.test(H.quietLines({quiet: [many.quiet[0]]})[0]), "one outlet");
+  assert(H.staleLines({generated_at: meta(1).generated_at, input_watch: iw}, [], now, names2).length === 3, "the stale notice carries the quiet lines");
+  [ql.join(" "), still[0], both[0]].forEach(function (t) { assert(!/[\u2013\u2014]/.test(t), "no en or em dash: " + t); });
+
   /* tracker:select view fields: an unusual day opens as state origin, That day, Both. */
   var v = H.viewFields({iso: "AUS", day: "2026-10-02", measure: "a", window: 1, distribution: "both"});
   assert(v.measure === "a" && v.window === 1 && v.distribution === "both", "spike fields");
@@ -73,7 +102,10 @@
   /* State origin by issuer: state-owned enterprises and SAR government bodies apart, private releases as their own count. */
   var it = {by_type: {state_media: {A: 900}, state_owned_enterprise: {A: 41, B: 0}, sar_government: {A: 7}, private_release: {C: 30, not_relevant: 12}, none: {C: 5}}, unrecorded: 1200};
   var line = H.issuerLineText(it);
-  assert(/41 are releases of state-owned enterprises/.test(line) && /7 come from Hong Kong or Macao SAR/.test(line), "issuer line: " + line);
+  /* Held apart from state origin since the owner's decisions of 2026-11-24 (codes S and H); an older export's A is read the same. */
+  assert(/41 labels are releases of state-owned enterprises/.test(line) && /7 come from Hong Kong or Macao SAR/.test(line) && /held apart, not counted as state origin/.test(line), "issuer line: " + line);
+  var it2 = {by_type: {state_owned_enterprise: {S: 3}, sar_government: {H: 2}}, unrecorded: 0};
+  assert(/^3 labels are releases/.test(H.issuerLineText(it2)) && /and 2 come from/.test(H.issuerLineText(it2)), "issuer line S and H: " + H.issuerLineText(it2));
   assert(/42 releases from private issuers/.test(line) && /1,200 labels were made before the issuer rule/.test(line), "private and unrecorded: " + line);
   assert(H.issuerLineText(undefined) === "" && H.issuerLineText({}) === "" && H.issuerLineText({by_type: {}, unrecorded: 0}) === "", "older data shows no line");
   assert(/State-owned enterprise/.test(H.issuerBadge("state_owned_enterprise")) && H.issuerBadge("none") === "" && H.issuerBadge(undefined) === "", "issuer badge");

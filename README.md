@@ -25,11 +25,13 @@ monitored outlet, where the study counted identical wire copy once per
 publication. Its not relevant threshold is its own rule, not the study's
 codebook. Its unchecked state sourcing asks only whether a claim was passed on
 without independent confirmation, not the study's five levels of verification,
-so it probably overcounts relative to the study and stays provisional until the
-five level scale enters the model's instructions after 23 October 2026. And it
-does not read section headers as evidence, so paid sections the study would
-catch can be missed or end up undetermined until the model is given the address
-and the section, also planned after that date.
+so it probably overcounts relative to the study and stays provisional. From
+the prompt of 1 December 2026 the model also records the study's verification
+level among six attributes on every new label; labels made before then are not
+judged again. And it does not read section headers as evidence, so paid
+sections the study would catch can be missed or end up undetermined: the model
+stays blind to the address and the section. Since 24 November 2026 the rules
+read a paid release's own issuer line instead.
 
 ## Increments landed
 
@@ -480,7 +482,7 @@ and its uncredited copy calls whose recorded item is undetermined itself.
 They are in no count, share or denominator, China coverage included, and never
 rejoin state origin; they are shown only as their own figure (meta.undetermined,
 findings.undetermined, the `undetermined` CSV column), because the model is kept
-blind to outlet, country and address until after 23 October 2026, so such a call
+blind to outlet, country and address, so such a call
 carries no marker a reader can check. A blind hand check of them, information
 only, is drawn by `python -m pipeline.model_only sample` (`pipeline/model_only.py`). It has four bases:
 number of articles, per outlet we monitor, percent of the country's China

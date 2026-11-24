@@ -176,12 +176,16 @@ def test_since_prompt_draws_only_current_prompt_labels(tmp_path, monkeypatch):
 def test_since_prompt_refuses_a_stale_database_an_empty_pool_and_an_existing_sample(tmp_path, monkeypatch):
     conn = _db(tmp_path, monkeypatch, {"en": 40})
     out = tmp_path / "reviews" / "human_sample_2026-10-17.csv"
-    # A local copy: the newest model label is days old (this 12 October snapshot, read on or after the 17th).
-    conn.execute("UPDATE classifications SET classified_at='2026-10-12T09:15:51+00:00'")
+    # A local copy: its newest discovery is days old (this 12 October snapshot, read on or after the 17th).
+    # The copy is aged by discovery (pipeline/freshness.py), not by its newest model label.
+    fresh = conn.execute("SELECT MAX(discovered_at) FROM articles").fetchone()[0]
+    conn.execute("UPDATE articles SET discovered_at='2026-10-12T09:15:51+00:00'")
     conn.commit()
     res = agreement.cmd_human_sample(conn, out, per_language=30, min_labelled=30, since_prompt=classify_llm.PROMPT_VERSION)
     assert res["refused"] == "stale_database" and res["age_days"] > agreement.SAMPLE_MAX_DB_AGE_DAYS and not out.exists()
-    monkeypatch.setattr(agreement, "newest_model_label_age_days", lambda c, now=None: 0.2)
+    conn.execute("UPDATE articles SET discovered_at=?", (fresh,))
+    conn.execute("UPDATE classifications SET classified_at='2026-10-12T09:15:51+00:00'")   # model labels old: no matter
+    conn.commit()
     res = agreement.cmd_human_sample(conn, out, per_language=30, min_labelled=30, since_prompt="2099-01-01")
     assert res["refused"] == "empty_pool" and not out.exists()
     assert agreement.cmd_human_sample(conn, out, per_language=30, min_labelled=30)["n"] == 30
@@ -205,9 +209,13 @@ def test_cli_since_prompt_alone_means_the_current_prompt(tmp_path, monkeypatch):
     monkeypatch.setattr(agreement, "cmd_human_sample",
                         lambda conn, out, *a, **k: seen.update(k, out=out) or {"n": 1})
     agreement.main(["sample", "--since-prompt", "--out", str(tmp_path / "s.csv")])
-    assert seen["since_prompt"] == classify_llm.PROMPT_VERSION
-    agreement.main(["sample", "--since-prompt", "2026-10-17", "--out", str(tmp_path / "s.csv")])
-    assert seen["since_prompt"] == "2026-10-17"
+    # The labels the current prompt counts as current: under 2026-12-01, which keeps the categories of 2026-10-17
+    # (classify_llm.PROMPT_EXTENDS, owner decision D16), those made from 2026-10-17 on.
+    assert seen["since_prompt"] == classify_llm.category_prompt_of(classify_llm.PROMPT_VERSION)
+    if classify_llm.PROMPT_VERSION == "2026-12-01":
+        assert seen["since_prompt"] == "2026-10-17"
+    agreement.main(["sample", "--since-prompt", "2026-12-01", "--out", str(tmp_path / "s.csv")])
+    assert seen["since_prompt"] == "2026-12-01", "a named prompt is taken as named"
     monkeypatch.setattr(agreement, "cmd_human_sample", lambda conn, out, *a, **k: {"n": 0, "refused": "stale_database"})
     with pytest.raises(SystemExit):
         agreement.main(["sample", "--since-prompt"])

@@ -90,6 +90,10 @@ CREATE TABLE IF NOT EXISTS classifications (
     body_refreshed TEXT,              -- model labels only: "<UTC time> <why>" when the body the label was made on, a stub, was since replaced (classify_rules.note_body_refresh)
     issuer_type TEXT,                 -- model labels only: who issued the text (classify_llm.ISSUER_TYPES); NULL before prompt 2026-10-17
     needs_review TEXT,                -- model labels only: why the reply was inconsistent (classify_llm.INCONSISTENCIES), else NULL
+    -- model labels from prompt 2026-12-01 only, NULL on every older row: the paper's six attributes
+    -- (classify_llm.ATTRIBUTE_VALUES) and their text spans as one JSON object (classify_llm.ATTRIBUTE_EVIDENCE)
+    attr_author TEXT, attr_commissioner TEXT, attr_state_affil TEXT, attr_route TEXT, attr_disclosure TEXT,
+    attr_verification TEXT, attr_evidence TEXT,
     FOREIGN KEY(article_id) REFERENCES articles(id)
 );
 CREATE INDEX IF NOT EXISTS idx_class_article ON classifications(article_id, is_current);
@@ -507,6 +511,39 @@ CREATE TABLE IF NOT EXISTS engagement_aggregates (
     UNIQUE(key_type, key, platform, period_start, period_end, query_date)
 );
 CREATE INDEX IF NOT EXISTS idx_engagement_key ON engagement_aggregates(key_type, key);
+
+-- The exposure measure's reads of outlet homepages and named main section pages (pipeline/exposure.py),
+-- one row per read, kept exposure.READS_KEEP_DAYS. Report only: no label, count or denominator reads them.
+CREATE TABLE IF NOT EXISTS exposure_reads (
+    id INTEGER PRIMARY KEY,
+    outlet_id TEXT NOT NULL,
+    page_kind TEXT NOT NULL,          -- homepage | section
+    page_url TEXT NOT NULL,
+    read_at TEXT NOT NULL,
+    ok INTEGER NOT NULL,
+    http_status INTEGER,
+    error TEXT,
+    links INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_exposure_reads_page ON exposure_reads(page_url, read_at);
+CREATE INDEX IF NOT EXISTS idx_exposure_reads_outlet ON exposure_reads(outlet_id, read_at);
+
+-- Each link those pages carried, under its canonical address (canonical_url, hashed as url_hash, as articles
+-- are), with when it was first and last seen there. A link that matches no stored article is dropped
+-- exposure.UNMATCHED_KEEP_HOURS after it was last seen.
+CREATE TABLE IF NOT EXISTS exposure_sightings (
+    page_url TEXT NOT NULL,
+    url_hash TEXT NOT NULL,
+    outlet_id TEXT NOT NULL,
+    page_kind TEXT NOT NULL,
+    url TEXT NOT NULL,
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    reads INTEGER NOT NULL DEFAULT 1, -- reads that saw it
+    best_rank INTEGER,                -- its best position among the page's links, 1 for the first
+    PRIMARY KEY (page_url, url_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_exposure_sightings_hash ON exposure_sightings(url_hash);
 """
 
 # The research measure tables, in SCHEMA order (pipeline/measures.py). Report only: prune_gated_out and
@@ -653,6 +690,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "needs_review" not in cls:
         # Why a model reply was inconsistent (classify_llm.inconsistency_of), from prompt 2026-10-17.
         _add_column(conn, "classifications", "needs_review", "TEXT")
+    # The paper's six attributes and their spans (classify_llm.ATTRIBUTE_COLUMNS), from prompt 2026-12-01.
+    for col in ("attr_author", "attr_commissioner", "attr_state_affil", "attr_route", "attr_disclosure",
+                "attr_verification", "attr_evidence"):
+        if col not in cls:
+            _add_column(conn, "classifications", col, "TEXT")
     cov = {r[1] for r in conn.execute("PRAGMA table_info(daily_coverage)")}
     batches = {r[1] for r in conn.execute("PRAGMA table_info(llm_batches)")}
     if "kind" not in batches:
@@ -1068,6 +1110,20 @@ def save_raw_html(h: str, html: str) -> str:
 # Classifications and reviews
 # ---------------------------------------------------------------------------
 
+# The six attribute columns in the order insert_classification writes them, then attr_evidence.
+_ATTRIBUTE_ORDER = ("author", "commissioner", "state_affiliation", "route", "disclosure", "verification")
+
+
+def _attribute_values(attributes: Optional[Dict]) -> tuple:
+    """The values for attr_author .. attr_verification and attr_evidence from a model label's attributes
+    (classify_llm.attributes_of), all None when it has none."""
+    if not attributes:
+        return (None,) * (len(_ATTRIBUTE_ORDER) + 1)
+    evidence = attributes.get("evidence") or {}
+    return tuple(attributes.get(a) for a in _ATTRIBUTE_ORDER) + (
+        json.dumps(evidence, ensure_ascii=False, sort_keys=True) if any(evidence.values()) else None,)
+
+
 def insert_classification(conn: sqlite3.Connection, article_id: int, method: str, category: str,
                           confidence: float, evidence_quote: Optional[str] = None,
                           reasoning: Optional[str] = None, signatures_fired: Optional[List[str]] = None,
@@ -1078,20 +1134,23 @@ def insert_classification(conn: sqlite3.Connection, article_id: int, method: str
                           raw_response: Optional[str] = None,
                           ruleset_version: str = config.RULESET_VERSION,
                           route: Optional[str] = None, issuer_type: Optional[str] = None,
-                          needs_review: Optional[str] = None) -> int:
+                          needs_review: Optional[str] = None, attributes: Optional[Dict] = None) -> int:
     """Insert a new current classification, marking earlier ones for the article as not current.
-    Earlier rows are never deleted. route is set on state origin labels only, issuer_type on model labels."""
+    Earlier rows are never deleted. route is set on state origin labels only, issuer_type on model labels,
+    attributes (classify_llm.attributes_of) on model labels from prompt 2026-12-01."""
     conn.execute("UPDATE classifications SET is_current=0 WHERE article_id=?", (article_id,))
     cur = conn.execute(
         """INSERT INTO classifications
            (article_id, method, category, confidence, evidence_quote, reasoning, signatures_fired,
             china_sources_cited, independent_confirmation_present, confirmation_evidence,
-            model_version, ruleset_version, classified_at, is_current, raw_response, route, issuer_type, needs_review)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?)""",
+            model_version, ruleset_version, classified_at, is_current, raw_response, route, issuer_type, needs_review,
+            attr_author, attr_commissioner, attr_state_affil, attr_route, attr_disclosure, attr_verification, attr_evidence)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?)""",
         (article_id, method, category, confidence, evidence_quote, reasoning,
          json.dumps(signatures_fired or []), json.dumps(china_sources_cited or []),
          None if independent_confirmation_present is None else int(independent_confirmation_present),
-         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response, route, issuer_type, needs_review),
+         confirmation_evidence, model_version, ruleset_version, utcnow(), raw_response, route, issuer_type, needs_review)
+        + _attribute_values(attributes),
     )
     conn.execute("UPDATE articles SET status='classified', llm_pending=0 WHERE id=?", (article_id,))
     return cur.lastrowid

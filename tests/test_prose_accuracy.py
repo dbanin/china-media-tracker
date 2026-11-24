@@ -184,9 +184,12 @@ def test_issuer_types_are_explained_with_their_counts():
     text = methodology.issuer_text({"issuer_type_totals": {"by_type": {
         "state_owned_enterprise": {"A": 12, "C": 3}, "sar_government": {"A": 4}, "private_release": {"C": 20}},
         "unrecorded": 9000}})
-    assert "count as state origin and are reported separately" in text and "are not state origin" in text
-    assert "will move over the coming weeks" in text
-    assert "state_owned_enterprise 15 (12 state origin); sar_government 4 (4 state origin); private_release 20 (0 state origin)" in text
+    # Since the owner's decisions D13 and D14 of 2026-11-24 both groups are held apart from state origin (codes S, H).
+    assert "are held apart from state origin" in text and "are not state origin" in text and "2026-11-24" in text
+    assert "state_owned_enterprise 15 (0 held apart); sar_government 4 (0 held apart); private_release 20" in text
+    held = methodology.issuer_text({"issuer_type_totals": {"by_type": {"state_owned_enterprise": {"S": 12, "C": 3},
+                                                                       "sar_government": {"H": 4}}, "unrecorded": 0}})
+    assert "state_owned_enterprise 15 (12 held apart); sar_government 4 (4 held apart)" in held
     assert "9,000 current model labels carried no issuer type yet" in text
     assert "At export time" not in methodology.issuer_text({})
     assert "never from the signature that sent the article" in METH_PY and "never from the signature that sent the article" in INDEX

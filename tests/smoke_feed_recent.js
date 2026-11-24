@@ -8,6 +8,6 @@
   assert(H.recentMissed({recent: recent}) === "over the 7 days to 2026-11-17 an estimated 6.5 percent of feed items were missed (45,197 against 647,991 found)", H.recentMissed({recent: recent}));
   assert(H.recentMissed({}) === "" && H.recentMissed(null) === "", "nothing without the block, as in an export made before it");
   assert(H.recentMissed({recent: Object.assign({}, recent, {mpolls: 0, miss_share: null})}) === "", "nothing when the estimate does not cover those days");
-  assert(H.knownSchema === 21, "the page knows the schema that carries the block");
+  assert(H.knownSchema >= 21, "the page knows the schema that carries the block");
   console.log("feed recent smoke ok");
 })();

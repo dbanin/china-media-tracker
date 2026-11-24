@@ -56,3 +56,11 @@
   enabled: true
   min_inputs: 10
   budget_seconds: 60
+- id: exposure
+  label: Exposure
+  module: pipeline.exposure
+  # off as shipped (2026-11-24). Switching it on also starts the homepage reads in each run's fetch stage
+  # (pipeline/exposure.py), and needs TOTAL_BUDGET_SECONDS raised by this budget in pipeline/measures.py
+  enabled: false
+  min_inputs: 1
+  budget_seconds: 60

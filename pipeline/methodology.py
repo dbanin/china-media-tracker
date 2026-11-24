@@ -499,6 +499,80 @@ any window that reaches back before {rediscovery_from}.
 """
 
 
+def underlying_items_text(meta: Dict) -> str:
+    """What one underlying item is, the thresholds of the three passes that join placements into one
+    (placements.item_rule), how the grouping can over and under merge, and the paid release route, with the
+    export's own all time figures from meta.underlying_items when it carries them."""
+    from pipeline import placements
+    r = placements.item_rule()
+    t, b, e = r["title"], r["body"], r["editions"]
+    text = (
+        "Placements and underlying items, stated for every headline count. A placement is one item published "
+        "by one outlet, after the copies pipeline/placements.py sets aside (a shared widget's copies across a "
+        "network's mastheads, one page at two addresses, the parts of a numbered series) are counted once. An "
+        "underlying item is the text behind its placements: the placements the passes below join are one item, "
+        "however many outlets, days or countries ran it. One release run by four papers of one chain is four "
+        "placements and one underlying item. State origin and unchecked state sourcing are each given both ways, "
+        "per country and worldwide, in What we found, the country panel, the ranked list, latest.json, meta.json "
+        "and both CSV exports. The state origin that came as a paid press release through a commercial "
+        "distribution service (the press release distribution stamp route) is given apart, as placements and as "
+        "items; unchecked state sourcing carries no route, so it is not split that way. An item is counted once "
+        "in a window, and under each label it carries, so an item with a state origin placement and an unchecked "
+        "state sourcing placement is in both counts. Undetermined items, and any label held out of every count, "
+        "are in no count of items either.\n\n"
+        "Three passes join placements into items. Titles: an item joins the title group of an earlier item of "
+        "its own country discovered within %d days before it when their titles, cut to words of %d or more "
+        "characters with punctuation removed, share at least %d percent of their distinct words (shared words "
+        "over all the words of the two), the newer title having at least %d such words; it joins the first group "
+        "it matches, and two groups are never merged by titles. Bodies: two "
+        "fetched texts from different outlets, in any countries, discovered within %d days of each other, with "
+        "at least %d distinct %d word shingles each and an estimated overlap of at least %d percent, are linked, "
+        "as described above. Language editions: two releases on one distribution wire in different languages, "
+        "discovered within %d hours of each other, whose titles share at least %d names or figures that are not "
+        "common on that wire (one when both name the same issuer), are linked. Title groups are joined through "
+        "body and edition links, so a chain of links is one item even where its two ends share little.\n\n"
+        "Over merging. The grouping can count two items as one. Two different stories under near identical "
+        "formulaic headlines in one country within %d days (a recurring daily news summary) pass the "
+        "title test; successive versions of one wire story, and a newspaper's rewrite of agency copy, pass the "
+        "body test (2 of the 30 hand checked body links were of this kind, none joined two different stories); "
+        "and a chain of links can join placements no single link would. An over merge lowers the item figure and "
+        "never a placement count.\n\n"
+        "Under merging. The grouping can also count one item as two. Translations are never matched, except the "
+        "language editions of one wire release. A copy that runs more than %d days after the others starts a new "
+        "item (more than %d days for the title pass). A body that was not read (paywalled, failed or blocked by "
+        "robots.txt), has fewer than %d shingles or is page template text is linked only through its title, and "
+        "a rewritten title then leaves it apart; a title of fewer than %d such words is never matched to the titles before it; and a "
+        "second run at the same outlet under a new headline is not body linked, since same outlet pairs are left "
+        "to titles. On the runner's snapshot of 24 November 2026, 38 state origin releases whose titles match "
+        "were each counted as two items worldwide, under 2 percent of the state origin items; in 15 of them a "
+        "copy ran more than %d days after the rest (in 12 an Indonesian outlet's), and in the other 23 the "
+        "bodies were not linked. An under merge raises the item figure and never a placement count."
+        % (t["window_days"], t["word_min_chars"], round(t["jaccard"] * 100), t["min_words"],
+           b["window_days"], b["min_shingles"], b["shingle_words"], round(b["jaccard"] * 100),
+           e["window_hours"], e["min_anchors"],
+           t["window_days"],
+           b["window_days"], t["window_days"], b["min_shingles"], t["min_words"], b["window_days"]))
+    at = ((meta or {}).get("underlying_items") or {}).get("all_time") or {}
+    so, paid = at.get("state_origin"), at.get("paid_release")
+    if so and so.get("placements"):
+        text += (" In this export, all time and worldwide, state origin is %s placements of %s underlying items, "
+                 "and %s items were placed more than once (%s placements)." % (
+                     "{:,}".format(so["placements"]), "{:,}".format(so["items"]),
+                     "{:,}".format(so["items_placed_more_than_once"]), "{:,}".format(so["placements_in_those_items"])))
+        if paid and paid.get("placements"):
+            text += (" Of the state origin, %s placements of %s items came as paid press releases through a "
+                     "distribution service." % ("{:,}".format(paid["placements"]), "{:,}".format(paid["items"])))
+        top = (((meta or {}).get("underlying_items") or {}).get("largest") or {}).get("state_origin") or []
+        if top:
+            x = top[0]
+            n_c = len([c for c in x["countries"] if c != registry.WORLDWIDE])
+            text += (" The state origin item run by the most outlets was placed %d times by %d outlets in %d %s%s, "
+                     "first on %s; meta.json lists the largest items of each label." % (
+                         x["placements"], x["outlets"], n_c, "country" if n_c == 1 else "countries",
+                         " and on the worldwide wires" if registry.WORLDWIDE in x["countries"] else "", x["first_day"]))
+    return text
+
+
 def body_dup_text() -> str:
     """The second near-duplicate pass, on body text, from the constants pipeline.body_dups runs with."""
     from pipeline import body_dups as bd
@@ -776,17 +850,19 @@ def study_differences_text() -> str:
         "Unchecked state sourcing is looser than the study's. The study scored verification on five levels: "
         "corroborated, contested and contextualized count as independent journalism, and merely attributed and "
         "unassessed count as unchecked state sourcing, under two fixed rules: a second official or another outlet "
-        "repeating the claim is not corroboration, and tone does not count. The model is not given the five levels. "
-        "It is asked whether a central factual claim was \"passed on without independent confirmation\", and context "
+        "repeating the claim is not corroboration, and tone does not count. The model's category does not use the five "
+        "levels. It is asked whether a central factual claim was \"passed on without independent confirmation\", and context "
         "counts against that only when it concerns the claim itself: background that takes the claim as given, such "
         "as details of a vessel or a company or analysts discussing what a figure means, does not. An article that "
         "sets the claim in independent context without confirming it can therefore land in unchecked state sourcing "
         "where the study would code it independent journalism; in the study's Australian sample such contextualized "
-        "items were 27 of 58. The model's instructions share the rule on tone, but they do not say that a second "
-        "official or another outlet repeating the claim is not confirmation, which can move an article the other "
-        "way. On balance the tracker's unchecked state sourcing probably overcounts relative to the study, and it "
-        "stays provisional. The five level scale goes into the model's instructions after 23 October 2026, and "
-        "every unchecked state sourcing label is then judged again.\n\n"
+        "items were 27 of 58. The model's instructions share the rule on tone, and until the prompt of 2026-12-01 they "
+        "did not say that a second official or another outlet repeating the claim is not confirmation, which can "
+        "move an article the other way. On balance the tracker's unchecked state sourcing probably overcounts relative to the study, and it "
+        "stays provisional. From the prompt of 2026-12-01 the model also records the study's verification levels, "
+        "with the study's other five attributes, on every label, and a label whose category differs from the one the "
+        "levels give by the study's rule is marked for review, so the looser test can be measured and corrected on "
+        "its own; labels made before that prompt carry no levels and are not judged again.\n\n"
         "Section headers are not evidence here. Much of the study's state origin evidence was a section header, "
         "such as a \"partnership content from GlobeNewswire\" header at a Canadian daily. The tracker's rules find a "
         "sponsored or partner disclosure only on the article itself: its own page labels, its author field, its "
@@ -796,7 +872,9 @@ def study_differences_text() -> str:
         "partner section are recorded with that arrival, on each article and per day and country, but the arrival "
         "alone never makes an item state origin. Paid sections the study would catch can therefore be missed, or "
         "end up undetermined: judged state origin by the model alone, with no evidence it could name, which keeps "
-        "them out of every count. Giving the model the address and the section is planned after 23 October 2026.")
+        "them out of every count. The model stays blind to the address and the section, so this limit stands; since "
+        "24 November 2026 the rules read a paid release's own issuer line, which catches party and government "
+        "releases the credit lines miss.")
 
 
 def known_limits_text(meta: Dict, outlets=None) -> str:
@@ -859,12 +937,13 @@ def known_limits_text(meta: Dict, outlets=None) -> str:
         "(config.LLM_BODY_CHAR_LIMIT); the rest is cut off and the cut is marked in the text it is given. The "
         "signature rules look for credit lines at the head and the foot of every body whatever its length, but a "
         "factual claim, or the check of one, that comes only after the cut is not seen by the model.\n\n"
-        "Who counts as the Chinese state. Commercial releases of Chinese state-owned enterprises (GAC, CRRC, "
-        "Sinopec, State Grid and others) count as state origin, and so do releases and placements of the Hong Kong "
-        "and Macao governments and their statutory bodies (HKSAR government departments, the Hong Kong Trade "
-        "Development Council, the Hong Kong Tourism Board, the Macao government); both carry an issuer type, "
-        "state_owned_enterprise or sar_government, so they can be counted apart by a reader who draws the line "
-        "elsewhere. A release counts as state origin only when a Chinese state entity issued or commissioned it: "
+        "Who counts as the Chinese state. Since the owner's decisions of 2026-11-24, commercial releases of Chinese "
+        "state-owned enterprises and state-run institutions (GAC, CRRC, Sinopec, State Grid, state universities and "
+        "others), and releases and placements of the Hong Kong and Macao governments and their statutory bodies "
+        "(HKSAR government departments, the Hong Kong Trade Development Council, the Hong Kong Tourism Board, the "
+        "Macao government), are held apart from state origin: each is stored with its issuer type, "
+        "state_owned_enterprise or sar_government, shown on a line of its own and in no count or denominator. A "
+        "release counts as state origin only when a Chinese state entity issued or commissioned it: "
         "releases from private Chinese companies, Hong Kong or Macao private bodies, universities, charities, trade "
         "fair organisers and foreign organisations are not state origin however unaltered they run, and are "
         "independent journalism when they substantively concern China and not relevant otherwise. A Hong Kong, "
@@ -902,24 +981,54 @@ def human_study_text(hs: Dict) -> str:
     return "".join(" " + s for s in out)
 
 
+def attributes_text() -> str:
+    """The six attributes the model records from prompt 2026-12-01 (classify_llm.ATTRIBUTE_VALUES), how the
+    category is checked against them, and why the labels made before that prompt are not judged again."""
+    from pipeline import classify_llm
+    return (
+        "From the prompt of %s the model also records, before it chooses the category, the six attributes the "
+        "original study's hand coders record, each from the same fixed list: who wrote the text (author), who "
+        "requested or paid for it (commissioner), whether either is a Chinese party-state body (state affiliation), "
+        "how the text reached the page (route), what the text tells a reader about where it came from "
+        "(disclosure), and how the article treats its central official factual claim (verification), with a short "
+        "span copied from the text for the author, the commissioner, the disclosure and the central claim. "
+        "A state-owned enterprise or a state-run institution such as a state university can be recorded as such "
+        "(soe), apart from the party-state bodies. The model never sees the outlet, the country or the page "
+        "address, so route and disclosure are read from the headline and the text alone: a section label, banner "
+        "or address that is not in the text is not seen, which the hand coders, reading the page, do see. The "
+        "category the study's rule derives from the attributes (state origin when the author or commissioner is a "
+        "state entity, otherwise unchecked state sourcing when the central official claim is merely attributed or "
+        "unassessed, otherwise independent journalism) is checked against the category the model returned; the "
+        "category is kept as returned, and a label where the two disagree, or whose attributes leave open whether "
+        "a state entity wrote or commissioned the text, is marked for review, as an inconsistent issuer type is. "
+        "The attributes are stored with the label and published in the audit files and article records, so the "
+        "labels can be compared with hand coding one attribute at a time. That prompt leaves every category "
+        "definition as it was, so the labels made before it keep their category and are not judged again (owner "
+        "decision of 2026-11-24); they carry no attributes."
+        % classify_llm.ATTRIBUTES_SINCE)
+
+
 def issuer_text(meta: Dict) -> str:
     """Issuer types (classify_llm.ISSUER_TYPES) and the current labels per type (meta.issuer_type_totals)."""
+    from pipeline import state_issuers
     it = meta.get("issuer_type_totals") or {}
-    head = ("Every model label made under the prompt of 2026-10-17 also records who issued the text. Releases of "
-            "Chinese state-owned enterprises and of the Hong Kong and Macao governments and their statutory bodies "
-            "count as state origin and are reported separately, as the issuer types state_owned_enterprise and "
-            "sar_government, so a reader can leave them out; releases of private companies and other non-state "
-            "bodies (private_release) are not state origin. Older model labels carry no issuer type until they are "
-            "judged again, so these counts, and the state origin counts with them, will move over the coming weeks.")
+    head = ("Every model label made under the prompt of 2026-10-17, and every rules label made from a release's "
+            "registered issuer, also records who issued the text. Releases of Chinese state-owned enterprises and "
+            "state-run institutions and of the Hong Kong and Macao governments and their statutory bodies carry the "
+            "issuer types state_owned_enterprise and sar_government and are held apart from state origin (see the "
+            "next paragraph); releases of private companies and other non-state bodies (private_release) are not "
+            "state origin. Older model labels carry no issuer type until they are judged again.")
+    sep = state_issuers.methodology_text(meta.get("separate_issuers"))
     by = it.get("by_type") or {}
     if not by:
-        return head
+        return head + "\n\n" + sep
     parts = []
-    for typ in ("state_owned_enterprise", "sar_government", "private_release"):
+    for typ, code in (("state_owned_enterprise", state_issuers.S), ("sar_government", state_issuers.H), ("private_release", None)):
         cats = by.get(typ) or {}
-        parts.append("%s %s (%s state origin)" % (typ, "{:,}".format(sum(cats.values())), "{:,}".format(cats.get("A", 0))))
+        parts.append("%s %s%s" % (typ, "{:,}".format(sum(cats.values())),
+                                  " (%s held apart)" % "{:,}".format(cats.get(code, 0)) if code else ""))
     return head + (" At export time the current labels by issuer type were: %s; %s current model labels carried no "
-                   "issuer type yet." % ("; ".join(parts), "{:,}".format(it.get("unrecorded") or 0)))
+                   "issuer type yet." % ("; ".join(parts), "{:,}".format(it.get("unrecorded") or 0))) + "\n\n" + sep
 
 
 def copies_map_text() -> str:
@@ -1310,7 +1419,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         "prompt it was made under. The prompt of 2026-10-12 added the factual-claim rule given under the categories below, and "
         "the prompt of 2026-10-17 added the issuer rule: a release is state origin only when a Chinese state entity "
         "issued or commissioned it, and every model label records who issued the text. When the prompt "
-        "changes, current model labels made under an older one are judged again through the API, in priority "
+        "changes what a category means, current model labels made under an older one are judged again through the API, in priority "
         "tiers: %s, oldest first within each tier, "
         "with what the new articles leave of each run's calls and never more than %d percent of the day's call "
         "cap, paced over the day. Each keeps its old label until the new one is stored, so no article is left "
@@ -1318,6 +1427,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         "At export time %s current model labels did."
         % (meta.get("llm_prompt_version") or "not recorded", relabel_order_text(), int(round(config.LLM_RELABEL_DAY_SHARE * 100)),
            "{:,}".format(meta["labels_on_older_prompt"]) if meta.get("labels_on_older_prompt") is not None else "an unrecorded number of"))
+    prompt_text += " " + attributes_text()
 
     # The same figures the site's note under the running total reads (export.rediscovery); the config
     # values when this database holds nothing counted before the fix.
@@ -1326,7 +1436,7 @@ def write(meta: Dict, latest: Dict, path=config.ROOT / "METHODOLOGY.md") -> None
         "measured_floor": config.REDISCOVERY_MEASURED_FLOOR, "measured_of": config.REDISCOVERY_MEASURED_OF,
         "window_share": config.REDISCOVERY_WINDOW_SHARE}
     text = TEMPLATE.format(
-        body_dup_text=body_dup_text(),
+        body_dup_text=body_dup_text() + "\n\n" + underlying_items_text(meta),
         session_labels_text=session_labels_text,
         prompt_text=prompt_text,
         candidate_recall_text=candidate_recall_text(meta),

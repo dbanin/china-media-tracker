@@ -65,7 +65,13 @@ def test_the_quotation_is_the_model_definition_word_for_word():
     assert QUOTE in classify_llm.CATEGORY_DEFINITIONS
     assert "does not make it C, because it takes the claim as given" in classify_llm.SYSTEM_PROMPT
     assert "Do not let the tone of the article" in classify_llm.SYSTEM_PROMPT
-    assert "second official" not in classify_llm.SYSTEM_PROMPT
+    # From prompt 2026-12-01 the second official rule is in the instructions, for the verification attribute only;
+    # the category's own test is unchanged, and Known limits says so.
+    assert "second official" not in classify_llm.CATEGORY_DEFINITIONS
+    assert "A second official, a second Chinese outlet, or a foreign outlet repeating the same statement is not independent" in classify_llm.ATTRIBUTE_DEFINITIONS
+    text = _limits()
+    assert "until the prompt of 2026-12-01 they did not say that a second official" in text
+    assert "The model's category does not use the five levels." in text
 
 
 def test_known_limits_carries_the_four_differences():
@@ -90,15 +96,16 @@ def test_known_limits_carries_the_four_differences():
     assert "a second official or another outlet repeating the claim is not corroboration, and tone does not count" in text
     assert '"%s"' % QUOTE in text and "such contextualized items were 27 of 58" in text
     assert "probably overcounts relative to the study, and it stays provisional" in text
-    assert ("The five level scale goes into the model's instructions after 23 October 2026, and every unchecked "
-            "state sourcing label is then judged again." in text)
+    assert ("From the prompt of 2026-12-01 the model also records the study's verification levels, with the "
+            "study's other five attributes, on every label" in text)
+    assert "labels made before that prompt carry no levels and are not judged again." in text
     # 4. Section headers.
     assert '"partnership content from GlobeNewswire" header at a Canadian daily' in text
     assert "only on the article itself: its own page labels, its author field, its headline" in text
     assert "never the outlet, the address or the section" in text
     assert "the arrival alone never makes an item state origin" in text
     assert "can therefore be missed, or end up undetermined" in text
-    assert "Giving the model the address and the section is planned after 23 October 2026." in text
+    assert "The model stays blind to the address and the section, so this limit stands" in text
 
 
 def test_rendered_methodology_carries_the_differences_and_the_live_rule(tmp_path, monkeypatch):
@@ -127,17 +134,17 @@ def test_site_methodology_carries_the_four_differences():
     assert INDEX.index("<strong>Placements and underlying items.</strong>") < INDEX.index('id="study-differences"')
     assert "which is not in the study's codebook" in site and RULE in site
     assert '"%s"' % QUOTE in site and "27 of 58" in site and "probably overcounts relative to the study" in site
-    assert "goes into the model's instructions after 23 October 2026" in site
+    assert "labels made before then are not judged again" in site and "after 23 October 2026" not in site
     assert '"partnership content from GlobeNewswire"' in site and "never the outlet, the address or the section" in site
     assert "can therefore be missed, or end up undetermined" in site
-    assert "Giving the model the address and the section is planned after 23 October 2026." in site
+    assert "The model stays blind to the address and the section, so this limit stands" in site
 
 
 def test_readme_and_faq_point_to_the_differences():
     readme = _flat(README)
     assert "The tracker's figures cannot be set beside the original study's, for four reasons" in readme
     assert "counted identical wire copy once per publication" in readme
-    assert "probably overcounts relative to the study" in readme and "after 23 October 2026" in readme
+    assert "probably overcounts relative to the study" in readme and "not judged again" in readme
     faq = next(f["answer"] for f in CONTENT["faq"] if f["question"] == "How reliable is the unchecked state sourcing count?")
     assert "looser than the original study's measure, which scored verification on five levels" in faq
     assert not re.search(r"\b(we|We|our|Our|us)\b", faq)

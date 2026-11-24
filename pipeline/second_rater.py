@@ -22,7 +22,8 @@ config.LLM_MODEL itself, which makes the automatic study a same model rerun.
 
 Both labels in a pair come from one prompt. The second rater always judges with the current
 classifier prompt (classify_llm.PROMPT_VERSION), so a study draws only first labels made under it
-(classify_llm.on_current_prompt): against a label from an older prompt it would measure the prompt
+(classify_llm.on_latest_prompt, PROMPT_VERSION itself even when it only extends an older prompt,
+classify_llm.PROMPT_EXTENDS): against a label from an older prompt it would measure the prompt
 change, not stability. While older labels are being judged again the automatic study waits until
 config.RELIABILITY_MIN_POOL current labels exist. Each study records its prompt in details, and
 the export shows a study made under an older prompt as history, not as the current stability figure.
@@ -67,7 +68,10 @@ def judged_rows(conn, with_body: bool = False, current_prompt: bool = False) -> 
     out = [dict(r) for r in rows]
     if current_prompt:
         from pipeline import classify_llm
-        out = [r for r in out if classify_llm.on_current_prompt(r["model_version"])
+        # The prompt itself (on_latest_prompt), not its category definitions (on_current_prompt): a first label
+        # from a prompt the current one extends (classify_llm.PROMPT_EXTENDS) would pair two prompts, and the
+        # collector (collect_study) pairs only labels of the batch's own prompt, so it would be paid for and dropped.
+        out = [r for r in out if classify_llm.on_latest_prompt(r["model_version"])
                and _first_rater(r["model_version"])]
     if with_body:
         out = [r for r in out if store.body_path(r["url_hash"]).exists()]
@@ -582,7 +586,9 @@ def main(argv=None):
     if args.cmd == "auto":
         print(json.dumps(auto(conn, submit=args.submit, force=args.force, model=args.model), indent=1, default=str))
         return
-    from pipeline import classify_llm
+    from pipeline import classify_llm, freshness
+    if not freshness.guard(conn, "second_rater sample", refuse=True):     # a stale local copy (pipeline/freshness.py)
+        raise SystemExit(1)
     pool = judged_rows(conn, with_body=True, current_prompt=True)
     rows = draw(pool, args.n)
     pairs, usage = rejudge(conn, rows, args.model, dry_run=args.dry_run)

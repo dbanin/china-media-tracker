@@ -61,6 +61,20 @@ def _body_links(conn, counts, deadline=None):
         print("body link pass failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
 
 
+def _exposure(conn, counts, deadline=None):
+    """Read the homepages (and named main section pages) of the outlets that carried state origin lately, for
+    the exposure measure (pipeline/exposure.py), after the article fetch and within its own cap
+    (exposure.STAGE_SECONDS) and the stage's deadline, so it never delays collection. Only while the measure
+    is on. A failure is recorded in the stage's counts and never stops the run."""
+    try:
+        from pipeline import exposure
+        counts["exposure"] = exposure.run_stage(conn, deadline)
+    except Exception as exc:  # noqa: BLE001  a report only side channel, never a reason to stop
+        conn.rollback()
+        counts["exposure"] = {"error": "%s: %s" % (type(exc).__name__, exc)}
+        print("exposure reads failed: %s: %s" % (type(exc).__name__, exc), file=sys.stderr)
+
+
 def _language_retag(conn):
     """Articles stored under another language than their feed's are set right before the prune, so a
     gated-out item the gate now passes in its language is re-admitted before it is deleted, and their
@@ -114,6 +128,7 @@ def cmd_fetch(conn, run_id, args, deadline):
     counts = fetch_articles.run(conn, run_id, deadline=early, limit=args.limit)
     _planted_scan(conn, counts, early)
     _body_links(conn, counts, early)
+    _exposure(conn, counts, early)
     _reference(conn, counts, "fetch", deadline)
     print("fetch:", json.dumps(counts))
     return counts

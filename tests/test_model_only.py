@@ -300,7 +300,7 @@ def test_methodology_defines_undetermined_as_the_paper_does(conn, tmp_path):
     assert "Undetermined items. As in the original study, an item whose authorship or commissioning cannot be settled" in text
     assert "excluded from every category count" in text and "never rejoin state origin" in text
     assert "sponsored disclosure calls that the rules did not confirm" in text
-    assert "kept blind to outlet, country and address until after 23 October 2026" in text
+    assert "kept blind to outlet, country and address, so that who published" in text
     assert "At export time there were 11 undetermined placements (8 with no marker, 3 sponsored disclosures" in text
     assert "A further 11 model judgements of state origin" in text and "undetermined, excluded from every count" in text
     for gone in ("rejoin state origin once", "90 percent of at least", "withheld if fewer", "provisional, no hand check"):

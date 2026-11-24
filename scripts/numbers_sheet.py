@@ -697,6 +697,15 @@ def build(ex: Dict) -> str:
     return s.text()
 
 
+def _freshness():
+    """pipeline/freshness.py (standard library only), loaded by its path so that no pipeline package is bound."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_tracker_freshness", ROOT / "pipeline" / "freshness.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Write one numbers sheet from one export's site files.")
     ap.add_argument("--data", default=str(DEFAULT_DATA), help="the export's site data directory (default docs/data)")
@@ -707,6 +716,8 @@ def main(argv=None) -> int:
     if problems:
         sys.stderr.write("The files are not from one export:\n" + "\n".join("  " + p for p in problems) + "\n")
         return 2
+    # An export more than two days old (a checkout not pulled) is warned about loudly on standard error.
+    _freshness().guard_export(ex["meta"], "numbers_sheet", source=str(Path(args.data) / "meta.json"))
     text = build(ex)
     if args.out:
         Path(args.out).write_text(text, encoding="utf-8")

@@ -233,7 +233,9 @@ jobs:
         # Reads the database only, in about a second: every polled input that carried state origin or unchecked
         # state sourcing items in 56 days (feed polls, entries, saturation, fetch losses, silence, small inputs
         # pooled by country), the reference sources and a rising fetch backlog (pipeline/input_watch.py). Warns
-        # new problems only; ongoing ones are one notice. Never fails the run.
+        # new problems only; ongoing ones are one notice. A whole country or the whole collector gone quiet, and
+        # on the first run after a restart the hours the collector stopped, are error annotations in every run
+        # while they last; the export puts what is quiet in meta.input_watch for the site. Never fails the run.
         continue-on-error: true
         run: python -m pipeline.input_watch
       - name: Reliability study, by itself when it is due and the budget allows

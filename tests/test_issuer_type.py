@@ -52,7 +52,10 @@ def _message(payload):
 # ---------------------------------------------------------------------------
 
 def test_prompt_version_is_the_issuer_rule():
-    assert cl.PROMPT_VERSION == "2026-10-17"
+    # The issuer rule is the category definitions of 2026-10-17; 2026-12-01 adds the six attributes and keeps them
+    # (classify_llm.PROMPT_EXTENDS, owner decision D16).
+    assert cl.PROMPT_VERSION == "2026-12-01"
+    assert cl.category_prompt_of(cl.PROMPT_VERSION) == "2026-10-17"
 
 
 def test_definitions_name_the_state_issuers_and_the_private_ones():
@@ -281,9 +284,9 @@ def test_meta_and_exports_carry_issuer_type(tmp_path, monkeypatch):
     conn.commit()
     totals = export.issuer_type_totals(conn)
     assert list(totals["by_type"]) == list(cl.ISSUER_TYPES)
-    # A release that only names its issuer has no credit, stamp, disclosure or byline: route unattributed, so
-    # it is counted under U, undetermined and excluded from every count (D1 as revised).
-    assert totals["by_type"]["state_owned_enterprise"] == {"U": 1}
+    # A state-owned enterprise's release is held apart under S since the owner's decision D13 of 2026-11-24
+    # (pipeline/state_issuers.py), whatever its route; before that it was undetermined (U) for want of a marker.
+    assert totals["by_type"]["state_owned_enterprise"] == {"S": 1}
     assert totals["by_type"]["private_release"] == {"C": 1}
     assert totals["by_type"]["sar_government"] == {} and totals["unrecorded"] == 1
     audit = tmp_path / "audit"

@@ -1301,10 +1301,10 @@ def _rows(conn, ctx) -> List[Dict]:
     out = []
     for r in conn.execute(_ROWS_SQL % model_only.route_sql("c")):
         d = dict(r)
-        # A copy whose state origin label is undetermined (pipeline/model_only.py) is in no count, so it is
-        # never measured as a state copy.
+        # A copy whose state origin label is undetermined (pipeline/model_only.py), or of a state-owned or SAR
+        # issuer (pipeline/state_issuers.py), is in no count, so it is never measured as a state copy.
         cat, method = d.pop("c_category", None), d.pop("c_method", None)
-        if model_only.is_undetermined(cat, d.get("route"), method):
+        if model_only.is_set_apart(cat, d.get("route"), method):
             continue
         o = om.get(d["outlet_id"])
         d["export_country"] = o["country"] if o else d["country"]

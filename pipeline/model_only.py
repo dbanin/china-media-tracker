@@ -25,8 +25,8 @@ rules find on the article itself, a Chinese diplomat's byline, or a close match 
 A rules label is never undetermined: it rests on a signature by construction, and one stored before
 routes were (route empty) gets the route of its signatures from classify_rules.ensure_routes at the start
 of every export. Model labels with the routes wire_credit, distribution_stamp and diplomatic_byline stay
-state origin, and so does an uncredited_copy label whose recorded reference is settled state origin. The model is kept blind to outlet, country and address until after
-23 October 2026 (decision D4), so a model call of either kind carries no marker a reader can point to.
+state origin, and so does an uncredited_copy label whose recorded reference is settled state origin. The model is kept blind to outlet, country and address (decision
+D4), so a model call of either kind carries no marker a reader can point to.
 
 Undetermined items are in no count, share or denominator: not in state origin, not in China coverage (the
 China total is state origin, unchecked state sourcing and independent journalism only), not in the map, the
@@ -56,7 +56,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from pipeline import config
+from pipeline import config, state_issuers
 
 ROUTE = "unattributed"
 SPONSORED_ROUTE = "sponsored_disclosure"
@@ -80,6 +80,12 @@ REVIEWS_DIR = config.ROOT / "data" / "reviews"
 FIELDS = ["sample_id", "url", "outlet", "language", "title", "human_category", "coder", "note"]
 # What a coder writes when the page does not settle who wrote or commissioned the text.
 CODER_UNDETERMINED = ("undetermined", "u", "cannot_settle", "could_be_state")
+
+
+def is_set_apart(category, route, method=None, issuer_type=None) -> bool:
+    """A current state origin label in no count: undetermined (U), or of a group held apart (S, H; pipeline/
+    state_issuers.py). Read the route through route_sql."""
+    return headline_category(category, route, method, issuer_type) in (CODE,) + state_issuers.CODES
 
 
 def is_undetermined(category, route, method=None) -> bool:
@@ -106,8 +112,8 @@ def reference_sql(alias: str = "c") -> str:
     can apply to it, and the test reads those alone."""
     from pipeline.copies import CREDITED_ROUTES  # copies imports lookalike, which imports this lazily
     routes = ", ".join("'%s'" % r for r in sorted(CREDITED_ROUTES))
-    return ("((%s.route IN (%s) OR (%s.method = 'rules' AND %s.route IS NULL)) AND NOT %s)"
-            % (alias, routes, alias, alias, _no_evidence_sql(alias)))
+    return ("((%s.route IN (%s) OR (%s.method = 'rules' AND %s.route IS NULL)) AND NOT %s AND NOT %s)"
+            % (alias, routes, alias, alias, _no_evidence_sql(alias), state_issuers.separate_sql(alias)))
 
 
 def reference_id_sql(alias: str = "c") -> str:
@@ -134,32 +140,44 @@ def unsettled_copy_sql(alias: str = "c") -> str:
 
 
 def undetermined_sql(alias: str = "c") -> str:
-    """The SQL condition that is true for an undetermined label, given category A: kinds (a), (b) and (c)."""
-    return "(%s OR %s)" % (_no_evidence_sql(alias), unsettled_copy_sql(alias))
+    """The SQL condition that is true for an undetermined label, given category A: kinds (a), (b) and (c),
+    unless the label is of a group held apart (S or H, pipeline/state_issuers.py), which it is counted under."""
+    return "((%s OR %s) AND NOT %s)" % (_no_evidence_sql(alias), unsettled_copy_sql(alias),
+                                         state_issuers.separate_sql(alias))
 
 
 def evidence_sql(alias: str = "c") -> str:
-    """An SQL condition to AND onto a state origin query so it counts the evidence routes only."""
-    return " AND NOT " + undetermined_sql(alias)
+    """An SQL condition to AND onto a state origin query so it counts the evidence routes only: neither
+    undetermined nor of a group held apart (state-owned and SAR issuers, decisions D13 and D14)."""
+    return " AND NOT " + undetermined_sql(alias) + " AND NOT " + state_issuers.separate_sql(alias)
 
 
 def route_sql(alias: str = "c") -> str:
     """The SQL expression for a label's route as the export reads it: COPY_OF_UNDETERMINED for an
     uncredited copy of an item that is not settled state origin (unsettled_copy_sql), the stored route
     otherwise. Every query whose rows go to is_undetermined, headline_category or counted_route selects
-    its route through this."""
-    return "(CASE WHEN %s THEN '%s' ELSE %s.route END)" % (unsettled_copy_sql(alias), COPY_OF_UNDETERMINED, alias)
+    its route through this. A label of a group held apart (pipeline/state_issuers.py: a state-owned or SAR
+    issuer, by its issuer_type) reads as state_issuers.READ_ROUTES, never stored either."""
+    sep = " ".join("WHEN %s THEN '%s'" % (state_issuers.separate_sql(alias, code), state_issuers.READ_ROUTES[code])
+                   for code in state_issuers.CODES)
+    return "(CASE %s WHEN %s THEN '%s' ELSE %s.route END)" % (sep, unsettled_copy_sql(alias), COPY_OF_UNDETERMINED, alias)
 
 
-def headline_category(category, route, method=None):
-    """The category a placement is counted under: CODE for an undetermined label, the stored one otherwise."""
+def headline_category(category, route, method=None, issuer_type=None):
+    """The category a placement is counted under: S or H for a label of a group held apart (its route as
+    route_sql reads it, or its issuer_type), CODE for an undetermined label, the stored one otherwise."""
+    sep = state_issuers.code_of(category, route, issuer_type)
+    if sep:
+        return sep
     return CODE if is_undetermined(category, route, method) else category
 
 
 def counted_route(route, method=None) -> str:
     """The route a current state origin label is tallied under in the daily files and meta.route_totals:
     every undetermined label under "unattributed", the route filter's undetermined layer, so the counted
-    routes add up to state origin."""
+    routes add up to state origin. None for a label of a group held apart (S, H), which is in no route total."""
+    if route in state_issuers.CODE_OF_READ_ROUTE:
+        return None
     if method != "rules" and ((route or ROUTE) in UNDETERMINED_ROUTES or route == COPY_OF_UNDETERMINED):
         return ROUTE
     return route or ROUTE
@@ -239,7 +257,10 @@ def _check_of(csv_path: Path, key_path: Path) -> Dict:
     check.update({"file": measures._rel(csv_path), "drawn_on": m.group(1) if m else None,
                   "checked_on": key.get("checked_on"), "prompt_version": key.get("prompt_version")})
     current = _prompt_version()
-    if key.get("prompt_version") and current and key["prompt_version"] != current:
+    # Stale only when the prompt changed what a category means: a prompt that extends the sample's
+    # (classify_llm.PROMPT_EXTENDS, owner decision D16) leaves its labels current.
+    from pipeline import classify_llm
+    if key.get("prompt_version") and current and not classify_llm.same_categories(key["prompt_version"], current):
         check["state"] = "stale"
         return check
     check.update(score(rows, key))
@@ -352,7 +373,7 @@ def methodology_text(block: Optional[Dict]) -> str:
             "the rules look for a sponsored or partner disclosure on the article itself and "
             "deliberately ignore sidebar and menu advertisements, and a copy counts only when the item it repeats is "
             "settled state origin. The model is kept blind to outlet, country and "
-            "address until after 23 October 2026, so that who published a text cannot sway its judgement, and that "
+            "address, so that who published a text cannot sway its judgement, and that "
             "blindness is also why such a call cannot be checked against anything on the page. The label accuracy "
             "audit of October 2026 found private company, university and sports club releases among these weak "
             "calls. Undetermined items are in no count, share or denominator: not in state origin, not in the China "
@@ -481,8 +502,10 @@ def main(argv=None) -> None:
     s.add_argument("--out", default=None)
     args = ap.parse_args(argv)
     if args.cmd == "sample":
-        from pipeline import store
+        from pipeline import freshness, store
         conn = store.connect()
+        if not freshness.guard(conn, "model_only sample", refuse=True):    # a stale local copy (pipeline/freshness.py)
+            raise SystemExit(1)
         seed = args.seed or "%s-%s" % (CHECK_ID, dt.datetime.now(dt.timezone.utc).date().isoformat())
         try:
             paths = write_sample(conn, args.n, args.controls, seed, Path(args.out) if args.out else None)

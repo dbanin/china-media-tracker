@@ -437,8 +437,10 @@ def derive(rows: List[Dict], model_only, placements, wire_ids: Set[str], reader:
         if not cat:
             code = None
         else:
-            h = model_only.headline_category(cat, r.get("route"), r.get("method"))
-            if h == "A":
+            h = model_only.headline_category(cat, r.get("route"), r.get("method"), r.get("issuer_type"))
+            if h in ("S", "H"):
+                code = h        # state-owned and SAR issuers, held apart from every tier (D13, D14 of 2026-11-24)
+            elif h == "A":
                 code = T1A if r.get("method") == "rules" else T1B
             elif h == model_only.CODE:
                 code = U
@@ -1331,6 +1333,15 @@ def build(repo: Path, out: Optional[Path] = None, countries: Iterable[str] = COU
     return {"out": out, "files": files, "tables": tables, "ctx": ctx}
 
 
+def _freshness():
+    """pipeline/freshness.py (standard library only), loaded by its path so that no pipeline package is bound."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_tracker_freshness", SCRIPT_ROOT / "pipeline" / "freshness.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description="Aggregate country export (counts only) for a paper")
     ap.add_argument("--repo", default=str(SCRIPT_ROOT), help="repository checkout to read (default this one)")
@@ -1339,6 +1350,14 @@ def main(argv=None) -> None:
     ap.add_argument("--overlay", default=None, help="session label file (JSON lines) not yet ingested by the runner")
     ap.add_argument("--only", choices=["themes"], default=None)
     args = ap.parse_args(argv)
+    # An export more than two days old (a checkout not pulled) is warned about loudly on standard error.
+    meta_path = Path(args.repo) / "docs" / "data" / "meta.json"
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        meta = None
+    if meta is not None:
+        _freshness().guard_export(meta, "country_export", source=str(meta_path))
     res = build(Path(args.repo), Path(args.out).expanduser() if args.out else None,
                 [c.strip().upper() for c in args.countries.split(",") if c.strip()],
                 Path(args.overlay) if args.overlay else None, args.only)

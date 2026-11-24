@@ -284,7 +284,7 @@ def load_gaps(path: Path = config.GAPS_PATH, validate: bool = True) -> List[Dict
 
 def save_outlets(outlets: List[Dict], path: Path = config.OUTLETS_PATH) -> None:
     """Write the registry back. Preserves key order used across the file."""
-    key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "section_feeds", "release_sections", "tier", "network", "notes",
+    key_order = ["id", "name", "country", "language", "feeds", "news_sitemaps", "homepage", "main_sections", "section_feeds", "release_sections", "tier", "network", "notes",
                  "audience_rank", "rank_source", "selection_basis", "political_leaning", "leaning_source", "leaning_second_source", "ownership", "ownership_source", "foreign_state_stake",
                  "government_stance", "stance_source", "stance_as_of",
                  "collector", "collector_since", "active", "inactive_reason", "inactive_since", "junk_feed"]

@@ -22,7 +22,8 @@ first; other waiting articles are offered only once older than config.LLM_SESSIO
 younger ones are held for the session (split_pools).
 
 Every label records the prompt it was made under (PROMPT_VERSION, in model_version). When the prompt
-changes, current model labels made under an older one are judged again, model state origin labels
+changes what a category means (any change PROMPT_EXTENDS does not list), current model labels made
+under an older one are judged again, model state origin labels
 resting on no credit, stamp or byline first, then unchecked state sourcing labels, oldest first
 within each tier (RELABEL_PRIORITY), with what the
 new articles leave of each run's calls and at most config.LLM_RELABEL_DAY_SHARE of the day's cap
@@ -33,6 +34,15 @@ marks it body_refreshed) goes through the same queue, right after the unchecked 
 Every model label records who issued the text (issuer_type, ISSUER_TYPES), and a state origin label
 records its route from the basis the model stated (state_basis, BASIS_ROUTES), never from the
 signatures that sent the article.
+
+From prompt 2026-12-01 (owner decision D16 of 2026-11-24) the model also returns the paper's six
+attributes (ATTRIBUTE_VALUES: author, commissioner, state affiliation, route, disclosure, verification),
+each from the hand coding's value set, with short spans copied from the text for those that rest on it
+(ATTRIBUTE_EVIDENCE). They are stored on the label (the classifications attr_ columns), and the category
+the paper's rule derives from them (derived_category) is checked against the category the model
+returned; a disagreement marks the label for review in needs_review (attribute_disagreement). That
+prompt leaves every category definition as it was, so it extends the prompt of 2026-10-17
+(PROMPT_EXTENDS): labels made before it stay current and are not judged again.
 """
 import datetime as dt
 import json
@@ -52,14 +62,45 @@ from pipeline import config, llm_cost, store
 # 2026-10-12: the factual-claim rule for unverified relay, and the reworded state origin definition.
 # 2026-10-17: who counts as a state issuer (press releases, state-owned enterprises, the Hong Kong and
 # Macao governments, state copy on any topic), and the issuer_type and state_basis fields.
-PROMPT_VERSION = "2026-10-17"
+# 2026-12-01: the paper's six attributes and their evidence spans (owner decision D16 of 2026-11-24); the
+# categories mean what they meant under 2026-10-17, so its labels are not judged again (PROMPT_EXTENDS).
+PROMPT_VERSION = "2026-12-01"
 _PROMPT_TAG = re.compile(r"\bprompt (\d{4}-\d{2}-\d{2})\b")
+# Prompts that changed nothing about what a category means, each with the prompt it extends (owner decision
+# D16 of 2026-11-24). A label made under the older prompt means what a label under the newer one means, so
+# moving PROMPT_VERSION to a prompt listed here queues no stored label for the model again (relabel_candidates,
+# _settle_stale_dup_siblings), leaves the hand coding study and the hand checks as current as they were
+# (agreement.human_study_status, model_only), accepts session labels of the older prompt (labels.ingest) and
+# marks no day of the timeline as labelled under an older prompt (export). Only the stability check, which pairs
+# two labels of one prompt (second_rater), goes by PROMPT_VERSION itself (on_latest_prompt). Every other change
+# of PROMPT_VERSION works as before: labels made under an older prompt are judged again.
+# 2026-12-01: the model also returns the paper's six attributes (ATTRIBUTE_VALUES); the categories are defined
+# exactly as under 2026-10-17.
+PROMPT_EXTENDS = {"2026-12-01": "2026-10-17"}
+# The prompt from which the model returns the six attributes. A session label naming it or a later one must
+# carry them (pipeline.labels.validate), as OUTPUT_SCHEMA requires them of the API.
+ATTRIBUTES_SINCE = "2026-12-01"
 
 
 def prompt_version_of(model_version: Optional[str]) -> Optional[str]:
     """The prompt date a label's model_version records, or None when it records none."""
     m = _PROMPT_TAG.search(model_version or "")
     return m.group(1) if m else None
+
+
+def category_prompt_of(prompt_version: Optional[str]) -> Optional[str]:
+    """The prompt whose category definitions prompt_version uses: itself, unless PROMPT_EXTENDS lists it as
+    extending an older one (followed to the end of the chain)."""
+    seen = set()
+    while prompt_version in PROMPT_EXTENDS and prompt_version not in seen:
+        seen.add(prompt_version)
+        prompt_version = PROMPT_EXTENDS[prompt_version]
+    return prompt_version
+
+
+def same_categories(a: Optional[str], b: Optional[str]) -> bool:
+    """Whether two prompt versions define the categories alike (category_prompt_of); False when either is None."""
+    return bool(a and b) and category_prompt_of(a) == category_prompt_of(b)
 
 
 def with_prompt_version(model_version: Optional[str], prompt_version: Optional[str] = PROMPT_VERSION) -> Optional[str]:
@@ -71,7 +112,15 @@ def with_prompt_version(model_version: Optional[str], prompt_version: Optional[s
 
 
 def on_current_prompt(model_version: Optional[str]) -> bool:
-    """True when a model label was made under the current PROMPT_VERSION (or a later one)."""
+    """True when a model label was made under the current PROMPT_VERSION (or a later one), or under a prompt
+    whose category definitions the current one keeps (PROMPT_EXTENDS): such a label is not judged again."""
+    v = prompt_version_of(model_version)
+    return v is not None and category_prompt_of(v) >= category_prompt_of(PROMPT_VERSION)
+
+
+def on_latest_prompt(model_version: Optional[str]) -> bool:
+    """True when a model label was made under PROMPT_VERSION itself (or a later one), whatever PROMPT_EXTENDS
+    says. The stability check pairs a label only with a second label of the same prompt (second_rater)."""
     v = prompt_version_of(model_version)
     return v is not None and v >= PROMPT_VERSION
 
@@ -84,6 +133,29 @@ Category B, unverified relay. The article was written by the local outlet, and i
 Category C, independent journalism. The outlet's own reporting, including reporting that quotes Chinese officials but confirms, contextualizes or contests what they say, and reporting of a position, policy, warning, threat, opinion or denial attributed to a Chinese official or state source, with or without outside comment. A press release that is not state origin is coded here when it substantively concerns China.
 
 Not relevant. Does not concern China in any substantive way; a passing mention does not make an article relevant. A Hong Kong, Macao or Taiwan domestic story with no mainland angle concerns China only when it substantively concerns the PRC state or its policy (cross-strait relations, the national security law, Beijing's role); otherwise it is not relevant. State origin text is never coded not relevant, whatever its topic."""
+
+# The paper's six attributes (its section 3.4, as the hand coding applies them), asked of the model from prompt
+# 2026-12-01. The value sets are the hand coding's (ATTRIBUTE_VALUES), so a label can be compared with a hand
+# code attribute by attribute (pipeline.agreement attributes).
+ATTRIBUTE_DEFINITIONS = """The six attributes. Before you choose the category, record six attributes of the text, each from its fixed list. They come from the study's codebook and are recorded the way the study's hand coders record them, so that your reading can be compared with theirs one attribute at a time.
+
+author: who wrote the text as published. "state" (a Chinese state entity or official as defined under Category A, a Hong Kong or Macao government department or statutory body included), "soe" (a Chinese state-owned enterprise or its subsidiary, or a state-run institution of the People's Republic such as a state university or a state laboratory), "newsroom" (the receiving outlet's own journalists, including an unsigned item that reads as the outlet's own reporting), "studio" (the publisher's commercial or branded content studio), "agency" (a wire service or news agency that is not a Chinese state entity, such as Reuters, AP, AFP, ANSA or Canadian Press), "issuer_nonstate" (a press release or sponsored text written by a company or body that is not a Chinese state entity), or "unknown" (the text leaves open whether a Chinese state entity wrote it).
+
+commissioner: who requested or paid for the text. "state", "soe" and "issuer_nonstate" as for author, "publisher" (the outlet itself), "none" (nobody beyond the author; ordinary reporting and wire copy), or "unknown". Commissioning needs evidence in the text: a sponsored or paid notice, a release header or SOURCE line naming the issuer, a disclosure. An article that reports on a Chinese state agreement or event is not thereby commissioned by the state. When you believe a state entity commissioned the text but the text does not show it, record "unknown", not "state".
+
+state_affiliation: whether the author or the commissioner is a Chinese party-state body or owned by one: "yes", "no" or "uncertain".
+
+route: how the text reached the page. "agency_syndication" (wire or agency copy, Xinhua copy included), "paid_release_wire" (a press release carried by a distribution service such as PR Newswire, GlobeNewswire or Business Wire), "sponsored_placement" (a sponsored, paid, partner or branded placement), "signed_contribution" (a signed opinion piece or letter by someone outside the newsroom, such as an ambassador), "ordinary_reporting" (the outlet's own reporting), or "other_uncertain".
+
+disclosure: what the text tells a reader about where it came from. "names_state_source" (it names a Chinese state source as the origin, such as a Xinhua credit or "Source: Xinhua Silk Road"), "names_wire_or_partner_only" (it names a wire, a distribution service or a partner, such as "/PRNewswire/" or "ITALPRESS", without naming a state origin), or "none".
+
+You see the headline and the text only, never the outlet, the country or the page address. Record route and disclosure from what the headline and the text show: a section label, banner or page address that is not in the text is not visible to you, so do not guess it, and when the text does not show the route, record "other_uncertain" unless the text reads as the outlet's own reporting.
+
+verification: how the article treats its central official factual claim, the factual proposition, sourced to a Chinese official, agency or state outlet, on which the article's main point depends. "corroborated" (the article presents independent evidence that supports it), "contested" (it presents independent evidence or an independent source that disputes it), "contextualized" (it supplies independent information bearing on the claim, such as prior data, a documented record or a non-official account, without settling it), "merely_attributed" (the claim is reported as something an official said, with nothing else bearing on it), "unassessed" (the claim is stated or relied on with no attribution and no independent material), or "no_official_claim" (the article's main point does not depend on a Chinese official factual claim). A stated position, policy, warning, threat, opinion or denial is not a factual claim, as under Category B. A second official, a second Chinese outlet, or a foreign outlet repeating the same statement is not independent; one independent document can be. Topic and tone play no part.
+
+For the attributes that rest on the text, copy a short span from it exactly, at most 25 words: author_evidence (the byline, credit line or dateline that shows who wrote it), commissioner_evidence (the notice, release header or SOURCE line that shows who requested or paid for it), disclosure_evidence (the credit or disclosure wording), and central_claim (the sentence carrying the central official factual claim). Each is null when the text has no such span; central_claim is null when verification is no_official_claim.
+
+In the codebook the category follows from the attributes: state origin when author or commissioner is "state"; a text whose author or commissioner is "soe" follows the issuer rule of Category A, state origin for a state-owned enterprise and not for a university; otherwise unchecked state sourcing when verification is merely_attributed or unassessed; otherwise independent journalism or not relevant. Record each attribute from the text on its own terms. Do not change an attribute to fit the category you chose: where the two disagree, the label goes to a person for review."""
 
 SYSTEM_PROMPT = """You are a coder on an academic media study. You place one news article into exactly one of four categories. The definitions below come from the study's codebook and are binding.
 
@@ -99,40 +171,44 @@ When you are genuinely uncertain between B and C, answer C. Under-counting B is 
 
 Answer not_relevant when the article is not state origin and does not concern China in any substantive way. A passing mention does not make an article relevant. A Hong Kong, Macao or Taiwan domestic story with no mainland angle is not_relevant unless it substantively concerns the PRC state or its policy, such as cross-strait relations, the national security law or Beijing's role. A press release that is not state origin is C when it substantively concerns China and not_relevant otherwise, by the same test as any other article.
 
-Return a JSON object with these fields and nothing else:
+""" + ATTRIBUTE_DEFINITIONS + """
+
+Return a JSON object with these fields and nothing else, the six attributes and their spans first:
+  author, commissioner, state_affiliation, route, disclosure, verification: one value each from the lists under the six attributes
+  author_evidence, commissioner_evidence, disclosure_evidence, central_claim: a span copied exactly from the text, at most 25 words, or null
   category: "A", "B", "C" or "not_relevant"
   confidence: a number from 0.0 to 1.0 for how sure you are of the category
   evidence_quote: the single sentence from the article that most determines the label, copied exactly
   reasoning: two sentences at most
   china_sources_cited: list of official Chinese sources the article cites or quotes, for example "Xinhua" or "MOFA spokesperson Lin Jian", empty list if none
   independent_confirmation_present: true if the article independently confirms, contextualizes or contests the official Chinese claims it carries
-  confirmation_evidence: the sentence showing that confirmation, contextualization or contest, or null
+  confirmation_evidence: the sentence showing that confirmation, contextualization or contest, or null; it is the independent material behind a verification of corroborated, contested or contextualized
   issuer_type: who issued the text itself, not whom it quotes. "state_media" (a state media outlet or group), "government" (a ministry or other government body, a provincial or municipal government, its propaganda department or information office), "party" (a Communist Party of China body), "diplomatic" (an embassy, a consulate, an ambassador or another Chinese diplomat), "state_owned_enterprise" (a state-owned enterprise or its subsidiary), "sar_government" (a Hong Kong or Macao government department or statutory body), "private_release" (a press release or sponsored text from any other issuer: a private Chinese company, a Hong Kong or Macao private body, a university, a charity, a trade show organiser, an auction house, a casino, a sports club, a foreign organisation), or "none" (the outlet's own reporting, including reporting that substantively rewrites a state text). Category A needs one of the first six; "private_release" goes with C or not_relevant; "none" goes with B, C or not_relevant.
   state_basis: for category A, what in the text shows that the state authored or commissioned it. "credit_line" (a state media credit, dateline or byline on the text), "distribution_stamp" (a release distribution notice naming a Chinese state media or government issuer, such as "A news report from Xinhuanet" or "Source: Xinhua Silk Road"), "sponsored_disclosure" (a sponsored, paid, partner or advertorial notice on a text a Chinese state entity commissioned), "diplomatic_byline" (signed by a Chinese ambassador or diplomat), "context_match" (the text is the state origin item named in a context note), or "issuer_named" (the text is itself a release or statement of the state entity it names, with none of the above). "none" for every other category.
 
 Worked examples.
 
-Example 1. Headline: "China's grain output hits record high". Text: "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday. The increase was attributed to expanded planting area and higher yields, the bureau said." Answer: {"category": "A", "confidence": 0.98, "evidence_quote": "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday.", "reasoning": "The text carries a Xinhua wire dateline and is wire copy published unaltered. No local editorial judgement is present.", "china_sources_cited": ["Xinhua", "National Bureau of Statistics"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_media", "state_basis": "credit_line"}
+Example 1. Headline: "China's grain output hits record high". Text: "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday. The increase was attributed to expanded planting area and higher yields, the bureau said." Answer: {"author": "state", "commissioner": "none", "state_affiliation": "yes", "route": "agency_syndication", "disclosure": "names_state_source", "verification": "merely_attributed", "author_evidence": "BEIJING, Dec. 12 (Xinhua)", "commissioner_evidence": null, "disclosure_evidence": "(Xinhua)", "central_claim": "China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday.", "category": "A", "confidence": 0.98, "evidence_quote": "BEIJING, Dec. 12 (Xinhua) -- China's grain output reached a record 706 million tonnes in 2024, up 1.6 percent year on year, the National Bureau of Statistics said Friday.", "reasoning": "The text carries a Xinhua wire dateline and is wire copy published unaltered. No local editorial judgement is present.", "china_sources_cited": ["Xinhua", "National Bureau of Statistics"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_media", "state_basis": "credit_line"}
 
-Example 2. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. She said the detentions violated the rights of Chinese citizens and demanded their immediate release. The two men were arrested in Manchester on Thursday." Answer: {"category": "C", "confidence": 0.8, "evidence_quote": "China has dismissed allegations that two nationals detained last week were working for its intelligence services.", "reasoning": "The article's central content is Beijing's denial and its demand for release, a stated position reported as a position, not an official factual claim treated as fact. Reporting a denial is independent journalism even though no outside source comments on it.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
+Example 2. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. She said the detentions violated the rights of Chinese citizens and demanded their immediate release. The two men were arrested in Manchester on Thursday." Answer: {"author": "newsroom", "commissioner": "none", "state_affiliation": "no", "route": "ordinary_reporting", "disclosure": "none", "verification": "no_official_claim", "author_evidence": null, "commissioner_evidence": null, "disclosure_evidence": null, "central_claim": null, "category": "C", "confidence": 0.8, "evidence_quote": "China has dismissed allegations that two nationals detained last week were working for its intelligence services.", "reasoning": "The article's central content is Beijing's denial and its demand for release, a stated position reported as a position, not an official factual claim treated as fact. Reporting a denial is independent journalism even though no outside source comments on it.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
 
-Example 3. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison. Police declined to comment." Answer: {"category": "C", "confidence": 0.92, "evidence_quote": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison.", "reasoning": "The same spokesperson claim appears, but the outlet contests it with documents and an independent source. The official claim is not treated as fact.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": true, "confirmation_evidence": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison.", "issuer_type": "none", "state_basis": "none"}
+Example 3. Headline: "Beijing rejects espionage claims after arrests". Text: "China has dismissed allegations that two nationals detained last week were working for its intelligence services. Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China. Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison. Police declined to comment." Answer: {"author": "newsroom", "commissioner": "none", "state_affiliation": "no", "route": "ordinary_reporting", "disclosure": "none", "verification": "contested", "author_evidence": null, "commissioner_evidence": null, "disclosure_evidence": null, "central_claim": "Foreign ministry spokesperson Mao Ning said on Tuesday the pair were ordinary businessmen and that the accusations were fabricated to smear China.", "category": "C", "confidence": 0.92, "evidence_quote": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison.", "reasoning": "The same spokesperson claim appears, but the outlet contests it with documents and an independent source. The official claim is not treated as fact.", "china_sources_cited": ["MOFA spokesperson Mao Ning"], "independent_confirmation_present": true, "confirmation_evidence": "Court filings seen by this newspaper, however, show one of the men listed a Ministry of State Security address on his 2019 visa application, and a former colleague confirmed he had been introduced to clients as a government liaison.", "issuer_type": "none", "state_basis": "none"}
 
-Example 4. Headline: "Xinjiang camps hold more than a million, leaked files show". Text: "Internal documents obtained by a consortium of newspapers describe the operation of detention camps in Xinjiang, including instructions to prevent escapes and to score detainees on ideological transformation. The files were authenticated by three independent experts. Beijing has called the camps vocational training centres. A statement from the Chinese embassy said the documents were fabricated and that the region was stable and prosperous. Former detainees interviewed for this story described forced political indoctrination." Answer: {"category": "C", "confidence": 0.95, "evidence_quote": "The files were authenticated by three independent experts.", "reasoning": "This is hostile to China and quotes the embassy, but the reporting rests on independently authenticated documents and interviews. Official Chinese claims are contested, not relayed.", "china_sources_cited": ["Chinese embassy statement"], "independent_confirmation_present": true, "confirmation_evidence": "Former detainees interviewed for this story described forced political indoctrination.", "issuer_type": "none", "state_basis": "none"}
+Example 4. Headline: "Xinjiang camps hold more than a million, leaked files show". Text: "Internal documents obtained by a consortium of newspapers describe the operation of detention camps in Xinjiang, including instructions to prevent escapes and to score detainees on ideological transformation. The files were authenticated by three independent experts. Beijing has called the camps vocational training centres. A statement from the Chinese embassy said the documents were fabricated and that the region was stable and prosperous. Former detainees interviewed for this story described forced political indoctrination." Answer: {"author": "newsroom", "commissioner": "none", "state_affiliation": "no", "route": "ordinary_reporting", "disclosure": "none", "verification": "contested", "author_evidence": null, "commissioner_evidence": null, "disclosure_evidence": null, "central_claim": "A statement from the Chinese embassy said the documents were fabricated and that the region was stable and prosperous.", "category": "C", "confidence": 0.95, "evidence_quote": "The files were authenticated by three independent experts.", "reasoning": "This is hostile to China and quotes the embassy, but the reporting rests on independently authenticated documents and interviews. Official Chinese claims are contested, not relayed.", "china_sources_cited": ["Chinese embassy statement"], "independent_confirmation_present": true, "confirmation_evidence": "Former detainees interviewed for this story described forced political indoctrination.", "issuer_type": "none", "state_basis": "none"}
 
-Example 5. Headline: "China launches three astronauts to space station". Text: "China sent three astronauts to its Tiangong space station on Wednesday, state broadcaster CCTV reported. The Shenzhou-19 craft lifted off from the Jiuquan launch centre at 4:27 am, according to the China Manned Space Agency, which said the launch was a complete success. The crew will stay for six months. The mission is the latest step in China's plan to land astronauts on the moon by 2030, the agency said." Answer: {"category": "B", "confidence": 0.8, "evidence_quote": "The Shenzhou-19 craft lifted off from the Jiuquan launch centre at 4:27 am, according to the China Manned Space Agency, which said the launch was a complete success.", "reasoning": "The outlet wrote a short item in which every factual claim is carried by CCTV and the space agency and treated as fact. Nothing independent confirms or contextualizes them.", "china_sources_cited": ["CCTV", "China Manned Space Agency"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
+Example 5. Headline: "China launches three astronauts to space station". Text: "China sent three astronauts to its Tiangong space station on Wednesday, state broadcaster CCTV reported. The Shenzhou-19 craft lifted off from the Jiuquan launch centre at 4:27 am, according to the China Manned Space Agency, which said the launch was a complete success. The crew will stay for six months. The mission is the latest step in China's plan to land astronauts on the moon by 2030, the agency said." Answer: {"author": "newsroom", "commissioner": "none", "state_affiliation": "no", "route": "ordinary_reporting", "disclosure": "none", "verification": "merely_attributed", "author_evidence": null, "commissioner_evidence": null, "disclosure_evidence": null, "central_claim": "China sent three astronauts to its Tiangong space station on Wednesday, state broadcaster CCTV reported.", "category": "B", "confidence": 0.8, "evidence_quote": "The Shenzhou-19 craft lifted off from the Jiuquan launch centre at 4:27 am, according to the China Manned Space Agency, which said the launch was a complete success.", "reasoning": "The outlet wrote a short item in which every factual claim is carried by CCTV and the space agency and treated as fact. Nothing independent confirms or contextualizes them.", "china_sources_cited": ["CCTV", "China Manned Space Agency"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
 
-Example 6. Headline: "Nepal floods: rescuers reach cut-off villages". Text: "Rescue teams reached villages in Rasuwa district on Sunday after days of landslides. At least 40 people are confirmed dead, according to the Nepalese home ministry. Aid agencies said access remained difficult. Chinese state media reported that six people were also missing on the Tibetan side of the border." Answer: {"category": "C", "confidence": 0.7, "evidence_quote": "Rescue teams reached villages in Rasuwa district on Sunday after days of landslides.", "reasoning": "The article is independent reporting on Nepal with Nepalese and aid agency sourcing. A single attributed line from Chinese state media about the Tibetan side is marked as a report, not treated as established fact, and is peripheral, and uncertain between B and C, the answer is C.", "china_sources_cited": ["Chinese state media"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
+Example 6. Headline: "Nepal floods: rescuers reach cut-off villages". Text: "Rescue teams reached villages in Rasuwa district on Sunday after days of landslides. At least 40 people are confirmed dead, according to the Nepalese home ministry. Aid agencies said access remained difficult. Chinese state media reported that six people were also missing on the Tibetan side of the border." Answer: {"author": "newsroom", "commissioner": "none", "state_affiliation": "no", "route": "ordinary_reporting", "disclosure": "none", "verification": "no_official_claim", "author_evidence": null, "commissioner_evidence": null, "disclosure_evidence": null, "central_claim": null, "category": "C", "confidence": 0.7, "evidence_quote": "Rescue teams reached villages in Rasuwa district on Sunday after days of landslides.", "reasoning": "The article is independent reporting on Nepal with Nepalese and aid agency sourcing. A single attributed line from Chinese state media about the Tibetan side is marked as a report, not treated as established fact, and is peripheral, and uncertain between B and C, the answer is C.", "china_sources_cited": ["Chinese state media"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "none", "state_basis": "none"}
 
-Example 7, a private company's release. Headline: "Lanshan Robotics opens new production base in Hefei". Text: "HEFEI, China, Sept. 3, 2026 /PRNewswire/ -- Lanshan Robotics, a privately held maker of service robots, today opened a production base in Hefei that doubles its annual capacity, to meet rising demand from hotels and hospitals across China. The company said the base would employ 1,200 people. Sponsored content." Answer: {"category": "C", "confidence": 0.85, "evidence_quote": "HEFEI, China, Sept. 3, 2026 /PRNewswire/ -- Lanshan Robotics, a privately held maker of service robots, today opened a production base in Hefei that doubles its annual capacity, to meet rising demand from hotels and hospitals across China.", "reasoning": "The issuer is a private Chinese company, not a Chinese state entity, so the release is not state origin even though it was published unaltered under a sponsored label. Its subject is business in China, so it concerns China and is coded C.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "private_release", "state_basis": "none"}
+Example 7, a private company's release. Headline: "Lanshan Robotics opens new production base in Hefei". Text: "HEFEI, China, Sept. 3, 2026 /PRNewswire/ -- Lanshan Robotics, a privately held maker of service robots, today opened a production base in Hefei that doubles its annual capacity, to meet rising demand from hotels and hospitals across China. The company said the base would employ 1,200 people. Sponsored content." Answer: {"author": "issuer_nonstate", "commissioner": "issuer_nonstate", "state_affiliation": "no", "route": "paid_release_wire", "disclosure": "names_wire_or_partner_only", "verification": "no_official_claim", "author_evidence": "HEFEI, China, Sept. 3, 2026 /PRNewswire/ -- Lanshan Robotics, a privately held maker of service robots", "commissioner_evidence": "Sponsored content.", "disclosure_evidence": "/PRNewswire/", "central_claim": null, "category": "C", "confidence": 0.85, "evidence_quote": "HEFEI, China, Sept. 3, 2026 /PRNewswire/ -- Lanshan Robotics, a privately held maker of service robots, today opened a production base in Hefei that doubles its annual capacity, to meet rising demand from hotels and hospitals across China.", "reasoning": "The issuer is a private Chinese company, not a Chinese state entity, so the release is not state origin even though it was published unaltered under a sponsored label. Its subject is business in China, so it concerns China and is coded C.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "private_release", "state_basis": "none"}
 
-Example 8, a state-owned enterprise's release. Headline: "GAC Cambodia plant starts production". Text: "PHNOM PENH, Cambodia, Sept. 20, 2026 /PRNewswire/ -- GAC Group today started production at its assembly plant in Cambodia, the carmaker's first in the country, with an initial capacity of 20,000 vehicles a year. The plant will assemble AION models for local and regional markets, GAC said." Answer: {"category": "A", "confidence": 0.85, "evidence_quote": "PHNOM PENH, Cambodia, Sept. 20, 2026 /PRNewswire/ -- GAC Group today started production at its assembly plant in Cambodia, the carmaker's first in the country, with an initial capacity of 20,000 vehicles a year.", "reasoning": "The release was issued by GAC Group, a state-owned carmaker, and is published as issued. A state-owned enterprise's commercial release is state origin, recorded with its own issuer type.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_owned_enterprise", "state_basis": "issuer_named"}
+Example 8, a state-owned enterprise's release. Headline: "GAC Cambodia plant starts production". Text: "PHNOM PENH, Cambodia, Sept. 20, 2026 /PRNewswire/ -- GAC Group today started production at its assembly plant in Cambodia, the carmaker's first in the country, with an initial capacity of 20,000 vehicles a year. The plant will assemble AION models for local and regional markets, GAC said." Answer: {"author": "soe", "commissioner": "soe", "state_affiliation": "yes", "route": "paid_release_wire", "disclosure": "names_wire_or_partner_only", "verification": "no_official_claim", "author_evidence": "PHNOM PENH, Cambodia, Sept. 20, 2026 /PRNewswire/ -- GAC Group", "commissioner_evidence": "/PRNewswire/ -- GAC Group", "disclosure_evidence": "/PRNewswire/", "central_claim": null, "category": "A", "confidence": 0.85, "evidence_quote": "PHNOM PENH, Cambodia, Sept. 20, 2026 /PRNewswire/ -- GAC Group today started production at its assembly plant in Cambodia, the carmaker's first in the country, with an initial capacity of 20,000 vehicles a year.", "reasoning": "The release was issued by GAC Group, a state-owned carmaker, and is published as issued. A state-owned enterprise's commercial release is state origin, recorded with its own issuer type.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_owned_enterprise", "state_basis": "issuer_named"}
 
-Example 9, a Hong Kong SAR statutory body. Headline: "HKTDC to stage autumn electronics fair". Text: "HONG KONG, Oct. 1, 2026 /PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC) will hold its Autumn Electronics Fair from 13 to 16 October at the Hong Kong Convention and Exhibition Centre, with more than 3,000 exhibitors expected. The HKTDC said the fair would help small and medium-sized firms reach buyers in mainland China and Southeast Asia." Answer: {"category": "A", "confidence": 0.85, "evidence_quote": "HONG KONG, Oct. 1, 2026 /PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC) will hold its Autumn Electronics Fair from 13 to 16 October at the Hong Kong Convention and Exhibition Centre, with more than 3,000 exhibitors expected.", "reasoning": "The HKTDC is a statutory body of the Hong Kong SAR, which the codebook counts as a Chinese state entity, and its release is published as issued. It is state origin, recorded as a SAR government release.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "sar_government", "state_basis": "issuer_named"}
+Example 9, a Hong Kong SAR statutory body. Headline: "HKTDC to stage autumn electronics fair". Text: "HONG KONG, Oct. 1, 2026 /PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC) will hold its Autumn Electronics Fair from 13 to 16 October at the Hong Kong Convention and Exhibition Centre, with more than 3,000 exhibitors expected. The HKTDC said the fair would help small and medium-sized firms reach buyers in mainland China and Southeast Asia." Answer: {"author": "state", "commissioner": "state", "state_affiliation": "yes", "route": "paid_release_wire", "disclosure": "names_wire_or_partner_only", "verification": "no_official_claim", "author_evidence": "HONG KONG, Oct. 1, 2026 /PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC)", "commissioner_evidence": "/PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC)", "disclosure_evidence": "/PRNewswire/", "central_claim": null, "category": "A", "confidence": 0.85, "evidence_quote": "HONG KONG, Oct. 1, 2026 /PRNewswire/ -- The Hong Kong Trade Development Council (HKTDC) will hold its Autumn Electronics Fair from 13 to 16 October at the Hong Kong Convention and Exhibition Centre, with more than 3,000 exhibitors expected.", "reasoning": "The HKTDC is a statutory body of the Hong Kong SAR, which the codebook counts as a Chinese state entity, and its release is published as issued. It is state origin, recorded as a SAR government release.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "sar_government", "state_basis": "issuer_named"}
 
-Example 10, a Hong Kong university's release. Headline: "CityUHK team develops low-cost water sensor". Text: "HONG KONG, Sept. 15, 2026 /PRNewswire/ -- Researchers at City University of Hong Kong have developed a low-cost sensor that detects heavy metals in drinking water within minutes, the university said. The team plans to test the sensor with rural communities next year." Answer: {"category": "not_relevant", "confidence": 0.85, "evidence_quote": "Researchers at City University of Hong Kong have developed a low-cost sensor that detects heavy metals in drinking water within minutes, the university said.", "reasoning": "A university, a public one included, is not a Chinese state entity, so the release is not state origin. It is a Hong Kong story with no bearing on the PRC state or its policy, so it does not concern China.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "private_release", "state_basis": "none"}
+Example 10, a Hong Kong university's release. Headline: "CityUHK team develops low-cost water sensor". Text: "HONG KONG, Sept. 15, 2026 /PRNewswire/ -- Researchers at City University of Hong Kong have developed a low-cost sensor that detects heavy metals in drinking water within minutes, the university said. The team plans to test the sensor with rural communities next year." Answer: {"author": "issuer_nonstate", "commissioner": "issuer_nonstate", "state_affiliation": "no", "route": "paid_release_wire", "disclosure": "names_wire_or_partner_only", "verification": "no_official_claim", "author_evidence": "HONG KONG, Sept. 15, 2026 /PRNewswire/ --", "commissioner_evidence": null, "disclosure_evidence": "/PRNewswire/", "central_claim": null, "category": "not_relevant", "confidence": 0.85, "evidence_quote": "Researchers at City University of Hong Kong have developed a low-cost sensor that detects heavy metals in drinking water within minutes, the university said.", "reasoning": "A university, a public one included, is not a Chinese state entity, so the release is not state origin. It is a Hong Kong story with no bearing on the PRC state or its policy, so it does not concern China.", "china_sources_cited": [], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "private_release", "state_basis": "none"}
 
-Example 11, state copy on a topic other than China. Headline: "Small volcano near Philippine capital erupts". Text: "MANILA, Oct. 9 (Bernama-Xinhua) -- A small volcano south of the Philippine capital erupted on Thursday, sending a column of ash about a kilometre into the sky, the country's volcanology institute said. No casualties were reported." Answer: {"category": "A", "confidence": 0.9, "evidence_quote": "MANILA, Oct. 9 (Bernama-Xinhua) -- A small volcano south of the Philippine capital erupted on Thursday, sending a column of ash about a kilometre into the sky, the country's volcanology institute said.", "reasoning": "The text carries a Xinhua credit and is published unaltered, so the words are the state's. State text is state origin whatever its topic, so it is A although it is about the Philippines.", "china_sources_cited": ["Xinhua"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_media", "state_basis": "credit_line"}
+Example 11, state copy on a topic other than China. Headline: "Small volcano near Philippine capital erupts". Text: "MANILA, Oct. 9 (Bernama-Xinhua) -- A small volcano south of the Philippine capital erupted on Thursday, sending a column of ash about a kilometre into the sky, the country's volcanology institute said. No casualties were reported." Answer: {"author": "state", "commissioner": "none", "state_affiliation": "yes", "route": "agency_syndication", "disclosure": "names_state_source", "verification": "no_official_claim", "author_evidence": "MANILA, Oct. 9 (Bernama-Xinhua)", "commissioner_evidence": null, "disclosure_evidence": "(Bernama-Xinhua)", "central_claim": null, "category": "A", "confidence": 0.9, "evidence_quote": "MANILA, Oct. 9 (Bernama-Xinhua) -- A small volcano south of the Philippine capital erupted on Thursday, sending a column of ash about a kilometre into the sky, the country's volcanology institute said.", "reasoning": "The text carries a Xinhua credit and is published unaltered, so the words are the state's. State text is state origin whatever its topic, so it is A although it is about the Philippines.", "china_sources_cited": ["Xinhua"], "independent_confirmation_present": false, "confirmation_evidence": null, "issuer_type": "state_media", "state_basis": "credit_line"}
 """
 
 # Who issued the text the model judged (its issuer_type field, stored on the label). The first six are
@@ -176,9 +252,142 @@ def inconsistency_of(data: Dict) -> Optional[str]:
         return STATE_ISSUER_WITHOUT_STATE_ORIGIN
     return None
 
+# The paper's six attributes (ATTRIBUTE_DEFINITIONS), each with the value set of the hand coding
+# (Paper_Build/_recode_brief.md and extension_500/CODING_NOTES.md): the brief's values plus the two the
+# extension's coding notes added, issuer_nonstate (a release written and paid for by a non-state body) and soe
+# (a state-owned enterprise or a state-run institution such as a state university). soe is what lets a label
+# say that the issuer is state-owned rather than a party-state body, so the code that consumes labels can hold
+# such releases apart (owner decisions D13 and D14 of 2026-11-24); a Hong Kong or Macao government body is
+# author "state" with issuer_type sar_government. The model never sees outlet, country or URL, so route and
+# disclosure are read from the headline and text alone.
+ATTRIBUTE_VALUES = {
+    "author": ("state", "soe", "newsroom", "studio", "agency", "issuer_nonstate", "unknown"),
+    "commissioner": ("state", "soe", "publisher", "issuer_nonstate", "none", "unknown"),
+    "state_affiliation": ("yes", "no", "uncertain"),
+    "route": ("agency_syndication", "paid_release_wire", "sponsored_placement", "signed_contribution",
+              "ordinary_reporting", "other_uncertain"),
+    "disclosure": ("names_state_source", "names_wire_or_partner_only", "none"),
+    "verification": ("corroborated", "contested", "contextualized", "merely_attributed", "unassessed",
+                     "no_official_claim"),
+}
+ATTRIBUTES = tuple(ATTRIBUTE_VALUES)
+# Short spans copied from the text, for the attributes that rest on it; confirmation_evidence is the
+# independent material behind a verification of corroborated, contested or contextualized.
+ATTRIBUTE_EVIDENCE = ("author_evidence", "commissioner_evidence", "disclosure_evidence", "central_claim")
+# The classifications column each attribute is stored in; the spans go to attr_evidence as one JSON object.
+ATTRIBUTE_COLUMNS = {"author": "attr_author", "commissioner": "attr_commissioner",
+                     "state_affiliation": "attr_state_affil", "route": "attr_route",
+                     "disclosure": "attr_disclosure", "verification": "attr_verification"}
+ATTRIBUTE_EVIDENCE_COLUMN = "attr_evidence"
+# The column name the hand coding (ext_codes.tsv) uses for each attribute.
+PAPER_COLUMNS = {"author": "AUTHOR", "commissioner": "COMMISSIONER", "state_affiliation": "STATE_AFFIL",
+                 "route": "ROUTE", "disclosure": "DISCLOSURE", "verification": "VERIFICATION"}
+# Verification values under which the paper's rule gives unchecked state sourcing.
+UNCHECKED_VERIFICATION = ("merely_attributed", "unassessed")
+# Why a label whose attributes and category do not fit together is marked for review (needs_review), the way an
+# inconsistent issuer type is (INCONSISTENCIES). The category is kept as the model returned it.
+#   category_differs_from_attributes  the category derived from the attributes by the paper's rule
+#       (derived_category) is not the one the model returned (attribute_disagreement says how they are matched).
+#   attributes_leave_authorship_open  author or commissioner is "unknown" where it could decide state origin;
+#       the paper codes such a text "?" and counts it nowhere.
+CATEGORY_DIFFERS_FROM_ATTRIBUTES = "category_differs_from_attributes"
+ATTRIBUTES_LEAVE_AUTHORSHIP_OPEN = "attributes_leave_authorship_open"
+ATTRIBUTE_FLAWS = (CATEGORY_DIFFERS_FROM_ATTRIBUTES, ATTRIBUTES_LEAVE_AUTHORSHIP_OPEN)
+
+
+def _span(value) -> Optional[str]:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def attributes_of(data: Dict) -> Optional[Dict]:
+    """The six attributes of a parsed reply (or of a session label, whose line is in data['_raw']), as
+    {attribute: value or None, ..., "evidence": {span: text or None}}; a value outside its list is None.
+    None when the reply carries none of the six (every reply made before prompt 2026-12-01)."""
+    out = {a: _field_of(data, a, values) for a, values in ATTRIBUTE_VALUES.items()}
+    if all(v is None for v in out.values()):
+        return None
+    raw = None
+    if isinstance(data.get("_raw"), str):
+        try:
+            raw = json.loads(data["_raw"])
+        except ValueError:
+            raw = None
+    raw = raw if isinstance(raw, dict) else {}
+    out["evidence"] = {k: _span(data[k] if k in data else raw.get(k)) for k in ATTRIBUTE_EVIDENCE}
+    return out
+
+
+def attributes_of_row(row) -> Optional[Dict]:
+    """The attributes stored on a classifications row (ATTRIBUTE_COLUMNS, attr_evidence), in the shape
+    attributes_of gives, or None when the row carries none (a rules label, or a model label made before
+    prompt 2026-12-01, or a database not yet migrated)."""
+    keys = row.keys() if hasattr(row, "keys") else ()
+    out = {a: (row[col] if col in keys else None) for a, col in ATTRIBUTE_COLUMNS.items()}
+    if all(v is None for v in out.values()):
+        return None
+    try:
+        ev = json.loads(row[ATTRIBUTE_EVIDENCE_COLUMN] or "{}") if ATTRIBUTE_EVIDENCE_COLUMN in keys else {}
+    except (TypeError, ValueError):
+        ev = {}
+    ev = ev if isinstance(ev, dict) else {}
+    out["evidence"] = {k: _span(ev.get(k)) for k in ATTRIBUTE_EVIDENCE}
+    return out
+
+
+def derived_category(attrs: Optional[Dict]) -> Optional[str]:
+    """The category the paper's rule derives from the attributes: "A" when author or commissioner is state,
+    else "S" when either is soe (a state-owned enterprise or state-run institution), else "?" when either is
+    unknown (it could decide A), else "B" when verification is merely_attributed or unassessed, else "C".
+    None when author, commissioner or verification is missing."""
+    if not attrs:
+        return None
+    author, commissioner, verification = attrs.get("author"), attrs.get("commissioner"), attrs.get("verification")
+    if author is None or commissioner is None or verification is None:
+        return None
+    if "state" in (author, commissioner):
+        return "A"
+    if "soe" in (author, commissioner):
+        return "S"
+    if "unknown" in (author, commissioner):
+        return "?"
+    return "B" if verification in UNCHECKED_VERIFICATION else "C"
+
+
+def attribute_disagreement(data: Dict) -> Optional[str]:
+    """Why the category a reply returned does not fit its attributes (ATTRIBUTE_FLAWS), or None. None also
+    for a reply without attributes, or with author, commissioner or verification missing.
+
+    The derived category (derived_category) is matched with the tracker's categories as they are defined
+    now: A with A; B with B; C with C or not_relevant (the paper has no not relevant); S, a state-owned
+    issuer, with A when the reply's issuer_type is state_owned_enterprise (the issuer rule makes such a
+    release state origin) and with C or not_relevant when it is private_release or none (a state university
+    or laboratory, which the issuer rule leaves outside state origin). "?" is always marked."""
+    attrs = attributes_of(data)
+    derived = derived_category(attrs)
+    if derived is None:
+        return None
+    if derived == "?":
+        return ATTRIBUTES_LEAVE_AUTHORSHIP_OPEN
+    category, issuer = data.get("category"), issuer_type_of(data)
+    if derived == "S":
+        agrees = ((category == "A" and issuer == "state_owned_enterprise")
+                  or (category in ("C", "not_relevant") and issuer in (None, "private_release", "none")))
+    elif derived == "C":
+        agrees = category in ("C", "not_relevant")
+    else:
+        agrees = category == derived
+    return None if agrees else CATEGORY_DIFFERS_FROM_ATTRIBUTES
+
+
+def _attribute_schema() -> Dict:
+    props = {a: {"type": "string", "enum": list(v)} for a, v in ATTRIBUTE_VALUES.items()}
+    props.update({k: {"type": ["string", "null"]} for k in ATTRIBUTE_EVIDENCE})
+    return props
+
+
 OUTPUT_SCHEMA = {
     "type": "object",
-    "properties": {
+    "properties": dict(_attribute_schema(), **{
         "category": {"type": "string", "enum": ["A", "B", "C", "not_relevant"]},
         "confidence": {"type": "number"},
         "evidence_quote": {"type": "string"},
@@ -188,9 +397,11 @@ OUTPUT_SCHEMA = {
         "confirmation_evidence": {"type": ["string", "null"]},
         "issuer_type": {"type": "string", "enum": list(ISSUER_TYPES)},
         "state_basis": {"type": "string", "enum": list(STATE_BASES)},
-    },
-    "required": ["category", "confidence", "evidence_quote", "reasoning", "china_sources_cited",
-                 "independent_confirmation_present", "confirmation_evidence", "issuer_type", "state_basis"],
+    }),
+    # The six attributes and their spans come first, so the model records them before it chooses the category.
+    "required": list(ATTRIBUTES) + list(ATTRIBUTE_EVIDENCE) + [
+        "category", "confidence", "evidence_quote", "reasoning", "china_sources_cited",
+        "independent_confirmation_present", "confirmation_evidence", "issuer_type", "state_basis"],
     "additionalProperties": False,
 }
 
@@ -327,6 +538,15 @@ class DryRunClient:
                        "confirmation_evidence": None,
                        "issuer_type": "state_media" if cat == "A" else "none",
                        "state_basis": "credit_line" if cat == "A" else "none"}
+            if self.outer.attributes:
+                # The six attributes, consistent with the category (attribute_disagreement finds nothing).
+                payload.update({"author": "state" if cat == "A" else "newsroom", "commissioner": "none",
+                                "state_affiliation": "yes" if cat == "A" else "no",
+                                "route": "agency_syndication" if cat == "A" else "ordinary_reporting",
+                                "disclosure": "names_state_source" if cat == "A" else "none",
+                                "verification": "merely_attributed" if cat == "B" else "no_official_claim",
+                                "author_evidence": None, "commissioner_evidence": None, "disclosure_evidence": None,
+                                "central_claim": body.split("\n")[0][:120] if cat == "B" else None})
 
             class Block:
                 type = "text"
@@ -345,9 +565,11 @@ class DryRunClient:
                 model = "dry-run"
             return Msg()
 
-    def __init__(self, answer=None):
+    def __init__(self, answer=None, attributes: bool = True):
         self.calls = []
         self.answer = answer or (lambda body: "C")
+        # attributes=False answers as a prompt before 2026-12-01 did, without the six attributes.
+        self.attributes = attributes
         self.messages = DryRunClient._Messages(self)
 
 
@@ -699,6 +921,7 @@ def _copy_from_dup_group(conn, row, current_prompt_only: bool = False, refreshed
         route=other["route"] if other["category"] == "A" else None,
         issuer_type=other["issuer_type"] if "issuer_type" in other.keys() else None,
         needs_review=other["needs_review"] if "needs_review" in other.keys() else None,
+        attributes=attributes_of_row(other),
     )
     return True
 
@@ -732,10 +955,13 @@ def store_result(conn, article_id: int, data: Dict, model_version: str,
                  prompt_version: Optional[str] = PROMPT_VERSION) -> Optional[str]:
     """Store a model label. The prompt it was made under is recorded in model_version
     (with_prompt_version); pipeline.labels passes prompt_version=None, because a session label names
-    its own prompt or, naming none, is taken to predate the current one. Returns the inconsistency of
-    the reply (inconsistency_of), stored in needs_review, or None; a state origin reply with no state
-    issuer is stored as C."""
+    its own prompt or, naming none, is taken to predate the current one. Returns why the label is marked
+    for review, stored in needs_review, or None: the inconsistency of the reply (inconsistency_of), or else
+    the disagreement between its category and its six attributes (attribute_disagreement); a state origin
+    reply with no state issuer is stored as C. The attributes are stored with the label (attributes_of)."""
     flaw = inconsistency_of(data)
+    attr_flaw = attribute_disagreement(data)
+    attrs = attributes_of(data)
     category, reasoning = data["category"], data.get("reasoning")
     if flaw == STATE_ORIGIN_WITHOUT_STATE_ISSUER:
         category = "C"
@@ -744,6 +970,10 @@ def store_result(conn, article_id: int, data: Dict, model_version: str,
     elif flaw:
         reasoning = "[inconsistent reply: %s with issuer type %s, kept for review] %s" % (
             category, issuer_type_of(data), reasoning or "")
+    elif attr_flaw:
+        # The category stays as the model returned it; the paper's rule gives another from the attributes.
+        reasoning = "[attributes give %s by the paper's rule, category %s kept for review] %s" % (
+            derived_category(attrs), category, reasoning or "")
     store.insert_classification(
         conn, article_id, "llm", category, data["confidence"],
         evidence_quote=data.get("evidence_quote"), reasoning=reasoning,
@@ -753,9 +983,9 @@ def store_result(conn, article_id: int, data: Dict, model_version: str,
         model_version=with_prompt_version(model_version, prompt_version),
         raw_response=data.get("_raw"),
         route=_model_route(conn, article_id, data) if category == "A" else None,
-        issuer_type=issuer_type_of(data), needs_review=flaw,
+        issuer_type=issuer_type_of(data), needs_review=flaw or attr_flaw, attributes=attrs,
     )
-    return flaw
+    return flaw or attr_flaw
 
 
 def pending_articles(conn, limit: int) -> List:
@@ -1066,8 +1296,11 @@ def run(conn, run_id: str, deadline: Optional[float] = None, batch: bool = False
             conn.commit()
             continue
         consecutive_errors = 0
-        if store_result(conn, r["id"], data, getattr(message, "model", None) or config.LLM_MODEL):
-            counts["inconsistent"] = counts.get("inconsistent", 0) + 1
+        review = store_result(conn, r["id"], data, getattr(message, "model", None) or config.LLM_MODEL)
+        if review:
+            # attribute_review: the category does not fit the six attributes (ATTRIBUTE_FLAWS).
+            key = "attribute_review" if review in ATTRIBUTE_FLAWS else "inconsistent"
+            counts[key] = counts.get(key, 0) + 1
         counts["relabelled" if relabel else "classified"] += 1
         conn.commit()
         counts["copied"] += _settle_pending_dup_siblings(conn, r["id"])
@@ -1158,9 +1391,11 @@ def _collect_batches(conn, client) -> Dict:
                     if data and not data.get("_error"):
                         # The prompt the batch was submitted under, from its row: a batch from
                         # before PROMPT_VERSION records none and its labels are stored untagged.
-                        if store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"],
-                                        prompt_version=prompt_version_of(b["model_version"])):
-                            out["inconsistent"] = out.get("inconsistent", 0) + 1
+                        review = store_result(conn, aid, data, getattr(message, "model", None) or b["model_version"],
+                                              prompt_version=prompt_version_of(b["model_version"]))
+                        if review:
+                            key = "attribute_review" if review in ATTRIBUTE_FLAWS else "inconsistent"
+                            out[key] = out.get(key, 0) + 1
                         out["batch_collected"] += 1
                         # A held-back sibling submitted to this or an earlier batch is settled for
                         # free the moment its group's representative is collected, rather than

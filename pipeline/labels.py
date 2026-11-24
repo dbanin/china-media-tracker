@@ -32,7 +32,9 @@ From 2026-10-12 the model_version must name both the session and the prompt the 
 (session_model_version). A line whose model_version does not name the session is malformed. A label
 made under an older prompt, or naming no prompt at all (every file before 2026-10-12), would only be
 queued for the API again (classify_llm.relabel_candidates), so ingest counts it as older_prompt and
-skips it, never fatal, and the article stays in the queue for a label under the current prompt.
+skips it, never fatal, and the article stays in the queue for a label under the current prompt. A label
+naming a prompt whose category definitions the current one keeps (classify_llm.PROMPT_EXTENDS: 2026-10-17
+under 2026-12-01) is not older and is applied.
 
 The labelling agents must be given the live prompt, never a copy kept from an earlier pass:
 
@@ -55,6 +57,12 @@ them, or with a value outside the enum, is malformed. A line from an older promp
 older_prompt anyway). They reach store_result exactly as parse_response hands them on, so a session
 state origin label is routed from its state_basis (classify_llm.BASIS_ROUTES, _model_route) and an
 inconsistent one (classify_llm.inconsistency_of) is stored and flagged as the API path stores it.
+
+From prompt 2026-12-01 (classify_llm.ATTRIBUTES_SINCE) a line also carries the paper's six attributes
+(author, commissioner, state_affiliation, route, disclosure, verification, each one of
+classify_llm.ATTRIBUTE_VALUES) and their spans (author_evidence, commissioner_evidence, disclosure_evidence,
+central_claim, each a string or null); a line naming that prompt or a later one without them is malformed.
+They are stored and checked against the category as the API path does (classify_llm.attribute_disagreement).
 
 The same directory holds api_first.jsonl, which is not a labels file and is never ingested. It
 lists the waiting articles whose text the session could not fetch on the owner's machine (HTTP 403,
@@ -87,6 +95,9 @@ FIELDS = ("url_hash", "category", "confidence", "evidence_quote", "reasoning", "
 # prompt or a later one; a label from an older prompt may lack them.
 SCHEMA_FIELDS = ("issuer_type", "state_basis")
 SCHEMA_FIELDS_SINCE = "2026-10-17"
+# The paper's six attributes and their spans, required by classify_llm.OUTPUT_SCHEMA from prompt
+# classify_llm.ATTRIBUTES_SINCE (2026-12-01) on, so required of a label naming that prompt or a later one.
+ATTRIBUTE_FIELDS = classify_llm.ATTRIBUTES + classify_llm.ATTRIBUTE_EVIDENCE
 # Enough examples of a bad line to diagnose a file without printing all of it.
 MALFORMED_SAMPLES = 5
 # The list of articles the API takes first; it lives beside the labels but holds none.
@@ -172,6 +183,16 @@ def validate(obj) -> Optional[str]:
     for f, allowed in (("issuer_type", classify_llm.ISSUER_TYPES), ("state_basis", classify_llm.STATE_BASES)):
         if f in obj and obj[f] not in allowed:
             return "%s %r is not one of %s" % (f, obj[f], "|".join(allowed))
+    if (classify_llm.prompt_version_of(mv) or "") >= classify_llm.ATTRIBUTES_SINCE:
+        missing = [f for f in ATTRIBUTE_FIELDS if f not in obj]
+        if missing:
+            return "missing %s, required from prompt %s" % (", ".join(missing), classify_llm.ATTRIBUTES_SINCE)
+    for f, allowed in classify_llm.ATTRIBUTE_VALUES.items():
+        if f in obj and obj[f] not in allowed:
+            return "%s %r is not one of %s" % (f, obj[f], "|".join(allowed))
+    for f in classify_llm.ATTRIBUTE_EVIDENCE:
+        if f in obj and obj[f] is not None and not isinstance(obj[f], str):
+            return "%s is not a string or null" % f
     return None
 
 
@@ -267,8 +288,10 @@ def load_api_first(directory: Optional[Path] = None, stats: Optional[Dict] = Non
 
 def _data(label: Dict) -> Dict:
     """The label in the shape classify_llm.parse_response hands to store_result, issuer_type and
-    state_basis included (None for a label from before prompt 2026-10-17, as parse_response gives)."""
-    return {
+    state_basis included (None for a label from before prompt 2026-10-17, as parse_response gives), and the
+    six attributes with their spans when the label carries them (from prompt 2026-12-01)."""
+    out = {k: label[k] for k in ATTRIBUTE_FIELDS if k in label}
+    return dict(out, **{
         "category": label["category"],
         "confidence": float(label["confidence"]),
         "evidence_quote": label["evidence_quote"],
@@ -279,7 +302,7 @@ def _data(label: Dict) -> Dict:
         "issuer_type": label.get("issuer_type"),
         "state_basis": label.get("state_basis"),
         "_raw": label["_raw"],
-    }
+    })
 
 
 def ingest(conn, directory: Optional[Path] = None, now: Optional[dt.datetime] = None) -> Dict:
@@ -320,7 +343,11 @@ def ingest(conn, directory: Optional[Path] = None, now: Optional[dt.datetime] = 
             # The label's model_version is kept as written, naming the session and the prompt it
             # used ("claude-opus-5-5 (session, prompt 2026-10-17)"). An inconsistent label is stored and
             # flagged in needs_review exactly as an inconsistent API reply is (classify_llm.inconsistency_of).
-            if classify_llm.store_result(conn, row["id"], _data(label), label["model_version"], prompt_version=None):
+            review = classify_llm.store_result(conn, row["id"], _data(label), label["model_version"], prompt_version=None)
+            if review in classify_llm.ATTRIBUTE_FLAWS:
+                # The category does not fit the six attributes; flagged for review as the API path flags it.
+                counts["attribute_review"] = counts.get("attribute_review", 0) + 1
+            elif review:
                 counts["inconsistent"] += 1
             conn.commit()
             applied.append(row["id"])

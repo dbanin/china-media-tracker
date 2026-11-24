@@ -3,6 +3,7 @@ import json
 import sqlite3
 
 from pipeline import classify_llm, config, labels, store
+from tests._attributes import attribute_fields
 
 SESSION = "claude-sonnet-5 (session, prompt %s)" % classify_llm.PROMPT_VERSION
 
@@ -32,6 +33,8 @@ def _label(url_hash, category="B", **kw):
            # Required from prompt 2026-10-17 (labels.SCHEMA_FIELDS).
            "issuer_type": "state_media" if category == "A" else "none",
            "state_basis": "credit_line" if category == "A" else "none"}
+    # Required from prompt 2026-12-01 (labels.ATTRIBUTE_FIELDS), consistent with the category.
+    lab.update(attribute_fields(category, lab["issuer_type"]))
     lab.update(kw)
     return lab
 

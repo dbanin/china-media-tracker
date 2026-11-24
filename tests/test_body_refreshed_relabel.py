@@ -54,6 +54,12 @@ def _marker(conn, aid):
 
 def test_a_kept_model_label_on_a_stale_stub_is_marked_and_relabelled_on_the_release(db, monkeypatch):  # noqa: F811
     monkeypatch.setattr(fetch_articles, "process_article", lambda f, r: (_ for _ in ()).throw(AssertionError("no fetch")))
+    # The release names its issuer, a municipal bureau, in its headline and its Source line, so since the release
+    # issuer rule of 2026-11-24 the rules label it state origin (tests/test_state_issuers.py). The marking tested
+    # here is of a model label the rules keep, so the issuer reading is switched off for this test.
+    from pipeline import state_issuers
+    real = state_issuers.read_release
+    monkeypatch.setattr(state_issuers, "read_release", lambda *a, **k: dict(real(*a, **k), issuer=None))
     aid = _stale_article(db, ANTARA_URL, "id_antara_en", ANTARA_TITLE, ANTARA_STUB, html=_page("en_id_antara_release"),
                          label=("llm", "C", "2026.09.9"))
     db.execute("UPDATE classifications SET model_version=? WHERE article_id=?", (CURRENT, aid))

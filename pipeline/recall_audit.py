@@ -41,7 +41,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from pipeline import config
+from pipeline import config, freshness
 from pipeline.lookalike import (BODY_CONTAINMENT, BODY_MIN_SHINGLES, SHINGLE, SUMMARY_CONTAINMENT,  # noqa: F401
                                 SUMMARY_MIN_SHINGLES, TITLE_JACCARD, TITLE_MIN_TOKENS, _Index, shingles,
                                 tie_rank, title_set, tokens)
@@ -539,9 +539,14 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.cmd == "compute":
         from pipeline import store
-        cmd_compute(store.connect(), Path(args.csv))
+        conn = store.connect()
+        freshness.guard(conn, "recall_audit compute")
+        cmd_compute(conn, Path(args.csv))
         return
     conn = _open_readonly(config.DB_PATH)
+    # A stale local copy: the sample is refused, the description warned about (pipeline/freshness.py).
+    if not freshness.guard(conn, "recall_audit %s" % args.cmd, refuse=args.cmd == "sample"):
+        raise SystemExit(1)
     loader = _bodies_loader() if args.bodies else None
     if args.cmd == "sample":
         cmd_sample(conn, args.n, args.seed, Path(args.out) if args.out else None, bodies=loader)

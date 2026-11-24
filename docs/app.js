@@ -6,10 +6,10 @@
   var CITATION_AUTHOR = "Daniel Banin";
   /* Matches the index.html query string on style.css, compute.js and app.js. content.json is not
      linked from the page, so it carries its own copy of the same number here. */
-  var ASSET_VERSION = "95";
+  var ASSET_VERSION = "96";
   /* The newest meta.schema_version this code knows how to read. The orchestrator bumps it together with
      pipeline.config.SCHEMA_VERSION (tests/test_deploy_self_heal_2026_10_23.py holds the two equal). */
-  var KNOWN_SCHEMA = 21;
+  var KNOWN_SCHEMA = 22;
 
   var state = {
     metric: "count_a", measure: "a", basis: "count", route: null, windowDays: 30, distribution: "both", themeSort: null, themeEnd: null, themePlaying: null, themeWindow: 30, mode: "all", endDate: null, selected: null, playing: null, zoomIso: null, zoomK: 1, lastCountry: null,
@@ -136,6 +136,7 @@
       quiet("data/archive_checks.json", null)
     ]).then(function (res) {
       state.meta = res[0]; state.latest = res[1] || {countries: {}, totals: {}};
+      syncItemRule();
       state.series = res[2] || []; state.outlets = (res[3] && res[3].outlets) || [];
       state.topo = res[4];
       (res[5] || []).forEach(function (r) { state.names[r["alpha-3"]] = r.name; state.officialNames[r["alpha-3"]] = r.name; state.numToIso[String(parseInt(r["country-code"], 10))] = r["alpha-3"]; });
@@ -147,7 +148,7 @@
       state.planted = res[9] || null;
       state.archiveChecks = res[10] || null;
       /* Where a data file fetched again past the cache goes (healStragglers). */
-      dataSlots["data/meta.json"] = function (j) { state.meta = j; };
+      dataSlots["data/meta.json"] = function (j) { state.meta = j; syncItemRule(); };
       dataSlots["data/latest.json"] = function (j) { state.latest = j || {countries: {}, totals: {}}; };
       dataSlots["data/outlets.json"] = function (j) { state.outlets = (j && j.outlets) || []; };
       dataSlots["data/examples.json"] = function (j) { state.examples = j || null; };
@@ -182,12 +183,21 @@
      and from the generated_at and schema_version each data file carries, where it carries them. */
   var STALE_HOURS = 24, GENERATION_GAP_HOURS = 2;
   function utcText(iso) { return String(iso || "").slice(0, 16).replace("T", " ") + " UTC"; }
-  function staleLines(meta, gens, now) {
+  function ageText(hours) { return hours < 48 ? Math.floor(hours) + " hours" : Math.floor(hours / 24) + " days"; }
+  function staleLines(meta, gens, now, nameOf) {
     var lines = [], at = meta && meta.generated_at ? Date.parse(meta.generated_at) : NaN;
     var limit = meta && typeof meta.stale_after_hours === "number" && meta.stale_after_hours > 0 ? meta.stale_after_hours : STALE_HOURS;
-    if (!isNaN(at)) {
-      var hours = (now - at) / 36e5;
-      if (hours > limit) lines.push("This data was exported " + (hours < 48 ? Math.floor(hours) + " hours" : Math.floor(hours / 24) + " days") + " ago, at " + utcText(meta.generated_at) +
+    /* The newest discovery against the reader's clock (meta.last_discovered): a collector that has stopped
+       exports nothing more, and one that runs and finds nothing still exports a fresh generated_at. */
+    var disc = meta && meta.last_discovered ? Date.parse(meta.last_discovered) : NaN;
+    var hours = isNaN(at) ? NaN : (now - at) / 36e5, discHours = isNaN(disc) ? NaN : (now - disc) / 36e5;
+    if (discHours > limit) {
+      lines.push("No new item has been collected for " + ageText(discHours) + ": the newest item in this data was discovered at " + utcText(meta.last_discovered) +
+        (isNaN(at) ? "" : hours > limit ? ", and the data was exported at " + utcText(meta.generated_at)
+          : ", though the data was exported later, at " + utcText(meta.generated_at) + ", so collection had stopped while the export still ran") +
+        ". The most recent days are missing and every figure may be out of date.");
+    } else if (hours > limit) {
+      lines.push("This data was exported " + ageText(hours) + " ago, at " + utcText(meta.generated_at) +
         ". The export normally runs every day, so the most recent days are missing and every figure may be out of date.");
     }
     var schemas = {}, far = [];
@@ -201,10 +211,50 @@
       (far.length ? ": " + far.join(", ") + (isNaN(at) ? "" : " against " + utcText(meta.generated_at) + " for the rest") : "") +
       (versions.length > 1 ? (far.length ? "; " : ": ") + "schema versions " + versions.join(" and ") : "") +
       ". Figures that combine them can disagree. Reload the page; if this stays, the last export was published only in part.");
+    return lines.concat(quietLines(meta && meta.input_watch, nameOf));
+  }
+  /* What the newest input watch found quiet (meta.input_watch, pipeline/input_watch.py site_summary): the
+     collector, whole countries, single outlets, each with since when. nameOf turns a country code into a name. */
+  var QUIET_SHOWN = 5;
+  function quietLines(iw, nameOf) {
+    var q = iw && Array.isArray(iw.quiet) ? iw.quiet.filter(function (e) { return e && typeof e === "object"; }) : [], lines = [];
+    if (!q.length) return lines;
+    var name = typeof nameOf === "function" ? nameOf : function (c) { return c; };
+    var when = iw.checked_at ? " (input watch of " + utcText(iw.checked_at) + ")" : "";
+    function day(iso) { return iso ? String(iso).slice(0, 10) : ""; }
+    function since(e) { return e.since ? " since " + day(e.since) : ""; }
+    function has(e, k) { return Array.isArray(e.checks) && e.checks.indexOf(k) !== -1; }
+    var coll = q.filter(function (e) { return e.level === "collector"; }).map(function (e) {
+      if (e.id === "discovery") return "no item discovered from any outlet" + (e.since ? " since " + utcText(e.since) : "");
+      if (e.id === "feeds") return "no feed answered on any outlet" + (e.since ? " since " + utcText(e.since) : "");
+      return "no " + (e.id === "fetch" ? "article fetch" : "discovery") + " pass finished" + (e.since ? " since " + utcText(e.since) : "");
+    });
+    if (coll.length) lines.push("Collection has stopped" + when + ": " + coll.join("; ") + ". Nothing published since then is counted yet.");
+    var countries = q.filter(function (e) { return e.level === "country"; }).map(function (e) {
+      var what = [];
+      if (has(e, "no_poll")) what.push("no feed of its outlets has answered");
+      if (has(e, "stale_entries")) what.push("its feeds have listed no new item");
+      if (has(e, "no_relevant")) what.push("none of its outlets has delivered an item about China");
+      return name(e.country) + ": " + (what.length ? what.join(" and ") : "quiet") + since(e);
+    });
+    if (countries.length) lines.push((countries.length === 1 ? "A whole country has" : countries.length + " whole countries have") + " gone quiet" + when + ". " +
+      countries.join("; ") + ". " + (countries.length === 1 ? "Its" : "Their") + " recent zeros are absence of data, not absence of coverage.");
+    var inputs = q.filter(function (e) { return e.level === "input" || e.level === "group"; });
+    if (inputs.length) {
+      var named = inputs.slice(0, QUIET_SHOWN).map(function (e) {
+        var who = e.level === "group" ? "small outlets of " + name(e.country) : (e.name || e.id) + (e.country ? " (" + name(e.country) + ")" : "");
+        return who + since(e);
+      });
+      var more = inputs.length - named.length;
+      var groups = inputs.some(function (e) { return e.level === "group"; });
+      lines.push((inputs.length === 1 ? (groups ? "One group of small outlets has" : "One outlet has")
+        : inputs.length + (groups ? " outlets or groups of outlets have" : " outlets have")) + " gone quiet" + when + ": " +
+        named.join(", ") + (more > 0 ? ", and " + more + " more" : "") + ". The recent counts of their countries may be too low.");
+    }
     return lines;
   }
   function renderStaleNotice() {
-    var lines = staleLines(state.meta, state.generations, Date.now());
+    var lines = staleLines(state.meta, state.generations, Date.now(), countryName);
     var n = el("stale-notice"), dn = el("data-notice");
     if (!n && !lines.length) return;
     if (!n) {
@@ -782,8 +832,12 @@
       (at.unchecked !== null && at.unchecked !== undefined ? ', ' + intComma(at.unchecked) + ' unchecked state sourcing' + (relayFor(null).provisional ? ' (provisional)' : '') : '') +
       ' and ' + intComma(at.independent) + ' independent journalism articles, out of ' + intComma(at.china_total) + ' China-related articles counted so far' +
       (wiresOnly() ? ', on the worldwide wires alone' : countryOnly() ? ', in the country outlets alone' : '') + '.</p>';
+    var itLine = findingsItemsLine(allTimeItems(f), at);
+    if (itLine) html += '<p class="fb-meta" id="fb-items">' + esc(itLine) + '</p>';
     var udLine = undeterminedFindingsLine(f, at);
     if (udLine) html += '<p class="fb-meta" id="fb-undetermined">' + esc(udLine) + '</p>';
+    var sepLine = separateIssuersLine(f);
+    if (sepLine) html += '<p class="fb-meta" id="fb-separate-issuers">' + esc(sepLine) + '</p>';
     if (MS) html += MS.findingsHtml(measureBlocks(), state.measureData, measureApi);
     box.innerHTML = html;
     box.hidden = false;
@@ -819,6 +873,17 @@
     }
     var tail = n30 !== null ? " (" + intComma(n30) + " in the 30 complete days ending " + lastDay + ")" : "";
     return "A further " + intComma(n) + " placements" + tail + " are undetermined: the model called them state origin, but who wrote or commissioned them could not be settled, with no credit line, stamp, byline or copy match behind them, or a sponsored disclosure the rules did not find on the article. As in the original study, they are excluded from every count here, China coverage included.";
+  }
+
+  /* The line of What we found on releases of state-owned and SAR government issuers (findings.separate_issuers,
+     exports since the owner's decisions of 2026-11-24): their own figures, never in the sentences, totals or
+     shares, all time and both distributions. An export without the field shows nothing. */
+  function separateIssuersLine(f) {
+    var sep = f && f.separate_issuers;
+    if (!sep || typeof sep !== "object" || !sep.S || !sep.H) return "";
+    var s = Number(sep.S.all_time) || 0, h = Number(sep.H.all_time) || 0;
+    if (!s && !h) return "";
+    return "Held apart from these counts: " + intComma(s) + (s === 1 ? " placement" : " placements") + " of releases issued by Chinese state-owned enterprises or state-run institutions, and " + intComma(h) + " of releases issued by Hong Kong or Macao SAR government bodies. They are not counted as state origin or as China coverage (the owner's decision of " + (sep.decided_on || "2026-11-24") + "). All time, both distributions.";
   }
 
   /* The ten countries with the most state origin placements in the 30 complete days ending lastCompleteDay,
@@ -915,7 +980,11 @@
     var key = lastDay + "|" + ((state.meta && state.meta.generated_at) || "") + "|" + (loadedFrom() || "");
     if (state._allTime && state._allTime.key === key && state._allTime.f === f) return state._allTime.value;
     var agg = lastDay ? (loadedFrom() === null ? C.aggregateWindow(state.months, lastDay, null, "both") : exportAllTimeAgg(lastDay)) : null;
-    var value = {at: C.allTimeInWindow(agg, (f && f.all_time) || {}), through: agg ? lastDay : null, totals: null, wld: null};
+    var value = {at: C.allTimeInWindow(agg, (f && f.all_time) || {}), through: agg ? lastDay : null, totals: null, wld: null, items: null};
+    /* Placements and distinct underlying items under each Distribution mode, from the same days (C.itemsInWindow);
+       null before every month has loaded, when the cards read the export's findings.items instead. */
+    var withheldAll = value.at.unchecked === null;
+    if (agg && agg.world) value.items = {both: C.itemsInWindow(agg, "both", withheldAll), country: C.itemsInWindow(agg, "country", withheldAll), wires: C.itemsInWindow(agg, "wires", withheldAll)};
     /* The same days summed per count, for the side panel's all time table: every country and the stratum, and the stratum alone. */
     if (agg) {
       value.totals = C.emptyCounts();
@@ -946,6 +1015,52 @@
     var countries = {_rest: rest};
     countries[C.WORLDWIDE_ISO] = wld;
     return {countries: countries};
+  }
+  /* The sentence a headline card adds for its items: " Counted once per outlet that ran it: N placements of M
+     distinct underlying items" and, for state origin, the paid release route's part. it is an items block
+     (C.itemsInWindow, meta.findings.items); key names its placements. Said only when its placements equal
+     the card's own number, shown, so a block over other days is never set beside it; "" otherwise. */
+  function itemsNote(it, key, shown, withPaid) {
+    if (!it || typeof it[key] !== "number" || it[key] !== shown) return "";
+    var s = C.itemsText(it[key], it[key + "_items"]);
+    if (!s) return "";
+    var paid = withPaid ? C.paidReleaseText(it.paid_release, it.paid_release_items) : "";
+    return " Counted once per outlet that ran it: " + s + (paid ? "; " + paid : "") + ".";
+  }
+  /* The world table's placements and distinct underlying items, as a panel note: state origin with its paid
+     release part, and unchecked state sourcing while it may be shown. Only when the items block counts the
+     same placements as the table (itemsNote); "" otherwise. */
+  function worldItemsNote(t, relay) {
+    var it = allTimeItems(state.meta && state.meta.findings);
+    var a = itemsNote(it, "state_origin", t.A, true);
+    if (!a) return "";
+    var b = relay.visible ? itemsNote(it, "unchecked", t.B, false).replace(" Counted once per outlet that ran it: ", "") : "";
+    return '<p class="panel-note">State origin is counted once per outlet that ran it: ' + esc(a.replace(" Counted once per outlet that ran it: ", "").replace(/\.$/, "")) +
+      (b ? '. Unchecked state sourcing: ' + esc(b) : '.') + '</p>';
+  }
+  /* The findings box's line on the unit counted: the same all time counts as placements and as distinct
+     underlying items, under the Distribution toggle, state origin with its paid release part and unchecked
+     state sourcing while it may be shown; "" when the items block counts other placements (itemsNote). */
+  function findingsItemsLine(it, at) {
+    var a = itemsNote(it, "state_origin", at.state_origin, true);
+    if (!a) return "";
+    var b = at.unchecked !== null && at.unchecked !== undefined ? itemsNote(it, "unchecked", at.unchecked, false) : "";
+    var strip = function (x) { return x.replace(" Counted once per outlet that ran it: ", "").replace(/\.$/, ""); };
+    return "Counted once per outlet that ran it, state origin is " + strip(a) + (b ? "; unchecked state sourcing is " + strip(b) : "") +
+      (wiresOnly() ? ", on the worldwide wires alone." : countryOnly() ? ", in the country outlets alone." : ".");
+  }
+  /* The paid release routes the export names (meta.underlying_items.rule), for the item figures of compute.js. */
+  function syncItemRule() {
+    var ui = state.meta && state.meta.underlying_items;
+    C.setPaidReleaseRoutes(ui && ui.rule && ui.rule.paid_release_routes);
+  }
+  /* The all time placements and items for the Distribution mode shown: the daily files' through the last
+     complete day, else the export's findings.items.all_time, else null. */
+  function allTimeItems(f) {
+    var v = allTimeFindings(f).items, mode = state.distribution || "both";
+    if (v && v[mode]) return v[mode];
+    var fi = f && f.items && f.items.all_time;
+    return (fi && fi[mode]) || null;
   }
   /* "since <first day> through <last complete day>", the span every all time card and the summary count. */
   function allTimeSpan(f) {
@@ -1019,6 +1134,10 @@
       : countryOnly()
       ? {label: "State-origin articles", value: intComma(at.state_origin), note: "Text written or commissioned by the Chinese state and run without substantive change by the country outlets, since " + since + (wldA > 0 ? "; " + intComma(wldA) + " more arrived through the worldwide wires" : "") + "."}
       : {label: "State-origin articles", value: intComma(at.state_origin), note: "Text written or commissioned by the Chinese state and run without substantive change, since " + since + (wldA > 0 ? ", including " + intComma(wldA) + " through worldwide distribution wires" : "") + "."};
+    /* Every headline count is stated twice: as placements, one for each outlet that ran the text, and as the
+       distinct underlying items behind them, with the paid release route's part of state origin apart. */
+    var itAll = allTimeItems(f);
+    firstCard.note += itemsNote(itAll, "state_origin", at.state_origin, true);
     /* The 30 day state-origin counts come from the daily files over the same complete days the map opens on,
        so the cards, the ranked list and the legend line under the map give one number. The export's last_30d
        also counts the day the export ran, which is partial, so it is only the fallback when the daily files
@@ -1053,7 +1172,8 @@
     } else {
       uncheckedCard = {label: "Unchecked state sourcing", value: has(at.unchecked) ? intComma(at.unchecked) : "n/a",
         note: "Local reporting that repeats an official Chinese factual claim without an independent check, since " + since + modeTail + ". " +
-              (relay.provisional ? "Provisional: judged by the model, not yet checked against hand coding." : checkedBy)};
+              (relay.provisional ? "Provisional: judged by the model, not yet checked against hand coding." : checkedBy) +
+              itemsNote(itAll, "unchecked", at.unchecked, false)};
     }
     var cards = [
       /* Row 1, the screening: how much was read, how much concerned China, how much of that the state placed. */
@@ -1074,7 +1194,8 @@
       has(origin30) ? {label: "State origin, last 30 days", value: intComma(origin30),
         note: (aggMode ? "Placed by the Chinese state, in the 30 complete days ending " + lastDay
               : last30 && last30.window_end ? "Placed by the Chinese state, in the 30 complete days ending " + last30.window_end : "Placed by the Chinese state, in the 30 days to the last export") +
-              (wiresOnly() ? ", on the worldwide wires alone." : countryOnly() ? ", in the country outlets alone." : ", in the monitored outlets and on the worldwide wires.")} : null,
+              (wiresOnly() ? ", on the worldwide wires alone." : countryOnly() ? ", in the country outlets alone." : ", in the monitored outlets and on the worldwide wires.") +
+              itemsNote(C.itemsInWindow(aggMode, state.distribution, true) || (f.items && f.items.last_30d && f.items.last_30d[state.distribution || "both"]), "state_origin", origin30, true)} : null,
       uncheckedCard,
       has(at.independent) ? {label: "Independent journalism", value: intComma(at.independent),
         note: "China coverage that is neither state origin nor unchecked state sourcing: the outlets' own reporting, wire agency copy such as Reuters or AP, and quotes from Chinese officials that are confirmed, given context or challenged, since " + since + modeTail + "."} : null,
@@ -1109,8 +1230,10 @@
     var by = it.by_type, n = function (t, k) { return (by[t] && by[t][k]) || 0; };
     var all = function (t) { var o = by[t] || {}; return Object.keys(o).reduce(function (s, k) { return s + (Number(o[k]) || 0); }, 0); };
     var parts = [];
-    var soe = n("state_owned_enterprise", "A"), sar = n("sar_government", "A"), priv = all("private_release");
-    if (soe || sar) parts.push("Of the state origin articles, " + intComma(soe) + " are releases of state-owned enterprises and " + intComma(sar) + " come from Hong Kong or Macao SAR government bodies.");
+    /* Since the owner's decisions of 2026-11-24 these are held apart from state origin (code S and H); an older
+       export counted them under A. */
+    var soe = n("state_owned_enterprise", "S") || n("state_owned_enterprise", "A"), sar = n("sar_government", "H") || n("sar_government", "A"), priv = all("private_release");
+    if (soe || sar) parts.push(intComma(soe) + " labels are releases of state-owned enterprises or state-run institutions and " + intComma(sar) + " come from Hong Kong or Macao SAR government bodies; both are held apart, not counted as state origin.");
     if (priv) parts.push(intComma(priv) + " releases from private issuers are counted as independent journalism or as not about China, never as state origin.");
     if (it.unrecorded) parts.push(intComma(it.unrecorded) + " labels were made before the issuer rule and have not been judged again under it.");
     return parts.length ? parts.join(" ") + " All time, both distributions." : "";
@@ -1745,7 +1868,7 @@
       else {
         html += '<div>' + esc(metricLabel()) + (routeActive() ? ', ' + esc(lowerLabel(routeLabel(state.route))) : '') + ': <strong>' + (p.cls === "withheld" ? esc(relayText(relayFor(e), 0)) : C.formatValue(mv.value, metricDef().format) + (mv.provisional ? " (provisional)" : "")) + '</strong></div>';
         if (mv.note && mv.value === null) html += '<div class="muted">' + esc(mv.note) + '</div>';
-        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + (agg.underlyingSummed ? ' (summed day by day)' : '') + '; unchecked state sourcing ' + esc(relayText(relayFor(e), mv.b)) + '; flagged for the model, not yet judged ' + mv.pending + '; independent ' + mv.c + (mv.undetermined ? '; undetermined, excluded from the counts, ' + mv.undetermined : '') + '; ' + esc(windowLabel()) + '</div>';
+        html += '<div class="muted">State origin ' + plural(mv.aAll, "placement") + ' of ' + plural(mv.underlying, "underlying item") + (agg.underlyingSummed ? ' (summed day by day)' : '') + (mv.paidRelease ? ' (paid press releases: ' + plural(mv.paidRelease, "placement") + ' of ' + plural(mv.underlyingPaid, "item") + ')' : '') + '; unchecked state sourcing ' + esc(relayText(relayFor(e), mv.b)) + (relayFor(e).visible && mv.b ? ' (' + plural(mv.underlyingB, "underlying item") + ')' : '') + '; flagged for the model, not yet judged ' + mv.pending + '; independent ' + mv.c + (mv.undetermined ? '; undetermined, excluded from the counts, ' + mv.undetermined : '') + '; ' + esc(windowLabel()) + '</div>';
         html += '<div class="muted">' + e.outlets_active + ' active outlets, ' + e.feeds_ok + ' of ' + e.feeds_total + ' feeds healthy</div>';
         if (k.paywalled) html += '<div class="muted">' + plural(k.paywalled, "paywalled article") + ' unread: missing from every count, still counted in the monitored output denominator.</div>';
         if (k.polls && k.sat) html += '<div class="muted">' + k.sat + ' of ' + k.polls + ' feed polls came back full with nothing seen before; ' + esc(missedPhrase(k.miss, k.mpolls, k.polls)) + '.</div>';
@@ -2588,7 +2711,7 @@
           '<tr><th>' + esc(clearerLabel("B", "Unchecked state sourcing")) + '</th><td class="num' + (relayAll.publishable ? '' : ' relay-state') + '">' + esc(relayText(relayAll, t.B)) + '</td></tr><tr><th>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</th><td class="num">' + intComma(t.pending) + '</td></tr><tr><th>' + esc(clearerLabel("C", "Independent journalism")) + '</th><td class="num">' + intComma(t.C) + '</td></tr><tr><th>' + esc(clearerLabel("N", "Not relevant")) + '</th><td class="num">' + intComma(t.N) + '</td></tr><tr><th>' + esc(clearerLabel("paywalled", "Paywalled, unread and uncounted")) + '</th><td class="num">' + intComma(t.paywalled) + '</td></tr>' +
           gateRows(t).map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td class="num">' + intComma(r[1]) + '</td></tr>'; }).join("") +
           (relayAll.visible ? '<tr><th>Passed the relevance gate</th><td class="num"><strong>' + intComma((t.rel || 0)) + '</strong></td></tr>' : '') + '</table>' +
-          '<p class="panel-note">' + esc(gateSumText(t, relayAll, totalsSpan)) + esc(gateStoredText()) + '</p>' : '<p class="muted">No totals available.</p>');
+          '<p class="panel-note">' + esc(gateSumText(t, relayAll, totalsSpan)) + esc(gateStoredText()) + '</p>' + worldItemsNote(t, relayAll) : '<p class="muted">No totals available.</p>');
       Array.prototype.forEach.call(body.querySelectorAll(".ps-btn"), function (btn) {
         btn.addEventListener("click", function () { selectCountry(btn.getAttribute("data-iso")); });
       });
@@ -2627,8 +2750,11 @@
     html += '<h3>Breakdown, ' + esc(windowLabel()) + '</h3><table><tr><th></th><th class="num">All</th><th class="num">Rules</th><th class="num">Model</th><th class="num">Human</th></tr>' +
       '<tr><td>' + esc(clearerLabel("A", "State origin")) + '</td><td class="num">' + intComma(k.A) + '</td><td class="num">' + intComma(k.Ar) + '</td><td class="num">' + intComma(k.Al) + '</td><td class="num">' + intComma(rv.A) + '</td></tr>' +
       '<tr><td class="muted"' + (agg.underlyingSummed ? ' title="' + esc(C.UNDERLYING_SUMMED) + '"' : '') + '>Underlying items among them' + (agg.underlyingSummed ? ' (summed day by day)' : '') + '</td><td class="num">' + intComma(k.uniqA) + '</td><td></td><td></td><td></td></tr>' +
+      /* The paid release route's part of state origin, placements and items, where the route is known. */
+      (k.Ap ? '<tr><td class="muted">Of them, paid press releases through a distribution service (' + intComma(k.uniqAp || 0) + (k.uniqAp === 1 ? ' underlying item' : ' underlying items') + ')</td><td class="num">' + intComma(k.Ap) + '</td><td></td><td></td><td></td></tr>' : '') +
       '<tr class="undetermined-row"><td>' + esc(UNDETERMINED_ROW) + '</td><td class="num">' + intComma((k.U || 0)) + '</td><td class="num"></td><td class="num">' + intComma((k.U || 0)) + '</td><td class="num"></td></tr>' +
       '<tr><td>' + esc(clearerLabel("B", "Unchecked state sourcing")) + relayNote + '</td>' + relayCells + '</tr>' +
+      (relay.visible ? '<tr><td class="muted"' + (agg.underlyingSummed ? ' title="' + esc(C.UNDERLYING_SUMMED) + '"' : '') + '>Underlying items among them' + (agg.underlyingSummed ? ' (summed day by day)' : '') + '</td><td class="num">' + intComma(typeof k.uniqB === "number" ? k.uniqB : Math.max(0, (k.uniqAB || 0) - (k.uniqA || 0))) + '</td><td></td><td></td><td></td></tr>' : '') +
       '<tr><td>' + esc(clearerLabel("pending", "Official Chinese sourcing, verification pending")) + '</td><td class="num">' + intComma(k.pending) + '</td><td class="num">' + intComma(k.pending) + '</td><td class="num"></td><td class="num"></td></tr>' +
       '<tr><td>' + esc(clearerLabel("C", "Independent journalism")) + '</td><td class="num">' + intComma(k.C) + '</td><td class="num"></td><td class="num"></td><td class="num">' + intComma(rv.C) + '</td></tr>' +
       '<tr><td>' + esc(clearerLabel("N", "Not relevant")) + '</td><td class="num">' + intComma(k.N) + '</td><td class="num"></td><td class="num"></td><td class="num">' + intComma(rv.N) + '</td></tr>' +
@@ -2637,7 +2763,8 @@
       (relay.visible ? '<tr><td><strong>Passed the relevance gate</strong></td><td class="num"><strong>' + intComma(k.rel) + '</strong></td><td colspan="3"></td></tr>' : '') +
       '<tr><td class="muted">Feed polls full with nothing seen before / estimated items missed' + (missedSince() ? ' (estimated since ' + esc(missedSince()) + ')' : '') + '</td><td class="num" colspan="4">' + k.sat + ' of ' + k.polls + ' / ' + (!missedSince() ? k.miss : !k.mpolls ? 'not estimated' : k.miss + (k.mpolls < k.polls ? ' over ' + k.mpolls + ' polls' : '')) + '</td></tr>' +
       '</table>';
-    html += '<p class="panel-note">' + esc(gateSumText(k, relay, " (" + windowLabel() + ")", "Leaving out the underlying items row, which is part of state origin, and the feed polls row, ")) + '</p>';
+    html += '<p class="panel-note">' + esc(gateSumText(k, relay, " (" + windowLabel() + ")", "Leaving out the underlying items rows" + (k.Ap ? " and the paid press release row" : "") + ", which are parts of the rows above them, and the feed polls row, ")) + '</p>';
+    html += '<p class="panel-note">Placements count one for each outlet that ran a text; underlying items count the text once, however many outlets, days or countries ran it, under each label it carries.</p>';
     if (k.paywalled) html += '<p class="panel-note">Paywalled articles are never classified, so they are missing from every count above and from the share of China coverage. They remain in the share of monitored output denominator, which counts every item the monitored outlets published, so that share is a lower bound here.</p>';
     html += archiveCheckPanelLine(iso, name);
     var rts = (agg.routes || {})[iso] || {}, arr = (agg.arrivals || {})[iso] || {};
@@ -2853,7 +2980,7 @@
         var cat = a.human_category || a.category;
         var prov = a.provenance === "human" ? "human-reviewed" : (a.provenance === "rules" ? "rules" : "model only");
         var srcs = (a.sources && a.sources.length) ? '<div class="a-meta">Chinese sources carried: ' + escText(a.sources.join(", ")) + '</div>' : '';
-        var catLabel = cat === "B" && relay.provisional ? "Unchecked state sourcing (provisional)" : cat === "B" && !relay.publishable ? "Sourcing judgement, " + (relay.measured ? "withheld" : "not settled") : cat === "U" ? "Undetermined, not counted" : C.nameOf(cat);
+        var catLabel = cat === "B" && relay.provisional ? "Unchecked state sourcing (provisional)" : cat === "B" && !relay.publishable ? "Sourcing judgement, " + (relay.measured ? "withheld" : "not settled") : cat === "U" ? "Undetermined, not counted" : cat === "S" ? "State-owned issuer, held apart" : cat === "H" ? "SAR government issuer, held apart" : C.nameOf(cat);
         var route = cat === "A" && a.route ? '<div class="a-meta">Route: ' + esc(routeLabel({kind: "route", id: a.route})) + (a.arrival && a.arrival !== "editorial_feed" ? '; collected from ' + esc(lowerLabel(routeLabel({kind: "arrival", id: a.arrival}))) : '') + '</div>' : '';
         var href = safeUrl(a.url);
         var title = escText(a.title || a.url);
@@ -3136,6 +3263,7 @@
       ["Current kappa", k && k.bc !== null && k.bc !== undefined ? "all categories " + (k.all === null ? "n/a" : k.all.toFixed(2)) + ", unchecked state sourcing versus independent " + k.bc.toFixed(2) + " (n = " + k.n + ", computed " + (k.computed_at || "").slice(0, 10) + ")" : "not yet measured"],
       ["Routes of state origin", (m.routes || []).map(function (r) { return lowerLabel(r.label) + " " + (routeTotals[r.id] || 0); }).join("; ") || "not recorded"],
       ["Undetermined, excluded from the counts", undeterminedMethodText(m)],
+      ["State-owned and SAR government issuers, held apart", separateIssuersMethodText(m)],
       ["Release sections searched", rs && rs.outlets_active ? intComma(rs.outlets_active - (rs.not_searched || 0)) + " of " + intComma(rs.outlets_active) + " active outlets; " + intComma(rs.found || 0) + " found, " + intComma(rs.none_found || 0) + " none, " + (rs.blocked || 0) + " blocked, " + (rs.unreachable || 0) + " unreachable" : "not recorded"],
       ["Feed polls with nothing seen before", fs && fs.polls ? intComma(fs.saturated) + " of " + intComma(fs.polls) + "; " + missedPhrase(fs.missed_estimate, fs.estimator ? fs.estimated_polls : fs.polls, fs.polls) + (recentMissed(fs) ? "; " + recentMissed(fs) : "") : "not yet measured"],
       ["Relay on the owner's machine", rc ? C.relayOutletsSummary(rc) + "; " + (rc.last_run ? "last pass " + rc.last_run + ", " + (rc.incomplete_days || []).length + " incomplete days" : "no heartbeat yet") : "not recorded"],
@@ -3152,6 +3280,13 @@
   }
 
   /* The methodology line for undetermined items, from meta.undetermined. */
+  /* The methodology line for releases of state-owned and SAR government issuers, from meta.separate_issuers. */
+  function separateIssuersMethodText(m) {
+    var sep = m && m.separate_issuers, g = (sep && sep.groups) || {};
+    var s = (g.S && g.S.count) || 0, h = (g.H && g.H.count) || 0;
+    return intComma(s) + " placements of releases issued by Chinese state-owned enterprises or state-run institutions (state universities, state laboratories) and " + intComma(h) + " of releases issued by Hong Kong or Macao SAR government and statutory bodies, such as the Hong Kong Tourism Board. The owner decided on " + ((sep && sep.decided_on) || "2026-11-24") + " to hold both apart: each is stored with its evidence and kept in the audit files, and neither is in state origin, unchecked state sourcing, independent journalism or the China coverage total. The rules read a release's own issuer (its headline, dateline line, SOURCE line, issued by line or media contact block) against a registry with a public source for each issuer.";
+  }
+
   function undeterminedMethodText(m) {
     var ud = m && m.undetermined;
     var n = ud && typeof ud === "object" ? ud.count : (m.route_totals || {}).unattributed;
@@ -3240,7 +3375,7 @@
       r.citation = cite;
       return r;
     });
-    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "distribution", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "relay_basis", "official_sourcing_pending", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "china_in_published_items", "language_support", "warnings", "citation"]));
+    download("tracker_view_" + state.metric + "_" + (state.endDate || "empty") + ".csv", C.toCSV(rows, ["iso", "name", "metric", "route", "window", "mode", "distribution", "value", "fill", "note", "state_origin", "state_origin_underlying_items", "state_origin_paid_release", "state_origin_paid_release_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "relay_basis", "official_sourcing_pending", "independent", "china_total", "outlets_active", "population", "items_published_monitored_outlets", "china_in_published_items", "language_support", "warnings", "citation"]));
   }
   function exportDaily() {
     /* The daily table is every day, so it waits for the months not loaded yet. */
@@ -3256,7 +3391,7 @@
         var c = e.countries[iso], r = (e.reviewed || {})[iso] || {};
         var relay = relayFor((state.latest.countries || {})[iso]);
         var blank = function (v) { return relay.visible ? v : ""; };
-        var row = {date: d, iso: iso, name: state.names[iso] || iso, distribution: state.distribution, state_origin: c.A, state_origin_underlying_items: c.uniqA, unverified_relay: blank(c.B), unverified_relay_underlying_items: blank(Math.max(0, (c.uniqAB || 0) - (c.uniqA || 0))), relay_status: C.relayStatus(relay), independent: c.C, not_relevant: c.N,
+        var row = {date: d, iso: iso, name: state.names[iso] || iso, distribution: state.distribution, state_origin: c.A, state_origin_underlying_items: c.uniqA, state_origin_paid_release: C.paidReleaseCount((e.routes || {})[iso]), state_origin_paid_release_underlying_items: (((e.underlying_items || {})[iso] || {}).Ap || []).length, unverified_relay: blank(c.B), unverified_relay_underlying_items: blank(Math.max(0, (c.uniqAB || 0) - (c.uniqA || 0))), relay_status: C.relayStatus(relay), independent: c.C, not_relevant: c.N,
                    undetermined: c.U || 0, state_origin_rules: c.Ar, state_origin_model: c.Al, unverified_relay_rules: blank(c.Br), unverified_relay_model: blank(c.Bl),
                    reviewed: c.rev, human_state_origin: r.A || 0, human_unverified_relay: blank(r.B || 0), human_independent: r.C || 0, discovered: c.disc, gate_relevant: c.rel, fetched: c.fetched,
                    paywalled: c.paywalled, failed: c.failed, blocked_robots: c.blocked, awaiting_model: c.pending,
@@ -3270,7 +3405,7 @@
         rows.push(row);
       });
     });
-    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "distribution", "state_origin", "state_origin_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "items_published_monitored_outlets", "china_in_published_items", "feed_polls", "feed_polls_saturated", "items_missed_estimate", "feed_polls_estimated", "model_draw_eligible", "model_draw_sent"].concat(routeCols).concat(["llm_ceiling_hit", "relay_collector_incomplete", "labels_on_older_ruleset", "citation"])));
+    download("tracker_daily_counts.csv", C.toCSV(rows, ["date", "iso", "name", "distribution", "state_origin", "state_origin_underlying_items", "state_origin_paid_release", "state_origin_paid_release_underlying_items", "undetermined", "unverified_relay", "unverified_relay_underlying_items", "relay_status", "independent", "not_relevant", "state_origin_rules", "state_origin_model", "unverified_relay_rules", "unverified_relay_model", "reviewed", "human_state_origin", "human_unverified_relay", "human_independent", "discovered", "gate_relevant", "fetched", "paywalled", "failed", "blocked_robots", "awaiting_model", "items_published_monitored_outlets", "china_in_published_items", "feed_polls", "feed_polls_saturated", "items_missed_estimate", "feed_polls_estimated", "model_draw_eligible", "model_draw_sent"].concat(routeCols).concat(["llm_ceiling_hit", "relay_collector_incomplete", "labels_on_older_ruleset", "citation"])));
   }
 
   /* -------------------------------------------------------------- controls */
@@ -3476,10 +3611,10 @@
   }
   window.TrackerApp = {selectCountry: selectCountry, setDay: openDay, open: openView,
     /* Pure helpers, for tests/app_smoke.js. */
-    helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, viewFields: viewFields,
+    helpers: {searchEntry: searchEntry, rankCountryMatches: rankCountryMatches, staleLines: staleLines, quietLines: quietLines, viewFields: viewFields,
               monthKeys: monthKeys, valueText: valueText, inkOn: inkOn, foldText: foldText, issuerLineText: issuerLineText, issuerBadge: issuerBadge, languageNotes: languageNotes,
               showWarningMarkers: SHOW_WARNING_MARKERS, countryWarnings: countryWarnings,
-              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, navHidden: navHidden, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION, stakeLines: stakeLines, stakeAbsenceNote: stakeAbsenceNote, selectionLine: selectionLine, recentMissed: recentMissed}};
+              pageAssetVersion: pageAssetVersion, healDecision: healDecision, stragglers: stragglers, navHidden: navHidden, knownSchema: KNOWN_SCHEMA, assetVersion: ASSET_VERSION, stakeLines: stakeLines, stakeAbsenceNote: stakeAbsenceNote, selectionLine: selectionLine, recentMissed: recentMissed, itemsNote: itemsNote, findingsItemsLine: findingsItemsLine}};
   document.addEventListener("tracker:select", function (ev) {
     var d = (ev && ev.detail) || {};
     openView(d);

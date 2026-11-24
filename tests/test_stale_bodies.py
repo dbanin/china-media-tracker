@@ -166,7 +166,12 @@ def test_reclassify_takes_a_stale_body_whatever_the_ruleset_of_its_label(db, mon
     out = cr.reclassify(db, "t")
     assert out["input"] == 1 and out["stale_body"] == 1 and calls == []
     assert store.load_body(store.get_article(db, aid)["url_hash"]).startswith("Hangzhou, China (ANTARA/PRNewswire)- On September 22,")
-    assert out["llm"] == 1  # the stamped lead now reaches the model, as at the release's other outlets
+    # The stamped lead is read now. Its headline names its issuer, a municipal bureau of Hangzhou, so the release
+    # issuer rule (pipeline/state_issuers.py, 2026-11-24) labels it state origin by the rules; before that rule
+    # it reached the model, as at the release's other outlets.
+    assert out["A"] == 1 and out["llm"] == 0
+    cur = store.current_classification(db, aid)
+    assert (cur["method"], cur["category"], cur["issuer_type"]) == ("rules", "A", "government")
     # Waiting for the model it is picked up again, as every candidate is, but its body is current now.
     assert cr.reclassify(db, "t").get("stale_body", 0) == 0
 

@@ -223,6 +223,15 @@
 }
 /* ==== END syndication ==== */
 
+/* ==== BEGIN exposure ==== */
+.m-exp-lead { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); overflow-wrap: anywhere; }
+.m-exp-lead strong, .m-exp-note strong { color: var(--bone); font-weight: 400; font-variant-numeric: tabular-nums; }
+.m-exp-lead .m-chip { margin-right: 6px; }
+.m-exp-note { color: var(--bone-soft); max-width: 70ch; margin: 0 0 var(--s2); overflow-wrap: anywhere; }
+.m-exp-table td:first-child { color: var(--bone); white-space: nowrap; }
+.m-exp-foot { font-size: 0.84rem; color: var(--ash); max-width: 70ch; margin: var(--s1) 0 0; overflow-wrap: anywhere; }
+/* ==== END exposure ==== */
+
 /* Methodology: one closed block per measure (measures.methodBlocks). */
 .m-method { border-top: 1px solid var(--rule); }
 .m-method:last-child { border-bottom: 1px solid var(--rule); }

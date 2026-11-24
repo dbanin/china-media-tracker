@@ -17,7 +17,7 @@ import random
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from pipeline import store
+from pipeline import freshness, store
 
 CSV_FIELDS = ["article_id", "outlet_id", "country", "language", "discovered_at", "gate_terms", "title", "summary",
               "url", "stratum_size", "weight", "concerns_china"]
@@ -116,7 +116,11 @@ def main(argv=None):
     c = sub.add_parser("compute"); c.add_argument("--csv", required=True)
     args = ap.parse_args(argv)
     if args.cmd == "sample":
-        cmd_sample(store.connect(), args.n, Path(args.out), args.seed, args.since, args.until, args.min_per_language)
+        conn = store.connect()
+        # A stale local copy is refused (pipeline/freshness.py); compute reads the coded CSV only.
+        if not freshness.guard(conn, "gate_audit sample", refuse=True):
+            raise SystemExit(1)
+        cmd_sample(conn, args.n, Path(args.out), args.seed, args.since, args.until, args.min_per_language)
     else:
         cmd_compute(Path(args.csv))
 

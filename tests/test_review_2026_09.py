@@ -177,14 +177,16 @@ def test_a_model_study_is_a_stability_check_and_never_opens_the_gate(tmp_path, m
     assert meta["relay_provisional"] is True and meta["relay_study"]["state"] in ("waiting_for_budget", "due", "waiting_for_labels")
 
     weak = {"method": "model_vs_model", "model_a": "claude-sonnet-5", "model_b": "claude-opus-5",
-            "sample_size": 300, "kappa_all": 0.7, "kappa_bc": 0.41, "n_bc": 120, "details": {}}
+            "sample_size": 300, "kappa_all": 0.7, "kappa_bc": 0.41, "n_bc": 120,
+            "details": {"prompt_version": cl.PROMPT_VERSION}}     # a study of the current prompt
     store.record_model_agreement(conn, weak, [{"article_id": aid, "category_a": "B", "category_b": "C"}])
     meta = export.build_meta(conn, [], [], export.build_latest(conn, [], [], population={}))
     assert meta["relay_publishable"] is False, "below the threshold the gate stays shut"
     assert meta["relay_provisional"] is False, "provisional means not checked yet, never checked and failed"
 
     strong = dict(weak, kappa_bc=0.74,
-                  details={"bc_by_language": {"it": {"kappa": 0.3, "n": 40}, "fr": {"kappa": 0.9, "n": 30}}})
+                  details={"prompt_version": cl.PROMPT_VERSION,
+                           "bc_by_language": {"it": {"kappa": 0.3, "n": 40}, "fr": {"kappa": 0.9, "n": 30}}})
     sid = store.record_model_agreement(conn, strong, [
         {"article_id": aid, "category_a": "B", "confidence_a": 0.8, "evidence_a": "quote a",
          "category_b": "C", "confidence_b": 0.6, "evidence_b": "quote b"}])

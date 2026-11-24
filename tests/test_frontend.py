@@ -22,7 +22,7 @@ def test_measures_smoke():
         assert r.returncode == 0, f.name + ": " + r.stdout + r.stderr
 
 
-MEASURE_IDS = ("alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication")
+MEASURE_IDS = ("alteration", "speed", "doctrine", "spikes", "calendar", "engagement", "syndication", "exposure")
 
 
 def test_static_files_present():
@@ -57,7 +57,7 @@ def test_measure_sections_present():
     """Each measure's section shell is in the page, hidden until its measure is on, with its kicker,
     heading, intro and body, and the slots measures.js fills (SLOTS) exist."""
     html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
-    for sec in ("copies", "doctrine", "engagement", "syndication"):
+    for sec in ("copies", "doctrine", "engagement", "syndication", "exposure"):
         m = re.search(r'<section id="%s"[^>]*>(.*?)</section>' % sec, html, re.S)
         assert m, sec
         assert " hidden" in m.group(0).split(">", 1)[0], sec + " starts hidden"

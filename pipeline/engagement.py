@@ -753,6 +753,8 @@ def main(argv=None) -> int:
         return 0 if rep["ok"] else 1
     conn = store.connect(Path(args.db)) if args.db else store.connect()
     if args.cmd == "urls":
+        from pipeline import freshness
+        freshness.guard(conn, "engagement urls")       # a stale local copy is warned about (pipeline/freshness.py)
         path, n = write_urls(conn, args.since, args.until, Path(args.out) if args.out else None)
         print("wrote %d public state origin addresses to %s" % (n, path))
         return 0

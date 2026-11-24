@@ -9,6 +9,7 @@ import json
 import sqlite3
 
 from pipeline import classify_llm, config, labels, model_only, second_rater, store
+from tests._attributes import attribute_fields
 
 OPUS = "claude-opus-5-5 (session, prompt 2026-10-17)"
 
@@ -37,6 +38,9 @@ def _label(url_hash, category="A", drop=(), **kw):
            "issuer_type": "state_media", "state_basis": "credit_line",
            "model_version": OPUS, "labelled_at": "2026-10-22T21:00:00Z", "source": "session"}
     lab.update(kw)
+    # A line naming prompt 2026-12-01 or later carries the six attributes (labels.ATTRIBUTE_FIELDS).
+    if (classify_llm.prompt_version_of(lab["model_version"]) or "") >= classify_llm.ATTRIBUTES_SINCE:
+        lab = dict(attribute_fields(lab["category"], lab["issuer_type"]), **lab)
     for f in drop:
         lab.pop(f)
     return lab

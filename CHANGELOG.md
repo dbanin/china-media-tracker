@@ -4,6 +4,180 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Ruleset 2026.11.1 (2026-11-24)
+
+Fixes from the paper's hand coding: state issuers, six attributes, distinct items, silence alarms.
+
+Versions: RULESET_VERSION 2026.10.2 to 2026.11.1 (the issuer reading below), PROMPT_VERSION 2026-10-17 to 2026-12-01
+(the six attributes), data schema 21 to 22 (S and H, underlying items, the six attributes, the input watch in meta,
+the exposure side file) and ASSET_VERSION 95 to 96; LLM_MAX_TOKENS rises from 1200 to 1600, because the six attributes
+add about 160 tokens to a reply. EXTRACT_VERSION and GATE_VERSION are unchanged. The ruleset bump queues every current
+label for the rules' reclassify on the runner (162,713 on the snapshot of 2026-11-24, about 82 runs at 2,000 a run, no
+model calls); the prompt bump queues no stored label.
+
+Why. The paper's hand coding of 1,005 tracker articles (22 to 24 November) was compared with the tracker's labels on a
+local copy of the database whose newest item was from 12 October, and concluded that collection had stopped then; the
+runner had collected hourly throughout. Against the runner's current labels the tracker agrees on 90 of the 132 state
+origin rows the paper codes; it missed 27 Canadian paid releases (7 distinct) from local Chinese government issuers
+and the Hong Kong Tourism Board, all labelled independent by the rules without reaching the model, and 14 Italian
+copies of Italpress videos whose originals it never collected; 8 of the 12 tracker state origin rows the paper does
+not code as such are state-owned issuers. The owner decided on 2026-11-24 that state-owned enterprises and state-run
+institutions (S) and Hong Kong and Macao SAR bodies (H) are held apart from state origin, that the Beijing contact
+number 86-10-63074558 alone only sends a release to the model, and that the model returns the paper's six attributes
+for labels made from 1 December 2026 without judging stored labels again. Expected effect on the data: none by itself;
+the paragraphs below are how it is applied.
+
+State issuers. Paid releases are now read for their own issuer against a registry of state issuers,
+sources/state_issuers.yaml (47 entries, each with a public source, plus 36 province level and 278 city names for its
+name forms), checked by sources/state_issuers_schema.json and pipeline/state_issuers.py. The issuer counts only where
+a release names itself: the headline's issuer prefix or a line of its name alone, the dateline line after the wire
+stamp, the SOURCE line, an issued by or sponsored by line, or the media contact block (name or mail domain); a body
+named in any sentence never counts, and the reading runs only on an item a release wire carries or one from a press
+release, sponsored or partner section, never in the keyword gate. Each place is its own signature id
+(state_issuer_header, state_issuer_dateline, state_issuer_source_trailer, state_issuer_issued_by,
+state_issuer_media_contact). A party-state issuer (central state media, provincial and city international
+communication centres, party committees and their publicity departments, people's governments and their bureaus,
+provincial party dailies) is state origin by the rules. By the owner's decisions of 2026-11-24, releases of Chinese
+state-owned enterprises and state-run institutions (group S) and of Hong Kong and Macao SAR government and statutory
+bodies (group H) are stored with their evidence and issuer type, kept in the audit files and shown on lines of their
+own in meta.separate_issuers, findings.separate_issuers, the daily files (S and H per country), outlets.json and the
+site, and are in no state origin, unchecked sourcing or independent count and in no China coverage denominator; a
+model state origin label with issuer type state_owned_enterprise or sar_government is read the same way, its stored
+label unchanged. A release carrying the Beijing contact number 86-10-63074558 and naming no registered issuer goes to
+the model as a candidate (hint beijing_release_contact in its llm_trigger), never a label on the number alone. On the
+2026-11-24 snapshot this reads 295 current model labels as S and 41 as H (142 and 14 placements; 4 of the 142 had
+counted as state origin, the rest were undetermined), and leaves the 7,199 bodies on this disk unchanged but for one
+Xinhua Silk Road release that becomes state origin by the rules; the rules changes to stored rows (the Canadian local
+government releases among them) need a reclassify on the runner, where the bodies are. Projected from the issuer and
+contact lines of the paper's coding, 102 of its 132 state origin rows agree after the reclassify (from 90), 13 of its
+17 S rows are S (from 0), and the HKTB releases become H. Expected effect on the data: as the runner reclassifies,
+party and government releases that name their issuer move to state origin, state-owned and SAR issuers leave it for
+their own lines, and number-only releases wait for the model, which is stopped until 1 December 2026.
+
+Six attributes. From prompt 2026-12-01 the model returns the paper's six attributes with every label (author,
+commissioner, state affiliation, route, disclosure and verification, each from the hand coding's value set, soe and
+issuer_nonstate included, so a state owned issuer can be told from a party state body) and copies a span of at most 25
+words for the author, the commissioner, the disclosure and the central official claim; it records them before the
+category and is told that route and disclosure come from the headline and text alone, since it never sees the outlet,
+the country or the address. The category is kept as returned, and the category the paper's rule derives from the
+attributes is checked against it: a disagreement (category_differs_from_attributes) or an author or commissioner left
+unknown (attributes_leave_authorship_open) is marked in needs_review as an inconsistent issuer type is, and the run,
+the batch collector and the session ingest count these as attribute_review. The attributes are stored in seven new
+classifications columns (attr_author, attr_commissioner, attr_state_affil, attr_route, attr_disclosure,
+attr_verification and attr_evidence, added once to older databases), copied with a label to near duplicates, and
+exported as an attributes object with the derived category in the audit lines and article records of labels that carry
+them; the spans stay in the database. python -m pipeline.agreement attributes compares the current labels with a hand
+coding sheet one attribute at a time (agreement, Cohen's kappa and the confusion each, plus the unchecked against
+other split of verification and the derived category) and records nothing; on the snapshot of 2026-11-24 the paper's
+1,005 drawn rows join 1,005 tracker articles, none of whose labels carry attributes yet (789 rules labels, 199 model
+labels, 17 without a label), and the current category agrees with the hand coded one on 868 of 952 (kappa 0.694).
+Labels made before the new prompt are not judged again (owner decision D16): 2026-12-01 is listed as extending
+2026-10-17, so on the snapshot's 21,219 current model labels the relabel queue stays at the 14,610 it holds under
+2026-10-17 (it would have grown to 21,068), the labels counted as on an older prompt stay at 14,752, and the hand
+coding study, the undetermined hand check and session labels of 2026-10-17 stay current; the stability check still
+pairs only labels of the new prompt. At November's volume (332 batched calls a day) the larger prompt and reply raise
+the cost of a call by about 23 to 28 percent: about 98 to 138 dollars a month against the budget of 110, so on heavy
+days the daily budget cap stops the model stage before the queue is done; the budget is the owner's to set and is
+unchanged. Expected effect on the data: labels made from 1 December 2026 carry the attributes and can be compared with
+hand coding attribute by attribute; no stored label changes.
+
+Distinct items. Every headline count is now stated twice, as placements (one for each outlet that ran a text) and as
+distinct underlying items (the text, however many outlets, days or countries ran it), with the state origin that came
+as a paid press release through a distribution service (the press release distribution stamp route) given apart.
+latest.json carries uniqB, Ap and uniqAp beside uniqA in every count block, per country, for the worldwide wires and
+in the world totals; the daily files carry the ids of the paid release items under underlying_items Ap;
+meta.findings.items gives placements and items of state origin, unchecked state sourcing and the paid release route
+all time and for the 30 complete days under each Distribution mode; meta.underlying_items states the rule with every
+threshold, each label's figures and its ten largest items. The site shows both numbers in What we found (the state
+origin, last 30 days and unchecked state sourcing cards and a line in the findings box), the world and country panels
+(new rows for the paid releases and for unchecked state sourcing items), the map tooltip and both CSV exports
+(state_origin_paid_release and state_origin_paid_release_underlying_items). The methodology now says what an
+underlying item is, the thresholds of the title pass (one country, 3 days, 70 percent of distinct words, at least 4
+words of 3 or more characters), the body pass (7 days, 50 percent estimated overlap, 25 shingles) and the language
+edition pass (36 hours), and how the grouping can over and under merge. On the runner's snapshot of 24 November 2026,
+Canada's state origin is 26 placements of 8 underlying items all time (16 paid release placements of 4 items, each
+release run by up to four papers of one chain) and 6 placements of 3 items in the 30 complete days to 23 November;
+Australia's is 106 placements of 106 items all time to the export (105 of 105 through 23 November) and 47 of 47 in
+those 30 days, its 1,060 stored copies across ten ACM mastheads already counted once per release by the shared widget
+rule. Worldwide, state origin is 2,298 placements of 1,896 items through 23 November, 713 placements of 558 items of
+them paid releases; the item run by the most outlets, a release on the 2026 China International Intelligent
+Communication Forum in Wuxi, was placed 9 times by 8 outlets in 6 countries and on the worldwide wires. Expected
+effect on the data: no count changes; every headline count is shown as placements and as distinct items.
+
+Silence alarms. The input watch now judges every country as a whole and the collector as a whole, and says both
+loudly. Each country's polled outlets are pooled and judged by the poll, stale entry and silence rules against the
+country's own rates; a country that fires is a GitHub error annotation titled Country quiet in every run while it
+lasts (on the snapshot of 2026-11-24 one of 233 countries fires, Niue, whose one outlet's feed has failed for 153
+hours; simulated, all 9 Chilean outlets silent for 3 days fire it as new). With 20 or more polled outlets, no item
+discovered or no feed polled successfully on any input for 12 hours is an error titled Collector stopped (the longest
+time without a discovery on the snapshot since 2026-10-13 is 10.4 hours, and 0.9 hours since the hourly chain began),
+as is a missing discovery or fetch pass for 24 hours, and the first run after a stop reports the gap between discovery
+passes once. The run record keeps what is quiet and since when, the export copies it into meta.input_watch with
+meta.last_discovered, and the site's notice states the collector, each quiet country and up to five quiet outlets with
+their dates, and says collection has stopped when the newest discovery is older than meta.stale_after_hours (24) by
+the reader's clock, even when exports still run. A new shared helper, pipeline/freshness.py, ages a database by its
+newest discovery and an export by meta.last_discovered or its generation time; every local sample (agreement,
+recall_audit, gate_audit, model_only, second_rater) refuses a copy more than 2 days old, and the finding reports
+(agreement and recall_audit compute, recall_audit describe, planted recurring and pending, hosted_travel list,
+engagement urls, input_watch by hand, scripts/numbers_sheet.py and scripts/country_export.py) warn on standard error,
+naming the date and scripts/db_pull.sh or git pull. The agreement draw under the current prompt now ages the copy by
+its newest discovery instead of its newest model label, which had refused the runner's own snapshot since the model
+stage stopped on 2026-11-19. Expected effect on the data: none; a quiet outlet, country or collector is now said where
+a person sees it, and a local copy that is out of date can no longer be mistaken for a pause in collection.
+
+Sources. Italpress is now also read through the WordPress feed of its Xinhua video category
+(category/video-news/video-xinhua, 30 items over 75 hours, about ten a day), because its site feed lists about 140 new
+items a day in 30 entries and, polled about 8 times a day in September and October, lost the originals of 10 Xinhua
+videos whose Libero, Il Tempo and QN copies the paper codes state origin; on a copy of the 2026-11-24 snapshot with
+those originals stored, all 12 hand coded copies labelled by the rules (and 10 more copies of the same videos) go to
+the model by headline (similarity 1.0), none by body (similarity 0.0 to 0.08), while the 2 other hand coded copies
+already wait for the model. Feed items whose address ends in the placeholder "undefined" are dropped by the feed
+reader, and a one time step deletes the 129 Libero rows stored under /news/<id>/undefined/ from 2026-09-03 to
+2026-11-12 (108 failed with 404, 21 gated out) and takes 129 discovered and 108 gate relevant items off Italy's day
+counts. Medianet News Hub (newshub.medianet.com.au, about 40 releases a day) is registered as a distribution wire for
+Australia; aap.com.au/aapreleases is not added, because it shows the releases the AAP listing already read carries
+under the same keys (65 of 66 hand counted China releases of 5 September to 12 October are stored from that listing).
+The feed of Italpress's Xinhua section (speciali/xinhua, text and photo items, 30 items over 27 hours) is added on the
+same day, because the site feed missed 2 of its 13 items of 23 November even under hourly polling. Medianet counts in
+the worldwide distribution stratum, never in Australia's figures. Expected effect on the data: more Italpress Xinhua
+originals are stored, so later uncredited copies of them reach the model; Italy's discovery counts lose the 129 dead
+Libero rows; Medianet's China releases are collected.
+
+Exposure. A new research measure, Exposure (pipeline/exposure.py, id exposure in sources/measures.yaml), records where
+an outlet placed each settled state origin item, to separate published from placed where readers see it: linked from
+the outlet's homepage, linked from a main section page the registry names, listed in a general news feed, or found
+only in a press release, sponsored or partner section or on a distribution wire. It is report only and changes no
+label, count or denominator, and it ships switched off (enabled: false), so no section, side file or request appears
+until the owner turns it on; when on it is provisional until its hand check (40 placements, half from release sections
+and half from news feeds, coded release, news or unclear, passing at 80 percent agreement) passes. The feed level
+needs no request: each placement's stored feed is matched to the registry's feeds, news sitemaps, section feeds and
+pages and release_sections, with rejected site wide feeds read as news feeds and a feed no longer registered read by
+its stored section marker. On the snapshot of 2026-11-24 (3,609 settled labels, 2,312 placements from 2026-09-03 to
+2026-11-24) 357 of the 2,059 newsroom placements (17.3 percent) were found only in a release section (356 press
+release, 1 sponsored), 1,702 came through a general news feed, and the 253 on distribution wires are counted apart; by
+country Italy 17 of 936, Indonesia 0 of 268, Malaysia 94 of 140, Australia 106 of 106 (all through the AAP release
+widget), Singapore 92 of 94, Canada 21 of 26 and Laos 19 of 25. The homepage level comes from a new collector step at
+the end of each run's article fetch (pipeline/run.py), only while the measure is on: the homepage of each outlet with
+settled state origin in the last 14 days (44 outlets on the snapshot, distribution wires and the shared AAP widget
+left out), and each main section page the registry names (new optional registry fields homepage and main_sections,
+none set yet), is read once with the tracker's own robots.txt check, pacing, redirect handling and user agent, 4 at a
+time, inside a cap of 90 seconds that starts no read in its last 25 seconds and never runs past the stage's deadline.
+Its links are matched to stored articles by canonical address and kept with first and last seen times in two new
+tables, exposure_reads and exposure_sightings; a placement counts toward the homepage share only when its outlet's
+homepage was read from 6 hours before to 12 hours after its discovery, and hourly reads miss shorter stays, so the
+share is a lower bound. A read only probe of 10 homepages on 2026-11-24 made 21 requests (10 robots.txt, 10 homepages,
+1 redirect), read 9 (one answered 403) with 82 to 578 same site links each (median 141), and matched 4 to 88 of each
+page's links to stored articles. Tests: tests/test_exposure.py (25) and tests/smoke_m_exposure.js. Expected effect on
+the data: none while it is off; switching it on also needs the measures' shared time budget raised, which sits in the
+owner's uncommitted engagement change.
+
+Wording. Four passages said that the model would be given the address and the section, and the study's five level
+scale, after 23 October 2026, and that every unchecked state sourcing label would then be judged again (the README,
+the site's differences from the study, the FAQ, the methodology and pipeline/model_only.py). Neither happened: the
+model stays blind to outlet, country and address, and under D16 stored labels are not judged again. They now say so,
+and name the issuer reading and the six attributes instead. scripts/country_export.py keeps S and H out of every tier.
+Expected effect on the data: none.
+
 ## SRNA subscriber stories read again once the notice is gone (2026-11-24)
 
 No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. Only SRNA rows recorded

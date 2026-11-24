@@ -458,8 +458,9 @@ def test_annotations_are_capped_escaped_and_say_how_many_more():
 
 def test_run_prints_lines_and_annotations_and_records_a_run_log_row(tmp_path):
     conn = _db(tmp_path)
-    outlets = _one_input(conn)
-    _healthy(conn, "wire", ok_hours=30)                          # new: its feed failed a day and a quarter
+    outlets = _one_input(conn) + [_outlet("other")]               # another outlet of the country, polled well,
+    _healthy(conn, "wire", ok_hours=30)                          # so the country is not quiet as a whole;
+    _healthy(conn, "other")                                      # new: its feed failed a day and a quarter
     _poll(conn, "wire", 300, 700)                                # ongoing: saturated a day ago as well
     out = io.StringIO()
     res = iw.run(conn, outlets=outlets, now=NOW, sources=[], out=out)
@@ -567,6 +568,14 @@ def test_the_watch_covers_every_polled_input_and_the_coverage_line_says_what_it_
 def test_small_inputs_are_judged_together_by_country_and_say_nothing_alone(tmp_path):
     conn = _db(tmp_path)
     outlets = _small_country(conn, silent_days=3, offset=0.6)
+    # Fiji has one more outlet, which carried no state origin item and goes on delivering, so the country as a
+    # whole is not quiet: its small inputs are.
+    big = _outlet("fj_big")
+    big["country"] = "FJI"
+    outlets.append(big)
+    _healthy(conn, "fj_big")
+    _discovered_since(conn, "fj_big")
+    _steady(conn, "fj_big", per_day=1)
     _stages(conn)
     r = iw.check(conn, outlets, now=NOW, sources=[])
     assert [p["input"] for p in r["problems"]] == ["group:FJI"]
@@ -704,7 +713,8 @@ def test_long_dark_inputs_are_counted_in_one_notice_and_a_newly_dark_one_is_warn
 
 def test_a_dark_input_that_also_stops_polling_is_not_news(tmp_path):
     conn = _db(tmp_path)
-    outlets = [_outlet("blocked")]
+    outlets = [_outlet("blocked"), _outlet("other")]   # another outlet of the country polls well
+    _healthy(conn, "other")
     _labels(conn, "blocked", 4)
     _discovered_since(conn, "blocked")
     _stages(conn)
@@ -801,3 +811,277 @@ def test_the_watch_of_hundreds_of_inputs_stays_fast(tmp_path):
     started = time.monotonic()
     r = iw.check(conn, outlets, now=NOW, sources=[])
     assert len(r["key"]["units"]) == 300 and time.monotonic() - started < 5.0
+
+
+# --- whole countries and the collector as a whole ---------------------------------------------------------
+
+def _world(conn, n=20, country="AUS", prefix="w", silent_days=0.0, ok_hours=0.5, newest_hours=1.0, every=1):
+    """n outlets of one country, each with a China relevant item on every `every`th day for 56 days, the
+    outlets taking the days in turn (none in the last `silent_days`), labelled items to be watched,
+    discoveries every day and a healthy feed."""
+    outlets = []
+    for k in range(n):
+        oid = "%s%02d" % (prefix, k)
+        o = _outlet(oid)
+        o["country"] = country
+        outlets.append(o)
+        _labels(conn, oid, 2)
+        _discovered_since(conn, oid)
+        _healthy(conn, oid, ok_hours=ok_hours, newest_hours=newest_hours)
+        for d in range(k % every, 56, every):
+            if d + 0.1 >= silent_days:
+                _article(conn, oid, d + 0.1 + (k % 3) * 0.01)
+    return outlets
+
+
+def _watch_ran(conn, hours):
+    conn.execute("INSERT INTO run_log(run_id, stage, started_at, finished_at, ok, counts) VALUES (?,?,?,?,1,'{}')",
+                 ("w", iw.STAGE, _t(hours=hours + 0.01), _t(hours=hours)))
+
+
+def test_a_whole_country_going_quiet_is_an_error_in_every_run_while_it_lasts(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn) + _world(conn, n=3, country="NZL", prefix="nz", every=3)
+    _stages(conn, hours=0.3)
+    # Every New Zealand outlet, each with an item every third day (together one a day), stops delivering China
+    # relevant items: three days of silence, two a day before.
+    conn.execute("DELETE FROM articles WHERE outlet_id LIKE 'nz%' AND discovered_at > ? AND gate_relevant = 1",
+                 (_t(days=3.0),))
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    country = _checks(r, "country_quiet")
+    assert [(p["input"], p["kind"], p["new"]) for p in country] == [("country:NZL", "no_relevant", True)]
+    assert country[0]["line"].startswith("country NZL, all 3 polled outlets, 6 items at stake: no China relevant item in ")
+    assert country[0]["since"] is not None
+    # No single New Zealand outlet is judged alone (an item every third day), so only the country says it.
+    assert not [p for p in r["problems"] if p["input"].startswith("nz")]
+    ann = iw.annotations(r["problems"])
+    assert ann[0].startswith("::error title=Country quiet::country NZL, all 3 polled outlets")
+    # A day later, collection otherwise going on, it is ongoing, and still an error, never folded into the notice.
+    for o in outlets:
+        if o["country"] == "AUS":
+            _article(conn, o["id"], -0.95)
+    conn.execute("UPDATE feed_health SET last_ok = ?, newest_entry = ?", (_t(days=-0.98), _t(days=-0.97)))
+    _stages(conn, hours=-23.7)
+    later = iw.check(conn, outlets, now=NOW + dt.timedelta(days=1), sources=[])
+    country = _checks(later, "country_quiet")
+    assert [(p["input"], p["new"]) for p in country] == [("country:NZL", False)]
+    assert [a for a in iw.annotations(later["problems"]) if a.startswith("::error title=Country quiet::country NZL")]
+    assert iw.ongoing_summary(later["problems"]) is None or "NZL" not in iw.ongoing_summary(later["problems"])
+
+
+def test_a_country_whose_feeds_all_fail_for_a_day_is_quiet_but_one_working_outlet_keeps_it_polled(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn) + _world(conn, n=3, country="NZL", prefix="nz")
+    _stages(conn, hours=0.3)
+    conn.execute("UPDATE feed_health SET last_ok = ? WHERE outlet_id LIKE 'nz%'", (_t(hours=30),))
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    assert [(p["input"], p["kind"]) for p in _checks(r, "country_quiet")] == [("country:NZL", "no_poll")]
+    assert {p["input"] for p in _checks(r, "no_poll")} == {"nz00", "nz01", "nz02"}     # each says it too
+    conn.execute("UPDATE feed_health SET last_ok = ? WHERE outlet_id = 'nz01'", (_t(hours=1),))
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    assert not _checks(r, "country_quiet")
+    assert {p["input"] for p in _checks(r, "no_poll")} == {"nz00", "nz02"}
+
+
+def test_one_outlet_quiet_in_a_working_country_is_an_input_warning_not_a_country_error(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn)
+    _stages(conn, hours=0.3)
+    conn.execute("DELETE FROM articles WHERE outlet_id = 'w03' AND discovered_at > ? AND gate_relevant = 1", (_t(days=3.0),))
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    assert not _checks(r, "country_quiet") and not _checks(r, "collector_quiet")
+    assert [(p["input"], p["check"], p["new"]) for p in r["problems"]] == [("w03", "no_relevant", True)]
+    ann = iw.annotations(r["problems"])
+    assert len(ann) == 1 and ann[0].startswith("::warning title=Input at risk::w03, 2 items at stake: no China relevant")
+
+
+def test_nothing_discovered_for_twelve_hours_is_a_collector_error_said_once(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn, ok_hours=13)
+    _stages(conn, hours=0.3)                           # passes finish, and bring nothing
+    conn.execute("DELETE FROM articles WHERE discovered_at > ?", (_t(hours=13),))
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    coll = _checks(r, "collector_quiet")
+    assert [p["input"] for p in coll] == ["discovery", "feeds"]
+    assert coll[0]["line"].startswith("no item discovered from any input in ")
+    assert "(limit 12), the newest at " in coll[0]["line"]
+    assert coll[1]["line"].startswith("no feed polled successfully on any input in 13 hours (limit 12)")
+    # every input and country would look unpolled: the collector line says it once
+    assert not _checks(r, "no_poll") and not _checks(r, "country_quiet")
+    ann = iw.annotations(r["problems"])
+    assert [a.split("::")[1] for a in ann] == ["error title=Collector stopped", "error title=Collector stopped"]
+    # an hour's quiet is not news
+    conn2 = _db(tmp_path / "b")
+    outlets2 = _world(conn2)
+    _stages(conn2, hours=0.3)
+    assert not _checks(iw.check(conn2, outlets2, now=NOW, sources=[]), "collector_quiet")
+
+
+def test_a_small_collector_is_not_judged_as_a_whole(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn, n=iw.COLLECTOR_MIN_OUTLETS - 1, ok_hours=13)
+    _stages(conn, hours=0.3)
+    conn.execute("DELETE FROM articles WHERE discovered_at > ?", (_t(hours=13),))
+    assert not _checks(iw.check(conn, outlets, now=NOW, sources=[]), "collector_quiet")
+
+
+def test_the_first_run_after_a_restart_says_how_long_the_collector_was_quiet_once(tmp_path):
+    conn = _db(tmp_path)
+    outlets = _world(conn)
+    for h in (40, 31):                                    # passes, then nothing for 30 hours
+        conn.execute("INSERT INTO run_log(run_id, stage, started_at, finished_at, ok, counts) VALUES (?,?,?,?,1,'{}')",
+                     ("r", "discover", _t(hours=h + 0.2), _t(hours=h)))
+    _watch_ran(conn, 31)                                  # the last watch before the stop
+    _stages(conn, hours=0.3)                              # the restart
+    r = iw.check(conn, outlets, now=NOW, sources=[])
+    gap = _checks(r, "collector_gap")
+    assert len(gap) == 1 and gap[0]["line"].startswith("the collector was quiet for 31 hours: no discovery pass finished from ")
+    assert iw.annotations(r["problems"])[0].startswith("::error title=Collector stopped::the collector was quiet for 31 hours")
+    _watch_ran(conn, 0.2)                                 # the restart's own watch has said it
+    assert not _checks(iw.check(conn, outlets, now=NOW, sources=[]), "collector_gap")
+
+
+def test_errors_are_capped_apart_from_warnings():
+    problems = [{"check": "country_quiet", "input": "country:C%02d" % i, "line": "country C%02d: quiet" % i, "stake": 1,
+                 "category": "country", "new": False} for i in range(12)]
+    problems += [{"check": "no_poll", "input": "x", "line": "x: no poll", "stake": 1, "category": "dark", "new": True}]
+    lines = iw.annotations(problems)
+    errors = [l for l in lines if l.startswith("::error")]
+    assert len(errors) == iw.MAX_ANNOTATIONS and errors[-1] == ("::error title=Country quiet::3 more countries quiet; see "
+                                                                 "the input watch lines in this step's log")
+    assert lines[-1] == "::warning title=Input at risk::x: no poll"
+
+
+def test_the_run_records_what_is_quiet_and_the_export_carries_it_to_the_site(tmp_path, monkeypatch):
+    from pipeline import export
+    conn = _db(tmp_path)
+    outlets = _world(conn) + _world(conn, n=3, country="NZL", prefix="nz", every=3)
+    outlets += [_outlet("au_a", "acm"), _outlet("au_b", "acm")]
+    for oid in ("au_a", "au_b"):
+        _labels(conn, oid, 30, group_base=500)
+        _healthy(conn, oid, ok_hours=40)
+    _stages(conn, hours=0.3)
+    conn.execute("DELETE FROM articles WHERE outlet_id LIKE 'nz%' AND discovered_at > ? AND gate_relevant = 1",
+                 (_t(days=3.0),))
+    out = io.StringIO()
+    res = iw.run(conn, outlets=outlets, now=NOW, sources=[], out=out)
+    text = out.getvalue()
+    assert "::error title=Country quiet::country NZL, all 3 polled outlets" in text
+    assert "::warning title=Input at risk::network acm (2 outlets), 30 items at stake: no successful feed poll" in text
+    quiet = res["counts"]["quiet"]
+    assert [(e["level"], e["id"]) for e in quiet] == [("country", "country:NZL"), ("input", "network:acm")]
+    assert quiet[0]["country"] == "NZL" and quiet[0]["checks"] == ["no_relevant"] and quiet[0]["since"]
+    assert quiet[1]["checks"] == ["no_poll"] and quiet[1]["since"] == _t(hours=40) and quiet[1]["new"] == 1
+    site = iw.site_summary(conn, outlets)
+    assert site["checked_at"] and site["quiet"][1]["name"] == "the acm network (2 outlets)"
+    assert iw.site_summary(_db(tmp_path / "none")) is None
+    # and the export puts it, with the newest discovery, in meta.json
+    db = tmp_path / "t.db"
+    conn.commit()
+    monkeypatch.setattr(config, "DB_PATH", db)
+    monkeypatch.setattr(export.registry, "load_outlets", lambda *a, **k: outlets)
+    export.run(conn, "test", export_dir=tmp_path / "out", audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
+    meta = json.loads((tmp_path / "out" / "meta.json").read_text())
+    assert meta["last_discovered"] == conn.execute("SELECT MAX(discovered_at) FROM articles").fetchone()[0]
+    assert [e["id"] for e in meta["input_watch"]["quiet"]] == ["country:NZL", "network:acm"]
+
+
+def test_the_command_line_warns_when_run_by_hand_on_a_stale_copy(tmp_path, monkeypatch, capsys):
+    conn = _db(tmp_path)
+    _article(conn, "a", 40)
+    conn.commit()
+    monkeypatch.setattr(iw.store, "connect", lambda *a, **k: conn)
+    monkeypatch.setattr(iw, "run", lambda *a, **k: {})
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    iw.main(["--now", NOW.isoformat()])
+    err = capsys.readouterr().err
+    assert "WARNING: STALE COPY, input_watch" in err and "scripts/db_pull.sh" in err and _t(40)[:10] in err
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")          # on the runner the collector lines say it
+    iw.main(["--now", NOW.isoformat()])
+    assert capsys.readouterr().err == ""
+
+
+# --- the runner's snapshot, read only, with silences simulated in memory ------------------------------------
+# TRACKER_TEST_SNAPSHOT names a copy of the runner's database (the scrubbed snapshot of 2026-11-24, newest
+# discovery 13:21 UTC) on the owner's machine; elsewhere these are skipped.
+
+import os  # noqa: E402
+import sqlite3  # noqa: E402
+
+import pytest  # noqa: E402
+
+_SNAP = os.environ.get("TRACKER_TEST_SNAPSHOT", "")
+_snapshot = pytest.mark.skipif(os.environ.get("GITHUB_ACTIONS") == "true" or not _SNAP or not os.path.exists(_SNAP),
+                               reason="the runner's snapshot is named by TRACKER_TEST_SNAPSHOT on the owner's machine only")
+
+
+def _snap():
+    from pipeline import registry
+    conn = sqlite3.connect("file:%s?mode=ro" % _SNAP, uri=True)
+    conn.row_factory = sqlite3.Row
+    newest = iw.newest_discovery(conn)
+    return conn, registry.load_outlets(), newest + dt.timedelta(minutes=8)
+
+
+def _silenced(monkeypatch, outlets, cutoff):
+    """Facts as loaded, less every China relevant item of these outlets discovered after `cutoff`."""
+    import bisect as _b
+    real = iw.Facts
+
+    class Quiet(real):
+        def __init__(self, conn, start, asof=None):
+            real.__init__(self, conn, start, asof)
+            for oid in outlets:
+                if oid in self.rel:
+                    times, lost, done, done_times = self.rel[oid]
+                    i = _b.bisect_left(times, cutoff)
+                    self.rel[oid] = (times[:i], lost[:i + 1], done[:i + 1], [t for t in done_times if t < cutoff])
+                    self.rel_dates[oid] = sorted({t[:10] for t in times[:i]})
+    monkeypatch.setattr(iw, "Facts", Quiet)
+
+
+@_snapshot
+def test_on_the_snapshot_a_whole_country_going_quiet_is_a_country_error(monkeypatch):
+    conn, outlets, now = _snap()
+    base = {(p["input"], p["check"]) for p in iw.check(conn, outlets, now=now)["problems"]}
+    chile = [o["id"] for o in iw._collectable(outlets) if o["country"] == "CHL"]
+    assert len(chile) >= 5
+    _silenced(monkeypatch, chile, iw._iso(now - dt.timedelta(days=3)))
+    r = iw.check(conn, outlets, now=now)
+    country = [p for p in _checks(r, "country_quiet") if p["input"] == "country:CHL"]
+    assert [(p["kind"], p["new"]) for p in country] == [("no_relevant", True)]
+    assert country[0]["line"].startswith("country CHL, all %d polled outlets" % len(chile))
+    assert any(a.startswith("::error title=Country quiet::country CHL") for a in iw.annotations(r["problems"]))
+    assert [e for e in iw.quiet_list(r["problems"]) if e["id"] == "country:CHL"][0]["since"] < iw._iso(now - dt.timedelta(days=3))
+    # nothing else changed but Chile
+    assert {(p["input"], p["check"]) for p in r["problems"]} - base <= {("country:CHL", "country_quiet"),
+                                                                       ("cl_elciudadano", "no_relevant"),
+                                                                       ("cl_latercera", "no_relevant")}
+
+
+@_snapshot
+def test_on_the_snapshot_one_outlet_going_quiet_is_a_warning_and_its_country_stays_quiet_free(monkeypatch):
+    conn, outlets, now = _snap()
+    watch = iw.watched_inputs(conn, outlets, now)
+    top = [u for u in watch["units"] if len(u["members"]) == 1][0]
+    _silenced(monkeypatch, top["members"], iw._iso(now - dt.timedelta(days=3)))
+    r = iw.check(conn, outlets, now=now)
+    mine = [p for p in r["problems"] if p["input"] == top["id"]]
+    assert [(p["check"], p["new"]) for p in mine] == [("no_relevant", True)]
+    assert not [p for p in _checks(r, "country_quiet") if p["country"] == top["country"]]
+    assert any(a.startswith("::warning title=Input at risk::%s" % top["id"]) for a in iw.annotations(r["problems"]))
+
+
+@_snapshot
+def test_on_the_snapshot_the_collector_quiet_for_thirteen_hours_is_an_error_and_a_stop_is_reported_after(monkeypatch):
+    conn, outlets, now = _snap()
+    assert not _checks(iw.check(conn, outlets, now=now), "collector_quiet")
+    later = now + dt.timedelta(hours=13)          # passes went on finishing; nothing came
+    r = iw.check(conn, outlets, now=later)
+    assert [p["input"] for p in _checks(r, "collector_quiet")] == ["discovery", "feeds"]
+    assert not _checks(r, "country_quiet") and not _checks(r, "no_poll")
+    assert iw.annotations(r["problems"])[0].startswith("::error title=Collector stopped::no item discovered from any input")
+    # The snapshot's own record: no discovery pass from 2026-09-03 21:14 to 2026-09-04 21:26 (24 hours), said by
+    # the first watch after it.
+    gaps = iw.discover_gaps(conn, dt.datetime(2026, 9, 5, tzinfo=dt.timezone.utc), dt.datetime(2026, 9, 4, tzinfo=dt.timezone.utc))
+    assert [(iw._iso(a)[:16], iw._iso(b)[:16]) for a, b in gaps] == [("2026-09-03T21:14", "2026-09-04T21:26")]

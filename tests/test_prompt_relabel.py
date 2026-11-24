@@ -5,6 +5,7 @@ import json
 import sqlite3
 
 from pipeline import classify_llm as cl, config, labels, store
+from tests._attributes import attribute_fields
 from tests.test_classify_llm import _RecordingBatchApi, _batch_client, _message
 
 OLD = "claude-sonnet-5"
@@ -77,6 +78,7 @@ def test_session_label_keeps_the_model_version_it_names(tmp_path):
             "independent_confirmation_present": False, "confirmation_evidence": None,
             "issuer_type": "none", "state_basis": "none",
             "labelled_at": "2026-10-13", "source": "session"}
+    base.update(attribute_fields("C"))     # required of a line naming prompt 2026-12-01 or later
     tagged_mv = labels.session_model_version()
     assert tagged_mv == "claude-sonnet-5 (session, prompt %s)" % cl.PROMPT_VERSION
     lines = [dict(base, url_hash=store.url_hash("https://e.com/r1"), model_version="claude-sonnet-5 (session)"),

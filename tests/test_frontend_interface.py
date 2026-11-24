@@ -144,4 +144,4 @@ def test_issuer_line_and_badge():
 def test_findings_box_names_both_distributions_and_stale_notice():
     app = _app()
     assert '" (both distributions)"' in app
-    assert '["renderStaleNotice", renderStaleNotice]' in app and "function staleLines(meta, gens, now)" in app
+    assert '["renderStaleNotice", renderStaleNotice]' in app and "function staleLines(meta, gens, now, nameOf)" in app

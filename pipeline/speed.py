@@ -329,8 +329,9 @@ def load_pairs(conn, ctx: Optional[Dict] = None) -> List[Dict]:
     out = []
     from pipeline import model_only
     for r in rows:
-        # A copy whose state origin label is undetermined (pipeline/model_only.py) is in no count.
-        if model_only.is_undetermined(r["c_category"], r["route"], r["c_method"]):
+        # A copy whose state origin label is undetermined (pipeline/model_only.py), or of a state-owned or SAR
+        # issuer (pipeline/state_issuers.py), is in no count.
+        if model_only.is_set_apart(r["c_category"], r["route"], r["c_method"]):
             continue
         kind = KINDS[r["original_kind"]]
         copy = {"published_at": _pick(r["copy_published_at"], r["a_pub"]), "discovered_at": r["a_disc"],

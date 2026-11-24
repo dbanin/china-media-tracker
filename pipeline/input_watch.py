@@ -15,10 +15,14 @@ only (no network), and reports what is at risk:
                (nearly all of them, or a rise against its own earlier share), and a silence of China
                relevant items its own rate makes improbable.
   groups       inputs too small to be judged alone, pooled by country, on the rules that need volume.
+  countries    every country as a whole: all its polled outlets pooled, judged by the silence, stale entry
+               and poll rules against the country's own rates, so a whole country going quiet is said once,
+               loudly, as itself (an error annotation in every run while it lasts).
   reference    every reference source: failure share of its items over RECENT_DAYS, and no new item
                in REF_SILENT_HOURS.
   global       the article fetch backlog rising run after run (the 2026-10-30 lesson), no discovery or
-               fetch pass finished lately.
+               fetch pass finished lately, no item discovered or no feed polled successfully on any input for
+               COLLECTOR_QUIET_HOURS, and, on the run after a restart, the hours the collector was quiet.
 
 Every rule judges only what the input's own volume can support: a rule that cannot be judged at an
 input's volume says nothing for it. A problem is new when the same input showed no problem of its kind
@@ -30,7 +34,11 @@ problems get a GitHub Actions warning titled "Input at risk", one per input, ran
 notice and one log line, so a new risk is never hidden behind old ones. Every problem prints one log line, and the
 run is recorded in run_log under stage input_watch. Nothing here is a label, a count or a denominator,
 and nothing is ever changed but the run_log row. The thresholds below are explained from the snapshot of
-2026-11-09.
+2026-11-09. A whole country or the whole collector going quiet is an error annotation instead, in every run
+while it lasts; the export copies what is quiet, and since when, into meta.input_watch for the site's notice
+(site_summary). A collector that has stopped runs no watch: then the site's own clock says the data is old
+(meta.last_discovered and meta.generated_at against the reader's clock), and the first run after the restart
+says how long collection stopped (collector_gap).
 
 Usage: python -m pipeline.input_watch [--now 2026-11-09T00:27:00+00:00] [--all]
 """
@@ -39,18 +47,21 @@ import bisect
 import datetime as dt
 import json
 import math
+import os
 import sys
 import time
 import uuid
 from collections import Counter, defaultdict
 from typing import Dict, List, Optional
 
-from pipeline import config, store
+from pipeline import config, freshness, store
 
 UTC = dt.timezone.utc
 STAGE = "input_watch"
 TITLE = "Input at risk"
 NOTICE_TITLE = "Inputs at risk, ongoing"
+COLLECTOR_TITLE = "Collector stopped"
+COUNTRY_TITLE = "Country quiet"
 
 # --- which inputs are watched ---------------------------------------------------------------------------
 # Eight weeks: long enough that an outlet whose input broke a fortnight ago is still watched and weighed by
@@ -150,8 +161,26 @@ BACKLOG_RUNS = 3
 BACKLOG_WORKFLOW_WARNS = 1000
 # No discovery or fetch pass finished in this long: the input as a whole has stopped.
 STAGE_STALE_HOURS = 24
+# Passes that finish and bring nothing: no item discovered from any input, or no feed polled successfully on
+# any, for this long (the runner cut off, every feed refusing it). On the snapshot of 2026-11-24 the longest
+# time without a discovery since the hourly chain began (2026-11-12 21:00) is 0.9 hours, and since 2026-10-13,
+# under the cron alone, 10.4 hours (2026-11-11 15:38 to 2026-11-12 02:01), so twelve never fired on the
+# record. The same length, met between two discovery passes, is the gap the first run after a restart reports.
+COLLECTOR_QUIET_HOURS = 12
+# Twelve quiet hours say the collector stopped only when it polls many outlets (1,000 or so on the snapshot);
+# with fewer than this a quiet half day can be the outlets' own, and the per input rules speak for them.
+COLLECTOR_MIN_OUTLETS = 20
 
-# GitHub shows at most 10 warning annotations per step; the tenth says how many more the log holds.
+# --- whole countries ------------------------------------------------------------------------------------
+# The rules a country is judged by, on all its polled outlets pooled: no feed polled successfully in a day, the
+# newest entry improbably old for the country's own rate, no China relevant item for improbably long by the
+# country's own days with one. A pool fires only when every outlet in it is quiet. On the snapshot of
+# 2026-11-24 (13:30 UTC) one of the 233 countries polled fires: Niue, whose one outlet's feed has failed for 153
+# hours (robots_unavailable). The highest silence score elsewhere is Saint Vincent and the Grenadines' 5.1 and
+# the highest stale entry score Guinea-Bissau's 2.7, against 7.0 to fire.
+COUNTRY_CHECKS = ("no_poll", "stale_entries", "no_relevant")
+
+# GitHub shows at most 10 warning and 10 error annotations per step; the tenth says how many more the log holds.
 MAX_ANNOTATIONS = 10
 # Ongoing problems named in the notice, the largest first.
 NOTICE_NAMES = 5
@@ -164,7 +193,13 @@ CHECK_NAMES = {"no_poll": "no successful feed poll", "stale_entries": "feed entr
                "no_relevant": "no China relevant item", "fetch_dark": "nearly all lost at fetch",
                "saturation": "feed saturation", "fetch_loss": "fetch loss rising",
                "ref_failing": "reference failing", "ref_silent": "reference silent",
-               "stage_stale": "stage stale", "backlog_rising": "backlog rising"}
+               "stage_stale": "stage stale", "backlog_rising": "backlog rising",
+               "country_quiet": "whole country quiet", "collector_quiet": "collector quiet",
+               "collector_gap": "collector was quiet"}
+# Error annotations, in every run while they last: the collector or a whole country quiet.
+ERROR_CHECKS = ("stage_stale", "collector_quiet", "collector_gap", "country_quiet")
+# What the site's notice lists as quiet (site_summary): silences, not losses at fetch.
+QUIET_CHECKS = ("no_poll", "stale_entries", "no_relevant")
 
 
 def _iso(t: dt.datetime) -> str:
@@ -553,6 +588,9 @@ def judged_alone(m: Dict) -> bool:
 # ---------------------------------------------------------------------------------------------------------
 
 def _name(unit: Dict) -> str:
+    if unit.get("pool"):
+        n = len(unit["members"])
+        return "country %s, %s" % (unit["country"], "its only polled outlet" if n == 1 else "all %d polled outlets" % n)
     if unit.get("group"):
         return "%s, %d small inputs" % (unit["id"].replace("group:", "country group "), len(unit["units"]))
     name = unit["id"].replace("network:", "network ")
@@ -570,7 +608,8 @@ def check_unit(unit: Dict, m: Dict, now: dt.datetime, polls_meaningful: bool = T
 
     def add(check, text, since=None, why="", **extra):
         p = {"check": check, "input": unit["id"], "line": "%s: %s" % (tag, text), "stake": unit["weight"],
-             "category": "dark" if check in DARK else "degraded", "since": since, "why": why}
+             "category": "dark" if check in DARK else "degraded", "since": since, "why": why,
+             "country": unit.get("country") or ""}
         p.update(extra)
         out.append(p)
 
@@ -741,6 +780,33 @@ def queued_now(conn, outlets: List[Dict]) -> int:
         if oid in mine)
 
 
+def newest_discovery(conn, now: Optional[dt.datetime] = None) -> Optional[dt.datetime]:
+    """The newest item discovered from any input (to `now`, when given)."""
+    if now is None:
+        r = conn.execute("SELECT MAX(discovered_at) FROM articles").fetchone()
+    else:
+        r = conn.execute("SELECT MAX(discovered_at) FROM articles WHERE discovered_at <= ?", (_iso(now) + "\uffff",)).fetchone()
+    return _parse(r[0]) if r else None
+
+
+def discover_gaps(conn, now: dt.datetime, after: dt.datetime) -> List[tuple]:
+    """Stretches of COLLECTOR_QUIET_HOURS or more between two finished discovery passes, the later one after
+    `after` (the previous watch) and by `now`: the collector stopped, ran no watch, and has started again."""
+    hi = _iso(now) + "\uffff"
+    r = conn.execute("SELECT MAX(finished_at) FROM run_log WHERE stage = 'discover' AND ok = 1 AND finished_at <= ?",
+                     (_iso(after),)).fetchone()
+    times = [_parse(r[0])] if r and r[0] else []
+    times += [_parse(t) for (t,) in conn.execute(
+        """SELECT finished_at FROM run_log WHERE stage = 'discover' AND ok = 1 AND finished_at > ? AND finished_at <= ?
+           ORDER BY finished_at""", (_iso(after), hi))]
+    times = [t for t in times if t]
+    return [(a, b) for a, b in zip(times, times[1:]) if (b - a).total_seconds() / 3600 >= COLLECTOR_QUIET_HOURS]
+
+
+def _hours(h: float) -> str:
+    return "%.0f hours" % h if h < 72 else "%.1f days" % (h / 24)
+
+
 def check_global(conn, outlets: List[Dict], now: dt.datetime, stake: int = 0, replay: bool = False) -> List[Dict]:
     out = []
     asof = now if replay else None
@@ -752,6 +818,37 @@ def check_global(conn, outlets: List[Dict], now: dt.datetime, stake: int = 0, re
                         "why": "stage stale",
                         "line": "no %s pass has finished %s" % (
                             stage, "on record" if h is None else "in %.0f hours (limit %d)" % (h, STAGE_STALE_HOURS))})
+    # Passes that finish and bring nothing. With no discovery pass at all the line above says it once.
+    if not any(p["input"] == "discover" for p in out) and len(_collectable(outlets)) >= COLLECTOR_MIN_OUTLETS:
+        newest = newest_discovery(conn, asof)
+        h = None if newest is None else (now - newest).total_seconds() / 3600
+        if h is None or h > COLLECTOR_QUIET_HOURS:
+            out.append({"check": "collector_quiet", "input": "discovery", "stake": stake, "category": "global",
+                        "since": newest, "why": "collector quiet",
+                        "line": "no item discovered from any input %s" % (
+                            "on record" if h is None else "in %s (limit %d), the newest at %s" % (
+                                _hours(h), COLLECTOR_QUIET_HOURS, _iso(newest)[:16].replace("T", " ") + " UTC"))})
+        if not replay:      # feed_health holds the latest state only
+            ok, feeds = conn.execute("SELECT MAX(last_ok), COUNT(*) FROM feed_health").fetchone()
+            ok = _parse(ok)
+            h = None if ok is None else (now - ok).total_seconds() / 3600
+            if feeds and (h is None or h > COLLECTOR_QUIET_HOURS):
+                out.append({"check": "collector_quiet", "input": "feeds", "stake": stake, "category": "global",
+                            "since": ok, "why": "collector quiet",
+                            "line": "no feed polled successfully on any input %s" % (
+                                "on record" if h is None else "in %s (limit %d), the last at %s" % (
+                                    _hours(h), COLLECTOR_QUIET_HOURS, _iso(ok)[:16].replace("T", " ") + " UTC"))})
+    # The first run after a restart: a collector that stopped ran no watch, so the gap is said now, once (it
+    # ended after the previous watch finished).
+    prev = _stage_finished(conn, STAGE, now)
+    for a, b in discover_gaps(conn, now, prev if prev is not None else now - dt.timedelta(hours=NEW_HOURS)):
+        h = (b - a).total_seconds() / 3600
+        out.append({"check": "collector_gap", "input": "discover", "stake": stake, "category": "global", "since": a,
+                    "why": "collector was quiet",
+                    "line": "the collector was quiet for %s: no discovery pass finished from %s to %s, so items a feed "
+                            "listed and dropped in that time were never seen" % (
+                                _hours(h), _iso(a)[:16].replace("T", " ") + " UTC",
+                                _iso(b)[:16].replace("T", " ") + " UTC")})
     s = backlog_series(conn, now=asof)
     if len(s) >= BACKLOG_RUNS and s[-1] >= BACKLOG_FLOOR and all(a < b for a, b in zip(s, s[1:])):
         if s[-1] < BACKLOG_WORKFLOW_WARNS:     # from there on the workflow's own warning says it
@@ -820,6 +917,25 @@ def _groups(units: List[Dict], metrics: Dict[str, Dict], dark: set = frozenset()
     return out
 
 
+def country_pools(outlets: List[Dict], units: List[Dict]) -> List[Dict]:
+    """Every country this collector polls, as one pool of all its polled outlets (watched or not: a country's
+    zeros are its outlets' silence too), weighed by the items its watched inputs carried."""
+    members, stake = defaultdict(list), Counter()
+    for o in _collectable(outlets):
+        members[o.get("country") or "unknown"].append(o["id"])
+    for u in units:
+        stake[u["country"] or "unknown"] += u["weight"]
+    return [{"id": "country:" + c, "pool": True, "country": c, "members": sorted(ids), "weight": stake[c]}
+            for c, ids in sorted(members.items())]
+
+
+def _as_country(problems: List[Dict]) -> List[Dict]:
+    """A country pool's problems as one check, country_quiet, keeping the rule that fired as `kind`."""
+    for p in problems:
+        p["kind"], p["check"], p["category"] = p["check"], "country_quiet", "country"
+    return problems
+
+
 def evaluate(conn, facts: Facts, outlets: List[Dict], now: dt.datetime, sources: Optional[List[Dict]] = None,
              ref_ids: Optional[List[str]] = None, replay: bool = False, detail: bool = False,
              reasons: bool = True) -> Dict:
@@ -831,7 +947,10 @@ def evaluate(conn, facts: Facts, outlets: List[Dict], now: dt.datetime, sources:
     problems = check_global(conn, outlets, now, stake=watch["total"], replay=replay)
     for p in problems:
         p["new"] = True
-    discover_stale = any(p["check"] == "stage_stale" and p["input"] == "discover" for p in problems)
+    # No discovery pass in a day, or passes that bring nothing: every input and country would look unpolled,
+    # and the collector line says it once.
+    discover_stale = any((p["check"] == "stage_stale" and p["input"] == "discover") or p["check"] == "collector_quiet"
+                         for p in problems)
     # reference sources
     if ref_ids is None:
         ref_ids = _reference_ids(conn, sources)
@@ -869,6 +988,19 @@ def evaluate(conn, facts: Facts, outlets: List[Dict], now: dt.datetime, sources:
             _mark_new(cur, [q for t in points for q in check_unit(g, facts.metrics(g["members"], t), t,
                                                                    only=VOLUME_CHECKS)])
             unit_problems += cur
+    # every country as a whole, all its polled outlets pooled
+    pools = [] if discover_stale else country_pools(outlets, watch["units"])
+    quiet_countries = set()
+    for c in pools:
+        m = facts.metrics(c["members"], now)
+        cur = _as_country(check_unit(c, m, now, only=COUNTRY_CHECKS))
+        if cur:
+            _mark_new(cur, _as_country([q for t in points for q in check_unit(c, facts.metrics(c["members"], t), t,
+                                                                               only=COUNTRY_CHECKS)]))
+            unit_problems += cur
+            quiet_countries.add(c["country"])
+    # A country quiet as a whole says what its group of small inputs would: the group's line is left out.
+    unit_problems = [p for p in unit_problems if not (str(p["input"]).startswith("group:") and p["country"] in quiet_countries)]
     if reasons:
         for p in unit_problems:
             if p["check"] in ("fetch_dark", "fetch_loss"):
@@ -882,6 +1014,7 @@ def evaluate(conn, facts: Facts, outlets: List[Dict], now: dt.datetime, sources:
     watch["judged_alone"] = sum(w for uid, w in weight.items() if judged[uid])
     watch["judged_group"] = sum(w for uid, w in weight.items() if not judged[uid] and uid in group_judged)
     watch["groups"] = len(groups)
+    watch["countries"] = len(pools)
     out = {"problems": problems, "key": watch, "reference": ref_ids, "now": _iso(now), "groups": groups}
     if detail:
         out["metrics"] = metrics
@@ -927,7 +1060,7 @@ def _annotation_text(ps: List[Dict]) -> str:
 def ongoing_summary(problems: List[Dict]) -> Optional[str]:
     """One line for every ongoing problem: the dark inputs and their items by why, the degraded ones, the
     reference sources, and the largest few by name."""
-    old = [p for p in problems if not p.get("new")]
+    old = [p for p in problems if not p.get("new") and p["check"] not in ERROR_CHECKS]
     if not old:
         return None
     parts = []
@@ -978,16 +1111,25 @@ def ongoing_summary(problems: List[Dict]) -> Optional[str]:
 
 
 def annotations(problems: List[Dict]) -> List[str]:
-    """The ::warning lines for new problems, one per input in the order given (the most items at stake
-    first), at most MAX_ANNOTATIONS; the last says how many more the log holds. Ongoing problems are left
-    to the notice."""
-    new = [ps for ps in _by_input([p for p in problems if p.get("new", True)])]
+    """The ::error lines for the collector or a whole country gone quiet, in every run while it lasts, then
+    the ::warning lines for new problems, one per input in the order given (the most items at stake first);
+    each kind at most MAX_ANNOTATIONS, the last saying how many more the log holds. Ongoing problems other
+    than those errors are left to the notice."""
+    errors = []
+    for ps in _by_input([p for p in problems if p["check"] in ERROR_CHECKS]):
+        title = COUNTRY_TITLE if ps[0]["check"] == "country_quiet" else COLLECTOR_TITLE
+        errors.append("::error title=%s::%s" % (title, _escape(_annotation_text(ps))))
+    if len(errors) > MAX_ANNOTATIONS:
+        more = len(errors) - (MAX_ANNOTATIONS - 1)
+        errors = errors[:MAX_ANNOTATIONS - 1] + ["::error title=%s::%d more countries quiet; see the input watch lines "
+                                                 "in this step's log" % (COUNTRY_TITLE, more)]
+    new = [ps for ps in _by_input([p for p in problems if p.get("new", True) and p["check"] not in ERROR_CHECKS])]
     lines = ["::warning title=%s::%s" % (TITLE, _escape(_annotation_text(ps))) for ps in new]
     if len(lines) > MAX_ANNOTATIONS:
         more = len(lines) - (MAX_ANNOTATIONS - 1)
         lines = lines[:MAX_ANNOTATIONS - 1] + ["::warning title=%s::%d more inputs at risk; see the input watch lines "
                                                "in this step's log" % (TITLE, more)]
-    return lines
+    return errors + lines
 
 
 def _escape(text: str) -> str:
@@ -1027,9 +1169,78 @@ def summary_counts(result: Dict, seconds: float) -> Dict:
             "dark_ongoing_inputs": len(dark), "dark_ongoing_items": sum(dark.values()),
             "estimator": config.MISSED_ESTIMATOR_VERSION,
             "flags": [p["line"] for p in result["problems"] if p.get("new", True)],
+            # what is quiet and since when, for the site's notice (site_summary)
+            "quiet": quiet_list(result["problems"]),
+            "countries": key.get("countries", 0),
             # every problem, compactly: input, check, items at stake, new (1) or ongoing (0)
             "all": [[p["input"], p["check"], p["stake"], 1 if p.get("new", True) else 0] for p in result["problems"]],
             "seconds": round(seconds, 2)}
+
+
+def quiet_list(problems: List[Dict]) -> List[Dict]:
+    """What is quiet, one entry per collector check, country or input, with since when: the collector (no
+    pass finished, nothing discovered or polled), whole countries, and inputs or small input groups whose
+    own silence, stale entries or failed polls make them dark. Losses at fetch are not silences and are
+    left to the log."""
+    out, by = [], {}
+    for p in problems:
+        if p["check"] in ("stage_stale", "collector_quiet"):
+            level = "collector"
+        elif p["check"] == "country_quiet":
+            level = "country"
+        elif p["check"] in QUIET_CHECKS and p.get("category") == "dark":
+            level = "group" if str(p["input"]).startswith("group:") else "input"
+        else:
+            continue
+        key = (level, p["input"])
+        if key not in by:
+            by[key] = {"level": level, "id": p["input"], "country": p.get("country") or None, "checks": [],
+                       "since": None, "items": p.get("stake") or 0, "new": 0}
+            out.append(by[key])
+        e = by[key]
+        kind = p.get("kind") or p["check"]
+        if kind not in e["checks"]:
+            e["checks"].append(kind)
+        since = _iso(p["since"]) if isinstance(p.get("since"), dt.datetime) else None
+        if since and (e["since"] is None or since < e["since"]):
+            e["since"] = since
+        e["new"] = max(e["new"], 1 if p.get("new", True) else 0)
+    order = {"collector": 0, "country": 1, "input": 2, "group": 3}
+    return sorted(out, key=lambda e: (order[e["level"]], -e["items"], e["id"]))
+
+
+def site_summary(conn, outlets: Optional[List[Dict]] = None) -> Optional[Dict]:
+    """For the export (meta.input_watch): what the newest finished input watch found quiet, and when it ran,
+    with each input's name. None when no watch has finished. The site shows it in its notice beside the
+    data's own age, so a reader sees an outlet, a country or the collector gone quiet."""
+    try:
+        row = conn.execute("""SELECT finished_at, counts FROM run_log WHERE stage = ? AND ok = 1 AND finished_at IS NOT NULL
+                              ORDER BY finished_at DESC, id DESC LIMIT 1""", (STAGE,)).fetchone()
+    except Exception:  # noqa: BLE001  an older database: no watch on record
+        return None
+    if not row:
+        return None
+    try:
+        counts = json.loads(row[1] or "{}") or {}
+    except ValueError:
+        counts = {}
+    by_id = {o["id"]: o for o in (outlets or [])}
+    quiet = []
+    for e in counts.get("quiet") or []:
+        if not isinstance(e, dict) or e.get("level") not in ("collector", "country", "input", "group"):
+            continue
+        e = dict(e)
+        iid = str(e.get("id") or "")
+        if e["level"] == "input":
+            if iid.startswith("network:"):
+                net = iid[len("network:"):]
+                n = sum(1 for o in by_id.values() if o.get("network") == net)
+                e["name"] = "the %s network" % net + (" (%d outlets)" % n if n > 1 else "")
+            else:
+                e["name"] = (by_id.get(iid) or {}).get("name") or iid
+        quiet.append(e)
+    return {"checked_at": row[0], "problems": counts.get("problems"), "quiet": quiet,
+            "countries_judged": counts.get("countries"), "inputs_watched": counts.get("inputs_watched")}
 
 
 def run(conn, outlets: Optional[List[Dict]] = None, now: Optional[dt.datetime] = None,
@@ -1091,6 +1302,9 @@ def main(argv=None) -> int:
     if args.now and now is None:
         ap.error("--now is not an ISO 8601 time: %s" % args.now)
     conn = store.connect()
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        # Run by hand on a local copy: one days old would read as every input gone quiet (pipeline/freshness.py).
+        freshness.guard(conn, "input_watch", now=now)
     try:
         run(conn, now=now, show_all=args.all)
     finally:

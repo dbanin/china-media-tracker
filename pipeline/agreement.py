@@ -17,12 +17,15 @@ Usage:
   python -m pipeline.agreement sample --since-prompt [YYYY-MM-DD]
       the same draw from model labels made under the current classifier prompt
       (or the one named) only. Run it on the runner's snapshot (scripts/db_pull.sh):
-      it refuses a database whose newest model label is more than
-      SAMPLE_MAX_DB_AGE_DAYS old, since a local copy holds labels the runner has
-      already replaced. See CODING_GUIDE.md for when to redraw.
+      every draw refuses a database whose newest discovery is more than
+      SAMPLE_MAX_DB_AGE_DAYS old (pipeline/freshness.py), since a local copy holds
+      labels the runner has already replaced. See CODING_GUIDE.md for when to redraw.
   python -m pipeline.agreement sample --n 100 --out review/agreement_2026-09-03.csv
       the older pooled sample, kept for the record
   python -m pipeline.agreement compute --csv data/reviews/human_sample_<date>.csv [--partial] [--dry-run]
+  python -m pipeline.agreement attributes --codes <hand coding sheet> [--key <id to article key>] [--out <json>]
+      the current labels' six attributes (model labels from prompt 2026-12-01) against hand codes, one
+      attribute at a time: agreement and Cohen's kappa each, records nothing (cmd_attributes)
 
 What the study compares against (since 17 October 2026). Each coded article is
 compared with its model label current when compute runs, and only when that label
@@ -65,7 +68,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from pipeline import classify_llm, config, store
+from pipeline import classify_llm, config, freshness, store
 
 CATEGORIES = ["A", "B", "C", "not_relevant"]
 
@@ -99,8 +102,8 @@ CODER_LABELS = {"state_origin": "A", "unchecked_state_sourcing": "B", "independe
 # digits (c1, c2, ra3), the same on every row that person codes. The sheet is committed, so a name
 # or initials in it would publish who coded what; the owner keeps the id to person list off the repo.
 CODER_ID = re.compile(r"^[A-Za-z]{1,4}[0-9]{1,3}$")
-# sample --since-prompt refuses a database whose newest model label is older than this: the draw has
-# to come from the runner's labels, and a local copy days old holds labels the runner has replaced.
+# Every sample refuses a database whose newest discovery is older than this (pipeline/freshness.py): the draw
+# has to come from the runner's labels, and a local copy days old holds labels the runner has replaced.
 SAMPLE_MAX_DB_AGE_DAYS = 2
 # What compute compares the coders with, in words for the site (relay_human_study.labels_compared).
 LABELS_COMPARED = {
@@ -264,7 +267,7 @@ def cmd_human_sample(conn, out: Path, per_language: int = HUMAN_SAMPLE_PER_LANGU
     labels, because the person running it is one of the coders.
 
     since_prompt draws from labels made under that prompt or a later one only (the redraw after a
-    prompt change), and then refuses a database whose newest model label is over max_db_age_days
+    prompt change), and then refuses a database whose newest discovery is over max_db_age_days
     old: a stale local copy would draw from labels the runner has since replaced. Neither path ever
     overwrites an existing sample, which coders may already be filling in."""
     if out.exists() or out.with_suffix(".key.json").exists():
@@ -272,9 +275,12 @@ def cmd_human_sample(conn, out: Path, per_language: int = HUMAN_SAMPLE_PER_LANGU
         return {"n": 0, "refused": "exists", "out": str(out)}
     every = human_pool(conn)
     if since_prompt:
-        age = newest_model_label_age_days(conn)
-        if age is None or age > max_db_age_days:
-            print("not written: the newest model label in this database is %s old. Draw the sample from the runner's "
+        # The copy's age is its newest discovery (pipeline/freshness.py), not its newest model label: the model
+        # stage stops at the provider's usage limit while collection goes on (none from 2026-11-19 to 12-01).
+        info = freshness.database_age(conn, max_age_days=max_db_age_days)
+        age = info["age_days"]
+        if age is None or info["stale"]:
+            print("not written: the newest discovery in this database is %s old. Draw the sample from the runner's "
                   "snapshot (scripts/db_pull.sh, then rerun): a local copy holds labels the runner has replaced."
                   % ("of no age, there are none" if age is None else "%.1f days" % age))
             return {"n": 0, "refused": "stale_database", "age_days": age, "out": str(out)}
@@ -400,8 +406,11 @@ def human_study_status(conn, reviews_dir: Optional[Path] = None) -> Dict:
         # A study cmd_compute recorded certifies the labels of the prompt it compared against, and no
         # others: it is stale once the prompt has changed, or when it compared frozen labels. A stale study
         # never passes; one that failed still withholds until a new study reports.
+        # A prompt that keeps the category definitions of the study's prompt (classify_llm.PROMPT_EXTENDS, owner
+        # decision D16) leaves the labels it compared current, so it does not make the study stale.
         out["stale"] = bool(details.get("method") == "human_coding" and not (
-            against == "current_label" and study_prompt and study_prompt >= current_prompt))
+            against == "current_label" and study_prompt
+            and classify_llm.category_prompt_of(study_prompt) >= classify_llm.category_prompt_of(current_prompt)))
         if details.get("sample_complete") is False:
             out["state"] = "incomplete"
         elif row["kappa_bc"] is None and details.get("kappa_bc_failed"):
@@ -702,6 +711,197 @@ def cmd_compute(conn, csv_path: Path, reviewer: str, record: bool = True, partia
     return res
 
 
+# ---------------------------------------------------------------------------
+# Attribute by attribute comparison with hand codes (owner decision D16 of 2026-11-24)
+# ---------------------------------------------------------------------------
+# From prompt 2026-12-01 every model label carries the paper's six attributes (classify_llm.ATTRIBUTE_VALUES),
+# so a label can be compared with a hand code one attribute at a time and the weak step found and fixed on its
+# own. The hand codes come from a sheet kept outside the repository: the paper's coding (one row per hand coded
+# id, the attributes in columns AUTHOR, COMMISSIONER, STATE_AFFIL, ROUTE, DISCLOSURE, VERIFICATION, and the
+# category the paper's rule gives in DERIVED_CAT), joined to tracker article ids through one or more key files
+# (JSON {"rows": [{"ext_id", "tracker_article_id"}]}, or a sheet with ext_id and tracker_article_id columns), or
+# any sheet that names the tracker article itself (tracker_article_id or article_id) with the attributes in
+# lower case columns, such as a hand check sheet. Only codes are read; no text from the sheet is kept. The
+# comparison records nothing: it prints, and writes a JSON file when asked.
+ATTRIBUTE_SHEET_COLUMNS = {"author": ("author",), "commissioner": ("commissioner",),
+                           "state_affiliation": ("state_affil", "state_affiliation"), "route": ("route",),
+                           "disclosure": ("disclosure",), "verification": ("verification",)}
+# The binary split the paper's rule turns on, compared on its own: unchecked (merely_attributed or unassessed)
+# against every other verification value.
+VERIFICATION_SPLIT = "verification_unchecked"
+
+
+def _read_sheet(path: Path) -> List[Dict[str, str]]:
+    """A tab or comma separated sheet as rows keyed by lower case column names, values stripped."""
+    import io
+    text = Path(path).read_text(encoding="utf-8-sig")
+    delimiter = "\t" if "\t" in text.split("\n", 1)[0] else ","
+    return [{(k or "").strip().lower(): (v or "").strip() for k, v in row.items() if k is not None}
+            for row in csv.DictReader(io.StringIO(text), delimiter=delimiter)]
+
+
+def _article_id(value) -> Optional[int]:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _key_map(path: Path) -> Dict[str, int]:
+    """{hand coded id: tracker article id} from a key file (JSON with "rows", a JSON list, or a sheet)."""
+    path = Path(path)
+    if path.suffix.lower() == ".json":
+        data = json.loads(path.read_text(encoding="utf-8"))
+        rows = data.get("rows") if isinstance(data, dict) else data
+        rows = [{str(k).lower(): v for k, v in r.items()} for r in rows or [] if isinstance(r, dict)]
+    else:
+        rows = _read_sheet(path)
+    out = {}
+    for r in rows:
+        hid = str(r.get("ext_id") or r.get("id") or "").strip()
+        aid = _article_id(r.get("tracker_article_id") or r.get("article_id"))
+        if hid and aid is not None:
+            out.setdefault(hid, aid)
+    return out
+
+
+def load_hand_codes(codes_path: Path, key_paths=()) -> Tuple[List[Dict], Dict]:
+    """The hand codes of a sheet as [{"hand_id", "article_id", "attributes", "derived_category"}] and
+    counts of what was left out: rows naming no tracker article, rows with no attribute, a second row
+    for an article already read. Values are lower cased; a value outside the model's list is kept, and
+    compare_attributes counts it as outside the codebook."""
+    keymap = {}
+    for kp in key_paths or ():
+        keymap.update(_key_map(kp))
+    items, seen, stats = [], set(), Counter()
+    for row in _read_sheet(codes_path):
+        stats["rows"] += 1
+        hid = row.get("id") or row.get("ext_id") or None
+        aid = _article_id(row.get("tracker_article_id") or row.get("article_id"))
+        if aid is None:
+            aid = keymap.get(hid or "")
+        if aid is None:
+            stats["no_article_id"] += 1
+            continue
+        attrs = {}
+        for a, cols in ATTRIBUTE_SHEET_COLUMNS.items():
+            value = next((row[c] for c in cols if row.get(c)), "")
+            attrs[a] = value.lower() or None
+        if all(v is None for v in attrs.values()):
+            stats["no_attributes"] += 1
+            continue
+        if aid in seen:
+            stats["duplicate_article"] += 1
+            continue
+        seen.add(aid)
+        derived = (row.get("derived_cat") or row.get("category") or "").strip() or None
+        items.append({"hand_id": hid, "article_id": aid, "attributes": attrs,
+                      "derived_category": derived.upper() if derived and derived != "?" else derived})
+    stats["read"] = len(items)
+    return items, dict(stats)
+
+
+def _pair_result(pairs: List[Tuple[str, str]]) -> Dict:
+    """Agreement, Cohen's kappa (None where the pairs cannot support one) and the confusion of model
+    value against hand value, for one attribute."""
+    confusion = defaultdict(Counter)
+    for m, h in pairs:
+        confusion[m][h] += 1
+    return {"n": len(pairs),
+            "agreement": sum(1 for m, h in pairs if m == h) / float(len(pairs)) if pairs else None,
+            "kappa": cohens_kappa(pairs),
+            "model": dict(Counter(m for m, _ in pairs)), "hand": dict(Counter(h for _, h in pairs)),
+            "confusion": {m: dict(c) for m, c in confusion.items()}}
+
+
+def _label_category(row) -> str:
+    """A current label's category as the paper's rule names it: not relevant is C, and a state origin
+    label whose issuer is a state-owned enterprise is S, the paper's group for state-owned issuers."""
+    cat = row["category"]
+    if cat == "not_relevant":
+        return "C"
+    if cat == "A" and "issuer_type" in row.keys() and row["issuer_type"] == "state_owned_enterprise":
+        return "S"
+    return cat
+
+
+def compare_attributes(conn, items: List[Dict]) -> Dict:
+    """Each hand coded article's current label against its hand codes, attribute by attribute.
+
+    attributes: per attribute, over the articles whose current label carries the six attributes (model
+    labels from prompt 2026-12-01) and whose hand code gives that attribute a value in the model's list:
+    n, agreement, Cohen's kappa and the confusion. verification_unchecked is the binary split the paper's
+    rule turns on. derived_category compares the category the paper's rule derives from the label's
+    attributes with the hand coded one. category compares every current label, with or without attributes,
+    with the hand coded category ("?" left out). Left out and counted: articles with no current label, with
+    a rules label, with a model label that carries no attributes; and hand values outside the model's lists."""
+    pairs, excluded, outside = defaultdict(list), Counter(), Counter()
+    compared = 0
+    for it in items:
+        row = conn.execute("SELECT * FROM classifications WHERE article_id=? AND is_current=1 ORDER BY id DESC LIMIT 1",
+                           (it["article_id"],)).fetchone()
+        if row is None:
+            excluded["no_current_label"] += 1
+            continue
+        hand_cat = it.get("derived_category")
+        if hand_cat in ("A", "B", "C", "S"):
+            pairs["category"].append((_label_category(row), hand_cat))
+        if row["method"] != "llm":
+            excluded["rules_label"] += 1
+            continue
+        model = classify_llm.attributes_of_row(row)
+        if model is None:
+            excluded["label_without_attributes"] += 1
+            continue
+        compared += 1
+        for a, values in classify_llm.ATTRIBUTE_VALUES.items():
+            h, m = it["attributes"].get(a), model.get(a)
+            if h is None or m is None:
+                continue
+            if h not in values:
+                outside[a] += 1
+                continue
+            pairs[a].append((m, h))
+            if a == "verification":
+                pairs[VERIFICATION_SPLIT].append(tuple(
+                    "unchecked" if v in classify_llm.UNCHECKED_VERIFICATION else "other" for v in (m, h)))
+        derived = classify_llm.derived_category(model)
+        if derived and hand_cat:
+            pairs["derived_category"].append((derived, hand_cat))
+    order = list(classify_llm.ATTRIBUTES) + [VERIFICATION_SPLIT, "derived_category"]
+    return {"hand_coded": len(items), "compared": compared, "excluded": dict(excluded),
+            "outside_codebook": dict(outside),
+            "attributes": {k: _pair_result(pairs[k]) for k in order},
+            "category": _pair_result(pairs["category"])}
+
+
+def _fmt(v) -> str:
+    return "undefined" if v is None else "%.3f" % v
+
+
+def cmd_attributes(conn, codes_path: Path, key_paths=(), out: Optional[Path] = None) -> Dict:
+    """Load the hand codes, compare them with the current labels attribute by attribute, print the figures,
+    and write them as JSON to out when given. Records nothing in the database."""
+    items, stats = load_hand_codes(codes_path, key_paths)
+    res = compare_attributes(conn, items)
+    res["sheet"] = {"file": Path(codes_path).name, "keys": [Path(k).name for k in key_paths or ()], "counts": stats}
+    print("hand coded articles read: %d (%s)" % (len(items), ", ".join("%s %d" % kv for kv in sorted(stats.items()))))
+    print("compared attribute by attribute: %d; left out: %s" % (
+        res["compared"], ", ".join("%s %d" % kv for kv in sorted(res["excluded"].items())) or "none"))
+    for name, r in res["attributes"].items():
+        print("  %s: n=%d, agreement %s, kappa %s" % (name, r["n"], _fmt(r["agreement"]), _fmt(r["kappa"])))
+    if res["outside_codebook"]:
+        print("hand values outside the model's lists, left out: %s" % json.dumps(res["outside_codebook"]))
+    c = res["category"]
+    print("current label against the hand coded category (every label): n=%d, agreement %s, kappa %s"
+          % (c["n"], _fmt(c["agreement"]), _fmt(c["kappa"])))
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        Path(out).write_text(json.dumps(res, indent=1, sort_keys=True), encoding="utf-8")
+        print("written to %s" % out)
+    return res
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -713,8 +913,8 @@ def main(argv=None):
     s.add_argument("--min-labelled", type=int, default=HUMAN_SAMPLE_MIN_LABELLED)
     s.add_argument("--since-prompt", nargs="?", const="current", default=None, metavar="YYYY-MM-DD",
                    help="draw only from model labels made under this classifier prompt or a later one (alone: the "
-                        "current prompt). Run on the runner's snapshot; refuses a database whose newest model label "
-                        "is over %d days old" % SAMPLE_MAX_DB_AGE_DAYS)
+                        "current prompt, or the one whose categories it keeps, classify_llm.PROMPT_EXTENDS). Run on the runner's snapshot; every draw refuses a database whose newest "
+                        "discovery is over %d days old" % SAMPLE_MAX_DB_AGE_DAYS)
     c = sub.add_parser("compute")
     c.add_argument("--csv", required=True)
     c.add_argument("--reviewer", default="hand_coder", help="used for rows whose coder column is blank")
@@ -723,18 +923,30 @@ def main(argv=None):
     c.add_argument("--against", choices=["current", "frozen"], default="current",
                    help="compare with each article's current model label under the current prompt (default), or, for "
                         "the audit only and never recorded, with the label frozen at sample time")
+    t = sub.add_parser("attributes", help="compare the current labels' six attributes with hand codes; records nothing")
+    t.add_argument("--codes", required=True, help="the hand coding sheet (tab or comma separated)")
+    t.add_argument("--key", action="append", default=[], help="a file mapping hand coded ids to tracker_article_id")
+    t.add_argument("--out", default=None, help="write the figures to this JSON file")
     args = ap.parse_args(argv)
     conn = store.connect()
     today = dt.date.today().isoformat()
+    # A stale local copy is refused for every draw and warned about for compute (pipeline/freshness.py).
+    if not freshness.guard(conn, "agreement %s" % args.cmd, refuse=args.cmd == "sample", max_age_days=SAMPLE_MAX_DB_AGE_DAYS):
+        sys.exit(1)
     if args.cmd == "sample" and args.n:
         cmd_sample(conn, args.n, Path(args.out or "review/agreement_%s.csv" % today),
                    int(args.seed) if args.seed is not None else None)
     elif args.cmd == "sample":
-        since = classify_llm.PROMPT_VERSION if args.since_prompt == "current" else args.since_prompt
+        # "current": the labels that mean what the current prompt's labels mean, those of a prompt it extends
+        # included (classify_llm.PROMPT_EXTENDS); name a date to draw from one prompt's labels only.
+        since = (classify_llm.category_prompt_of(classify_llm.PROMPT_VERSION) if args.since_prompt == "current"
+                 else args.since_prompt)
         res = cmd_human_sample(conn, Path(args.out or REVIEWS_DIR / ("human_sample_%s.csv" % today)),
                                args.per_language, args.min_labelled, args.seed or HUMAN_SAMPLE_SEED, since_prompt=since)
         if res.get("refused"):
             sys.exit(1)
+    elif args.cmd == "attributes":
+        cmd_attributes(conn, Path(args.codes), [Path(k) for k in args.key], Path(args.out) if args.out else None)
     else:
         cmd_compute(conn, Path(args.csv), args.reviewer, record=not args.dry_run, partial=args.partial, against=args.against)
 

@@ -1,4 +1,5 @@
-"""Fixture based tests for the signature matcher. Every fixture is real article text."""
+"""Fixture based tests for the signature matcher. Every fixture is real article text, except the
+synthetic_issuer_* fixtures, written for the release issuer rule (pipeline/state_issuers.py)."""
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,10 @@ CASES = yaml.safe_load((FIX / "cases.yaml").read_text())
 def _run(case):
     text = (FIX / case["file"]).read_text()
     labels = (FIX / case["labels"]).read_text() if case.get("labels") else ""
-    return cr.match_signatures("", text, case.get("author"), labels=labels)
+    # Every fixture is read as an item of the arrival it names (an editorial feed unless it says), so the
+    # issuer of a paid release is read against the registry of state issuers (pipeline/state_issuers.py).
+    return cr.match_signatures(case.get("title", ""), text, case.get("author"), labels=labels,
+                               arrival=case.get("arrival", "editorial_feed"))
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["file"] for c in CASES])
@@ -35,6 +39,8 @@ def test_fixture(case):
         assert i not in trig, trig
     if "expect_triggers" in case:
         assert trig == case["expect_triggers"]
+    if "expect_issuer" in case:
+        assert (res["issuer"] or {}).get("issuer") == case["expect_issuer"], res["issuer"]
 
 
 # Synthetic hard negatives and positives per group, in addition to the real fixtures.

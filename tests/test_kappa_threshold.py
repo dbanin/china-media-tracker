@@ -8,7 +8,7 @@ import json
 import re
 from pathlib import Path
 
-from pipeline import agreement, config, export, methodology, store
+from pipeline import agreement, classify_llm, config, export, methodology, store
 from tests.test_human_coding import WORDS, _db, _fill, _meta
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,7 +79,8 @@ def test_a_stability_rerun_between_0_6_and_0_7_withholds_the_provisional_counts(
     conn = _db(tmp_path, monkeypatch, {"en": 10})
     store.record_model_agreement(conn, {"method": "same_model_rerun", "model_a": "claude-sonnet-5",
                                         "model_b": "claude-sonnet-5", "sample_size": 225, "kappa_all": 0.81,
-                                        "kappa_bc": 0.65, "n_bc": 116, "details": {}}, [])
+                                        "kappa_bc": 0.65, "n_bc": 116,
+                                        "details": {"prompt_version": classify_llm.PROMPT_VERSION}}, [])
     meta = _meta(conn)
     assert meta["relay_provisional"] is False and meta["relay_publishable"] is False
 

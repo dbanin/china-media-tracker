@@ -109,6 +109,13 @@ def fetch_entries(url: str, type_: Optional[str] = "page") -> Dict:
 # keyword gate applies to these items from the start (keyword_gate in the result). It loses nothing
 # found by hand: the Chinese issuers name themselves or a Chinese place in the headline or abstract,
 # and all 49 pass it, among 352 of the 1,459 (24%).
+#
+# AAP's own site shows the same releases at aap.com.au/aapreleases (a GlobeNewswire list and a Cision list,
+# 14 a page). Checked 2026-11-24: the five newest of its Cision list were the five newest releases of this
+# listing, under the same keys (cision20261124ae05256 here is cision20261124AE05256 there), and its
+# GlobeNewswire keys are this listing's (globenewswire9882119 is stored from it for ten mastheads). Of the 66
+# China releases of 5 September to 12 October that a hand count took from those lists, 65 are stored from
+# this listing. It is not added: it is the same set, and the copies the tracker counts are the mastheads'.
 AAP_WIDGET = "aap_widget"
 AAP_LISTING = "https://newsroom.aap.com.au/releases"
 AAP_TZ = "Australia/Sydney"            # the listing's "Published" times are Sydney local time
