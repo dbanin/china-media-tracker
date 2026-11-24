@@ -427,8 +427,9 @@ One exception, decided by the owner on 2026-11-22. SRNA of Bosnia shows only
 the opening of a new story on its page for the first hours, with a line that
 the complete news is for subscribers, while its public feed carries the whole
 text. For a page that shows that line the feed's text is the body
-(`pipeline/feed_text.py`). Nothing is asked of the sign-in page, and every
-other paywall marker is treated as before.
+(`pipeline/feed_text.py`). A story the feed no longer lists has its page
+read again some hours later, when the line is gone. Nothing is asked of the
+sign-in page, and every other paywall marker is treated as before.
 
 Licensed archive check. To look behind some paywalls without crossing them,
 the owner ran the tracker's state origin signatures and model triggers

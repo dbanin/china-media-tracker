@@ -4,6 +4,24 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## SRNA subscriber stories read again once the notice is gone (2026-11-24)
+
+No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. Only SRNA rows recorded
+as paywalled for the subscriber notice are fetched again, and no other outlet's pages carry the notice.
+
+Since the previous entry an SRNA story whose page shows the subscriber notice takes the feed's text, and one the feed
+no longer lists is left paywalled with the opening. On the runner from 2026-11-22 to 24 the one-time step requeued the
+8 stored rows (srna_notices_requeued) and 7 new stories took the feed's text (feed_text), and no SRNA row was left
+paywalled. The notice is gone from a page some hours after publication, so at the owner's request (2026-11-24) a story
+left paywalled for it is now fetched again NOTICE_REREAD_AFTER_HOURS (4) or more after its last fetch, while it has
+fetches left (RETRY_ATTEMPT_LIMIT, 3 in all) and within the retry window of 7 days
+(fetch_articles.notice_reread_candidates). The page is read as any page is: one that shows the whole text is stored
+whole, one that still shows the notice takes the feed's text where the feed lists the story again and is otherwise
+paywalled again and waits as long once more. The fetch stage's record counts these rows as notice_rereads. 4 tests are
+added to tests/test_feed_text.py, on the synthetic page already in the fixtures. Expected effect on the data: an SRNA
+story missed by the feed is stored whole about 5 hours after publication instead of staying paywalled; with hourly
+runs that is expected to be rare, and none was waiting on the snapshot of 2026-11-24.
+
 ## SRNA subscriber stories take the feed's text (2026-11-22)
 
 No version changes: EXTRACT_VERSION stays 2026.11.2, the data schema 21 and ASSET_VERSION 95. Only an SRNA page that

@@ -47,6 +47,12 @@ RETRY_WINDOW_DAYS = 7
 NO_TEXT_REASONS = ("extraction_empty", "unreadable: no article text")
 NO_TEXT_SQL = "(fail_reason='extraction_empty' OR fail_reason LIKE 'unreadable: no article text%')"
 SECOND_ATTEMPT_AFTER_HOURS = 6
+# SRNA's subscriber notice (extract.SUBSCRIBER_NOTICE) is on the page of a new story for its first hours only:
+# of 21 stories fetched 2026-11-20 to 22, the 8 fetched 43 to 73 minutes after publication carried it and the
+# 13 fetched 3 hours 25 minutes or more after did not. A story the feed no longer listed when its page showed
+# the notice (pipeline/feed_text.py) is left paywalled with the opening, so its page is read again this many
+# hours after each fetch, up to RETRY_ATTEMPT_LIMIT fetches in all (owner's request of 2026-11-24).
+NOTICE_REREAD_AFTER_HOURS = 4
 # A site that answers with its challenge page is refusing the crawler. After this many of them in a row
 # from one domain in one run, the pages of it waiting for another try are left alone for the run.
 CHALLENGE_REASON = "unreadable: challenge page"
@@ -566,14 +572,15 @@ def _iso_ago(seconds: float) -> str:
 
 def retry_candidates(conn) -> List:
     """Articles to fetch again, each once in the list: recently discovered ones whose last failure
-    looks transient and that have attempts left, then the pages that held no article text (the three
-    rules below)."""
+    looks transient and that have attempts left, the pages that held no article text (the three rules
+    below), and SRNA stories left paywalled while the subscriber notice was up (notice_reread_candidates)."""
     rows = conn.execute(
         "SELECT * FROM articles WHERE status='failed' AND gate_relevant=1 AND fetch_attempts<? AND discovered_at>=? ORDER BY discovered_at",
         (RETRY_ATTEMPT_LIMIT, _iso_ago(RETRY_WINDOW_DAYS * 86400)),
     ).fetchall()
     out = [r for r in rows if r["fail_reason"] and r["fail_reason"].startswith(TRANSIENT_FAIL_PREFIXES)]
-    out += second_attempt_candidates(conn) + stale_empty_candidates(conn) + second_chance_candidates(conn)
+    out += second_attempt_candidates(conn) + notice_reread_candidates(conn) + stale_empty_candidates(conn)
+    out += second_chance_candidates(conn)
     seen = set()
     return [r for r in out if not (r["id"] in seen or seen.add(r["id"]))]
 
@@ -590,6 +597,18 @@ def second_attempt_candidates(conn) -> List:
         " AND EXISTS (SELECT 1 FROM articles b WHERE b.outlet_id=a.outlet_id AND b.discovered_at>=?"
         " AND b.status IN ('fetched', 'classified')) ORDER BY discovered_at",
         (since, _iso_ago(SECOND_ATTEMPT_AFTER_HOURS * 3600), since)).fetchall()
+
+
+def notice_reread_candidates(conn) -> List:
+    """Recent articles left paywalled because their page showed SRNA's subscriber notice and the feed no
+    longer listed them, fetched NOTICE_REREAD_AFTER_HOURS or more ago with fetches left: their pages are
+    read again, by now as a rule with the whole text. A page that still shows the notice is paywalled
+    again (or takes the feed's text, where the feed lists it once more) and waits as long again."""
+    return conn.execute(
+        "SELECT * FROM articles WHERE status='paywalled' AND fail_reason=? AND gate_relevant=1 AND fetch_attempts<?"
+        " AND discovered_at>=? AND fetched_at<=? ORDER BY discovered_at",
+        (extract.SUBSCRIBER_NOTICE, RETRY_ATTEMPT_LIMIT, _iso_ago(RETRY_WINDOW_DAYS * 86400),
+         _iso_ago(NOTICE_REREAD_AFTER_HOURS * 3600))).fetchall()
 
 
 def second_chance_candidates(conn) -> List:
@@ -661,6 +680,9 @@ def run(conn, run_id: str, deadline: Optional[float] = None, limit: Optional[int
     # seconds); the remainder stays queued, without spending an attempt, for the next run.
     permits = threading.BoundedSemaphore(workers)
     retry_ids = {r["id"] for r in retries}
+    rereads = sum(1 for r in retries if r["status"] == "paywalled")
+    if rereads:
+        counts["notice_rereads"] = rereads
 
     def worker(items):
         challenges = misses = 0

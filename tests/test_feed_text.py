@@ -165,3 +165,106 @@ def test_fetch_of_a_page_without_the_notice_never_asks_the_feed(conn, tmp_path, 
     aid = _row(conn, "https://www.srna.rs/en/novost/1449728/news", title="KAVE MARUMOMUBOPU FOR JESULE")
     out = _fetch(conn, tmp_path, monkeypatch, aid, html=_page("en_ba_srna"))
     assert out["status"] == "fetched" and not out.get("feed_text") and asked == []
+
+
+# The later page re-read (fetch_articles.notice_reread_candidates): a story the feed no longer listed while
+# its page showed the notice is read again some hours later, when the page shows the whole text.
+
+def _lifted():
+    """The same page some hours later: the notice gone and the rest of the story in its place."""
+    m = extract.SUBSCRIBER_NOTICE_RE.search(HTML)
+    end = HTML.index("</a>", m.end()) + len("</a>")
+    return HTML[:m.start()] + '<p class="desc">%s</p>' % "<br><br>".join(REST) + HTML[end:]
+
+
+@pytest.fixture
+def env(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "BODIES_DIR", tmp_path / "bodies")
+    monkeypatch.setattr(config, "RAW_HTML_DIR", tmp_path / "raw")
+    monkeypatch.setattr(feed_text, "_listed", {})
+    db = tmp_path / "t.db"
+    real_connect = store.connect
+    monkeypatch.setattr(store, "connect", lambda path=db: real_connect(path))
+    monkeypatch.setattr(fetch_articles, "can_fetch", lambda url: (True, "no_robots"))
+    monkeypatch.setattr(fetch_articles, "_rate_wait", lambda domain: None)
+    asked = []
+
+    def serve(page):
+        def get_page(url):
+            asked.append(url)
+            return page, 200, None
+        monkeypatch.setattr(fetch_articles, "get_page", get_page)
+    c = store.connect()
+    yield c, asked, serve
+    c.close()
+    fetch_articles._release_fetch_keys()
+
+
+def _held(conn, n, fetched_hours=5, attempts=1, reason=extract.SUBSCRIBER_NOTICE, gate=1, discovered_days=1):
+    import datetime as dt
+
+    def ago(**kw):
+        return (dt.datetime.now(dt.timezone.utc) - dt.timedelta(**kw)).replace(microsecond=0).isoformat()
+    aid = _row(conn, URL.replace("1449761", str(n)))
+    store.update_article(conn, aid, status="paywalled", fail_reason=reason, fetch_attempts=attempts,
+                         gate_relevant=gate, fetched_at=ago(hours=fetched_hours),
+                         discovered_at=ago(days=discovered_days, hours=fetched_hours))
+    conn.commit()
+    return aid
+
+
+def test_lifted_page_reads_whole_without_the_feed():
+    text = extract.extract(_lifted(), URL)["text"]
+    assert extract.detect_paywall(_lifted(), text) == (False, None)
+    assert extract.one_line(text) == extract.one_line(WHOLE)
+
+
+def test_stories_left_paywalled_by_the_notice_are_read_again_hours_later(env):
+    conn = env[0]
+    yes = _held(conn, 1)
+    second = _held(conn, 2, attempts=2)
+    _held(conn, 3, fetched_hours=1)                                   # too soon
+    _held(conn, 4, attempts=fetch_articles.RETRY_ATTEMPT_LIMIT)       # no fetches left
+    _held(conn, 5, reason="paywall marker: subscribe")                # another paywall: left alone
+    _held(conn, 6, gate=0)
+    _held(conn, 7, discovered_days=fetch_articles.RETRY_WINDOW_DAYS + 1)
+    assert {r["id"] for r in fetch_articles.notice_reread_candidates(conn)} == {yes, second}
+    assert {r["id"] for r in fetch_articles.retry_candidates(conn)} == {yes, second}
+
+
+def test_fetch_reads_the_page_again_once_the_notice_is_gone(env, monkeypatch):
+    conn, asked, serve = env
+    _feed(monkeypatch, [_item(link=URL.replace("61", "62"))])          # the feed no longer lists it
+    aid = _row(conn)
+    serve(HTML)
+    counts = fetch_articles.run(conn, "t", workers=1)
+    row = store.get_article(conn, aid)
+    assert (row["status"], row["fail_reason"], row["fetch_attempts"]) == ("paywalled", extract.SUBSCRIBER_NOTICE, 1)
+    assert "notice_rereads" not in counts
+    # The next run, within the hours: the page is not asked for.
+    asked.clear()
+    assert "notice_rereads" not in fetch_articles.run(conn, "t2", workers=1) and asked == []
+    # Some hours later the page shows the whole text and is read whole.
+    import datetime as dt
+    store.update_article(conn, aid, fetched_at=(dt.datetime.now(dt.timezone.utc) - dt.timedelta(
+        hours=fetch_articles.NOTICE_REREAD_AFTER_HOURS, minutes=5)).isoformat())
+    conn.commit()
+    serve(_lifted())
+    counts = fetch_articles.run(conn, "t3", workers=1)
+    assert counts["notice_rereads"] == 1 and counts["fetched"] == 1 and asked == [URL]
+    row = store.get_article(conn, aid)
+    assert (row["status"], row["fail_reason"], row["fetch_attempts"]) == ("fetched", None, 2)
+    assert extract.one_line(store.load_body(row["url_hash"])) == extract.one_line(WHOLE)
+    assert fetch_articles.notice_reread_candidates(conn) == []
+
+
+def test_page_that_still_shows_the_notice_is_paywalled_again_and_waits(env, monkeypatch):
+    conn, asked, serve = env
+    _feed(monkeypatch, [])
+    aid = _held(conn, 1)
+    serve(HTML)
+    counts = fetch_articles.run(conn, "t", workers=1)
+    row = store.get_article(conn, aid)
+    assert counts["notice_rereads"] == 1 and len(asked) == 1
+    assert (row["status"], row["fail_reason"], row["fetch_attempts"]) == ("paywalled", extract.SUBSCRIBER_NOTICE, 2)
+    assert fetch_articles.notice_reread_candidates(conn) == []        # fetched just now

@@ -4423,6 +4423,7 @@
     and item links are rewritten to that address (pipeline/feeds_util.py). The page of a new story shows the opening paragraph and a line that the complete news is for subscribers of the news service; the
     line is gone some hours later (8 of 21 stories fetched 2026-11-20 to 22 carried it, all fetched within 73 minutes of publication). The feed's description carries the whole story from the start, and
     by the owner's decision of 2026-11-22 it is the body of a story whose page shows the line (pipeline/feed_text.py). Where the feed no longer lists the story it is recorded as paywalled with the opening.
+    Its page is then read again 4 hours later, up to 3 fetches in all (pipeline/fetch_articles.py, notice_reread_candidates).
   political_leaning: state_controlled
   leaning_source: https://en.wikipedia.org/wiki/Media_of_Bosnia_and_Herzegovina
   ownership: state
