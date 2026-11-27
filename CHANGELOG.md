@@ -4,6 +4,16 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Export check accepts S and H (2026-11-27)
+
+No version changes. The runner checks the files each export writes against the schemas in tests/test_export.py before
+committing them, and the article list schema allowed only the categories A, B, C, U and pending, so every run from
+2026-11-25 01:56 UTC failed that check as soon as the first state-owned issuer (S) reached an article file. The
+discovery, fetch and classification stages ran and the database was saved in each of those runs, but no site data was
+committed, no snapshot was published and the hourly chain stopped, leaving only the 13 runs the scheduler started from
+2026-11-25 to 27. The schema now allows S and H. Expected effect on the data: none; the site catches up at the next
+export and the hourly chain resumes with the next run that succeeds.
+
 ## Ruleset 2026.11.1 (2026-11-24)
 
 Fixes from the paper's hand coding: state issuers, six attributes, distinct items, silence alarms.

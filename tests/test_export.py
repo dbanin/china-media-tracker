@@ -67,7 +67,7 @@ OUTLETS_SCHEMA = {
                                                           "properties": {"counts": COUNTS_SCHEMA, "feeds": {"type": "array", "items": {"type": "object", "required": ["url", "ok"]}}}}}},
 }
 ARTICLES_SCHEMA = {"type": "array", "items": {"type": "object", "required": ["id", "outlet_id", "title", "url", "date", "category", "provenance", "sources"],
-                                              "properties": {"category": {"enum": ["A", "B", "C", "U", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
+                                              "properties": {"category": {"enum": ["A", "B", "C", "U", "S", "H", "pending"]}, "provenance": {"enum": ["rules", "llm", "human"]}}}}
 EXAMPLE_ITEM_SCHEMA = {"type": "object", "required": ["id", "headline", "outlet_id", "outlet_name", "country", "url", "date", "tell"],
                        "properties": {"tell": {"type": "object", "required": ["snippet", "start", "end"]}}}
 EXAMPLES_SCHEMA = {"type": "object", "required": ["generated_at", "A"],
