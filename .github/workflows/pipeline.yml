@@ -322,9 +322,19 @@ jobs:
         if: env.STAGE == 'export'
         with:
           path: docs
+      # A publish that cannot yet see the artifact uploaded a second before it ("No artifacts named
+      # github-pages were found", run 46058632698 on 2026-11-27) is tried once more after a pause, so a passing
+      # fault of Pages does not fail the run and stop the hourly chain; a second failure fails the run.
       - id: deployment
         uses: actions/deploy-pages@v4
         if: env.STAGE == 'export'
+        continue-on-error: true
+      - name: Wait before publishing the site again
+        if: env.STAGE == 'export' && steps.deployment.outcome == 'failure'
+        run: sleep 60
+      - id: deployment_again
+        uses: actions/deploy-pages@v4
+        if: env.STAGE == 'export' && steps.deployment.outcome == 'failure'
       - name: Issue listing newly dead feeds
         if: env.STAGE == 'validate'
         uses: actions/github-script@v8

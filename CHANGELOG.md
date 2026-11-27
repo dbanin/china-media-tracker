@@ -4,6 +4,14 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Site publish tried twice (2026-11-27)
+
+No version changes. The first run after that fix (46058632698, started by hand on 2026-11-27) collected, exported, committed the site data
+and published the database snapshot, then failed to publish the site: GitHub Pages could not yet see the site artifact
+uploaded a second before. The workflow now waits a minute and publishes once more when the first attempt fails, and
+fails the run only when the second does, so a passing fault of Pages no longer stops the hourly chain. Expected effect
+on the data: none.
+
 ## Export check accepts S and H (2026-11-27)
 
 No version changes. The runner checks the files each export writes against the schemas in tests/test_export.py before
