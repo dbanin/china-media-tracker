@@ -92,7 +92,12 @@ def _committed_schema_current():
 @pytest.mark.skipif((config.EXPORT_DIR / "latest.json").exists() and not _committed_schema_current(),
                     reason="committed export predates the current data schema; the next export regenerates it")
 def test_committed_export_validates():
-    d = config.EXPORT_DIR
+    validate_export_dir(config.EXPORT_DIR)
+
+
+def validate_export_dir(d):
+    """The checks the workflow runs on the files it has just generated (step "Schema validation of the files
+    just generated"); tests/test_state_issuers.py runs them on an export that holds every category."""
     jsonschema.validate(_load(d / "latest.json"), LATEST_SCHEMA)
     jsonschema.validate(_load(d / "meta.json"), META_SCHEMA)
     jsonschema.validate(_load(d / "outlets.json"), OUTLETS_SCHEMA)

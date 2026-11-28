@@ -4,13 +4,22 @@ Changes to the ruleset, the relevance gate, the model prompt, the data schema,
 the collectors, the measures and the site are recorded here with what each
 altered, so that a change in historical numbers can be traced.
 
+## Site published when it lags the branch (2026-11-27)
+
+No version changes. A run picks the export stage when the site data is 12 hours old. It read that age from the branch
+alone, so after the failed publish of 2026-11-27 the branch looked fresh while the published site still showed
+2026-11-24 data, and no run would have published it for another 12 hours. The age is now the older of the branch's
+meta.json and the published site's; when the site cannot be read the branch decides as before. A new test exports a
+database holding the A, C, U, S and H groups and runs the workflow's schema check on what it writes, the check that
+every run failed from 2026-11-25 because its category list lacked S and H. Expected effect on the data: none.
+
 ## Site publish tried twice (2026-11-27)
 
-No version changes. The first run after that fix (46058632698, started by hand on 2026-11-27) collected, exported, committed the site data
-and published the database snapshot, then failed to publish the site: GitHub Pages could not yet see the site artifact
-uploaded a second before. The workflow now waits a minute and publishes once more when the first attempt fails, and
-fails the run only when the second does, so a passing fault of Pages no longer stops the hourly chain. Expected effect
-on the data: none.
+No version changes. The first run after that fix (46058632698, started by hand on 2026-11-27) collected, exported,
+committed the site data and published the database snapshot, then failed to publish the site: GitHub Pages could not
+yet see the site artifact uploaded a second before. The workflow now waits a minute and publishes once more when the
+first attempt fails, and fails the run only when the second does, so a passing fault of Pages no longer stops the
+hourly chain. Expected effect on the data: none.
 
 ## Export check accepts S and H (2026-11-27)
 

@@ -358,3 +358,16 @@ def test_a_real_release_is_read_for_its_issuer():
                                                                       for h in si.read_release(title, body, "", "", "editorial_feed")["issuers"]}
     # without the issuer reading the release was only a candidate for the model
     assert cr.match_signatures(title, body, None)["decision"] == "A_candidate"
+
+
+def test_an_export_holding_every_category_passes_the_workflow_schema_check(conn, tmp_path, monkeypatch):
+    # Every run from 2026-11-25 failed at the workflow's schema check once a real S label reached the
+    # site files, because the check's category list lacked S and H; the committed site data had no S item,
+    # so no test saw it. Here the export holds A, C, U, S and H and the same check runs on what it writes.
+    from tests.test_export import validate_export_dir
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "e.db")
+    out = tmp_path / "out"
+    export.run(conn, "test", export_dir=out, audit_dir=tmp_path / "audit", methodology_path=tmp_path / "M.md")
+    cats = {a["category"] for f in (out / "articles").glob("*.json") for a in json.loads(f.read_text())}
+    assert {"A", "C", model_only.CODE, si.S, si.H} <= cats
+    validate_export_dir(out)

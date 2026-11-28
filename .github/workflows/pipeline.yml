@@ -110,18 +110,26 @@ jobs:
             git fetch --quiet origin "$GITHUB_REF_NAME" || echo "fetch failed; reading the checked out meta.json"
             git show "origin/$GITHUB_REF_NAME:docs/data/meta.json" > "$RUNNER_TEMP/meta.json" 2>/dev/null \
               || cp docs/data/meta.json "$RUNNER_TEMP/meta.json"
+            # And the published site's: an export whose data was committed but whose Pages publish failed
+            # (2026-11-27) leaves the site behind the branch, and the branch alone would wait 12 hours more.
+            curl -fsS --max-time 20 "https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/data/meta.json" \
+              -o "$RUNNER_TEMP/live_meta.json" || echo "could not read the published site's meta.json"
             age=$(python - <<'PY'
           import json, datetime, os
-          try:
-              m = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "meta.json")))
-              g = m.get("generated_at") or m["generated"]
-              t = datetime.datetime.fromisoformat(g.replace("Z", "+00:00"))
-              print(int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() // 3600))
-          except Exception:
-              print(999)
+          def hours(name):
+              try:
+                  m = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], name)))
+                  g = m.get("generated_at") or m["generated"]
+                  t = datetime.datetime.fromisoformat(g.replace("Z", "+00:00"))
+                  return int((datetime.datetime.now(datetime.timezone.utc) - t).total_seconds() // 3600)
+              except Exception:
+                  return None
+          # the older of the two; a file that cannot be read is left out, and with neither the run exports
+          ages = [h for h in (hours("meta.json"), hours("live_meta.json")) if h is not None]
+          print(max(ages) if ages else 999)
           PY
             )
-            echo "site data is ${age} hours old"
+            echo "site data is ${age} hours old (the older of the branch and the published site)"
             if [ "$age" -ge 12 ]; then stage=export; fi
           fi
           echo "STAGE=$stage" >> "$GITHUB_ENV"
